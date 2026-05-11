@@ -3,6 +3,7 @@
   "installCommand": "pnpm install",
   "buildCommand": "pnpm build",
   "outputDirectory": "public",
+  "ignoreCommand": "npx turbo-ignore @dfit/api",
   "rewrites": [
     {
       "source": "/(.*)",
