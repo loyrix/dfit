@@ -54,6 +54,28 @@ API_HOST=0.0.0.0 pnpm --filter @dfit/api dev
 flutter run --dart-define=DFIT_API_BASE_URL=http://YOUR_MAC_IP:4000
 ```
 
+## Vercel API Deployment
+
+Create the Vercel project from the repo root.
+
+```txt
+Root Directory: .
+Install Command: pnpm install
+Build Command: pnpm build
+Output Directory: leave empty
+```
+
+Set production environment variables in Vercel:
+
+```txt
+DATABASE_URL
+NODE_ENV=production
+AI_PROVIDER=mock
+```
+
+The root `api/index.js` function forwards all routes to the compiled Fastify
+serverless adapter in `apps/api/dist/vercel.js`.
+
 ## Phase 0 Status
 
 - Flutter app scaffold exists with iOS/Android platform projects.
