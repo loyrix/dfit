@@ -74,7 +74,9 @@ AI_PROVIDER=mock
 ```
 
 The root `api/index.js` function forwards all routes to the compiled Fastify
-serverless adapter in `apps/api/dist/vercel.js`.
+serverless adapter in `apps/api/dist/vercel.js`. The empty `public/` directory
+exists only to satisfy Vercel's static output directory check for API-only
+deployments.
 
 ## Phase 0 Status
 
