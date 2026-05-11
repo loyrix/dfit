@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
 
 export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> => {
+  app.get("/", async () => ({
+    ok: true,
+    service: "dfit-api",
+    version: "0.0.0",
+  }));
+
   app.get("/health", async () => ({
     ok: true,
     service: "dfit-api",
