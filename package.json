@@ -1,0 +1,39 @@
+{
+  "name": "dfit",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "workspaces": [
+    "apps/api",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "db:deploy": "node scripts/db/migrate.cjs deploy",
+    "db:down": "node scripts/db/migrate.cjs down",
+    "db:migrate": "node scripts/db/migrate.cjs up",
+    "db:new": "node scripts/db/migrate.cjs new",
+    "db:seed": "node scripts/db/migrate.cjs seed",
+    "db:status": "node scripts/db/migrate.cjs status",
+    "db:validate": "node scripts/db/migrate.cjs validate",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "mobile:analyze": "cd apps/mobile && flutter analyze",
+    "mobile:test": "cd apps/mobile && flutter test"
+  },
+  "dependencies": {
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}
