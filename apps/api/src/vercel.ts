@@ -10,11 +10,7 @@ const appPromise = buildApp().then(async (app) => {
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
     const app = await appPromise;
-    await new Promise<void>((resolve, reject) => {
-      res.once("finish", resolve);
-      res.once("error", reject);
-      app.server.emit("request", req, res);
-    });
+    app.server.emit("request", req, res);
   } catch (error) {
     if (!res.headersSent) {
       res.statusCode = 500;
