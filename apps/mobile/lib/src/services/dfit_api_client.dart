@@ -8,26 +8,15 @@ import '../models/meal.dart';
 class DFitApiClient {
   DFitApiClient({http.Client? httpClient, String? baseUrl})
     : _httpClient = httpClient ?? http.Client(),
-      baseUrl = baseUrl ?? _defaultBaseUrl;
+      baseUrl = DFitApiConfig.normalizeBaseUrl(
+        baseUrl ?? DFitApiConfig.defaultBaseUrl,
+      );
 
   final http.Client _httpClient;
   final String baseUrl;
 
   void close() {
     _httpClient.close();
-  }
-
-  static String get _defaultBaseUrl {
-    const configured = String.fromEnvironment('DFIT_API_BASE_URL');
-    if (configured.isNotEmpty) {
-      return configured;
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:4000';
-    }
-
-    return 'http://127.0.0.1:4000';
   }
 
   Future<TodayJournalData> fetchToday() async {
@@ -146,6 +135,41 @@ class DFitApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw DFitApiException(response.statusCode, response.body);
     }
+  }
+}
+
+class DFitApiConfig {
+  static const productionBaseUrl = 'https://dfit-api.vercel.app';
+
+  static String get defaultBaseUrl {
+    const configured = String.fromEnvironment('DFIT_API_BASE_URL');
+    return resolveBaseUrl(
+      configured: configured,
+      platform: defaultTargetPlatform,
+      releaseMode: kReleaseMode,
+    );
+  }
+
+  @visibleForTesting
+  static String resolveBaseUrl({
+    required String configured,
+    required TargetPlatform platform,
+    required bool releaseMode,
+  }) {
+    final configuredBaseUrl = normalizeBaseUrl(configured);
+    if (configuredBaseUrl.isNotEmpty) return configuredBaseUrl;
+
+    if (releaseMode) return productionBaseUrl;
+
+    return platform == TargetPlatform.android
+        ? 'http://10.0.2.2:4000'
+        : 'http://127.0.0.1:4000';
+  }
+
+  static String normalizeBaseUrl(String value) {
+    final trimmed = value.trim();
+    if (trimmed.endsWith('/')) return trimmed.substring(0, trimmed.length - 1);
+    return trimmed;
   }
 }
 

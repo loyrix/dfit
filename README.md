@@ -40,14 +40,24 @@ pnpm mobile:analyze
 pnpm mobile:test
 ```
 
-Run the API before testing the mobile scan flow:
+Debug mobile builds default to the local API. Run the API before testing the
+mobile scan flow locally:
 
 ```sh
 pnpm --filter @dfit/api dev
 ```
 
 Flutter defaults to `http://127.0.0.1:4000` on iOS simulator and `http://10.0.2.2:4000`
-on Android emulator. For a physical phone, pass your Mac's LAN address:
+on Android emulator. Release builds default to the deployed API:
+`https://dfit-api.vercel.app`.
+
+To test the deployed API from a debug emulator/device:
+
+```sh
+flutter run --dart-define=DFIT_API_BASE_URL=https://dfit-api.vercel.app
+```
+
+For a physical phone against your local Mac, pass your Mac's LAN address:
 
 ```sh
 API_HOST=0.0.0.0 pnpm --filter @dfit/api dev
@@ -62,7 +72,7 @@ Create the Vercel project from the repo root.
 Root Directory: .
 Install Command: pnpm install
 Build Command: pnpm build
-Output Directory: leave empty
+Output Directory: public
 ```
 
 Set production environment variables in Vercel:
