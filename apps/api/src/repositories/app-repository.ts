@@ -41,6 +41,12 @@ export type CreateMealInput = {
   items: Array<Omit<MealItemNutrition, "foodId"> & { foodId?: string }>;
 };
 
+export type ListMealsInput = {
+  fromDate?: string;
+  toDate?: string;
+  limit?: number;
+};
+
 export interface AppRepository {
   getProfile(): Promise<Profile>;
   searchFoods(query: string): Promise<FoodSearchResult[]>;
@@ -48,7 +54,7 @@ export interface AppRepository {
   getQuota(): Promise<ScanCreditState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
-  listMeals(): Promise<MealSummary[]>;
+  listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
   getMeal(mealId: string): Promise<MealSummary | undefined>;
   deleteMeal(mealId: string): Promise<boolean>;
   prepareScan(profileId?: string): Promise<ScanSession>;

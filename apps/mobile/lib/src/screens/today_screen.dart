@@ -15,6 +15,7 @@ class TodayScreen extends StatelessWidget {
     required this.totals,
     required this.target,
     this.quota,
+    this.weeklyRange,
     this.loading = false,
     this.syncMessage,
     required this.onRefresh,
@@ -28,6 +29,7 @@ class TodayScreen extends StatelessWidget {
   final MacroTotals totals;
   final MacroTotals target;
   final ScanQuota? quota;
+  final JournalRangeData? weeklyRange;
   final bool loading;
   final String? syncMessage;
   final Future<void> Function() onRefresh;
@@ -90,6 +92,10 @@ class TodayScreen extends StatelessWidget {
                   EnergyHeroCard(totals: totals, target: target),
                   const SizedBox(height: 12),
                   MacroBarGroup(totals: totals, target: target),
+                  if (weeklyRange != null) ...[
+                    const SizedBox(height: 12),
+                    _WeeklySummaryCard(range: weeklyRange!),
+                  ],
                   const SizedBox(height: 22),
                   if (isEmpty)
                     _EmptyTodayBody(onAddManually: onAddManually)
@@ -146,6 +152,119 @@ class TodayScreen extends StatelessWidget {
       'DEC',
     ];
     return '${days[date.weekday - 1]} ${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]}';
+  }
+}
+
+class _WeeklySummaryCard extends StatelessWidget {
+  const _WeeklySummaryCard({required this.range});
+
+  final JournalRangeData range;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = range.summary;
+    final trackedText = '${summary.activeDays}/${summary.windowDays} days';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? DFitColors.surfaceCardDark
+            : DFitColors.surfaceCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : DFitColors.borderLight,
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '7 DAY SUMMARY',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: DFitColors.textSecondaryLight,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  trackedText,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${summary.mealCount} meals logged',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: DFitColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _WeeklyMetric(
+            label: 'avg kcal',
+            value: '${summary.dailyAverage.calories}',
+          ),
+          const SizedBox(width: 8),
+          _WeeklyMetric(
+            label: 'protein',
+            value: '${summary.dailyAverage.proteinG.round()}g',
+            accent: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyMetric extends StatelessWidget {
+  const _WeeklyMetric({
+    required this.label,
+    required this.value,
+    this.accent = false,
+  });
+
+  final String label;
+  final String value;
+  final bool accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 68,
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      decoration: BoxDecoration(
+        color: accent
+            ? DFitColors.accent.withValues(alpha: 0.16)
+            : DFitColors.textPrimaryLight.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: accent ? DFitColors.accentWarm : null,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: DFitColors.textSecondaryLight,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

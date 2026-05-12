@@ -16,6 +16,7 @@ class JournalController extends ChangeNotifier {
   MacroTotals _totals = MacroTotals.zero;
   MacroTotals _target = defaultTarget;
   ScanQuota? _quota;
+  JournalRangeData? _weeklyRange;
   DateTime? _lastLoadedAt;
 
   bool get loading => _loading;
@@ -24,6 +25,7 @@ class JournalController extends ChangeNotifier {
   MacroTotals get totals => _totals;
   MacroTotals get target => _target;
   ScanQuota? get quota => _quota;
+  JournalRangeData? get weeklyRange => _weeklyRange;
   DateTime? get lastLoadedAt => _lastLoadedAt;
 
   @override
@@ -43,6 +45,7 @@ class JournalController extends ChangeNotifier {
       _totals = today.totals;
       _target = today.target ?? defaultTarget;
       _lastLoadedAt = DateTime.now();
+      await _refreshWeeklyRange(notify: false);
       await _refreshQuota(notify: false);
     } catch (error) {
       _error = _journalErrorMessage(error);
@@ -86,6 +89,15 @@ class JournalController extends ChangeNotifier {
   }
 
   Future<void> refreshQuota() => _refreshQuota();
+
+  Future<void> _refreshWeeklyRange({bool notify = true}) async {
+    try {
+      _weeklyRange = await _apiClient.fetchJournalRange(days: 7);
+      if (notify) notifyListeners();
+    } catch (_) {
+      // Weekly summary should never block today's journal from loading.
+    }
+  }
 
   Future<void> _refreshQuota({bool notify = true}) async {
     try {

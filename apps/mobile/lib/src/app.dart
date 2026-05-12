@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/meal.dart';
 import 'screens/analyzing_screen.dart';
@@ -20,15 +21,19 @@ class DFitApp extends StatefulWidget {
 }
 
 class _DFitAppState extends State<DFitApp> {
+  static const _hasSeenWelcomeKey = 'dfit.has_seen_welcome';
+
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   late final JournalController _journalController = JournalController();
   ThemeMode _themeMode = ThemeMode.system;
   bool _hasSeenWelcome = false;
+  bool _welcomeStateLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    _loadWelcomeState();
     _journalController.loadToday();
   }
 
@@ -48,11 +53,13 @@ class _DFitAppState extends State<DFitApp> {
       themeMode: _themeMode,
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _messengerKey,
-      home: _hasSeenWelcome
+      home: !_welcomeStateLoaded
+          ? const _LaunchScreen()
+          : _hasSeenWelcome
           ? _todayScreen()
           : WelcomeScreen(
               onStart: () {
-                setState(() => _hasSeenWelcome = true);
+                _markWelcomeSeen();
                 _openCamera();
               },
             ),
@@ -68,6 +75,7 @@ class _DFitAppState extends State<DFitApp> {
           totals: _journalController.totals,
           target: _journalController.target,
           quota: _journalController.quota,
+          weeklyRange: _journalController.weeklyRange,
           loading: _journalController.loading,
           syncMessage: _journalController.error,
           onRefresh: _journalController.loadToday,
@@ -78,6 +86,28 @@ class _DFitAppState extends State<DFitApp> {
         );
       },
     );
+  }
+
+  Future<void> _loadWelcomeState() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      _hasSeenWelcome = preferences.getBool(_hasSeenWelcomeKey) ?? false;
+    } catch (_) {
+      _hasSeenWelcome = false;
+    }
+    if (!mounted) return;
+    setState(() => _welcomeStateLoaded = true);
+  }
+
+  Future<void> _markWelcomeSeen() async {
+    setState(() => _hasSeenWelcome = true);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool(_hasSeenWelcomeKey, true);
+    } catch (_) {
+      // The app can still continue when local preferences are temporarily
+      // unavailable; the user may simply see welcome again after restart.
+    }
   }
 
   Future<void> _openCamera() async {
@@ -208,6 +238,29 @@ class _DFitAppState extends State<DFitApp> {
   Future<void> _openMealDetail(MealLog meal) async {
     await _navigatorKey.currentState!.push<void>(
       MaterialPageRoute<void>(builder: (_) => MealDetailScreen(meal: meal)),
+    );
+  }
+}
+
+class _LaunchScreen extends StatelessWidget {
+  const _LaunchScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: DFitColors.bgInk,
+      body: SafeArea(
+        child: Center(
+          child: Text(
+            'DFit',
+            style: TextStyle(
+              color: DFitColors.accent,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

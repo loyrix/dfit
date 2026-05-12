@@ -5,6 +5,26 @@ import { InMemoryStore } from "./repositories/in-memory-store.js";
 
 const testApp = () => buildApp({ repository: new InMemoryStore() });
 
+const mealPayload = (loggedAt: string) => ({
+  mealType: "lunch",
+  title: "Dal rice",
+  loggedAt,
+  items: [
+    {
+      displayName: "Dal",
+      quantity: 1,
+      unit: "katori",
+      grams: 180,
+      nutrition: {
+        calories: 180,
+        proteinG: 10.8,
+        carbsG: 25.2,
+        fatG: 5.4,
+      },
+    },
+  ],
+});
+
 describe("DFit API", () => {
   it("serves health", async () => {
     const app = await testApp();
@@ -131,6 +151,45 @@ describe("DFit API", () => {
       id: confirmed.json().mealId,
       title: "Dal rice, roti and sabzi",
     });
+    await app.close();
+  });
+
+  it("returns a seven day journal range with daily summary", async () => {
+    const app = await testApp();
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+
+    const firstMeal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { "idempotency-key": "range-meal-today" },
+      payload: mealPayload(now.toISOString()),
+    });
+    expect(firstMeal.statusCode).toBe(201);
+
+    const secondMeal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { "idempotency-key": "range-meal-yesterday" },
+      payload: mealPayload(yesterday.toISOString()),
+    });
+    expect(secondMeal.statusCode).toBe(201);
+
+    const range = await app.inject({
+      method: "GET",
+      url: "/v1/journal/range?days=7",
+    });
+
+    expect(range.statusCode).toBe(200);
+    expect(range.json().days).toHaveLength(7);
+    expect(range.json().summary).toMatchObject({
+      windowDays: 7,
+      activeDays: 2,
+      mealCount: 2,
+    });
+    expect(range.json().summary.totals.calories).toBe(360);
+    expect(range.json().summary.dailyAverage.calories).toBe(51);
     await app.close();
   });
 

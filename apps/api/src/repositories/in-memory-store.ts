@@ -10,6 +10,7 @@ import type {
   AppRepository,
   CreateMealInput,
   IdempotencyRecord,
+  ListMealsInput,
   Profile,
   ScanSession,
 } from "./app-repository.js";
@@ -74,10 +75,16 @@ export class InMemoryStore implements AppRepository {
     return meal;
   }
 
-  async listMeals() {
-    return [...this.meals.values()].sort(
-      (a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime(),
-    );
+  async listMeals(input: ListMealsInput = {}) {
+    return [...this.meals.values()]
+      .filter((meal) => {
+        const localDate = meal.loggedAt.slice(0, 10);
+        if (input.fromDate && localDate < input.fromDate) return false;
+        if (input.toDate && localDate > input.toDate) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
+      .slice(0, input.limit ?? 100);
   }
 
   async getMeal(mealId: string) {

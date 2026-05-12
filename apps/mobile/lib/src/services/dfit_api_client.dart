@@ -37,6 +37,17 @@ class DFitApiClient {
     );
   }
 
+  Future<JournalRangeData> fetchJournalRange({int days = 7}) async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v1/journal/range?days=$days'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
+    return JournalRangeData.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<ScanQuota> fetchQuota() async {
     final response = await _httpClient.get(
       Uri.parse('$baseUrl/v1/quota'),

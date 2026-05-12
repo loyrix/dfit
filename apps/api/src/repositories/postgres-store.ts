@@ -13,6 +13,7 @@ import type {
   AppRepository,
   CreateMealInput,
   IdempotencyRecord,
+  ListMealsInput,
   Profile,
   ScanSession,
 } from "./app-repository.js";
@@ -296,14 +297,19 @@ export class PostgresStore implements AppRepository {
     return created;
   }
 
-  async listMeals() {
+  async listMeals(input: ListMealsInput = {}) {
     const profile = await this.getProfile();
+    const fromDate = input.fromDate ?? null;
+    const toDate = input.toDate ?? null;
+    const limit = input.limit ?? 100;
     const rows = await this.sql<MealRow[]>`
       select id::text, meal_type, title, logged_at
       from meals
       where profile_id = ${profile.id}
+        and (${fromDate}::date is null or local_date >= ${fromDate})
+        and (${toDate}::date is null or local_date <= ${toDate})
       order by logged_at desc
-      limit 100
+      limit ${limit}
     `;
 
     const meals = await Promise.all(rows.map((row) => this.mealFromRow(row)));

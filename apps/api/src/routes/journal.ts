@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { sumTotals } from "@dfit/domain";
-import { createMealRequestSchema } from "@dfit/contracts";
+import { createMealRequestSchema, journalRangeQuerySchema } from "@dfit/contracts";
 import type { AppRepository } from "../repositories/app-repository.js";
 
 type RouteMeal =
@@ -25,24 +25,107 @@ const toApiMeal = (profileId: string, meal: RouteMeal) => ({
   totals: meal.totals,
 });
 
+const target = {
+  calories: 1900,
+  proteinG: 120,
+  carbsG: 220,
+  fatG: 65,
+};
+
+const round = (value: number, decimals = 1): number => {
+  const factor = 10 ** decimals;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+};
+
+const addDays = (date: Date, days: number): Date => {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+};
+
+const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
+
+const dateWindow = (days: number): string[] => {
+  const end = new Date();
+  return Array.from({ length: days }, (_, index) => {
+    const offset = index - (days - 1);
+    return toDateString(addDays(end, offset));
+  });
+};
+
+const dailyAverage = (totals: ReturnType<typeof sumTotals>, days: number) => ({
+  calories: Math.round(totals.calories / days),
+  proteinG: round(totals.proteinG / days),
+  carbsG: round(totals.carbsG / days),
+  fatG: round(totals.fatG / days),
+  fiberG: round((totals.fiberG ?? 0) / days),
+  sugarG: round((totals.sugarG ?? 0) / days),
+  sodiumMg: Math.round((totals.sodiumMg ?? 0) / days),
+});
+
 export const registerJournalRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
 ): Promise<void> => {
   app.get("/v1/journal/today", async () => {
     const profile = await repository.getProfile();
-    const meals = await repository.listMeals();
+    const today = toDateString(new Date());
+    const meals = await repository.listMeals({ fromDate: today, toDate: today });
     return {
-      date: new Date().toISOString().slice(0, 10),
+      date: today,
       timezone: profile.timezone,
       totals: sumTotals(meals.map((meal) => meal.totals)),
-      target: {
-        calories: 1900,
-        proteinG: 120,
-        carbsG: 220,
-        fatG: 65,
-      },
+      target,
       meals: meals.map((meal) => toApiMeal(profile.id, meal)),
+    };
+  });
+
+  app.get("/v1/journal/range", async (request, reply) => {
+    const parsed = journalRangeQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_journal_range",
+        issues: parsed.error.issues,
+      });
+    }
+
+    const profile = await repository.getProfile();
+    const dates = dateWindow(parsed.data.days);
+    const meals = await repository.listMeals({
+      fromDate: dates[0],
+      toDate: dates[dates.length - 1],
+      limit: parsed.data.days * 20,
+    });
+    const mealsByDate = new Map<string, RouteMeal[]>();
+    for (const meal of meals) {
+      const day = meal.loggedAt.slice(0, 10);
+      mealsByDate.set(day, [...(mealsByDate.get(day) ?? []), meal]);
+    }
+
+    const days = dates.map((date) => {
+      const dayMeals = mealsByDate.get(date) ?? [];
+      return {
+        date,
+        mealCount: dayMeals.length,
+        totals: sumTotals(dayMeals.map((meal) => meal.totals)),
+        meals: dayMeals.map((meal) => toApiMeal(profile.id, meal)),
+      };
+    });
+    const totals = sumTotals(days.map((day) => day.totals));
+
+    return {
+      startDate: dates[0],
+      endDate: dates[dates.length - 1],
+      timezone: profile.timezone,
+      target,
+      days,
+      summary: {
+        windowDays: parsed.data.days,
+        activeDays: days.filter((day) => day.mealCount > 0).length,
+        mealCount: meals.length,
+        totals,
+        dailyAverage: dailyAverage(totals, parsed.data.days),
+      },
     };
   });
 

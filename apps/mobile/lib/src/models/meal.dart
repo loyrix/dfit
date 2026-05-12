@@ -182,6 +182,86 @@ class TodayJournalData {
   }
 }
 
+class JournalDayData {
+  const JournalDayData({
+    required this.date,
+    required this.mealCount,
+    required this.totals,
+    required this.meals,
+  });
+
+  final String date;
+  final int mealCount;
+  final MacroTotals totals;
+  final List<MealLog> meals;
+
+  factory JournalDayData.fromJson(Map<String, dynamic> json) {
+    return JournalDayData(
+      date: json['date'] as String,
+      mealCount: json['mealCount'] as int,
+      totals: MacroTotals.fromJson(json['totals'] as Map<String, dynamic>),
+      meals: (json['meals'] as List<dynamic>)
+          .map((meal) => MealLog.fromJson(meal as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class JournalRangeSummary {
+  const JournalRangeSummary({
+    required this.windowDays,
+    required this.activeDays,
+    required this.mealCount,
+    required this.totals,
+    required this.dailyAverage,
+  });
+
+  final int windowDays;
+  final int activeDays;
+  final int mealCount;
+  final MacroTotals totals;
+  final MacroTotals dailyAverage;
+
+  factory JournalRangeSummary.fromJson(Map<String, dynamic> json) {
+    return JournalRangeSummary(
+      windowDays: json['windowDays'] as int,
+      activeDays: json['activeDays'] as int,
+      mealCount: json['mealCount'] as int,
+      totals: MacroTotals.fromJson(json['totals'] as Map<String, dynamic>),
+      dailyAverage: MacroTotals.fromJson(
+        json['dailyAverage'] as Map<String, dynamic>,
+      ),
+    );
+  }
+}
+
+class JournalRangeData {
+  const JournalRangeData({
+    required this.startDate,
+    required this.endDate,
+    required this.days,
+    required this.summary,
+  });
+
+  final String startDate;
+  final String endDate;
+  final List<JournalDayData> days;
+  final JournalRangeSummary summary;
+
+  factory JournalRangeData.fromJson(Map<String, dynamic> json) {
+    return JournalRangeData(
+      startDate: json['startDate'] as String,
+      endDate: json['endDate'] as String,
+      days: (json['days'] as List<dynamic>)
+          .map((day) => JournalDayData.fromJson(day as Map<String, dynamic>))
+          .toList(),
+      summary: JournalRangeSummary.fromJson(
+        json['summary'] as Map<String, dynamic>,
+      ),
+    );
+  }
+}
+
 class PreparedScan {
   const PreparedScan({
     required this.scanId,

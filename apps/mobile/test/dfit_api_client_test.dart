@@ -153,6 +153,61 @@ void main() {
     expect(quota.totalRemaining, 3);
   });
 
+  test('fetches seven day journal range', () async {
+    final client = DFitApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/journal/range');
+        expect(request.url.queryParameters['days'], '7');
+        return http.Response(
+          jsonEncode({
+            'startDate': '2026-05-06',
+            'endDate': '2026-05-12',
+            'timezone': 'Asia/Kolkata',
+            'days': [
+              {
+                'date': '2026-05-12',
+                'mealCount': 1,
+                'totals': {
+                  'calories': 180,
+                  'proteinG': 10.8,
+                  'carbsG': 25.2,
+                  'fatG': 5.4,
+                },
+                'meals': [],
+              },
+            ],
+            'summary': {
+              'windowDays': 7,
+              'activeDays': 1,
+              'mealCount': 1,
+              'totals': {
+                'calories': 180,
+                'proteinG': 10.8,
+                'carbsG': 25.2,
+                'fatG': 5.4,
+              },
+              'dailyAverage': {
+                'calories': 26,
+                'proteinG': 1.5,
+                'carbsG': 3.6,
+                'fatG': 0.8,
+              },
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final range = await client.fetchJournalRange();
+
+    expect(range.summary.windowDays, 7);
+    expect(range.summary.dailyAverage.calories, 26);
+    expect(range.days.single.mealCount, 1);
+  });
+
   test('confirms a scan meal', () async {
     final client = DFitApiClient(
       baseUrl: 'http://api.test',

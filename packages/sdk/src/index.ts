@@ -2,6 +2,7 @@ import type {
   AnalyzeScanResponseContract,
   ConfirmScanRequestContract,
   CreateMealRequestContract,
+  JournalRangeResponseContract,
   MealContract,
   PrepareScanResponseContract,
   TodayJournalResponseContract,
@@ -17,6 +18,10 @@ export class DFitClient {
 
   async today(): Promise<TodayJournalResponseContract> {
     return this.request<TodayJournalResponseContract>("/v1/journal/today");
+  }
+
+  async journalRange(days = 7): Promise<JournalRangeResponseContract> {
+    return this.request<JournalRangeResponseContract>(`/v1/journal/range?days=${days}`);
   }
 
   async createMeal(body: CreateMealRequestContract, idempotencyKey: string): Promise<MealContract> {

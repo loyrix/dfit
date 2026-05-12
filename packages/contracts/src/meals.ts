@@ -43,6 +43,34 @@ export const todayJournalResponseSchema = z.object({
   meals: z.array(mealSchema),
 });
 
+export const journalRangeQuerySchema = z.object({
+  days: z.coerce.number().int().min(1).max(31).default(7),
+});
+
+export const journalDaySchema = z.object({
+  date: z.string(),
+  mealCount: z.number().int().nonnegative(),
+  totals: macroTotalsSchema,
+  meals: z.array(mealSchema),
+});
+
+export const journalRangeResponseSchema = z.object({
+  startDate: z.string(),
+  endDate: z.string(),
+  timezone: z.string(),
+  target: macroTotalsSchema.optional(),
+  days: z.array(journalDaySchema),
+  summary: z.object({
+    windowDays: z.number().int().positive(),
+    activeDays: z.number().int().nonnegative(),
+    mealCount: z.number().int().nonnegative(),
+    totals: macroTotalsSchema,
+    dailyAverage: macroTotalsSchema,
+  }),
+});
+
 export type MealContract = z.infer<typeof mealSchema>;
 export type CreateMealRequestContract = z.infer<typeof createMealRequestSchema>;
 export type TodayJournalResponseContract = z.infer<typeof todayJournalResponseSchema>;
+export type JournalRangeQueryContract = z.infer<typeof journalRangeQuerySchema>;
+export type JournalRangeResponseContract = z.infer<typeof journalRangeResponseSchema>;
