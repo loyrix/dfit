@@ -8,6 +8,7 @@ import {
 } from "@dfit/domain";
 import type postgres from "postgres";
 import type { SqlClient } from "../db/client.js";
+import { currentRequestIdentity } from "../request-context.js";
 import type {
   AppRepository,
   CreateMealInput,
@@ -53,6 +54,17 @@ type MealItemRow = {
   sodium_mg: string | null;
 };
 
+type ScanRow = {
+  id: string;
+  profile_id: string;
+  status: ScanSession["status"];
+  consumed_credit_reason: ScanSession["creditReason"] | null;
+  image_mime_type: string | null;
+  image_byte_size: number | null;
+  created_at: string;
+  analyzed_response: unknown | null;
+};
+
 const toJsonValue = (value: unknown): postgres.JSONValue =>
   JSON.parse(JSON.stringify(value ?? null)) as postgres.JSONValue;
 
@@ -60,6 +72,9 @@ export class PostgresStore implements AppRepository {
   constructor(private readonly sql: SqlClient) {}
 
   async getProfile(): Promise<Profile> {
+    const identity = currentRequestIdentity();
+    if (identity.installId) return this.getOrCreateProfileForInstall(identity.installId);
+
     const [existing] = await this.sql<Profile[]>`
       select
         id::text,
@@ -332,29 +347,121 @@ export class PostgresStore implements AppRepository {
   }
 
   async getScan(scanId: string) {
-    const [scan] = await this.sql<ScanSession[]>`
+    const [scan] = await this.sql<ScanRow[]>`
       select
-        id::text,
-        profile_id::text as "profileId",
-        status,
-        consumed_credit_reason as "creditReason",
-        created_at::text as "createdAt"
+        scan_sessions.id::text,
+        scan_sessions.profile_id::text,
+        scan_sessions.status,
+        scan_sessions.consumed_credit_reason,
+        scan_sessions.image_mime_type,
+        scan_sessions.image_byte_size,
+        scan_sessions.created_at::text,
+        ai_predictions.raw_ai_json as analyzed_response
       from scan_sessions
-      where id = ${scanId}
+      left join lateral (
+        select raw_ai_json
+        from ai_predictions
+        where ai_predictions.scan_session_id = scan_sessions.id
+        order by ai_predictions.created_at desc
+        limit 1
+      ) ai_predictions on true
+      where scan_sessions.id = ${scanId}
       limit 1
     `;
-    return scan;
+    return scan ? this.scanFromRow(scan) : undefined;
   }
 
   async updateScan(scan: ScanSession) {
-    await this.sql`
-      update scan_sessions
-      set
-        status = ${scan.status},
-        consumed_credit_reason = ${scan.creditReason ?? null},
-        updated_at = now()
-      where id = ${scan.id}
-    `;
+    await this.sql.begin(async (tx) => {
+      await tx`
+        update scan_sessions
+        set
+          status = ${scan.status},
+          consumed_credit_reason = ${scan.creditReason ?? null},
+          image_mime_type = coalesce(${scan.imageMimeType ?? null}, image_mime_type),
+          image_byte_size = coalesce(${scan.imageByteSize ?? null}, image_byte_size),
+          updated_at = now()
+        where id = ${scan.id}
+      `;
+
+      if (scan.analyzedResponse) {
+        await tx`
+          delete from ai_predictions
+          where scan_session_id = ${scan.id}
+        `;
+
+        const [run] = await tx<{ id: string }[]>`
+          insert into ai_provider_runs (
+            scan_session_id,
+            provider,
+            model,
+            prompt_version,
+            schema_version,
+            success
+          )
+          values (${scan.id}, 'mock', 'mock-indian-plate-v1', 'mock_v1', 'scan_v1', true)
+          returning id::text
+        `;
+
+        const response = scan.analyzedResponse as {
+          detectedLanguage?: string;
+          items?: Array<{
+            name: string;
+            aliases?: string[];
+            quantity: number;
+            unit: PortionUnit;
+            estimatedGrams: number;
+            confidence: number;
+          }>;
+        };
+        const items = response.items ?? [];
+        const totalConfidence =
+          items.length === 0
+            ? null
+            : items.reduce((total, item) => total + item.confidence, 0) / items.length;
+
+        const [prediction] = await tx<{ id: string }[]>`
+          insert into ai_predictions (
+            scan_session_id,
+            provider_run_id,
+            detected_language,
+            raw_ai_json,
+            total_confidence
+          )
+          values (
+            ${scan.id},
+            ${run.id},
+            ${response.detectedLanguage ?? null},
+            ${tx.json(toJsonValue(scan.analyzedResponse))},
+            ${totalConfidence}
+          )
+          returning id::text
+        `;
+
+        for (const item of items) {
+          await tx`
+            insert into ai_predicted_items (
+              ai_prediction_id,
+              name,
+              aliases,
+              quantity,
+              unit,
+              estimated_grams,
+              confidence
+            )
+            values (
+              ${prediction.id},
+              ${item.name},
+              ${item.aliases ?? []},
+              ${item.quantity},
+              ${item.unit},
+              ${item.estimatedGrams},
+              ${item.confidence}
+            )
+          `;
+        }
+      }
+    });
   }
 
   async getIdempotent(key: string): Promise<IdempotencyRecord | undefined> {
@@ -432,6 +539,84 @@ export class PostgresStore implements AppRepository {
         grams: Number(portion.grams),
         confidence: Number(portion.confidence),
       })),
+    };
+  }
+
+  private async getOrCreateProfileForInstall(installId: string): Promise<Profile> {
+    const identity = currentRequestIdentity();
+
+    const [existing] = await this.sql<Profile[]>`
+      select
+        profiles.id::text,
+        profiles.auth_method as "authMethod",
+        profiles.timezone,
+        profiles.linked_at::text as "linkedAt",
+        profiles.created_at::text as "createdAt"
+      from devices
+      inner join profiles on profiles.id = devices.profile_id
+      where devices.install_id = ${installId}
+      limit 1
+    `;
+
+    if (existing) {
+      await this.sql`
+        update devices
+        set
+          platform = coalesce(${identity.platform ?? null}, platform),
+          locale = coalesce(${identity.locale ?? null}, locale),
+          region = coalesce(${identity.region ?? null}, region),
+          timezone = coalesce(${identity.timezone ?? null}, timezone),
+          last_seen_at = now()
+        where install_id = ${installId}
+      `;
+      return existing;
+    }
+
+    return this.sql.begin(async (tx) => {
+      const [profile] = await tx<Profile[]>`
+        insert into profiles (timezone, provider_subject)
+        values (${identity.timezone ?? "Asia/Kolkata"}, ${`install:${installId}`})
+        returning
+          id::text,
+          auth_method as "authMethod",
+          timezone,
+          linked_at::text as "linkedAt",
+          created_at::text as "createdAt"
+      `;
+
+      await tx`
+        insert into devices (
+          profile_id,
+          install_id,
+          platform,
+          locale,
+          region,
+          timezone
+        )
+        values (
+          ${profile.id},
+          ${installId},
+          ${identity.platform ?? "ios"},
+          ${identity.locale ?? null},
+          ${identity.region ?? null},
+          ${identity.timezone ?? null}
+        )
+      `;
+
+      return profile;
+    });
+  }
+
+  private scanFromRow(row: ScanRow): ScanSession {
+    return {
+      id: row.id,
+      profileId: row.profile_id,
+      status: row.status,
+      creditReason: row.consumed_credit_reason ?? undefined,
+      analyzedResponse: row.analyzed_response ?? undefined,
+      imageMimeType: row.image_mime_type ?? undefined,
+      imageByteSize: row.image_byte_size ?? undefined,
+      createdAt: row.created_at,
     };
   }
 

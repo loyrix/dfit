@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { confirmScanRequestSchema } from "@dfit/contracts";
+import { analyzeScanRequestSchema, confirmScanRequestSchema } from "@dfit/contracts";
 import { decideScanQuota } from "@dfit/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { analyzeWithMockProvider } from "../services/mock-ai-provider.js";
@@ -25,6 +25,14 @@ export const registerScanRoutes = async (
     if (!scan) return reply.status(404).send({ error: "scan_not_found" });
     if (scan.analyzedResponse) return scan.analyzedResponse;
 
+    const parsed = analyzeScanRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_scan_image",
+        issues: parsed.error.issues,
+      });
+    }
+
     const decision = decideScanQuota(await repository.getQuota());
     if (!decision.allowed) {
       return reply.status(402).send({
@@ -42,6 +50,8 @@ export const registerScanRoutes = async (
       status: "ready_for_review",
       creditReason: decision.reason,
       analyzedResponse: analyzed,
+      imageMimeType: parsed.data.image?.mimeType,
+      imageByteSize: parsed.data.image?.byteSize,
     });
 
     return analyzed;

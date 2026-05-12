@@ -20,6 +20,8 @@ export type ScanSession = {
   status: "prepared" | "analyzing" | "ready_for_review" | "confirmed" | "cancelled" | "failed";
   creditReason?: "free" | "rewarded" | "premium";
   analyzedResponse?: unknown;
+  imageMimeType?: string;
+  imageByteSize?: number;
   createdAt: string;
 };
 

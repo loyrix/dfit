@@ -78,10 +78,11 @@ class _DFitAppState extends State<DFitApp> {
     await _navigatorKey.currentState!.push<void>(
       MaterialPageRoute<void>(
         builder: (_) => CameraScreen(
-          onCaptured: () {
+          onCaptured: (photo) {
             _navigatorKey.currentState!.pushReplacement<void, void>(
               MaterialPageRoute<void>(
                 builder: (_) => AnalyzingScreen(
+                  photo: photo,
                   onAnalyze: _journalController.analyzeCapturedMeal,
                   onAnalyzed: (analysis) {
                     _navigatorKey.currentState!.pushReplacement<void, void>(

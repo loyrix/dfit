@@ -3,16 +3,23 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
+import 'device_identity_store.dart';
 
 class DFitApiClient {
-  DFitApiClient({http.Client? httpClient, String? baseUrl})
-    : _httpClient = httpClient ?? http.Client(),
-      baseUrl = DFitApiConfig.normalizeBaseUrl(
-        baseUrl ?? DFitApiConfig.defaultBaseUrl,
-      );
+  DFitApiClient({
+    http.Client? httpClient,
+    String? baseUrl,
+    Future<DeviceIdentity> Function()? loadDeviceIdentity,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _loadDeviceIdentity = loadDeviceIdentity ?? DeviceIdentityStore().load,
+       baseUrl = DFitApiConfig.normalizeBaseUrl(
+         baseUrl ?? DFitApiConfig.defaultBaseUrl,
+       );
 
   final http.Client _httpClient;
+  final Future<DeviceIdentity> Function() _loadDeviceIdentity;
   final String baseUrl;
 
   void close() {
@@ -22,6 +29,7 @@ class DFitApiClient {
   Future<TodayJournalData> fetchToday() async {
     final response = await _httpClient.get(
       Uri.parse('$baseUrl/v1/journal/today'),
+      headers: await _headers(),
     );
     _throwIfBad(response);
     return TodayJournalData.fromJson(
@@ -37,10 +45,10 @@ class DFitApiClient {
   }) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/meals'),
-      headers: {
-        'content-type': 'application/json',
-        'idempotency-key': idempotencyKey,
-      },
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
       body: jsonEncode({
         'mealType': type.name,
         'title': title,
@@ -66,10 +74,10 @@ class DFitApiClient {
   Future<PreparedScan> prepareScan({required String idempotencyKey}) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/prepare'),
-      headers: {
-        'content-type': 'application/json',
-        'idempotency-key': idempotencyKey,
-      },
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
       body: jsonEncode({}),
     );
     _throwIfBad(response);
@@ -81,14 +89,22 @@ class DFitApiClient {
   Future<ScanAnalysis> analyzeScan({
     required String scanId,
     required String idempotencyKey,
+    CapturedMealPhoto? photo,
   }) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/$scanId/analyze'),
-      headers: {
-        'content-type': 'application/json',
-        'idempotency-key': idempotencyKey,
-      },
-      body: jsonEncode({}),
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
+      body: jsonEncode({
+        if (photo != null)
+          'image': {
+            'mimeType': photo.mimeType,
+            'base64': base64Encode(photo.bytes),
+            'byteSize': photo.byteSize,
+          },
+      }),
     );
     _throwIfBad(response);
     return ScanAnalysis.fromJson(
@@ -105,10 +121,10 @@ class DFitApiClient {
   }) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/$scanId/confirm'),
-      headers: {
-        'content-type': 'application/json',
-        'idempotency-key': idempotencyKey,
-      },
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
       body: jsonEncode({
         'mealType': type.name,
         'title': title,
@@ -135,6 +151,21 @@ class DFitApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw DFitApiException(response.statusCode, response.body);
     }
+  }
+
+  Future<Map<String, String>> _headers({
+    bool contentTypeJson = false,
+    String? idempotencyKey,
+  }) async {
+    final identity = await _loadDeviceIdentity();
+    final headers = {
+      ...identity.toHeaders(),
+      if (contentTypeJson) 'content-type': 'application/json',
+    };
+    if (idempotencyKey != null) {
+      headers['idempotency-key'] = idempotencyKey;
+    }
+    return headers;
   }
 }
 

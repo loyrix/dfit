@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { createSqlClient, type SqlClient } from "./db/client.js";
 import { registerIdempotency } from "./plugins/idempotency.js";
+import { registerRequestContext } from "./request-context.js";
 import type { AppRepository } from "./repositories/app-repository.js";
 import { InMemoryStore } from "./repositories/in-memory-store.js";
 import { PostgresStore } from "./repositories/postgres-store.js";
@@ -18,6 +19,7 @@ export type BuildAppOptions = {
 
 export const buildApp = async (options: BuildAppOptions = {}) => {
   const app = Fastify({
+    bodyLimit: Number(process.env.API_BODY_LIMIT_BYTES ?? 6_000_000),
     logger: {
       level: process.env.LOG_LEVEL ?? "info",
     },
@@ -41,6 +43,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
     origin: true,
   });
 
+  await registerRequestContext(app);
   await registerIdempotency(app, repository);
   await registerConfigRoutes(app);
   await registerFoodRoutes(app, repository);

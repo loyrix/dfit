@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:dfit_mobile/src/models/captured_meal_photo.dart';
 import 'package:dfit_mobile/src/models/meal.dart';
+import 'package:dfit_mobile/src/services/device_identity_store.dart';
 import 'package:dfit_mobile/src/services/dfit_api_client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,14 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  Future<DeviceIdentity> testIdentity() async => const DeviceIdentity(
+    installId: 'test-install',
+    platform: 'ios',
+    locale: 'en-IN',
+    region: 'IN',
+    timezone: 'Asia/Kolkata',
+  );
+
   group('DFitApiConfig', () {
     test('uses explicit dart define value first', () {
       expect(
@@ -55,8 +65,10 @@ void main() {
     final requests = <http.Request>[];
     final client = DFitApiClient(
       baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
         requests.add(request);
+        expect(request.headers['x-dfit-install-id'], 'test-install');
         if (request.url.path == '/v1/scans/prepare') {
           return http.Response(
             jsonEncode({
@@ -113,12 +125,20 @@ void main() {
     final analysis = await client.analyzeScan(
       scanId: prepared.scanId,
       idempotencyKey: 'analyze-key',
+      photo: CapturedMealPhoto(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'image/jpeg',
+        fileName: 'plate.jpg',
+      ),
     );
 
     expect(prepared.scanId, 'scan_1');
     expect(prepared.quota.freeRemaining, 1);
     expect(analysis.mealType, MealType.lunch);
     expect(analysis.items.single.name, 'Dal');
+    expect(jsonDecode(requests.last.body) as Map<String, dynamic>, {
+      'image': {'mimeType': 'image/jpeg', 'base64': 'AQID', 'byteSize': 3},
+    });
     expect(requests.map((request) => request.headers['idempotency-key']), [
       'prepare-key',
       'analyze-key',
@@ -128,6 +148,7 @@ void main() {
   test('confirms a scan meal', () async {
     final client = DFitApiClient(
       baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/scans/scan_1/confirm');
         expect(request.headers['idempotency-key'], 'confirm-key');

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../services/dfit_api_client.dart';
 
@@ -75,7 +76,7 @@ class JournalController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<ScanAnalysis> analyzeCapturedMeal() async {
+  Future<ScanAnalysis> analyzeCapturedMeal(CapturedMealPhoto photo) async {
     _error = null;
     final seed = DateTime.now().microsecondsSinceEpoch;
     final prepared = await _apiClient.prepareScan(
@@ -84,6 +85,7 @@ class JournalController extends ChangeNotifier {
     return _apiClient.analyzeScan(
       scanId: prepared.scanId,
       idempotencyKey: 'scan-analyze-$seed',
+      photo: photo,
     );
   }
 

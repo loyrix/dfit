@@ -22,6 +22,18 @@ export const prepareScanResponseSchema = z.object({
   }),
 });
 
+export const analyzeScanRequestSchema = z
+  .object({
+    image: z
+      .object({
+        mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+        base64: z.string().min(1).max(8_000_000),
+        byteSize: z.number().int().positive().max(6_000_000),
+      })
+      .optional(),
+  })
+  .default({});
+
 export const analyzedMealItemSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
@@ -59,5 +71,6 @@ export const confirmScanRequestSchema = z.object({
 });
 
 export type PrepareScanResponseContract = z.infer<typeof prepareScanResponseSchema>;
+export type AnalyzeScanRequestContract = z.infer<typeof analyzeScanRequestSchema>;
 export type AnalyzeScanResponseContract = z.infer<typeof analyzeScanResponseSchema>;
 export type ConfirmScanRequestContract = z.infer<typeof confirmScanRequestSchema>;

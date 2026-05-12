@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../theme/dfit_colors.dart';
 
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
     super.key,
+    required this.photo,
     required this.onAnalyze,
     required this.onAnalyzed,
   });
 
-  final Future<ScanAnalysis> Function() onAnalyze;
+  final CapturedMealPhoto photo;
+  final Future<ScanAnalysis> Function(CapturedMealPhoto photo) onAnalyze;
   final ValueChanged<ScanAnalysis> onAnalyzed;
 
   @override
@@ -32,7 +35,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
     }
 
     try {
-      final analysis = await widget.onAnalyze();
+      final analysis = await widget.onAnalyze(widget.photo);
       if (!mounted) return;
       widget.onAnalyzed(analysis);
     } catch (_) {

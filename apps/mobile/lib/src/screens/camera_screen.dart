@@ -1,12 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../models/captured_meal_photo.dart';
 import '../theme/dfit_colors.dart';
 import '../widgets/primitive_icons.dart';
 
-class CameraScreen extends StatelessWidget {
+class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key, required this.onCaptured});
 
-  final VoidCallback onCaptured;
+  final ValueChanged<CapturedMealPhoto> onCaptured;
+
+  @override
+  State<CameraScreen> createState() => _CameraScreenState();
+}
+
+class _CameraScreenState extends State<CameraScreen> {
+  final _picker = ImagePicker();
+  bool _capturing = false;
+
+  Future<void> _capture() async {
+    if (_capturing) return;
+    setState(() => _capturing = true);
+
+    try {
+      final image = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 82,
+        maxWidth: 1600,
+      );
+      if (image == null) return;
+
+      final bytes = await image.readAsBytes();
+      if (!mounted) return;
+      widget.onCaptured(
+        CapturedMealPhoto(
+          bytes: bytes,
+          mimeType: _mimeTypeFor(image),
+          fileName: image.name,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +107,9 @@ class CameraScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Photo is analyzed, not stored',
+                    _capturing
+                        ? 'Opening camera'
+                        : 'Photo is analyzed, not stored',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.white.withValues(alpha: 0.5),
                     ),
@@ -85,7 +123,7 @@ class CameraScreen extends StatelessWidget {
               bottom: 34,
               child: Center(
                 child: GestureDetector(
-                  onTap: onCaptured,
+                  onTap: _capture,
                   child: Container(
                     width: 76,
                     height: 76,
@@ -101,11 +139,20 @@ class CameraScreen extends StatelessWidget {
                           color: DFitColors.accent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Center(
-                          child: PrimitiveCameraIcon(
-                            color: DFitColors.accentDeep,
-                            size: 26,
-                          ),
+                        child: Center(
+                          child: _capturing
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: DFitColors.accentDeep,
+                                  ),
+                                )
+                              : const PrimitiveCameraIcon(
+                                  color: DFitColors.accentDeep,
+                                  size: 26,
+                                ),
                         ),
                       ),
                     ),
@@ -117,6 +164,12 @@ class CameraScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _mimeTypeFor(XFile image) {
+    final mimeType = image.mimeType;
+    if (mimeType == 'image/png' || mimeType == 'image/webp') return mimeType!;
+    return 'image/jpeg';
   }
 }
 

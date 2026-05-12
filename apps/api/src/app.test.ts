@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
+import { currentRequestIdentity, type RequestIdentity } from "./request-context.js";
 import { InMemoryStore } from "./repositories/in-memory-store.js";
 
 const testApp = () => buildApp({ repository: new InMemoryStore() });
@@ -44,6 +45,35 @@ describe("DFit API", () => {
     await app.close();
   });
 
+  it("makes anonymous device identity available to repositories", async () => {
+    let seenIdentity: RequestIdentity | undefined;
+    class IdentityAwareStore extends InMemoryStore {
+      override async getProfile() {
+        seenIdentity = currentRequestIdentity();
+        return super.getProfile();
+      }
+    }
+
+    const app = await buildApp({ repository: new IdentityAwareStore() });
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/journal/today",
+      headers: {
+        "x-dfit-install-id": "install-test",
+        "x-dfit-platform": "ios",
+        "x-dfit-locale": "en-IN",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(seenIdentity).toMatchObject({
+      installId: "install-test",
+      platform: "ios",
+      locale: "en-IN",
+    });
+    await app.close();
+  });
+
   it("analyzes, confirms, and returns the meal in today journal", async () => {
     const app = await testApp();
     const prepared = await app.inject({
@@ -57,6 +87,13 @@ describe("DFit API", () => {
       method: "POST",
       url: `/v1/scans/${scanId}/analyze`,
       headers: { "idempotency-key": "flow-analyze" },
+      payload: {
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
     });
     expect(analyzed.statusCode).toBe(200);
     expect(analyzed.json()).toMatchObject({ status: "ready_for_review", mealType: "lunch" });
@@ -94,6 +131,33 @@ describe("DFit API", () => {
       id: confirmed.json().mealId,
       title: "Dal rice, roti and sabzi",
     });
+    await app.close();
+  });
+
+  it("rejects invalid scan image payloads", async () => {
+    const app = await testApp();
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "invalid-image-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "invalid-image-analyze" },
+      payload: {
+        image: {
+          mimeType: "image/gif",
+          base64: "",
+          byteSize: 0,
+        },
+      },
+    });
+
+    expect(analyzed.statusCode).toBe(400);
+    expect(analyzed.json()).toMatchObject({ error: "invalid_scan_image" });
     await app.close();
   });
 });
