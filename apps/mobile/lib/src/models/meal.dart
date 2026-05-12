@@ -118,6 +118,17 @@ class MealItem {
       confidence: (json['confidence'] as num).toDouble(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'displayName': name,
+      'quantity': quantity,
+      'unit': unit,
+      'grams': grams,
+      'nutrition': nutrition.toJson(),
+      'confidence': confidence,
+    };
+  }
 }
 
 enum MealSyncState { synced, pending }
@@ -156,6 +167,17 @@ class MealLog {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'mealType': type.name,
+      'title': title,
+      'loggedAt': loggedAt.toUtc().toIso8601String(),
+      'items': items.map((item) => item.toJson()).toList(),
+      'totals': totals.toJson(),
+    };
+  }
 }
 
 class TodayJournalData {
@@ -179,6 +201,14 @@ class TodayJournalData {
           .map((meal) => MealLog.fromJson(meal as Map<String, dynamic>))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totals': totals.toJson(),
+      'target': target?.toJson(),
+      'meals': meals.map((meal) => meal.toJson()).toList(),
+    };
   }
 }
 
@@ -204,6 +234,15 @@ class JournalDayData {
           .map((meal) => MealLog.fromJson(meal as Map<String, dynamic>))
           .toList(),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'mealCount': mealCount,
+      'totals': totals.toJson(),
+      'meals': meals.map((meal) => meal.toJson()).toList(),
+    };
   }
 }
 
@@ -233,6 +272,16 @@ class JournalRangeSummary {
       ),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'windowDays': windowDays,
+      'activeDays': activeDays,
+      'mealCount': mealCount,
+      'totals': totals.toJson(),
+      'dailyAverage': dailyAverage.toJson(),
+    };
+  }
 }
 
 class JournalRangeData {
@@ -259,6 +308,89 @@ class JournalRangeData {
         json['summary'] as Map<String, dynamic>,
       ),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'startDate': startDate,
+      'endDate': endDate,
+      'days': days.map((day) => day.toJson()).toList(),
+      'summary': summary.toJson(),
+    };
+  }
+}
+
+class AppProfile {
+  const AppProfile({
+    required this.id,
+    required this.authMethod,
+    required this.timezone,
+    this.linkedAt,
+    this.createdAt,
+  });
+
+  final String id;
+  final String authMethod;
+  final String timezone;
+  final String? linkedAt;
+  final String? createdAt;
+
+  factory AppProfile.fromJson(Map<String, dynamic> json) {
+    return AppProfile(
+      id: json['id'] as String,
+      authMethod: json['authMethod'] as String? ?? 'anonymous',
+      timezone: json['timezone'] as String? ?? '',
+      linkedAt: json['linkedAt'] as String?,
+      createdAt: json['createdAt'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'authMethod': authMethod,
+      'timezone': timezone,
+      if (linkedAt != null) 'linkedAt': linkedAt,
+      if (createdAt != null) 'createdAt': createdAt,
+    };
+  }
+}
+
+class AppBootstrapData {
+  const AppBootstrapData({
+    required this.serverTime,
+    required this.profile,
+    required this.quota,
+    required this.today,
+    required this.weeklyRange,
+  });
+
+  final String serverTime;
+  final AppProfile profile;
+  final ScanQuota quota;
+  final TodayJournalData today;
+  final JournalRangeData weeklyRange;
+
+  factory AppBootstrapData.fromJson(Map<String, dynamic> json) {
+    return AppBootstrapData(
+      serverTime: json['serverTime'] as String? ?? '',
+      profile: AppProfile.fromJson(json['profile'] as Map<String, dynamic>),
+      quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
+      today: TodayJournalData.fromJson(json['today'] as Map<String, dynamic>),
+      weeklyRange: JournalRangeData.fromJson(
+        json['weeklyRange'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'serverTime': serverTime,
+      'profile': profile.toJson(),
+      'quota': quota.toJson(),
+      'today': today.toJson(),
+      'weeklyRange': weeklyRange.toJson(),
+    };
   }
 }
 
@@ -302,6 +434,14 @@ class ScanQuota {
       rewardedRemaining: json['rewardedRemaining'] as int,
       premiumRemaining: json['premiumRemaining'] as int,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'freeRemaining': freeRemaining,
+      'rewardedRemaining': rewardedRemaining,
+      'premiumRemaining': premiumRemaining,
+    };
   }
 }
 

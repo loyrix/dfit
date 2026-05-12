@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../models/captured_meal_photo.dart';
@@ -21,19 +24,42 @@ class AnalyzingScreen extends StatefulWidget {
   State<AnalyzingScreen> createState() => _AnalyzingScreenState();
 }
 
-class _AnalyzingScreenState extends State<AnalyzingScreen> {
+class _AnalyzingScreenState extends State<AnalyzingScreen>
+    with SingleTickerProviderStateMixin {
+  static const _steps = [
+    'Captured',
+    'Identifying items',
+    'Estimating portions',
+    'Balancing macros',
+  ];
+
   String? _error;
+  int _activeStep = 1;
+  Timer? _stepTimer;
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat();
 
   @override
   void initState() {
     super.initState();
+    _startStepTimer();
     _runAnalysis();
+  }
+
+  @override
+  void dispose() {
+    _stepTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _runAnalysis() async {
     if (_error != null) {
       setState(() => _error = null);
     }
+    _startStepTimer(reset: true);
 
     try {
       final analysis = await widget.onAnalyze(widget.photo);
@@ -41,10 +67,24 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
       widget.onAnalyzed(analysis);
     } catch (error) {
       if (!mounted) return;
+      _stepTimer?.cancel();
       setState(() {
         _error = _analysisErrorMessage(error);
       });
     }
+  }
+
+  void _startStepTimer({bool reset = false}) {
+    _stepTimer?.cancel();
+    if (reset) {
+      _activeStep = 1;
+    }
+    _stepTimer = Timer.periodic(const Duration(milliseconds: 1050), (_) {
+      if (!mounted || _error != null) return;
+      setState(() {
+        _activeStep = math.min(_activeStep + 1, _steps.length - 1);
+      });
+    });
   }
 
   String _analysisErrorMessage(Object error) {
@@ -71,13 +111,27 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const _ScanMark(),
-              const SizedBox(height: 40),
+              _ScanMark(animation: _controller),
+              const SizedBox(height: 36),
               Text(
-                'Reading your plate',
+                _error == null ? 'Reading your plate' : 'Scan paused',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: 7),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: Text(
+                  _error == null
+                      ? _progressLabel(_activeStep)
+                      : 'Ready when you are',
+                  key: ValueKey(_error == null ? _activeStep : 'error'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.52),
+                    letterSpacing: 0.2,
+                  ),
+                ),
               ),
               const SizedBox(height: 18),
               Container(
@@ -92,12 +146,12 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
                 ),
                 child: Column(
                   children: [
-                    const _StepRow(label: 'Captured', done: true),
-                    _StepRow(label: 'Identifying items', active: error == null),
-                    _StepRow(
-                      label: 'Estimating portions',
-                      active: error == null,
-                    ),
+                    for (var index = 0; index < _steps.length; index++)
+                      _StepRow(
+                        label: _steps[index],
+                        done: error == null && index < _activeStep,
+                        active: error == null && index == _activeStep,
+                      ),
                   ],
                 ),
               ),
@@ -129,70 +183,166 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
       ),
     );
   }
+
+  String _progressLabel(int step) {
+    return switch (step) {
+      1 => 'Finding foods and edges',
+      2 => 'Checking portions and grams',
+      3 => 'Preparing your macro review',
+      _ => 'Securing the capture',
+    };
+  }
 }
 
 class _ScanMark extends StatelessWidget {
-  const _ScanMark();
+  const _ScanMark({required this.animation});
+
+  final Animation<double> animation;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 184,
-      height: 184,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 184,
-            height: 184,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: DFitColors.accent.withValues(alpha: 0.35),
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final t = animation.value;
+        final scanY = 46 + (math.sin(t * math.pi * 2) + 1) * 38;
+
+        return SizedBox(
+          width: 196,
+          height: 196,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Transform.rotate(
+                angle: t * math.pi * 2,
+                child: CustomPaint(
+                  size: const Size.square(196),
+                  painter: _OrbitPainter(progress: t),
+                ),
               ),
-              shape: BoxShape.circle,
-            ),
-          ),
-          Container(
-            width: 108,
-            height: 108,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.03),
-              border: Border.all(
-                color: DFitColors.accent.withValues(alpha: 0.2),
+              Container(
+                width: 116,
+                height: 116,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.035),
+                  border: Border.all(
+                    color: DFitColors.accent.withValues(alpha: 0.22),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              borderRadius: BorderRadius.circular(10),
-            ),
+              Positioned(
+                top: scanY,
+                child: Container(
+                  width: 116,
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    color: DFitColors.accent,
+                    borderRadius: BorderRadius.circular(99),
+                    boxShadow: [
+                      BoxShadow(
+                        color: DFitColors.accent.withValues(alpha: 0.45),
+                        blurRadius: 18,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _PulseDot(top: 55, left: 73, animation: animation, delay: 0),
+              _PulseDot(top: 90, left: 120, animation: animation, delay: 0.34),
+              _PulseDot(top: 127, left: 85, animation: animation, delay: 0.68),
+            ],
           ),
-          Container(width: 108, height: 2, color: DFitColors.accent),
-          const _PulseDot(top: 52, left: 66),
-          const _PulseDot(top: 86, left: 112),
-          const _PulseDot(top: 118, left: 78),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 class _PulseDot extends StatelessWidget {
-  const _PulseDot({required this.top, required this.left});
+  const _PulseDot({
+    required this.top,
+    required this.left,
+    required this.animation,
+    required this.delay,
+  });
 
   final double top;
   final double left;
+  final Animation<double> animation;
+  final double delay;
 
   @override
   Widget build(BuildContext context) {
+    final t = (animation.value + delay) % 1;
+    final scale = 0.82 + 0.38 * math.sin(t * math.pi);
+
     return Positioned(
       top: top,
       left: left,
-      child: Container(
-        width: 7,
-        height: 7,
-        decoration: const BoxDecoration(
-          color: DFitColors.accent,
-          shape: BoxShape.circle,
+      child: Transform.scale(
+        scale: scale,
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: DFitColors.accent.withValues(alpha: 0.72 + 0.28 * t),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: DFitColors.accent.withValues(alpha: 0.32),
+                blurRadius: 10,
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class _OrbitPainter extends CustomPainter {
+  const _OrbitPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 5;
+    final base = Paint()
+      ..color = DFitColors.accent.withValues(alpha: 0.16)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final arc = Paint()
+      ..shader = SweepGradient(
+        colors: [
+          Colors.transparent,
+          DFitColors.accent.withValues(alpha: 0.2),
+          DFitColors.accent.withValues(alpha: 0.8),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.45, 0.78, 1.0],
+        transform: GradientRotation(progress * math.pi * 2),
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, base);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      math.pi * 1.25,
+      false,
+      arc,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _OrbitPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 

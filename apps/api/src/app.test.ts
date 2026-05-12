@@ -193,6 +193,53 @@ describe("DFit API", () => {
     await app.close();
   });
 
+  it("returns bootstrap data for the first app paint", async () => {
+    const app = await testApp();
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { "idempotency-key": "bootstrap-meal" },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(created.statusCode).toBe(201);
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        "x-dfit-install-id": "bootstrap-install",
+        "x-dfit-platform": "ios",
+      },
+    });
+
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json()).toMatchObject({
+      profile: { authMethod: "anonymous" },
+      quota: {
+        freeRemaining: 1,
+        rewardedRemaining: 2,
+        premiumRemaining: 0,
+      },
+      today: {
+        target: { calories: 1900 },
+        totals: { calories: 180 },
+      },
+      weeklyRange: {
+        summary: {
+          windowDays: 7,
+          activeDays: 1,
+          mealCount: 1,
+        },
+      },
+    });
+    expect(bootstrap.json().serverTime).toEqual(expect.any(String));
+    expect(bootstrap.json().today.meals[0]).toMatchObject({
+      id: created.json().id,
+      title: "Dal rice",
+    });
+    await app.close();
+  });
+
   it("rejects invalid scan image payloads", async () => {
     const app = await testApp();
     const prepared = await app.inject({

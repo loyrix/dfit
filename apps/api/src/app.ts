@@ -14,6 +14,7 @@ import { registerScanRoutes } from "./routes/scans.js";
 import { config } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
+import { registerBootstrapRoutes } from "./routes/bootstrap.js";
 
 export type BuildAppOptions = {
   repository?: AppRepository;
@@ -55,6 +56,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerConfigRoutes(app);
   await registerFoodRoutes(app, repository);
   await registerProfileRoutes(app, repository);
+  await registerBootstrapRoutes(app, repository);
   await registerJournalRoutes(app, repository);
   await registerScanRoutes(app, repository, aiProvider);
 

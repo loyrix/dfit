@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'models/auth_session.dart';
 import 'models/meal.dart';
+import 'screens/account_gate_screen.dart';
+import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/meal_detail_screen.dart';
@@ -9,6 +12,7 @@ import 'screens/review_meal_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'theme/dfit_colors.dart';
 import 'theme/dfit_theme.dart';
@@ -25,6 +29,7 @@ class _DFitAppState extends State<DFitApp> {
 
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+  late final AuthController _authController = AuthController();
   late final JournalController _journalController = JournalController();
   ThemeMode _themeMode = ThemeMode.system;
   bool _hasSeenWelcome = false;
@@ -34,11 +39,13 @@ class _DFitAppState extends State<DFitApp> {
   void initState() {
     super.initState();
     _loadWelcomeState();
+    _authController.load();
     _journalController.loadToday();
   }
 
   @override
   void dispose() {
+    _authController.dispose();
     _journalController.dispose();
     super.dispose();
   }
@@ -77,6 +84,7 @@ class _DFitAppState extends State<DFitApp> {
           quota: _journalController.quota,
           weeklyRange: _journalController.weeklyRange,
           loading: _journalController.loading,
+          initialLoading: _journalController.initialLoading,
           syncMessage: _journalController.error,
           onRefresh: _journalController.loadToday,
           onScan: _openCamera,
@@ -186,6 +194,14 @@ class _DFitAppState extends State<DFitApp> {
     final quota = _journalController.quota;
     if (quota == null || quota.totalRemaining > 0) return true;
 
+    if (!_authController.isSignedIn) {
+      final session = await _openAccountHome(AccountGateReason.quotaExhausted);
+      if (session != null) {
+        _showJournalMessage('Account linked. Ad unlocks come next.');
+      }
+      return false;
+    }
+
     final context = _navigatorKey.currentContext;
     if (context == null) return false;
 
@@ -225,10 +241,80 @@ class _DFitAppState extends State<DFitApp> {
   Future<void> _openSettings() async {
     await _navigatorKey.currentState!.push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => SettingsScreen(
-          themeMode: _themeMode,
-          onThemeChanged: (mode) {
-            setState(() => _themeMode = mode);
+        builder: (_) => AnimatedBuilder(
+          animation: _authController,
+          builder: (context, _) {
+            return SettingsScreen(
+              themeMode: _themeMode,
+              session: _authController.session,
+              onOpenAccount: () =>
+                  _openAccountHome(AccountGateReason.saveJournal),
+              onThemeChanged: (mode) {
+                setState(() => _themeMode = mode);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<AuthSession?> _openAccountHome(AccountGateReason reason) async {
+    final existing = _authController.session;
+    if (existing != null) {
+      await _openAccountProfile(existing);
+      return existing;
+    }
+
+    final session = await _openAccountGate(reason);
+    if (session != null) {
+      await _openAccountProfile(session);
+    }
+    return session;
+  }
+
+  Future<AuthSession?> _openAccountGate(AccountGateReason reason) async {
+    final result = await _navigatorKey.currentState!.push<AuthSession>(
+      MaterialPageRoute<AuthSession>(
+        builder: (_) => AnimatedBuilder(
+          animation: _authController,
+          builder: (context, _) {
+            return AccountGateScreen(
+              reason: reason,
+              loading: _authController.loading,
+              error: _authController.error,
+              onSignIn: _authController.signIn,
+              onEmailAuth: (mode, email, password) {
+                return _authController.signInWithEmail(
+                  mode: mode,
+                  email: email,
+                  password: password,
+                );
+              },
+              onManualLog: () {
+                _navigatorKey.currentState!.pop();
+                _openManualReview();
+              },
+            );
+          },
+        ),
+      ),
+    );
+
+    return result;
+  }
+
+  Future<void> _openAccountProfile(AuthSession session) async {
+    await _navigatorKey.currentState!.push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => AnimatedBuilder(
+          animation: _authController,
+          builder: (context, _) {
+            final currentSession = _authController.session ?? session;
+            return AccountProfileScreen(
+              session: currentSession,
+              onSignOut: _authController.signOut,
+            );
           },
         ),
       ),

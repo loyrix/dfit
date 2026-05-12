@@ -3,12 +3,15 @@ import 'package:flutter/foundation.dart';
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../services/dfit_api_client.dart';
+import '../services/journal_cache_store.dart';
 
 class JournalController extends ChangeNotifier {
-  JournalController({DFitApiClient? apiClient})
-    : _apiClient = apiClient ?? DFitApiClient();
+  JournalController({DFitApiClient? apiClient, JournalCacheStore? cacheStore})
+    : _apiClient = apiClient ?? DFitApiClient(),
+      _cacheStore = cacheStore ?? JournalCacheStore();
 
   final DFitApiClient _apiClient;
+  final JournalCacheStore _cacheStore;
 
   bool _loading = false;
   String? _error;
@@ -27,6 +30,8 @@ class JournalController extends ChangeNotifier {
   ScanQuota? get quota => _quota;
   JournalRangeData? get weeklyRange => _weeklyRange;
   DateTime? get lastLoadedAt => _lastLoadedAt;
+  bool get initialLoading =>
+      _loading && _lastLoadedAt == null && _meals.isEmpty;
 
   @override
   void dispose() {
@@ -39,14 +44,18 @@ class JournalController extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    final cached = _lastLoadedAt == null && _meals.isEmpty
+        ? await _cacheStore.load()
+        : null;
+    if (cached != null) {
+      _applyBootstrap(cached);
+      notifyListeners();
+    }
+
     try {
-      final today = await _apiClient.fetchToday();
-      _meals = today.meals;
-      _totals = today.totals;
-      _target = today.target ?? defaultTarget;
-      _lastLoadedAt = DateTime.now();
-      await _refreshWeeklyRange(notify: false);
-      await _refreshQuota(notify: false);
+      final bootstrap = await _apiClient.fetchBootstrap();
+      _applyBootstrap(bootstrap);
+      await _cacheStore.save(bootstrap);
     } catch (error) {
       _error = _journalErrorMessage(error);
     } finally {
@@ -90,13 +99,14 @@ class JournalController extends ChangeNotifier {
 
   Future<void> refreshQuota() => _refreshQuota();
 
-  Future<void> _refreshWeeklyRange({bool notify = true}) async {
-    try {
-      _weeklyRange = await _apiClient.fetchJournalRange(days: 7);
-      if (notify) notifyListeners();
-    } catch (_) {
-      // Weekly summary should never block today's journal from loading.
-    }
+  void _applyBootstrap(AppBootstrapData bootstrap) {
+    _meals = bootstrap.today.meals;
+    _totals = bootstrap.today.totals;
+    _target = bootstrap.today.target ?? defaultTarget;
+    _weeklyRange = bootstrap.weeklyRange;
+    _quota = bootstrap.quota;
+    _lastLoadedAt =
+        DateTime.tryParse(bootstrap.serverTime)?.toLocal() ?? DateTime.now();
   }
 
   Future<void> _refreshQuota({bool notify = true}) async {

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { config } from "../config.js";
 
 export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> => {
   app.get("/", async () => ({
@@ -21,7 +22,7 @@ export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> 
       launchTotalCapPerDay: 3,
     },
     features: {
-      aiProvider: "mock",
+      aiProvider: config.aiProvider,
       noImageStorage: true,
       accountLink: false,
       premium: false,

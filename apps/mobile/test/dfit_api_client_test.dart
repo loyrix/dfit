@@ -153,6 +153,102 @@ void main() {
     expect(quota.totalRemaining, 3);
   });
 
+  test('fetches app bootstrap data in one request', () async {
+    final client = DFitApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/app/bootstrap');
+        expect(request.headers['x-dfit-install-id'], 'test-install');
+        return http.Response(
+          jsonEncode({
+            'serverTime': '2026-05-12T10:00:00.000Z',
+            'profile': {
+              'id': 'profile_1',
+              'authMethod': 'anonymous',
+              'timezone': 'Asia/Kolkata',
+              'createdAt': '2026-05-12T10:00:00.000Z',
+            },
+            'quota': {
+              'freeRemaining': 1,
+              'rewardedRemaining': 2,
+              'premiumRemaining': 0,
+            },
+            'today': {
+              'date': '2026-05-12',
+              'timezone': 'Asia/Kolkata',
+              'totals': {
+                'calories': 180,
+                'proteinG': 10.8,
+                'carbsG': 25.2,
+                'fatG': 5.4,
+              },
+              'target': {
+                'calories': 1900,
+                'proteinG': 120,
+                'carbsG': 220,
+                'fatG': 65,
+              },
+              'meals': [
+                {
+                  'id': 'meal_1',
+                  'mealType': 'lunch',
+                  'title': 'Dal rice',
+                  'loggedAt': '2026-05-12T09:00:00.000Z',
+                  'items': [
+                    {
+                      'displayName': 'Dal',
+                      'quantity': 1,
+                      'unit': 'katori',
+                      'grams': 180,
+                      'nutrition': {
+                        'calories': 180,
+                        'proteinG': 10.8,
+                        'carbsG': 25.2,
+                        'fatG': 5.4,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            'weeklyRange': {
+              'startDate': '2026-05-06',
+              'endDate': '2026-05-12',
+              'timezone': 'Asia/Kolkata',
+              'days': [],
+              'summary': {
+                'windowDays': 7,
+                'activeDays': 1,
+                'mealCount': 1,
+                'totals': {
+                  'calories': 180,
+                  'proteinG': 10.8,
+                  'carbsG': 25.2,
+                  'fatG': 5.4,
+                },
+                'dailyAverage': {
+                  'calories': 26,
+                  'proteinG': 1.5,
+                  'carbsG': 3.6,
+                  'fatG': 0.8,
+                },
+              },
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final bootstrap = await client.fetchBootstrap();
+
+    expect(bootstrap.profile.authMethod, 'anonymous');
+    expect(bootstrap.quota.totalRemaining, 3);
+    expect(bootstrap.today.meals.single.title, 'Dal rice');
+    expect(bootstrap.weeklyRange.summary.dailyAverage.calories, 26);
+  });
+
   test('fetches seven day journal range', () async {
     final client = DFitApiClient(
       baseUrl: 'http://api.test',

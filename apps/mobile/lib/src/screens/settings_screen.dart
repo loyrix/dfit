@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth_session.dart';
 import '../theme/dfit_colors.dart';
 import '../theme/dfit_theme.dart';
 import '../widgets/primitive_icons.dart';
@@ -9,10 +10,14 @@ class SettingsScreen extends StatelessWidget {
     super.key,
     required this.themeMode,
     required this.onThemeChanged,
+    required this.session,
+    required this.onOpenAccount,
   });
 
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
+  final AuthSession? session;
+  final VoidCallback onOpenAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +38,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 18),
             Text('Settings', style: Theme.of(context).textTheme.displayLarge),
             const SizedBox(height: 22),
-            _SaveJournalCard(onTap: () {}),
+            _AccountCard(session: session, onTap: onOpenAccount),
             const SizedBox(height: 18),
             _SettingsSection(
               title: 'THEME',
@@ -71,14 +76,16 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _SaveJournalCard extends StatelessWidget {
-  const _SaveJournalCard({required this.onTap});
+class _AccountCard extends StatelessWidget {
+  const _AccountCard({required this.session, required this.onTap});
 
+  final AuthSession? session;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
+    final signedIn = session != null;
 
     return InkWell(
       onTap: onTap,
@@ -115,14 +122,16 @@ class _SaveJournalCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Save your journal',
+                    signedIn ? 'Profile' : 'Save your journal',
                     style: Theme.of(
                       context,
                     ).textTheme.titleMedium?.copyWith(color: colors.accentText),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Link later with Apple, Google or email',
+                    signedIn
+                        ? '${session!.displayName} - ${session!.provider.label}'
+                        : 'Link with Apple, Google or email',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.accentText.withValues(alpha: 0.72),
                     ),

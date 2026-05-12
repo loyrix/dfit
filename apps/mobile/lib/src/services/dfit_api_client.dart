@@ -37,6 +37,17 @@ class DFitApiClient {
     );
   }
 
+  Future<AppBootstrapData> fetchBootstrap() async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v1/app/bootstrap'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
+    return AppBootstrapData.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<JournalRangeData> fetchJournalRange({int days = 7}) async {
     final response = await _httpClient.get(
       Uri.parse('$baseUrl/v1/journal/range?days=$days'),

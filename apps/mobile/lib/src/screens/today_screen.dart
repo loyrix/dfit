@@ -18,6 +18,7 @@ class TodayScreen extends StatelessWidget {
     this.quota,
     this.weeklyRange,
     this.loading = false,
+    this.initialLoading = false,
     this.syncMessage,
     required this.onRefresh,
     required this.onScan,
@@ -32,6 +33,7 @@ class TodayScreen extends StatelessWidget {
   final ScanQuota? quota;
   final JournalRangeData? weeklyRange;
   final bool loading;
+  final bool initialLoading;
   final String? syncMessage;
   final Future<void> Function() onRefresh;
   final VoidCallback onScan;
@@ -41,7 +43,7 @@ class TodayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty = meals.isEmpty;
+    final isEmpty = meals.isEmpty && !initialLoading;
     final colors = context.dfit;
 
     return Scaffold(
@@ -85,7 +87,7 @@ class TodayScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  if (loading) ...[
+                  if (loading && !initialLoading) ...[
                     LinearProgressIndicator(
                       minHeight: 2,
                       color: DFitColors.accent,
@@ -97,26 +99,30 @@ class TodayScreen extends StatelessWidget {
                     _SyncBanner(message: syncMessage!, onRetry: onRefresh),
                     const SizedBox(height: 10),
                   ],
-                  EnergyHeroCard(totals: totals, target: target),
-                  const SizedBox(height: 12),
-                  MacroBarGroup(totals: totals, target: target),
-                  if (weeklyRange != null) ...[
+                  if (initialLoading)
+                    const _TodayLoadingBody()
+                  else ...[
+                    EnergyHeroCard(totals: totals, target: target),
                     const SizedBox(height: 12),
-                    _WeeklySummaryCard(range: weeklyRange!),
+                    MacroBarGroup(totals: totals, target: target),
+                    if (weeklyRange != null) ...[
+                      const SizedBox(height: 12),
+                      _WeeklySummaryCard(range: weeklyRange!),
+                    ],
+                    const SizedBox(height: 22),
+                    if (isEmpty)
+                      _EmptyTodayBody(onAddManually: onAddManually)
+                    else
+                      _MealsList(
+                        meals: meals,
+                        onOpenMeal: onOpenMeal,
+                        onAddManually: onAddManually,
+                      ),
                   ],
-                  const SizedBox(height: 22),
-                  if (isEmpty)
-                    _EmptyTodayBody(onAddManually: onAddManually)
-                  else
-                    _MealsList(
-                      meals: meals,
-                      onOpenMeal: onOpenMeal,
-                      onAddManually: onAddManually,
-                    ),
                 ],
               ),
             ),
-            if (loading && meals.isNotEmpty)
+            if (loading && meals.isNotEmpty && !initialLoading)
               Positioned(
                 top: 0,
                 left: 0,
@@ -219,6 +225,273 @@ class _WeeklySummaryCard extends StatelessWidget {
             accent: true,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TodayLoadingBody extends StatefulWidget {
+  const _TodayLoadingBody();
+
+  @override
+  State<_TodayLoadingBody> createState() => _TodayLoadingBodyState();
+}
+
+class _TodayLoadingBodyState extends State<_TodayLoadingBody>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Column(
+          key: const ValueKey('today-loading-skeleton'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.surfaceHero,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SkeletonBox(
+                    width: 74,
+                    height: 10,
+                    shimmer: _controller.value,
+                    darkSurface: true,
+                  ),
+                  const SizedBox(height: 16),
+                  _SkeletonBox(
+                    width: 170,
+                    height: 44,
+                    radius: 10,
+                    shimmer: _controller.value,
+                    darkSurface: true,
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: List.generate(10, (index) {
+                      return Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(right: index == 9 ? 0 : 3),
+                          child: _SkeletonBox(
+                            height: 5,
+                            radius: 99,
+                            shimmer: _controller.value,
+                            darkSurface: true,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _SkeletonBox(
+                      width: 96,
+                      height: 10,
+                      shimmer: _controller.value,
+                      darkSurface: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _LoadingCard(
+              child: Row(
+                children: List.generate(3, (index) {
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SkeletonBox(
+                            width: 48,
+                            height: 18,
+                            shimmer: _controller.value,
+                          ),
+                          const SizedBox(height: 10),
+                          _SkeletonBox(
+                            height: 6,
+                            radius: 99,
+                            shimmer: _controller.value,
+                          ),
+                          const SizedBox(height: 9),
+                          _SkeletonBox(
+                            width: 54,
+                            height: 10,
+                            shimmer: _controller.value,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _LoadingCard(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SkeletonBox(
+                          width: 104,
+                          height: 10,
+                          shimmer: _controller.value,
+                        ),
+                        const SizedBox(height: 14),
+                        _SkeletonBox(
+                          width: 92,
+                          height: 20,
+                          shimmer: _controller.value,
+                        ),
+                        const SizedBox(height: 8),
+                        _SkeletonBox(
+                          width: 124,
+                          height: 12,
+                          shimmer: _controller.value,
+                        ),
+                      ],
+                    ),
+                  ),
+                  _SkeletonBox(
+                    width: 68,
+                    height: 68,
+                    radius: 12,
+                    shimmer: _controller.value,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            _SkeletonBox(width: 54, height: 10, shimmer: _controller.value),
+            const SizedBox(height: 10),
+            for (var index = 0; index < 3; index++) ...[
+              _LoadingCard(
+                child: Row(
+                  children: [
+                    _SkeletonBox(
+                      width: 42,
+                      height: 42,
+                      radius: 21,
+                      shimmer: _controller.value,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SkeletonBox(
+                            width: 70,
+                            height: 10,
+                            shimmer: _controller.value,
+                          ),
+                          const SizedBox(height: 9),
+                          _SkeletonBox(
+                            width: double.infinity,
+                            height: 18,
+                            shimmer: _controller.value,
+                          ),
+                          const SizedBox(height: 9),
+                          _SkeletonBox(
+                            width: 150,
+                            height: 10,
+                            shimmer: _controller.value,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LoadingCard extends StatelessWidget {
+  const _LoadingCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surfaceCard,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.border, width: 0.5),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({
+    this.width,
+    required this.height,
+    this.radius = 6,
+    required this.shimmer,
+    this.darkSurface = false,
+  });
+
+  final double? width;
+  final double height;
+  final double radius;
+  final double shimmer;
+  final bool darkSurface;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+    final base = darkSurface
+        ? Colors.white.withValues(alpha: 0.07)
+        : colors.mutedFill;
+    final highlight = darkSurface
+        ? DFitColors.accent.withValues(alpha: 0.18)
+        : colors.textPrimary.withValues(alpha: 0.08);
+    final start = -1.6 + shimmer * 3.2;
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          begin: Alignment(start, -0.5),
+          end: Alignment(start + 1.2, 0.5),
+          colors: [base, highlight, base],
+          stops: const [0.15, 0.5, 0.85],
+        ),
       ),
     );
   }

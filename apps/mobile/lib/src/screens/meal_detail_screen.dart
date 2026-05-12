@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/dfit_theme.dart';
-import '../widgets/macro_bar_group.dart';
+import '../widgets/macro_profile_card.dart';
 import '../widgets/primitive_icons.dart';
 
 class MealDetailScreen extends StatelessWidget {
@@ -45,14 +45,14 @@ class MealDetailScreen extends StatelessWidget {
               ).textTheme.displayLarge?.copyWith(fontSize: 54),
             ),
             Text(
-              'kcal',
+              'kcal - ${meal.items.length} items',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: 22),
-            MacroBarGroup(totals: totals, target: defaultTarget),
+            MacroProfileCard(meal: meal),
             const SizedBox(height: 22),
             Text('ITEMS', style: Theme.of(context).textTheme.labelSmall),
             const SizedBox(height: 10),
