@@ -174,27 +174,15 @@ class DFitApiConfig {
 
   static String get defaultBaseUrl {
     const configured = String.fromEnvironment('DFIT_API_BASE_URL');
-    return resolveBaseUrl(
-      configured: configured,
-      platform: defaultTargetPlatform,
-      releaseMode: kReleaseMode,
-    );
+    return resolveBaseUrl(configured: configured);
   }
 
   @visibleForTesting
-  static String resolveBaseUrl({
-    required String configured,
-    required TargetPlatform platform,
-    required bool releaseMode,
-  }) {
+  static String resolveBaseUrl({required String configured}) {
     final configuredBaseUrl = normalizeBaseUrl(configured);
     if (configuredBaseUrl.isNotEmpty) return configuredBaseUrl;
 
-    if (releaseMode) return productionBaseUrl;
-
-    return platform == TargetPlatform.android
-        ? 'http://10.0.2.2:4000'
-        : 'http://127.0.0.1:4000';
+    return productionBaseUrl;
   }
 
   static String normalizeBaseUrl(String value) {

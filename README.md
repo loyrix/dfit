@@ -40,21 +40,26 @@ pnpm mobile:analyze
 pnpm mobile:test
 ```
 
-Debug mobile builds default to the local API. Run the API before testing the
-mobile scan flow locally:
+Mobile builds default to the deployed API at `https://dfit-api.vercel.app`.
+This keeps Xcode and device launches working even when no `--dart-define` is
+passed.
+
+To test against the local API, run the API first:
 
 ```sh
 pnpm --filter @dfit/api dev
 ```
 
-Flutter defaults to `http://127.0.0.1:4000` on iOS simulator and `http://10.0.2.2:4000`
-on Android emulator. Release builds default to the deployed API:
-`https://dfit-api.vercel.app`.
-
-To test the deployed API from a debug emulator/device:
+iOS simulator local API:
 
 ```sh
-flutter run --dart-define=DFIT_API_BASE_URL=https://dfit-api.vercel.app
+flutter run --dart-define=DFIT_API_BASE_URL=http://127.0.0.1:4000
+```
+
+Android emulator local API:
+
+```sh
+flutter run --dart-define=DFIT_API_BASE_URL=http://10.0.2.2:4000
 ```
 
 For a physical phone against your local Mac, pass your Mac's LAN address:

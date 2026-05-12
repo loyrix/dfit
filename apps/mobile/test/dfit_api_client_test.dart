@@ -1,10 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dfit_mobile/src/models/captured_meal_photo.dart';
 import 'package:dfit_mobile/src/models/meal.dart';
 import 'package:dfit_mobile/src/services/device_identity_store.dart';
 import 'package:dfit_mobile/src/services/dfit_api_client.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -21,41 +21,14 @@ void main() {
   group('DFitApiConfig', () {
     test('uses explicit dart define value first', () {
       expect(
-        DFitApiConfig.resolveBaseUrl(
-          configured: ' https://example.test/api/ ',
-          platform: TargetPlatform.iOS,
-          releaseMode: false,
-        ),
+        DFitApiConfig.resolveBaseUrl(configured: ' https://example.test/api/ '),
         'https://example.test/api',
       );
     });
 
-    test('uses local emulator URLs in debug builds', () {
+    test('uses production API by default', () {
       expect(
-        DFitApiConfig.resolveBaseUrl(
-          configured: '',
-          platform: TargetPlatform.android,
-          releaseMode: false,
-        ),
-        'http://10.0.2.2:4000',
-      );
-      expect(
-        DFitApiConfig.resolveBaseUrl(
-          configured: '',
-          platform: TargetPlatform.iOS,
-          releaseMode: false,
-        ),
-        'http://127.0.0.1:4000',
-      );
-    });
-
-    test('uses production API in release builds', () {
-      expect(
-        DFitApiConfig.resolveBaseUrl(
-          configured: '',
-          platform: TargetPlatform.iOS,
-          releaseMode: true,
-        ),
+        DFitApiConfig.resolveBaseUrl(configured: ''),
         'https://dfit-api.vercel.app',
       );
     });

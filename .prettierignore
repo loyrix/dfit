@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.dart_tool/
+build/
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/android/.gradle/
