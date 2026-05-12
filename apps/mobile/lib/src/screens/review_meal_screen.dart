@@ -103,6 +103,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             const Divider(height: 1, color: DFitColors.borderLight),
             for (var index = 0; index < _items.length; index++)
               _ReviewItemRow(
+                rowKey: ValueKey('${_items[index].name}-$index'),
                 item: _items[index],
                 onIncrement: () => _changeQuantity(index, 1),
                 onDecrement: () => _changeQuantity(index, -1),
@@ -112,7 +113,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ),
             const SizedBox(height: 16),
             OutlinedButton(
-              onPressed: () {},
+              onPressed: _openAddItemSheet,
               style: OutlinedButton.styleFrom(
                 foregroundColor: DFitColors.textPrimaryLight,
                 side: const BorderSide(color: DFitColors.borderLight),
@@ -144,7 +145,20 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text(_saving ? 'Saving' : 'Confirm meal'),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: _saving
+                    ? const SizedBox(
+                        key: ValueKey('saving'),
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Confirm meal', key: ValueKey('confirm')),
+              ),
             ),
           ],
         ),
@@ -191,6 +205,87 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
         ),
       );
     });
+  }
+
+  Future<void> _openAddItemSheet() async {
+    final selected = await showModalBottomSheet<MealItem>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddItemSheet(
+        items: sampleDetectedItems()
+            .where(
+              (item) => !_items.any((current) => current.name == item.name),
+            )
+            .toList(),
+      ),
+    );
+    if (selected == null || !mounted) return;
+
+    final existingIndex = _items.indexWhere(
+      (item) => item.name == selected.name,
+    );
+    if (existingIndex == -1) {
+      setState(() => _items.add(selected));
+    } else {
+      _changeQuantity(existingIndex, 1);
+    }
+  }
+}
+
+class _AddItemSheet extends StatelessWidget {
+  const _AddItemSheet({required this.items});
+
+  final List<MealItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? DFitColors.surfaceCardDark
+              : DFitColors.surfaceCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.08)
+                : DFitColors.borderLight,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Add item', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Text(
+                  'All quick items are already included.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: DFitColors.textSecondaryLight,
+                  ),
+                ),
+              )
+            else
+              for (final item in items)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(item.name),
+                  subtitle: Text(
+                    '${item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 1)} ${item.unit} - ${item.grams}g',
+                  ),
+                  trailing: Text('${item.nutrition.calories}'),
+                  onTap: () => Navigator.of(context).pop(item),
+                ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -248,12 +343,14 @@ class _MacroChip extends StatelessWidget {
 
 class _ReviewItemRow extends StatelessWidget {
   const _ReviewItemRow({
+    required this.rowKey,
     required this.item,
     required this.onIncrement,
     required this.onDecrement,
     required this.onDelete,
   });
 
+  final Key rowKey;
   final MealItem item;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
@@ -264,7 +361,7 @@ class _ReviewItemRow extends StatelessWidget {
     final lowConfidence = item.confidence < 0.7;
 
     return Dismissible(
-      key: ValueKey(item.name),
+      key: rowKey,
       direction: DismissDirection.endToStart,
       onDismissed: (_) => onDelete(),
       background: Container(

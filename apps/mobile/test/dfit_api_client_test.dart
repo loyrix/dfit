@@ -34,6 +34,16 @@ void main() {
     });
   });
 
+  test('classifies scan credit required API errors', () {
+    final error = DFitApiException(
+      402,
+      jsonEncode({'error': 'scan_credit_required'}),
+    );
+
+    expect(error.errorCode, 'scan_credit_required');
+    expect(error.isScanCreditRequired, isTrue);
+  });
+
   test('prepares and analyzes a scan', () async {
     final requests = <http.Request>[];
     final client = DFitApiClient(

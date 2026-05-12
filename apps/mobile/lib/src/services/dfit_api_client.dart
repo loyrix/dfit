@@ -209,6 +209,20 @@ class DFitApiException implements Exception {
   final int statusCode;
   final String body;
 
+  String? get errorCode {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded['error'] as String?;
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  bool get isScanCreditRequired {
+    return statusCode == 402 || errorCode == 'scan_credit_required';
+  }
+
   @override
   String toString() => 'DFitApiException($statusCode): $body';
 }

@@ -9,6 +9,7 @@ import 'screens/settings_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'state/journal_controller.dart';
+import 'theme/dfit_colors.dart';
 import 'theme/dfit_theme.dart';
 
 class DFitApp extends StatefulWidget {
@@ -20,6 +21,7 @@ class DFitApp extends StatefulWidget {
 
 class _DFitAppState extends State<DFitApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   late final JournalController _journalController = JournalController();
   ThemeMode _themeMode = ThemeMode.system;
   bool _hasSeenWelcome = false;
@@ -45,6 +47,7 @@ class _DFitAppState extends State<DFitApp> {
       darkTheme: DFitTheme.dark(),
       themeMode: _themeMode,
       navigatorKey: _navigatorKey,
+      scaffoldMessengerKey: _messengerKey,
       home: _hasSeenWelcome
           ? _todayScreen()
           : WelcomeScreen(
@@ -78,6 +81,8 @@ class _DFitAppState extends State<DFitApp> {
   }
 
   Future<void> _openCamera() async {
+    if (!await _ensureScanAllowed()) return;
+
     await _navigatorKey.currentState!.push<void>(
       MaterialPageRoute<void>(
         builder: (_) => CameraScreen(
@@ -128,6 +133,7 @@ class _DFitAppState extends State<DFitApp> {
   Future<void> _saveMeal(MealType type, List<MealItem> items) async {
     await _journalController.saveMeal(type, items);
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
+    _showJournalMessage('Meal saved');
   }
 
   Future<void> _confirmAnalyzedMeal({
@@ -143,6 +149,47 @@ class _DFitAppState extends State<DFitApp> {
       items: items,
     );
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
+    _showJournalMessage('Scan saved');
+  }
+
+  Future<bool> _ensureScanAllowed() async {
+    final quota = _journalController.quota;
+    if (quota == null || quota.totalRemaining > 0) return true;
+
+    final context = _navigatorKey.currentContext;
+    if (context == null) return false;
+
+    final action = await showModalBottomSheet<_NoScanCreditsAction>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _NoScanCreditsSheet(),
+    );
+
+    if (action == _NoScanCreditsAction.addManually) {
+      await _openManualReview();
+    } else if (action == _NoScanCreditsAction.refresh) {
+      await _journalController.loadToday();
+    }
+
+    return false;
+  }
+
+  void _showJournalMessage(String message) {
+    final messenger = _messengerKey.currentState;
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: DFitColors.surfaceHero,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   Future<void> _openSettings() async {
@@ -161,6 +208,71 @@ class _DFitAppState extends State<DFitApp> {
   Future<void> _openMealDetail(MealLog meal) async {
     await _navigatorKey.currentState!.push<void>(
       MaterialPageRoute<void>(builder: (_) => MealDetailScreen(meal: meal)),
+    );
+  }
+}
+
+enum _NoScanCreditsAction { addManually, refresh }
+
+class _NoScanCreditsSheet extends StatelessWidget {
+  const _NoScanCreditsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? DFitColors.surfaceCardDark
+              : DFitColors.surfaceCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.08)
+                : DFitColors.borderLight,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'No scans left',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Log manually for now. Ad unlocks and premium scan packs come next.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: DFitColors.textSecondaryLight,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_NoScanCreditsAction.addManually),
+              style: FilledButton.styleFrom(
+                backgroundColor: DFitColors.textPrimaryLight,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Add manually'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_NoScanCreditsAction.refresh),
+              child: const Text('Refresh quota'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

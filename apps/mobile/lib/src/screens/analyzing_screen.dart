@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
+import '../services/dfit_api_client.dart';
 import '../theme/dfit_colors.dart';
 
 class AnalyzingScreen extends StatefulWidget {
@@ -38,13 +39,25 @@ class _AnalyzingScreenState extends State<AnalyzingScreen> {
       final analysis = await widget.onAnalyze(widget.photo);
       if (!mounted) return;
       widget.onAnalyzed(analysis);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error =
-            'Could not analyze this meal. Check the API connection and try again.';
+        _error = _analysisErrorMessage(error);
       });
     }
+  }
+
+  String _analysisErrorMessage(Object error) {
+    if (error is DFitApiException) {
+      if (error.isScanCreditRequired) {
+        return 'No scan credits left today. Add manually for now or refresh after credits reset.';
+      }
+      if (error.statusCode >= 500) {
+        return 'DFit API is taking longer than expected. Retry in a moment.';
+      }
+      return 'Could not analyze this meal (${error.statusCode}). Try again.';
+    }
+    return 'Could not analyze this meal. Check the API connection and try again.';
   }
 
   @override
