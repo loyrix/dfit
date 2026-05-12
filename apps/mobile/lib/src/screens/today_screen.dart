@@ -12,9 +12,12 @@ class TodayScreen extends StatelessWidget {
   const TodayScreen({
     super.key,
     required this.meals,
+    required this.totals,
     required this.target,
+    this.quota,
     this.loading = false,
     this.syncMessage,
+    required this.onRefresh,
     required this.onScan,
     required this.onAddManually,
     required this.onOpenSettings,
@@ -22,9 +25,12 @@ class TodayScreen extends StatelessWidget {
   });
 
   final List<MealLog> meals;
+  final MacroTotals totals;
   final MacroTotals target;
+  final ScanQuota? quota;
   final bool loading;
   final String? syncMessage;
+  final Future<void> Function() onRefresh;
   final VoidCallback onScan;
   final VoidCallback onAddManually;
   final VoidCallback onOpenSettings;
@@ -32,63 +38,83 @@ class TodayScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totals = meals.fold<MacroTotals>(
-      MacroTotals.zero,
-      (total, meal) => total + meal.totals,
-    );
     final isEmpty = meals.isEmpty;
 
     return Scaffold(
       body: SafeArea(
         child: Stack(
           children: [
-            ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _dateLabel(DateTime.now()),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: DFitColors.textSecondaryLight,
-                        letterSpacing: 1.4,
+            RefreshIndicator(
+              color: DFitColors.accent,
+              onRefresh: onRefresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _dateLabel(DateTime.now()),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: DFitColors.textSecondaryLight,
+                                letterSpacing: 1.4,
+                              ),
+                        ),
                       ),
+                      if (quota != null) ...[
+                        _QuotaPill(quota: quota!),
+                        const SizedBox(width: 6),
+                      ],
+                      IconButton(
+                        tooltip: 'Settings',
+                        onPressed: onOpenSettings,
+                        icon: const PrimitiveGearIcon(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (loading) ...[
+                    const LinearProgressIndicator(
+                      minHeight: 2,
+                      color: DFitColors.accent,
+                      backgroundColor: DFitColors.borderLight,
                     ),
-                    IconButton(
-                      tooltip: 'Settings',
-                      onPressed: onOpenSettings,
-                      icon: const PrimitiveGearIcon(),
-                    ),
+                    const SizedBox(height: 10),
                   ],
-                ),
-                const SizedBox(height: 10),
-                if (loading) ...[
-                  const LinearProgressIndicator(
+                  if (syncMessage != null) ...[
+                    _SyncBanner(message: syncMessage!, onRetry: onRefresh),
+                    const SizedBox(height: 10),
+                  ],
+                  EnergyHeroCard(totals: totals, target: target),
+                  const SizedBox(height: 12),
+                  MacroBarGroup(totals: totals, target: target),
+                  const SizedBox(height: 22),
+                  if (isEmpty)
+                    _EmptyTodayBody(onAddManually: onAddManually)
+                  else
+                    _MealsList(
+                      meals: meals,
+                      onOpenMeal: onOpenMeal,
+                      onAddManually: onAddManually,
+                    ),
+                ],
+              ),
+            ),
+            if (loading && meals.isNotEmpty)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: LinearProgressIndicator(
                     minHeight: 2,
                     color: DFitColors.accent,
-                    backgroundColor: DFitColors.borderLight,
+                    backgroundColor: DFitColors.accent.withValues(alpha: 0.08),
                   ),
-                  const SizedBox(height: 10),
-                ],
-                if (syncMessage != null) ...[
-                  _SyncBanner(message: syncMessage!),
-                  const SizedBox(height: 10),
-                ],
-                EnergyHeroCard(totals: totals, target: target),
-                const SizedBox(height: 12),
-                MacroBarGroup(totals: totals, target: target),
-                const SizedBox(height: 22),
-                if (isEmpty)
-                  _EmptyTodayBody(onAddManually: onAddManually)
-                else
-                  _MealsList(
-                    meals: meals,
-                    onOpenMeal: onOpenMeal,
-                    onAddManually: onAddManually,
-                  ),
-              ],
-            ),
+                ),
+              ),
             Positioned(
               left: 0,
               right: 0,
@@ -124,9 +150,10 @@ class TodayScreen extends StatelessWidget {
 }
 
 class _SyncBanner extends StatelessWidget {
-  const _SyncBanner({required this.message});
+  const _SyncBanner({required this.message, required this.onRetry});
 
   final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -140,11 +167,66 @@ class _SyncBanner extends StatelessWidget {
           width: 0.5,
         ),
       ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: DFitColors.accentWarm),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              foregroundColor: DFitColors.accentWarm,
+              minimumSize: const Size(48, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuotaPill extends StatelessWidget {
+  const _QuotaPill({required this.quota});
+
+  final ScanQuota quota;
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = quota.totalRemaining;
+    final label = remaining > 0 ? '$remaining scans' : 'ad unlock';
+    final background = remaining > 0
+        ? DFitColors.textPrimaryLight
+        : DFitColors.accent;
+    final foreground = remaining > 0 ? Colors.white : DFitColors.accentDeep;
+
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 11),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 0.5,
+        ),
+      ),
+      alignment: Alignment.center,
       child: Text(
-        message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: DFitColors.accentWarm),
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: foreground,
+          letterSpacing: 0.2,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
       ),
     );
   }

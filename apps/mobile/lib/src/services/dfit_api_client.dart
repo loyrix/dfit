@@ -37,6 +37,17 @@ class DFitApiClient {
     );
   }
 
+  Future<ScanQuota> fetchQuota() async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v1/quota'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
+    return ScanQuota.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<MealLog> createMeal({
     required MealType type,
     required String title,

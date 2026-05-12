@@ -213,6 +213,9 @@ class ScanQuota {
   final int rewardedRemaining;
   final int premiumRemaining;
 
+  int get totalRemaining =>
+      freeRemaining + rewardedRemaining + premiumRemaining;
+
   factory ScanQuota.fromJson(Map<String, dynamic> json) {
     return ScanQuota(
       freeRemaining: json['freeRemaining'] as int,

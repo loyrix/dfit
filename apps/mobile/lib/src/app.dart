@@ -62,9 +62,12 @@ class _DFitAppState extends State<DFitApp> {
       builder: (context, _) {
         return TodayScreen(
           meals: _journalController.meals,
+          totals: _journalController.totals,
           target: _journalController.target,
+          quota: _journalController.quota,
           loading: _journalController.loading,
           syncMessage: _journalController.error,
+          onRefresh: _journalController.loadToday,
           onScan: _openCamera,
           onAddManually: _openManualReview,
           onOpenSettings: _openSettings,

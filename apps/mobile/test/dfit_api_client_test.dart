@@ -118,6 +118,31 @@ void main() {
     ]);
   });
 
+  test('fetches quota with device identity headers', () async {
+    final client = DFitApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/quota');
+        expect(request.headers['x-dfit-install-id'], 'test-install');
+        return http.Response(
+          jsonEncode({
+            'freeRemaining': 2,
+            'rewardedRemaining': 1,
+            'premiumRemaining': 0,
+          }),
+          200,
+        );
+      }),
+    );
+
+    final quota = await client.fetchQuota();
+
+    expect(quota.freeRemaining, 2);
+    expect(quota.rewardedRemaining, 1);
+    expect(quota.totalRemaining, 3);
+  });
+
   test('confirms a scan meal', () async {
     final client = DFitApiClient(
       baseUrl: 'http://api.test',
