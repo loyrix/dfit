@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 
 class MealCard extends StatelessWidget {
   const MealCard({super.key, required this.meal, required this.onTap});
@@ -11,15 +12,14 @@ class MealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
     final totals = meal.totals;
     final names = meal.items.map((item) => item.name).join(', ');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? DFitColors.surfaceCardDark
-            : DFitColors.surfaceCard,
+        color: colors.surfaceCard,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -28,12 +28,7 @@ class MealCard extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : DFitColors.borderLight,
-                width: 0.5,
-              ),
+              border: Border.all(color: colors.border, width: 0.5),
             ),
             child: Row(
               children: [
@@ -46,7 +41,7 @@ class MealCard extends StatelessWidget {
                       Text(
                         meal.type.label,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: DFitColors.textSecondaryLight,
+                          color: colors.textSecondary,
                           letterSpacing: 1.4,
                         ),
                       ),
@@ -80,7 +75,7 @@ class MealCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: DFitColors.textSecondaryLight,
+                          color: colors.textSecondary,
                           letterSpacing: 0,
                         ),
                       ),

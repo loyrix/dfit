@@ -362,7 +362,11 @@ export class PostgresStore implements AppRepository {
         scan_sessions.image_mime_type,
         scan_sessions.image_byte_size,
         scan_sessions.created_at::text,
-        ai_predictions.raw_ai_json as analyzed_response
+        case
+          when ai_predictions.raw_ai_json ? 'analysis'
+            then ai_predictions.raw_ai_json -> 'analysis'
+          else ai_predictions.raw_ai_json
+        end as analyzed_response
       from scan_sessions
       left join lateral (
         select raw_ai_json
@@ -396,6 +400,13 @@ export class PostgresStore implements AppRepository {
           where scan_session_id = ${scan.id}
         `;
 
+        const providerRun = scan.aiProviderRun ?? {
+          provider: "mock" as const,
+          model: "mock-indian-plate-v1",
+          promptVersion: "mock_v1",
+          schemaVersion: "scan_v1",
+        };
+
         const [run] = await tx<{ id: string }[]>`
           insert into ai_provider_runs (
             scan_session_id,
@@ -403,9 +414,24 @@ export class PostgresStore implements AppRepository {
             model,
             prompt_version,
             schema_version,
+            input_token_estimate,
+            output_token_estimate,
+            estimated_cost_usd,
+            latency_ms,
             success
           )
-          values (${scan.id}, 'mock', 'mock-indian-plate-v1', 'mock_v1', 'scan_v1', true)
+          values (
+            ${scan.id},
+            ${providerRun.provider},
+            ${providerRun.model},
+            ${providerRun.promptVersion},
+            ${providerRun.schemaVersion},
+            ${providerRun.inputTokenEstimate ?? null},
+            ${providerRun.outputTokenEstimate ?? null},
+            ${providerRun.estimatedCostUsd ?? null},
+            ${providerRun.latencyMs ?? null},
+            true
+          )
           returning id::text
         `;
 
@@ -420,6 +446,12 @@ export class PostgresStore implements AppRepository {
             confidence: number;
           }>;
         };
+        const rawAiJson = providerRun.rawResponse
+          ? {
+              analysis: scan.analyzedResponse,
+              providerResponse: providerRun.rawResponse,
+            }
+          : scan.analyzedResponse;
         const items = response.items ?? [];
         const totalConfidence =
           items.length === 0
@@ -438,7 +470,7 @@ export class PostgresStore implements AppRepository {
             ${scan.id},
             ${run.id},
             ${response.detectedLanguage ?? null},
-            ${tx.json(toJsonValue(scan.analyzedResponse))},
+            ${tx.json(toJsonValue(rawAiJson))},
             ${totalConfidence}
           )
           returning id::text

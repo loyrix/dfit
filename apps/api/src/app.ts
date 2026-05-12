@@ -11,10 +11,14 @@ import { registerFoodRoutes } from "./routes/foods.js";
 import { registerJournalRoutes } from "./routes/journal.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerScanRoutes } from "./routes/scans.js";
+import { config } from "./config.js";
+import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
+import { MockAiProvider } from "./services/mock-ai-provider.js";
 
 export type BuildAppOptions = {
   repository?: AppRepository;
   sql?: SqlClient;
+  aiProvider?: AiProvider;
 };
 
 export const buildApp = async (options: BuildAppOptions = {}) => {
@@ -32,6 +36,9 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
       : undefined);
 
   const repository = options.repository ?? (sql ? new PostgresStore(sql) : new InMemoryStore());
+  const aiProvider =
+    options.aiProvider ??
+    (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config));
 
   if (sql) {
     app.addHook("onClose", async () => {
@@ -49,7 +56,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerFoodRoutes(app, repository);
   await registerProfileRoutes(app, repository);
   await registerJournalRoutes(app, repository);
-  await registerScanRoutes(app, repository);
+  await registerScanRoutes(app, repository, aiProvider);
 
   return app;
 };

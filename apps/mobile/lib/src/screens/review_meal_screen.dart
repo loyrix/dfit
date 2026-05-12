@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 class ReviewMealScreen extends StatefulWidget {
@@ -36,6 +37,10 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
   @override
   Widget build(BuildContext context) {
     final totals = _totals;
+    final primaryText = _reviewPrimaryText(context);
+    final secondaryText = _reviewSecondaryText(context);
+    final borderColor = _reviewBorder(context);
+    final colors = context.dfit;
 
     return Scaffold(
       body: SafeArea(
@@ -48,7 +53,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 IconButton(
                   tooltip: 'Back',
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const BackMark(color: DFitColors.textPrimaryLight),
+                  icon: const BackMark(),
                 ),
                 _MealTypePill(type: _mealType, onTap: _cycleMealType),
                 const SizedBox(width: 48),
@@ -59,7 +64,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               'ESTIMATED',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: DFitColors.textSecondaryLight,
+                color: secondaryText,
                 letterSpacing: 1.6,
               ),
             ),
@@ -74,9 +79,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             Text(
               'kcal - ${_items.length} items',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: DFitColors.textSecondaryLight,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: secondaryText),
             ),
             const SizedBox(height: 14),
             Row(
@@ -100,7 +105,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            const Divider(height: 1, color: DFitColors.borderLight),
+            Divider(height: 1, color: borderColor),
             for (var index = 0; index < _items.length; index++)
               _ReviewItemRow(
                 rowKey: ValueKey('${_items[index].name}-$index'),
@@ -115,8 +120,8 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             OutlinedButton(
               onPressed: _openAddItemSheet,
               style: OutlinedButton.styleFrom(
-                foregroundColor: DFitColors.textPrimaryLight,
-                side: const BorderSide(color: DFitColors.borderLight),
+                foregroundColor: primaryText,
+                side: BorderSide(color: borderColor),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -129,17 +134,23 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: DFitColors.accentWarm),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _reviewAccentText(context),
+                ),
               ),
               const SizedBox(height: 10),
             ],
             FilledButton(
-              onPressed: _items.isEmpty || _saving ? null : _confirm,
+              onPressed: _items.isEmpty
+                  ? null
+                  : _saving
+                  ? () {}
+                  : _confirm,
               style: FilledButton.styleFrom(
-                backgroundColor: DFitColors.textPrimaryLight,
-                foregroundColor: Colors.white,
+                backgroundColor: colors.primaryAction,
+                foregroundColor: colors.primaryActionText,
+                disabledBackgroundColor: _reviewMutedFill(context),
+                disabledForegroundColor: secondaryText,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -148,13 +159,13 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 160),
                 child: _saving
-                    ? const SizedBox(
+                    ? SizedBox(
                         key: ValueKey('saving'),
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: colors.primaryActionText,
                         ),
                       )
                     : const Text('Confirm meal', key: ValueKey('confirm')),
@@ -239,20 +250,16 @@ class _AddItemSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? DFitColors.surfaceCardDark
-              : DFitColors.surfaceCard,
+          color: colors.surfaceCard,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.08)
-                : DFitColors.borderLight,
-          ),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -266,7 +273,7 @@ class _AddItemSheet extends StatelessWidget {
                 child: Text(
                   'All quick items are already included.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: DFitColors.textSecondaryLight,
+                    color: _reviewSecondaryText(context),
                   ),
                 ),
               )
@@ -302,7 +309,7 @@ class _MealTypePill extends StatelessWidget {
       child: Text(
         type.label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: DFitColors.textPrimaryLight,
+          color: _reviewPrimaryText(context),
           letterSpacing: 1.6,
         ),
       ),
@@ -323,19 +330,24 @@ class _MacroChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+    final background = dark ? colors.mutedFill : colors.accent;
+    final foreground = dark ? colors.textPrimary : colors.accentOn;
+    final borderColor = dark ? colors.border : Colors.transparent;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 3),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: dark ? DFitColors.textPrimaryLight : DFitColors.accent,
+        color: background,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 0.5),
       ),
       child: Text(
         '$label ${value}g',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: dark ? Colors.white : DFitColors.accentDeep,
-          letterSpacing: 0,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: foreground, letterSpacing: 0),
       ),
     );
   }
@@ -359,6 +371,8 @@ class _ReviewItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lowConfidence = item.confidence < 0.7;
+    final borderColor = _reviewBorder(context);
+    final colors = context.dfit;
 
     return Dismissible(
       key: rowKey,
@@ -367,12 +381,12 @@ class _ReviewItemRow extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 18),
-        color: DFitColors.accentLow.withValues(alpha: 0.18),
+        color: DFitColors.accentLow.withValues(alpha: 0.2),
         child: Text(
           'Delete',
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(color: DFitColors.accentWarm),
+          ).textTheme.bodySmall?.copyWith(color: _reviewAccentText(context)),
         ),
       ),
       child: Container(
@@ -381,17 +395,15 @@ class _ReviewItemRow extends StatelessWidget {
           color: lowConfidence
               ? DFitColors.accent.withValues(alpha: 0.08)
               : null,
-          border: const Border(
-            bottom: BorderSide(color: DFitColors.borderLight, width: 0.5),
-          ),
+          border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
         ),
         child: Row(
           children: [
             Container(
               height: 32,
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: DFitColors.borderLight, width: 0.5),
+                color: colors.mutedFill,
+                border: Border.all(color: borderColor, width: 0.5),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -400,6 +412,7 @@ class _ReviewItemRow extends StatelessWidget {
                   Text(
                     _formatQuantity(item.quantity),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: _reviewPrimaryText(context),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -448,9 +461,10 @@ class _ReviewItemRow extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               '${item.nutrition.calories}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: _reviewPrimaryText(context),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -473,7 +487,16 @@ class _StepperButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: SizedBox(width: 30, height: 32, child: Center(child: Text(label))),
+      child: SizedBox(
+        width: 30,
+        height: 32,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(color: _reviewPrimaryText(context)),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -486,29 +509,50 @@ class _UnitChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+    final fill = highlighted
+        ? colors.accent.withValues(alpha: 0.16)
+        : _reviewMutedFill(context);
+    final border = highlighted
+        ? colors.accent.withValues(alpha: 0.45)
+        : _reviewBorder(context);
+    final textColor = highlighted
+        ? _reviewAccentText(context)
+        : _reviewSecondaryText(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: highlighted
-            ? DFitColors.accent.withValues(alpha: 0.15)
-            : DFitColors.textPrimaryLight.withValues(alpha: 0.06),
+        color: fill,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(
-          color: highlighted
-              ? DFitColors.accent.withValues(alpha: 0.4)
-              : DFitColors.borderLight,
-          width: 0.5,
-        ),
+        border: Border.all(color: border, width: 0.5),
       ),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: highlighted
-              ? DFitColors.accentWarm
-              : DFitColors.textPrimaryLight,
-          letterSpacing: 0,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: textColor, letterSpacing: 0),
       ),
     );
   }
+}
+
+Color _reviewPrimaryText(BuildContext context) {
+  return context.dfit.textPrimary;
+}
+
+Color _reviewSecondaryText(BuildContext context) {
+  return context.dfit.textSecondary;
+}
+
+Color _reviewBorder(BuildContext context) {
+  return context.dfit.border;
+}
+
+Color _reviewMutedFill(BuildContext context) {
+  return context.dfit.mutedFill;
+}
+
+Color _reviewAccentText(BuildContext context) {
+  return context.dfit.accentText;
 }

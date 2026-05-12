@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key, required this.onStart});
@@ -9,6 +10,8 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -50,7 +53,7 @@ class WelcomeScreen extends StatelessWidget {
               Text(
                 'Food tracking, without the typing.',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: DFitColors.textSecondaryLight,
+                  color: colors.textSecondary,
                   height: 1.2,
                 ),
               ),
@@ -59,8 +62,8 @@ class WelcomeScreen extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: DFitColors.textPrimaryLight,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.primaryAction,
+                    foregroundColor: colors.primaryActionText,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -74,9 +77,9 @@ class WelcomeScreen extends StatelessWidget {
               Center(
                 child: Text(
                   'Photo is analyzed, not stored',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: DFitColors.textSecondaryLight,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
               ),
               const SizedBox(height: 16),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -24,7 +25,7 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const BackMark(color: DFitColors.textPrimaryLight),
+                  icon: const BackMark(),
                 ),
                 const Spacer(),
               ],
@@ -77,6 +78,8 @@ class _SaveJournalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -113,15 +116,15 @@ class _SaveJournalCard extends StatelessWidget {
                 children: [
                   Text(
                     'Save your journal',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: DFitColors.accentWarm,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: colors.accentText),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     'Link later with Apple, Google or email',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: DFitColors.accentWarm.withValues(alpha: 0.72),
+                      color: colors.accentText.withValues(alpha: 0.72),
                     ),
                   ),
                 ],
@@ -142,6 +145,8 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -149,11 +154,9 @@ class _SettingsSection extends StatelessWidget {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? DFitColors.surfaceCardDark
-                : DFitColors.surfaceCard,
+            color: colors.surfaceCard,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: DFitColors.borderLight, width: 0.5),
+            border: Border.all(color: colors.border, width: 0.5),
           ),
           child: Column(children: children),
         ),

@@ -14,7 +14,14 @@ class EnergyHeroCard extends StatelessWidget {
     final pct = target.calories == 0
         ? 0.0
         : (totals.calories / target.calories).clamp(0.0, 1.0);
-    final left = (target.calories - totals.calories).clamp(0, target.calories);
+    final remaining = target.calories - totals.calories;
+    final balanceLabel = target.calories == 0
+        ? 'set target'
+        : remaining > 0
+        ? '$remaining kcal left'
+        : remaining < 0
+        ? '${remaining.abs()} kcal over'
+        : 'on target';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -91,7 +98,7 @@ class EnergyHeroCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '+$left kcal left',
+                    balanceLabel,
                     style: Theme.of(
                       context,
                     ).textTheme.labelSmall?.copyWith(color: DFitColors.accent),

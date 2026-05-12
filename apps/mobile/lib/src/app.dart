@@ -272,20 +272,16 @@ class _NoScanCreditsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? DFitColors.surfaceCardDark
-              : DFitColors.surfaceCard,
+          color: colors.surfaceCard,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.08)
-                : DFitColors.borderLight,
-          ),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -299,7 +295,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
             Text(
               'Log manually for now. Ad unlocks and premium scan packs come next.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: DFitColors.textSecondaryLight,
+                color: colors.textSecondary,
                 height: 1.35,
               ),
             ),
@@ -308,8 +304,8 @@ class _NoScanCreditsSheet extends StatelessWidget {
               onPressed: () =>
                   Navigator.of(context).pop(_NoScanCreditsAction.addManually),
               style: FilledButton.styleFrom(
-                backgroundColor: DFitColors.textPrimaryLight,
-                foregroundColor: Colors.white,
+                backgroundColor: colors.primaryAction,
+                foregroundColor: colors.primaryActionText,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),

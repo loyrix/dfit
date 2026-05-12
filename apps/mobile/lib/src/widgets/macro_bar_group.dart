@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 
 class MacroBarGroup extends StatelessWidget {
   const MacroBarGroup({super.key, required this.totals, required this.target});
@@ -11,41 +12,36 @@ class MacroBarGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? DFitColors.surfaceCardDark
-            : DFitColors.surfaceCard,
+        color: colors.surfaceCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.08)
-              : DFitColors.borderLight,
-          width: 0.5,
-        ),
+        border: Border.all(color: colors.border, width: 0.5),
       ),
       child: Row(
         children: [
-          _MacroBar(
+          _MacroMetric(
             label: 'protein',
             value: totals.proteinG,
             target: target.proteinG,
           ),
-          _MacroBar(
+          _MacroMetric(
             label: 'carbs',
             value: totals.carbsG,
             target: target.carbsG,
           ),
-          _MacroBar(label: 'fat', value: totals.fatG, target: target.fatG),
+          _MacroMetric(label: 'fat', value: totals.fatG, target: target.fatG),
         ],
       ),
     );
   }
 }
 
-class _MacroBar extends StatelessWidget {
-  const _MacroBar({
+class _MacroMetric extends StatelessWidget {
+  const _MacroMetric({
     required this.label,
     required this.value,
     required this.target,
@@ -57,52 +53,48 @@ class _MacroBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
     final pct = target == 0 ? 0.0 : (value / target).clamp(0.0, 1.0);
     final text = value.round().toString();
 
     return Expanded(
-      child: SizedBox(
-        height: 78,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 48 * pct + 6,
-                      decoration: const BoxDecoration(
-                        color: DFitColors.textPrimaryLight,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(3),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: -18,
-                      child: Text(
-                        text,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            Text(
+              text,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: colors.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
-            const SizedBox(height: 6),
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 6,
+                color: DFitColors.accent,
+                backgroundColor: colors.mutedFill,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textPrimary,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 2),
             Text(
               '${(pct * 100).round()}%',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: DFitColors.textSecondaryLight,
+                color: colors.textSecondary,
+                letterSpacing: 0,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),

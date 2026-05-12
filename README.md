@@ -85,7 +85,9 @@ Set production environment variables in Vercel:
 ```txt
 DATABASE_URL
 NODE_ENV=production
-AI_PROVIDER=mock
+AI_PROVIDER=gemini
+GEMINI_API_KEY
+GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
 The root `api/index.js` function forwards all routes to the compiled Fastify
@@ -99,6 +101,8 @@ deployments.
 - Mobile shell includes Welcome, Today, Camera placeholder, Analyzing, Review, Meal Detail, and Settings.
 - API has health/config/profile/journal/scan endpoints backed by Postgres when
   `DATABASE_URL` is configured, with in-memory repositories for tests.
+- Scan analysis supports the mock provider for tests/dev and Gemini for real
+  food-photo analysis when `AI_PROVIDER=gemini` and `GEMINI_API_KEY` are set.
 - Domain package has tested nutrition and quota logic.
 - Initial Supabase-compatible Postgres migration exists.
 

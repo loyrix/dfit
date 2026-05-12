@@ -2,11 +2,13 @@ import type { FastifyInstance } from "fastify";
 import { analyzeScanRequestSchema, confirmScanRequestSchema } from "@dfit/contracts";
 import { decideScanQuota } from "@dfit/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
-import { analyzeWithMockProvider } from "../services/mock-ai-provider.js";
+import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
+import { MockAiProvider } from "../services/mock-ai-provider.js";
 
 export const registerScanRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
+  aiProvider: AiProvider = new MockAiProvider(),
 ): Promise<void> => {
   app.get("/v1/quota", async () => repository.getQuota());
 
@@ -42,19 +44,48 @@ export const registerScanRoutes = async (
       });
     }
 
+    let analyzedResult;
+    try {
+      analyzedResult = await aiProvider.analyzeMealImage({
+        scanId: scan.id,
+        image: parsed.data.image,
+      });
+    } catch (error) {
+      await repository.updateScan({
+        ...scan,
+        status: "failed",
+        imageMimeType: parsed.data.image?.mimeType,
+        imageByteSize: parsed.data.image?.byteSize,
+      });
+
+      if (error instanceof AiProviderError) {
+        return reply.status(error.statusCode).send({
+          error: error.code,
+          message: error.message,
+          retryable: error.retryable,
+        });
+      }
+
+      return reply.status(502).send({
+        error: "ai_provider_failed",
+        message: "Food analysis failed.",
+        retryable: true,
+      });
+    }
+
     await repository.consumeCredit(decision.reason);
 
-    const analyzed = analyzeWithMockProvider(scan.id);
     await repository.updateScan({
       ...scan,
       status: "ready_for_review",
       creditReason: decision.reason,
-      analyzedResponse: analyzed,
+      analyzedResponse: analyzedResult.analysis,
+      aiProviderRun: analyzedResult.providerRun,
       imageMimeType: parsed.data.image?.mimeType,
       imageByteSize: parsed.data.image?.byteSize,
     });
 
-    return analyzed;
+    return analyzedResult.analysis;
   });
 
   app.post("/v1/scans/:id/confirm", async (request, reply) => {

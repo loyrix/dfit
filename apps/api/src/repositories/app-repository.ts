@@ -5,6 +5,7 @@ import type {
   MealSummary,
   ScanCreditState,
 } from "@dfit/domain";
+import type { AiProviderRunMetadata } from "../services/ai-provider.js";
 
 export type Profile = {
   id: string;
@@ -20,6 +21,7 @@ export type ScanSession = {
   status: "prepared" | "analyzing" | "ready_for_review" | "confirmed" | "cancelled" | "failed";
   creditReason?: "free" | "rewarded" | "premium";
   analyzedResponse?: unknown;
+  aiProviderRun?: AiProviderRunMetadata;
   imageMimeType?: string;
   imageByteSize?: number;
   createdAt: string;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 import '../widgets/dfit_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
@@ -41,6 +42,7 @@ class TodayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEmpty = meals.isEmpty;
+    final colors = context.dfit;
 
     return Scaffold(
       body: SafeArea(
@@ -51,7 +53,7 @@ class TodayScreen extends StatelessWidget {
               onRefresh: onRefresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                padding: EdgeInsets.fromLTRB(16, 12, 16, isEmpty ? 120 : 28),
                 children: [
                   Row(
                     children: [
@@ -60,7 +62,7 @@ class TodayScreen extends StatelessWidget {
                           _dateLabel(DateTime.now()),
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
-                                color: DFitColors.textSecondaryLight,
+                                color: colors.textSecondary,
                                 letterSpacing: 1.4,
                               ),
                         ),
@@ -69,6 +71,12 @@ class TodayScreen extends StatelessWidget {
                         _QuotaPill(quota: quota!),
                         const SizedBox(width: 6),
                       ],
+                      if (!isEmpty)
+                        IconButton(
+                          tooltip: 'Scan meal',
+                          onPressed: onScan,
+                          icon: const PrimitiveCameraIcon(size: 22),
+                        ),
                       IconButton(
                         tooltip: 'Settings',
                         onPressed: onOpenSettings,
@@ -78,10 +86,10 @@ class TodayScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   if (loading) ...[
-                    const LinearProgressIndicator(
+                    LinearProgressIndicator(
                       minHeight: 2,
                       color: DFitColors.accent,
-                      backgroundColor: DFitColors.borderLight,
+                      backgroundColor: colors.border,
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -121,14 +129,13 @@ class TodayScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 24,
-              child: Center(
-                child: DFitFab(onPressed: onScan, pulsing: isEmpty),
+            if (isEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 24,
+                child: Center(child: DFitFab(onPressed: onScan, pulsing: true)),
               ),
-            ),
           ],
         ),
       ),
@@ -162,22 +169,16 @@ class _WeeklySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
     final summary = range.summary;
     final trackedText = '${summary.activeDays}/${summary.windowDays} days';
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? DFitColors.surfaceCardDark
-            : DFitColors.surfaceCard,
+        color: colors.surfaceCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.08)
-              : DFitColors.borderLight,
-          width: 0.5,
-        ),
+        border: Border.all(color: colors.border, width: 0.5),
       ),
       child: Row(
         children: [
@@ -188,7 +189,7 @@ class _WeeklySummaryCard extends StatelessWidget {
                 Text(
                   '7 DAY SUMMARY',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: DFitColors.textSecondaryLight,
+                    color: colors.textSecondary,
                     letterSpacing: 1.4,
                   ),
                 ),
@@ -200,9 +201,9 @@ class _WeeklySummaryCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${summary.mealCount} meals logged',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: DFitColors.textSecondaryLight,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),
@@ -236,13 +237,17 @@ class _WeeklyMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+    final fill = accent
+        ? colors.accent.withValues(alpha: 0.18)
+        : colors.mutedFill;
+    final valueColor = accent ? colors.accentText : colors.textPrimary;
+
     return Container(
       width: 68,
       padding: const EdgeInsets.symmetric(vertical: 9),
       decoration: BoxDecoration(
-        color: accent
-            ? DFitColors.accent.withValues(alpha: 0.16)
-            : DFitColors.textPrimaryLight.withValues(alpha: 0.06),
+        color: fill,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -250,7 +255,7 @@ class _WeeklyMetric extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: accent ? DFitColors.accentWarm : null,
+              color: valueColor,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
@@ -258,7 +263,7 @@ class _WeeklyMetric extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: DFitColors.textSecondaryLight,
+              color: colors.textSecondary,
               letterSpacing: 0,
             ),
           ),
@@ -276,6 +281,8 @@ class _SyncBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
@@ -293,14 +300,14 @@ class _SyncBanner extends StatelessWidget {
               message,
               style: Theme.of(
                 context,
-              ).textTheme.bodySmall?.copyWith(color: DFitColors.accentWarm),
+              ).textTheme.bodySmall?.copyWith(color: colors.accentText),
             ),
           ),
           const SizedBox(width: 8),
           TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(
-              foregroundColor: DFitColors.accentWarm,
+              foregroundColor: colors.accentText,
               minimumSize: const Size(48, 32),
               padding: const EdgeInsets.symmetric(horizontal: 10),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -320,12 +327,11 @@ class _QuotaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
     final remaining = quota.totalRemaining;
     final label = remaining > 0 ? '$remaining scans' : 'ad unlock';
-    final background = remaining > 0
-        ? DFitColors.textPrimaryLight
-        : DFitColors.accent;
-    final foreground = remaining > 0 ? Colors.white : DFitColors.accentDeep;
+    final background = remaining > 0 ? colors.textPrimary : colors.accent;
+    final foreground = remaining > 0 ? colors.background : colors.accentOn;
 
     return Container(
       height: 34,
@@ -364,10 +370,17 @@ class _MealsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('TODAY', style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          'TODAY',
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: colors.textPrimary),
+        ),
         const SizedBox(height: 10),
         for (final meal in meals)
           MealCard(meal: meal, onTap: () => onOpenMeal(meal)),
@@ -385,6 +398,8 @@ class _EmptyTodayBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 58),
       child: Column(
@@ -426,7 +441,7 @@ class _EmptyTodayBody extends StatelessWidget {
             'Tap the camera to log your first meal of the day.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: DFitColors.textSecondaryLight,
+              color: colors.textSecondary,
               height: 1.4,
             ),
           ),

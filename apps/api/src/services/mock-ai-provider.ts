@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AnalyzeScanResponseContract } from "@dfit/contracts";
 import { sumTotals } from "@dfit/domain";
+import type { AiProvider, AnalyzeMealImageInput, AnalyzeMealImageResult } from "./ai-provider.js";
 
 const items: AnalyzeScanResponseContract["items"] = [
   {
@@ -86,3 +87,19 @@ export const analyzeWithMockProvider = (scanId: string): AnalyzeScanResponseCont
   items,
   totals: sumTotals(items.map((item) => item.nutrition)),
 });
+
+export class MockAiProvider implements AiProvider {
+  async analyzeMealImage(input: AnalyzeMealImageInput): Promise<AnalyzeMealImageResult> {
+    const analysis = analyzeWithMockProvider(input.scanId);
+    return {
+      analysis,
+      providerRun: {
+        provider: "mock",
+        model: "mock-indian-plate-v1",
+        promptVersion: "mock_v1",
+        schemaVersion: "scan_v1",
+        rawResponse: analysis,
+      },
+    };
+  }
+}

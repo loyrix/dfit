@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
+
+Color dfitPrimitiveIconColor(BuildContext context, Color? color) {
+  if (color != null) return color;
+  return IconTheme.of(context).color ?? context.dfit.icon;
+}
 
 class PrimitiveCameraIcon extends StatelessWidget {
   const PrimitiveCameraIcon({
@@ -58,15 +64,14 @@ class PrimitiveCameraIcon extends StatelessWidget {
 }
 
 class PrimitiveGearIcon extends StatelessWidget {
-  const PrimitiveGearIcon({
-    super.key,
-    this.color = DFitColors.textPrimaryLight,
-  });
+  const PrimitiveGearIcon({super.key, this.color});
 
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedColor = dfitPrimitiveIconColor(context, color);
+
     return SizedBox(
       width: 20,
       height: 20,
@@ -77,14 +82,17 @@ class PrimitiveGearIcon extends StatelessWidget {
             width: 18,
             height: 18,
             decoration: BoxDecoration(
-              border: Border.all(color: color, width: 1.5),
+              border: Border.all(color: resolvedColor, width: 1.5),
               shape: BoxShape.circle,
             ),
           ),
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: resolvedColor,
+              shape: BoxShape.circle,
+            ),
           ),
         ],
       ),
@@ -93,12 +101,14 @@ class PrimitiveGearIcon extends StatelessWidget {
 }
 
 class BackMark extends StatelessWidget {
-  const BackMark({super.key, required this.color});
+  const BackMark({super.key, this.color});
 
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedColor = dfitPrimitiveIconColor(context, color);
+
     return Transform.rotate(
       angle: 0.785398,
       child: Container(
@@ -106,8 +116,8 @@ class BackMark extends StatelessWidget {
         height: 15,
         decoration: BoxDecoration(
           border: Border(
-            left: BorderSide(color: color, width: 2),
-            bottom: BorderSide(color: color, width: 2),
+            left: BorderSide(color: resolvedColor, width: 2),
+            bottom: BorderSide(color: resolvedColor, width: 2),
           ),
         ),
       ),

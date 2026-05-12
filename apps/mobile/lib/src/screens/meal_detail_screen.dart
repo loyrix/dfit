@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/primitive_icons.dart';
 
@@ -13,6 +13,7 @@ class MealDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totals = meal.totals;
+    final colors = context.dfit;
 
     return Scaffold(
       body: SafeArea(
@@ -23,7 +24,7 @@ class MealDetailScreen extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: IconButton(
                 onPressed: () => Navigator.of(context).pop(),
-                icon: const BackMark(color: DFitColors.textPrimaryLight),
+                icon: const BackMark(),
               ),
             ),
             const SizedBox(height: 18),
@@ -31,7 +32,7 @@ class MealDetailScreen extends StatelessWidget {
               meal.type.label,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: DFitColors.textSecondaryLight,
+                color: colors.textSecondary,
                 letterSpacing: 1.6,
               ),
             ),
@@ -46,9 +47,9 @@ class MealDetailScreen extends StatelessWidget {
             Text(
               'kcal',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: DFitColors.textSecondaryLight,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: 22),
             MacroBarGroup(totals: totals, target: defaultTarget),
@@ -58,12 +59,9 @@ class MealDetailScreen extends StatelessWidget {
             for (final item in meal.items)
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(
-                      color: DFitColors.borderLight,
-                      width: 0.5,
-                    ),
+                    bottom: BorderSide(color: colors.border, width: 0.5),
                   ),
                 ),
                 child: Row(
@@ -80,9 +78,7 @@ class MealDetailScreen extends StatelessWidget {
                           Text(
                             '${_formatQuantity(item.quantity)} ${item.unit} - ${item.grams}g',
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: DFitColors.textSecondaryLight,
-                                ),
+                                ?.copyWith(color: colors.textSecondary),
                           ),
                         ],
                       ),

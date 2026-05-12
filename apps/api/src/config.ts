@@ -20,6 +20,12 @@ export type ApiConfig = {
   host: string;
   port: number;
   aiProvider: "mock" | "openai" | "gemini";
+  gemini: {
+    apiKey?: string;
+    model: string;
+    endpoint: string;
+    timeoutMs: number;
+  };
 };
 
 export const config: ApiConfig = {
@@ -27,4 +33,10 @@ export const config: ApiConfig = {
   host: process.env.API_HOST ?? "127.0.0.1",
   port: Number(process.env.PORT ?? 4000),
   aiProvider: (process.env.AI_PROVIDER as ApiConfig["aiProvider"] | undefined) ?? "mock",
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite",
+    endpoint: process.env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
+    timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 25_000),
+  },
 };

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 import 'primitive_icons.dart';
 
 class DFitFab extends StatelessWidget {
@@ -44,7 +45,7 @@ class DFitFab extends StatelessWidget {
             height: 64,
             child: FloatingActionButton(
               elevation: 10,
-              backgroundColor: DFitColors.textPrimaryLight,
+              backgroundColor: context.dfit.textPrimary,
               shape: const CircleBorder(),
               onPressed: onPressed,
               child: const PrimitiveCameraIcon(),
