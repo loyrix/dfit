@@ -113,6 +113,7 @@ void main() {
         bytes: Uint8List.fromList([1, 2, 3]),
         mimeType: 'image/jpeg',
         fileName: 'plate.jpg',
+        userHint: 'dal rice roti',
       ),
     );
 
@@ -121,6 +122,7 @@ void main() {
     expect(analysis.mealType, MealType.lunch);
     expect(analysis.items.single.name, 'Dal');
     expect(jsonDecode(requests.last.body) as Map<String, dynamic>, {
+      'hint': 'dal rice roti',
       'image': {'mimeType': 'image/jpeg', 'base64': 'AQID', 'byteSize': 3},
     });
     expect(requests.map((request) => request.headers['idempotency-key']), [

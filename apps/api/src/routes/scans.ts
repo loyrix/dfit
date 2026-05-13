@@ -48,6 +48,7 @@ export const registerScanRoutes = async (
     try {
       analyzedResult = await aiProvider.analyzeMealImage({
         scanId: scan.id,
+        userHint: parsed.data.hint,
         image: parsed.data.image,
       });
     } catch (error) {

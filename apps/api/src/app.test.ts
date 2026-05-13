@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { currentRequestIdentity, type RequestIdentity } from "./request-context.js";
 import { InMemoryStore } from "./repositories/in-memory-store.js";
+import type { AiProvider, AnalyzeMealImageInput } from "./services/ai-provider.js";
+import { analyzeWithMockProvider } from "./services/mock-ai-provider.js";
 
 const testApp = () => buildApp({ repository: new InMemoryStore() });
 
@@ -497,6 +499,58 @@ describe("DFit API", () => {
     });
     expect(accountBootstrap.json().today.meals[0]).toMatchObject({
       id: meal.json().id,
+    });
+    await app.close();
+  });
+
+  it("passes optional plate hints into AI analysis", async () => {
+    let seenInput: AnalyzeMealImageInput | undefined;
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        seenInput = input;
+        const analysis = analyzeWithMockProvider(input.scanId);
+        return {
+          analysis,
+          providerRun: {
+            provider: "mock",
+            model: "test-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({ repository: new InMemoryStore(), aiProvider });
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "hint-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "hint-analyze" },
+      payload: {
+        hint: "dal chawal roti",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+
+    expect(analyzed.statusCode).toBe(200);
+    expect(seenInput).toMatchObject({
+      scanId,
+      userHint: "dal chawal roti",
+      image: {
+        mimeType: "image/jpeg",
+        base64: "AQID",
+        byteSize: 3,
+      },
     });
     await app.close();
   });

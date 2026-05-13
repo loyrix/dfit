@@ -5,6 +5,7 @@ import { MockAiProvider } from "./mock-ai-provider.js";
 
 export type AnalyzeMealImageInput = {
   scanId: string;
+  userHint?: string;
   image?: {
     mimeType: "image/jpeg" | "image/png" | "image/webp";
     base64: string;

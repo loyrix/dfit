@@ -155,6 +155,7 @@ class DFitApiClient {
     required String idempotencyKey,
     CapturedMealPhoto? photo,
   }) async {
+    final hint = photo?.userHint?.trim();
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/$scanId/analyze'),
       headers: await _headers(
@@ -162,6 +163,7 @@ class DFitApiClient {
         idempotencyKey: idempotencyKey,
       ),
       body: jsonEncode({
+        if (hint != null && hint.isNotEmpty) 'hint': hint,
         if (photo != null)
           'image': {
             'mimeType': photo.mimeType,

@@ -1,4 +1,5 @@
 import type {
+  AnalyzeScanRequestContract,
   AnalyzeScanResponseContract,
   ConfirmScanRequestContract,
   CreateMealRequestContract,
@@ -39,9 +40,14 @@ export class DFitClient {
     });
   }
 
-  async analyzeScan(scanId: string, idempotencyKey: string): Promise<AnalyzeScanResponseContract> {
+  async analyzeScan(
+    scanId: string,
+    idempotencyKey: string,
+    body: AnalyzeScanRequestContract = {},
+  ): Promise<AnalyzeScanResponseContract> {
     return this.request<AnalyzeScanResponseContract>(`/v1/scans/${scanId}/analyze`, {
       method: "POST",
+      body,
       idempotencyKey,
     });
   }

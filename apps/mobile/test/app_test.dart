@@ -37,6 +37,7 @@ void main() {
 
     expect(find.text('MEAL SCAN'), findsOneWidget);
     expect(find.text('Center your plate'), findsOneWidget);
+    expect(find.text("What's on the plate?"), findsOneWidget);
     expect(find.text('full plate'), findsOneWidget);
   });
 

@@ -24,6 +24,7 @@ export const prepareScanResponseSchema = z.object({
 
 export const analyzeScanRequestSchema = z
   .object({
+    hint: z.string().trim().max(280).optional(),
     image: z
       .object({
         mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),

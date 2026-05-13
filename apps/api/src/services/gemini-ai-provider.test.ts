@@ -62,6 +62,7 @@ describe("GeminiAiProvider", () => {
 
     const result = await provider.analyzeMealImage({
       scanId: "scan-test",
+      userHint: "dal rice roti",
       image: {
         mimeType: "image/jpeg",
         base64: "AQID",
@@ -99,6 +100,9 @@ describe("GeminiAiProvider", () => {
         responseMimeType: "application/json",
       },
     });
+    const prompt = (requestBody as { contents: Array<{ parts: Array<{ text?: string }> }> })
+      .contents[0]?.parts[0]?.text;
+    expect(prompt).toContain('User typed this optional plate hint: "dal rice roti"');
   });
 
   it("fails closed when the Gemini API key is missing", async () => {

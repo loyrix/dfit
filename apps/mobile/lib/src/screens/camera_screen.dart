@@ -20,6 +20,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen>
     with SingleTickerProviderStateMixin {
   final _picker = ImagePicker();
+  final _hintController = TextEditingController();
   bool _capturing = false;
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -28,6 +29,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void dispose() {
+    _hintController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -46,11 +48,13 @@ class _CameraScreenState extends State<CameraScreen>
 
       final bytes = await image.readAsBytes();
       if (!mounted) return;
+      final hint = _hintController.text.trim();
       widget.onCaptured(
         CapturedMealPhoto(
           bytes: bytes,
           mimeType: _mimeTypeFor(image),
           fileName: image.name,
+          userHint: hint.isEmpty ? null : hint,
         ),
       );
     } finally {
@@ -131,6 +135,8 @@ class _CameraScreenState extends State<CameraScreen>
                         ),
                       ),
                       const SizedBox(height: 16),
+                      _PlateHintField(controller: _hintController),
+                      const SizedBox(height: 14),
                       _CaptureReadiness(progress: _controller.value),
                       const SizedBox(height: 18),
                       _ShutterButton(
@@ -289,6 +295,51 @@ class _CaptureReadiness extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PlateHintField extends StatelessWidget {
+  const _PlateHintField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 330),
+      decoration: BoxDecoration(
+        color: colors.surfaceCard.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border, width: 0.6),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLength: 280,
+        maxLines: 1,
+        textInputAction: TextInputAction.done,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: colors.textPrimary,
+          letterSpacing: 0,
+        ),
+        decoration: InputDecoration(
+          counterText: '',
+          hintText: 'dal, rice, roti, sabzi',
+          labelText: "What's on the plate?",
+          labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textSecondary,
+            letterSpacing: 0.8,
+          ),
+          hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: colors.textTertiary,
+            letterSpacing: 0,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        ),
       ),
     );
   }
