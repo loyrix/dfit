@@ -35,7 +35,7 @@ export const config: ApiConfig = {
   aiProvider: (process.env.AI_PROVIDER as ApiConfig["aiProvider"] | undefined) ?? "mock",
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash-lite",
+    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
     endpoint: process.env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
     timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 25_000),
   },

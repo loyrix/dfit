@@ -87,7 +87,7 @@ DATABASE_URL
 NODE_ENV=production
 AI_PROVIDER=gemini
 GEMINI_API_KEY
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 The root `api/index.js` function forwards all routes to the compiled Fastify
