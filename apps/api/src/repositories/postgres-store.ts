@@ -1,4 +1,11 @@
-import { randomUUID } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from "node:crypto";
+import { promisify } from "node:util";
 import {
   createMealSummary,
   sumTotals,
@@ -10,6 +17,7 @@ import type postgres from "postgres";
 import type { SqlClient } from "../db/client.js";
 import { currentRequestIdentity } from "../request-context.js";
 import type {
+  AccountSession,
   AppRepository,
   CreateMealInput,
   IdempotencyRecord,
@@ -17,6 +25,7 @@ import type {
   Profile,
   ScanSession,
 } from "./app-repository.js";
+import { AccountAuthError } from "./app-repository.js";
 
 type FoodRow = {
   id: string;
@@ -69,17 +78,29 @@ type ScanRow = {
 const toJsonValue = (value: unknown): postgres.JSONValue =>
   JSON.parse(JSON.stringify(value ?? null)) as postgres.JSONValue;
 
+const scrypt = promisify(scryptCallback);
+const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
+
 export class PostgresStore implements AppRepository {
   constructor(private readonly sql: SqlClient) {}
 
   async getProfile(): Promise<Profile> {
     const identity = currentRequestIdentity();
+    if (identity.sessionToken) {
+      const sessionProfile = await this.getProfileForSession(identity.sessionToken);
+      if (sessionProfile) {
+        await this.attachInstallToProfile(sessionProfile.id);
+        return sessionProfile;
+      }
+    }
+
     if (identity.installId) return this.getOrCreateProfileForInstall(identity.installId);
 
     const [existing] = await this.sql<Profile[]>`
       select
         id::text,
         auth_method as "authMethod",
+        email,
         timezone,
         linked_at::text as "linkedAt",
         created_at::text as "createdAt"
@@ -97,12 +118,133 @@ export class PostgresStore implements AppRepository {
       returning
         id::text,
         auth_method as "authMethod",
+        email,
         timezone,
         linked_at::text as "linkedAt",
         created_at::text as "createdAt"
     `;
 
     return profile;
+  }
+
+  async signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession> {
+    const email = normalizeEmail(input.email);
+    validatePassword(input.password);
+
+    const existing = await this.findCredentialByEmail(email);
+    if (existing) {
+      throw new AccountAuthError("email_already_registered", "Email already registered.", 409);
+    }
+
+    const currentProfile = await this.getProfile();
+    const profile = await this.sql.begin(async (tx) => {
+      let linkedProfile: Profile;
+
+      if (currentProfile.authMethod === "anonymous") {
+        const [updated] = await tx<Profile[]>`
+          update profiles
+          set
+            auth_method = 'email',
+            email = ${email},
+            provider_subject = ${`email:${email}`},
+            linked_at = now(),
+            updated_at = now()
+          where id = ${currentProfile.id}
+          returning
+            id::text,
+            auth_method as "authMethod",
+            email,
+            timezone,
+            linked_at::text as "linkedAt",
+            created_at::text as "createdAt"
+        `;
+        linkedProfile = updated;
+
+        await tx`
+          insert into identity_link_events (profile_id, from_auth_method, to_auth_method, meals_count)
+          values (
+            ${linkedProfile.id},
+            'anonymous',
+            'email',
+            (select count(*)::int from meals where profile_id = ${linkedProfile.id})
+          )
+        `;
+      } else {
+        const [created] = await tx<Profile[]>`
+          insert into profiles (auth_method, email, provider_subject, timezone, linked_at)
+          values ('email', ${email}, ${`email:${email}`}, ${currentProfile.timezone}, now())
+          returning
+            id::text,
+            auth_method as "authMethod",
+            email,
+            timezone,
+            linked_at::text as "linkedAt",
+            created_at::text as "createdAt"
+        `;
+        linkedProfile = created;
+      }
+
+      const passwordHash = await hashPassword(input.password);
+      await tx`
+        insert into account_password_credentials (
+          profile_id,
+          email,
+          password_salt,
+          password_hash,
+          password_params
+        )
+        values (
+          ${linkedProfile.id},
+          ${email},
+          ${passwordHash.salt},
+          ${passwordHash.hash},
+          ${tx.json({ algorithm: "scrypt", keyLength: 64 })}
+        )
+      `;
+
+      return linkedProfile;
+    });
+
+    await this.attachInstallToProfile(profile.id);
+    return this.createSession(profile.id);
+  }
+
+  async loginWithEmail(input: { email: string; password: string }): Promise<AccountSession> {
+    const email = normalizeEmail(input.email);
+    const credential = await this.findCredentialByEmail(email);
+    if (!credential) {
+      throw new AccountAuthError("invalid_credentials", "Invalid email or password.", 401);
+    }
+
+    const passwordMatches = await verifyPassword(
+      input.password,
+      credential.password_salt,
+      credential.password_hash,
+    );
+    if (!passwordMatches) {
+      throw new AccountAuthError("invalid_credentials", "Invalid email or password.", 401);
+    }
+
+    const currentProfile = await this.getAnonymousProfileForCurrentInstall();
+    if (
+      currentProfile &&
+      currentProfile.authMethod === "anonymous" &&
+      currentProfile.id !== credential.profile_id
+    ) {
+      await this.mergeProfiles(currentProfile.id, credential.profile_id);
+    }
+
+    await this.attachInstallToProfile(credential.profile_id);
+    return this.createSession(credential.profile_id);
+  }
+
+  async revokeSession(token: string): Promise<void> {
+    await this.sql`
+      update account_sessions
+      set revoked_at = now()
+      where token_hash = ${hashToken(token)}
+    `;
+    await this.resetCurrentInstallToAnonymousProfile();
   }
 
   async searchFoods(query: string) {
@@ -317,10 +459,12 @@ export class PostgresStore implements AppRepository {
   }
 
   async getMeal(mealId: string) {
+    const profile = await this.getProfile();
     const [meal] = await this.sql<MealRow[]>`
       select id::text, meal_type, title, logged_at
       from meals
       where id = ${mealId}
+        and profile_id = ${profile.id}
       limit 1
     `;
 
@@ -329,9 +473,11 @@ export class PostgresStore implements AppRepository {
   }
 
   async deleteMeal(mealId: string) {
+    const profile = await this.getProfile();
     const rows = await this.sql<{ id: string }[]>`
       delete from meals
       where id = ${mealId}
+        and profile_id = ${profile.id}
       returning id::text
     `;
     return rows.length > 0;
@@ -353,6 +499,7 @@ export class PostgresStore implements AppRepository {
   }
 
   async getScan(scanId: string) {
+    const profile = await this.getProfile();
     const [scan] = await this.sql<ScanRow[]>`
       select
         scan_sessions.id::text,
@@ -376,6 +523,7 @@ export class PostgresStore implements AppRepository {
         limit 1
       ) ai_predictions on true
       where scan_sessions.id = ${scanId}
+        and scan_sessions.profile_id = ${profile.id}
       limit 1
     `;
     return scan ? this.scanFromRow(scan) : undefined;
@@ -547,6 +695,289 @@ export class PostgresStore implements AppRepository {
     `;
   }
 
+  private async findCredentialByEmail(email: string) {
+    const [credential] = await this.sql<
+      {
+        profile_id: string;
+        email: string;
+        password_salt: string;
+        password_hash: string;
+      }[]
+    >`
+      select profile_id::text, email, password_salt, password_hash
+      from account_password_credentials
+      where email = ${email}
+      limit 1
+    `;
+    return credential;
+  }
+
+  private async createSession(profileId: string): Promise<AccountSession> {
+    const accessToken = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + sessionDurationMs).toISOString();
+
+    const [session] = await this.sql<(Profile & { accessToken: string; expiresAt: string })[]>`
+      with created_session as (
+        insert into account_sessions (profile_id, token_hash, expires_at)
+        values (${profileId}, ${hashToken(accessToken)}, ${expiresAt})
+        returning profile_id, expires_at::text as "expiresAt"
+      )
+      select
+        profiles.id::text,
+        profiles.auth_method as "authMethod",
+        profiles.email,
+        profiles.timezone,
+        profiles.linked_at::text as "linkedAt",
+        profiles.created_at::text as "createdAt",
+        ${accessToken} as "accessToken",
+        created_session."expiresAt"
+      from created_session
+      inner join profiles on profiles.id = created_session.profile_id
+      limit 1
+    `;
+
+    return {
+      profile: {
+        id: session.id,
+        authMethod: session.authMethod,
+        email: session.email,
+        timezone: session.timezone,
+        linkedAt: session.linkedAt,
+        createdAt: session.createdAt,
+      },
+      accessToken,
+      expiresAt: session.expiresAt,
+    };
+  }
+
+  private async getProfileForSession(token: string): Promise<Profile | undefined> {
+    const [profile] = await this.sql<Profile[]>`
+      select
+        profiles.id::text,
+        profiles.auth_method as "authMethod",
+        profiles.email,
+        profiles.timezone,
+        profiles.linked_at::text as "linkedAt",
+        profiles.created_at::text as "createdAt"
+      from account_sessions
+      inner join profiles on profiles.id = account_sessions.profile_id
+      where account_sessions.token_hash = ${hashToken(token)}
+        and account_sessions.revoked_at is null
+        and account_sessions.expires_at > now()
+      limit 1
+    `;
+    return profile;
+  }
+
+  private async getAnonymousProfileForCurrentInstall(): Promise<Profile | undefined> {
+    const installId = currentRequestIdentity().installId;
+    if (!installId) return undefined;
+
+    const [profile] = await this.sql<Profile[]>`
+      select
+        profiles.id::text,
+        profiles.auth_method as "authMethod",
+        profiles.email,
+        profiles.timezone,
+        profiles.linked_at::text as "linkedAt",
+        profiles.created_at::text as "createdAt"
+      from devices
+      inner join profiles on profiles.id = devices.profile_id
+      where devices.install_id = ${installId}
+        and profiles.auth_method = 'anonymous'
+      limit 1
+    `;
+    return profile;
+  }
+
+  private async attachInstallToProfile(profileId: string): Promise<void> {
+    const identity = currentRequestIdentity();
+    if (!identity.installId) return;
+
+    await this.sql`
+      insert into devices (
+        profile_id,
+        install_id,
+        platform,
+        locale,
+        region,
+        timezone
+      )
+      values (
+        ${profileId},
+        ${identity.installId},
+        ${identity.platform ?? "ios"},
+        ${identity.locale ?? null},
+        ${identity.region ?? null},
+        ${identity.timezone ?? null}
+      )
+      on conflict (install_id) do update
+      set
+        profile_id = excluded.profile_id,
+        platform = excluded.platform,
+        locale = excluded.locale,
+        region = excluded.region,
+        timezone = excluded.timezone,
+        last_seen_at = now()
+    `;
+  }
+
+  private async resetCurrentInstallToAnonymousProfile(): Promise<void> {
+    const identity = currentRequestIdentity();
+    const installId = identity.installId;
+    if (!installId) return;
+
+    await this.sql.begin(async (tx) => {
+      const [profile] = await tx<Profile[]>`
+        insert into profiles (timezone, provider_subject)
+        values (
+          ${identity.timezone ?? "Asia/Kolkata"},
+          ${`install:${installId}:logout:${randomUUID()}`}
+        )
+        returning
+          id::text,
+          auth_method as "authMethod",
+          email,
+          timezone,
+          linked_at::text as "linkedAt",
+          created_at::text as "createdAt"
+      `;
+
+      await tx`
+        insert into devices (
+          profile_id,
+          install_id,
+          platform,
+          locale,
+          region,
+          timezone
+        )
+        values (
+          ${profile.id},
+          ${installId},
+          ${identity.platform ?? "ios"},
+          ${identity.locale ?? null},
+          ${identity.region ?? null},
+          ${identity.timezone ?? null}
+        )
+        on conflict (install_id) do update
+        set
+          profile_id = excluded.profile_id,
+          platform = excluded.platform,
+          locale = excluded.locale,
+          region = excluded.region,
+          timezone = excluded.timezone,
+          last_seen_at = now()
+      `;
+    });
+  }
+
+  private async mergeProfiles(sourceProfileId: string, targetProfileId: string): Promise<void> {
+    await this.sql.begin(async (tx) => {
+      await tx`
+        update meals
+        set profile_id = ${targetProfileId}, updated_at = now()
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        update scan_sessions
+        set profile_id = ${targetProfileId}, updated_at = now()
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        insert into scan_credits (
+          profile_id,
+          local_date,
+          free_remaining,
+          rewarded_remaining,
+          premium_remaining
+        )
+        select
+          ${targetProfileId},
+          local_date,
+          free_remaining,
+          rewarded_remaining,
+          premium_remaining
+        from scan_credits
+        where profile_id = ${sourceProfileId}
+        on conflict (profile_id, local_date) do update
+        set
+          free_remaining = greatest(scan_credits.free_remaining, excluded.free_remaining),
+          rewarded_remaining = greatest(scan_credits.rewarded_remaining, excluded.rewarded_remaining),
+          premium_remaining = greatest(scan_credits.premium_remaining, excluded.premium_remaining),
+          updated_at = now()
+      `;
+
+      await tx`
+        update quota_events
+        set profile_id = ${targetProfileId}, scan_credit_id = null
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        delete from scan_credits
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        update rewarded_ad_callbacks
+        set profile_id = ${targetProfileId}
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        delete from idempotency_keys source_keys
+        where source_keys.profile_id = ${sourceProfileId}
+          and exists (
+            select 1
+            from idempotency_keys target_keys
+            where target_keys.profile_id = ${targetProfileId}
+              and target_keys.idempotency_key = source_keys.idempotency_key
+          )
+      `;
+
+      await tx`
+        update idempotency_keys
+        set profile_id = ${targetProfileId}
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        delete from consents source_consents
+        where source_consents.profile_id = ${sourceProfileId}
+          and exists (
+            select 1
+            from consents target_consents
+            where target_consents.profile_id = ${targetProfileId}
+          )
+      `;
+
+      await tx`
+        update consents
+        set profile_id = ${targetProfileId}, updated_at = now()
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        update devices
+        set profile_id = ${targetProfileId}, last_seen_at = now()
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        insert into identity_link_events (profile_id, from_auth_method, to_auth_method, meals_count)
+        values (
+          ${targetProfileId},
+          'anonymous',
+          'email',
+          (select count(*)::int from meals where profile_id = ${targetProfileId})
+        )
+      `;
+    });
+  }
+
   private async foodFromRow(row: FoodRow & { aliases?: string[] }): Promise<FoodRecord> {
     const portions = await this.sql<
       { unit: FoodRecord["portions"][number]["unit"]; grams: string; confidence: string }[]
@@ -587,6 +1018,7 @@ export class PostgresStore implements AppRepository {
       select
         profiles.id::text,
         profiles.auth_method as "authMethod",
+        profiles.email,
         profiles.timezone,
         profiles.linked_at::text as "linkedAt",
         profiles.created_at::text as "createdAt"
@@ -617,6 +1049,7 @@ export class PostgresStore implements AppRepository {
         returning
           id::text,
           auth_method as "authMethod",
+          email,
           timezone,
           linked_at::text as "linkedAt",
           created_at::text as "createdAt"
@@ -710,3 +1143,33 @@ export class PostgresStore implements AppRepository {
 }
 
 const localDate = () => new Date().toISOString().slice(0, 10);
+
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const validatePassword = (password: string): void => {
+  if (password.length < 6 || password.length > 128) {
+    throw new AccountAuthError(
+      "invalid_password",
+      "Password must be between 6 and 128 characters.",
+      400,
+    );
+  }
+};
+
+const hashPassword = async (password: string, salt = randomBytes(16).toString("hex")) => {
+  const derived = (await scrypt(password, salt, 64)) as Buffer;
+  return { salt, hash: derived.toString("hex") };
+};
+
+const verifyPassword = async (
+  password: string,
+  salt: string,
+  expectedHash: string,
+): Promise<boolean> => {
+  const actual = Buffer.from((await hashPassword(password, salt)).hash, "hex");
+  const expected = Buffer.from(expectedHash, "hex");
+  if (actual.length !== expected.length) return false;
+  return timingSafeEqual(actual, expected);
+};
+
+const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");

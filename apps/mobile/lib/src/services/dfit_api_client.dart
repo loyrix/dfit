@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/captured_meal_photo.dart';
+import '../models/auth_session.dart';
 import '../models/meal.dart';
+import 'account_session_store.dart';
 import 'device_identity_store.dart';
 
 class DFitApiClient {
@@ -12,14 +14,17 @@ class DFitApiClient {
     http.Client? httpClient,
     String? baseUrl,
     Future<DeviceIdentity> Function()? loadDeviceIdentity,
+    Future<AuthSession?> Function()? loadAuthSession,
   }) : _httpClient = httpClient ?? http.Client(),
        _loadDeviceIdentity = loadDeviceIdentity ?? DeviceIdentityStore().load,
+       _loadAuthSession = loadAuthSession ?? AccountSessionStore().load,
        baseUrl = DFitApiConfig.normalizeBaseUrl(
          baseUrl ?? DFitApiConfig.defaultBaseUrl,
        );
 
   final http.Client _httpClient;
   final Future<DeviceIdentity> Function() _loadDeviceIdentity;
+  final Future<AuthSession?> Function() _loadAuthSession;
   final String baseUrl;
 
   void close() {
@@ -68,6 +73,32 @@ class DFitApiClient {
     return ScanQuota.fromJson(
       jsonDecode(response.body) as Map<String, dynamic>,
     );
+  }
+
+  Future<AuthSession> signUpWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    return _emailAuth(
+      '/v1/auth/email/signup',
+      email: email,
+      password: password,
+    );
+  }
+
+  Future<AuthSession> loginWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    return _emailAuth('/v1/auth/email/login', email: email, password: password);
+  }
+
+  Future<void> logout() async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/auth/logout'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
   }
 
   Future<MealLog> createMeal({
@@ -191,14 +222,33 @@ class DFitApiClient {
     String? idempotencyKey,
   }) async {
     final identity = await _loadDeviceIdentity();
+    final session = await _loadAuthSession();
     final headers = {
       ...identity.toHeaders(),
+      if (session?.accessToken != null)
+        'authorization': 'Bearer ${session!.accessToken}',
       if (contentTypeJson) 'content-type': 'application/json',
     };
     if (idempotencyKey != null) {
       headers['idempotency-key'] = idempotencyKey;
     }
     return headers;
+  }
+
+  Future<AuthSession> _emailAuth(
+    String path, {
+    required String email,
+    required String password,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl$path'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    _throwIfBad(response);
+    return AuthSession.fromApiJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 }
 

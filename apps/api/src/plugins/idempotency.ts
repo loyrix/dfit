@@ -9,6 +9,7 @@ export const registerIdempotency = async (
 ): Promise<void> => {
   app.addHook("preHandler", async (request, reply) => {
     if (!mutatingMethods.has(request.method)) return;
+    if (request.url.startsWith("/v1/auth/")) return;
 
     const key = request.headers["idempotency-key"];
     if (!key || Array.isArray(key)) {
@@ -28,6 +29,7 @@ export const registerIdempotency = async (
 
   app.addHook("onSend", async (request: FastifyRequest, reply: FastifyReply, payload) => {
     if (!mutatingMethods.has(request.method)) return payload;
+    if (request.url.startsWith("/v1/auth/")) return payload;
 
     const key = request.headers["idempotency-key"];
     if (!key || Array.isArray(key) || reply.statusCode >= 500) return payload;

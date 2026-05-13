@@ -10,10 +10,28 @@ import type { AiProviderRunMetadata } from "../services/ai-provider.js";
 export type Profile = {
   id: string;
   authMethod: "anonymous" | "apple" | "google" | "email";
+  email?: string;
   timezone: string;
   linkedAt?: string;
   createdAt: string;
 };
+
+export type AccountSession = {
+  profile: Profile;
+  accessToken: string;
+  expiresAt: string;
+};
+
+export class AccountAuthError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly statusCode = 400,
+  ) {
+    super(message);
+    this.name = "AccountAuthError";
+  }
+}
 
 export type ScanSession = {
   id: string;
@@ -51,6 +69,9 @@ export type ListMealsInput = {
 
 export interface AppRepository {
   getProfile(): Promise<Profile>;
+  signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
+  loginWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
+  revokeSession(token: string): Promise<void>;
   searchFoods(query: string): Promise<FoodSearchResult[]>;
   getFood(foodId: string): Promise<FoodRecord | undefined>;
   getQuota(): Promise<ScanCreditState>;

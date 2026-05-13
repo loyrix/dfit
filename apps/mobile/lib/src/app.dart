@@ -268,6 +268,7 @@ class _DFitAppState extends State<DFitApp> {
 
     final session = await _openAccountGate(reason);
     if (session != null) {
+      await _journalController.loadToday();
       await _openAccountProfile(session);
     }
     return session;
@@ -313,7 +314,10 @@ class _DFitAppState extends State<DFitApp> {
             final currentSession = _authController.session ?? session;
             return AccountProfileScreen(
               session: currentSession,
-              onSignOut: _authController.signOut,
+              onSignOut: () async {
+                await _authController.signOut();
+                await _journalController.loadToday();
+              },
             );
           },
         ),

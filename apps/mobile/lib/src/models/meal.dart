@@ -325,6 +325,7 @@ class AppProfile {
     required this.id,
     required this.authMethod,
     required this.timezone,
+    this.email,
     this.linkedAt,
     this.createdAt,
   });
@@ -332,6 +333,7 @@ class AppProfile {
   final String id;
   final String authMethod;
   final String timezone;
+  final String? email;
   final String? linkedAt;
   final String? createdAt;
 
@@ -340,6 +342,7 @@ class AppProfile {
       id: json['id'] as String,
       authMethod: json['authMethod'] as String? ?? 'anonymous',
       timezone: json['timezone'] as String? ?? '',
+      email: json['email'] as String?,
       linkedAt: json['linkedAt'] as String?,
       createdAt: json['createdAt'] as String?,
     );
@@ -350,6 +353,7 @@ class AppProfile {
       'id': id,
       'authMethod': authMethod,
       'timezone': timezone,
+      if (email != null) 'email': email,
       if (linkedAt != null) 'linkedAt': linkedAt,
       if (createdAt != null) 'createdAt': createdAt,
     };

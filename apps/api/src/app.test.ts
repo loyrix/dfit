@@ -198,7 +198,11 @@ describe("DFit API", () => {
     const created = await app.inject({
       method: "POST",
       url: "/v1/meals",
-      headers: { "idempotency-key": "bootstrap-meal" },
+      headers: {
+        "x-dfit-install-id": "bootstrap-install",
+        "x-dfit-platform": "ios",
+        "idempotency-key": "bootstrap-meal",
+      },
       payload: mealPayload(new Date().toISOString()),
     });
     expect(created.statusCode).toBe(201);
@@ -236,6 +240,263 @@ describe("DFit API", () => {
     expect(bootstrap.json().today.meals[0]).toMatchObject({
       id: created.json().id,
       title: "Dal rice",
+    });
+    await app.close();
+  });
+
+  it("binds anonymous journal data when an email account is created", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-dfit-install-id": "install-account-create",
+      "x-dfit-platform": "ios",
+    };
+
+    const meal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { ...installHeaders, "idempotency-key": "anonymous-meal-before-signup" },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(meal.statusCode).toBe(201);
+
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: {
+        email: "tester@example.com",
+        password: "secret1",
+      },
+    });
+    expect(signup.statusCode).toBe(201);
+    expect(signup.json().profile).toMatchObject({
+      authMethod: "email",
+      email: "tester@example.com",
+    });
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "x-dfit-install-id": "install-account-create",
+        "x-dfit-platform": "ios",
+      },
+    });
+
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().profile).toMatchObject({
+      authMethod: "email",
+      email: "tester@example.com",
+    });
+    expect(bootstrap.json().today.meals[0]).toMatchObject({
+      id: meal.json().id,
+      title: "Dal rice",
+    });
+    await app.close();
+  });
+
+  it("keeps registered user journals isolated by account token", async () => {
+    const app = await testApp();
+
+    const firstSignup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: {
+        "x-dfit-install-id": "install-user-a",
+        "x-dfit-platform": "ios",
+      },
+      payload: { email: "a@example.com", password: "secret1" },
+    });
+    expect(firstSignup.statusCode).toBe(201);
+
+    const secondSignup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: {
+        "x-dfit-install-id": "install-user-b",
+        "x-dfit-platform": "ios",
+      },
+      payload: { email: "b@example.com", password: "secret1" },
+    });
+    expect(secondSignup.statusCode).toBe(201);
+
+    const firstMeal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: {
+        authorization: `Bearer ${firstSignup.json().accessToken}`,
+        "x-dfit-install-id": "install-user-a",
+        "x-dfit-platform": "ios",
+        "idempotency-key": "user-a-meal",
+      },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(firstMeal.statusCode).toBe(201);
+
+    const secondBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        authorization: `Bearer ${secondSignup.json().accessToken}`,
+        "x-dfit-install-id": "install-user-b",
+        "x-dfit-platform": "ios",
+      },
+    });
+    expect(secondBootstrap.statusCode).toBe(200);
+    expect(secondBootstrap.json().today.meals).toHaveLength(0);
+
+    const secondMealLookup = await app.inject({
+      method: "GET",
+      url: `/v1/meals/${firstMeal.json().id}`,
+      headers: {
+        authorization: `Bearer ${secondSignup.json().accessToken}`,
+        "x-dfit-install-id": "install-user-b",
+        "x-dfit-platform": "ios",
+      },
+    });
+    expect(secondMealLookup.statusCode).toBe(404);
+
+    const firstBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        authorization: `Bearer ${firstSignup.json().accessToken}`,
+        "x-dfit-install-id": "install-user-a",
+        "x-dfit-platform": "ios",
+      },
+    });
+    expect(firstBootstrap.json().today.meals[0]).toMatchObject({
+      id: firstMeal.json().id,
+    });
+    await app.close();
+  });
+
+  it("merges the current anonymous device profile when logging into an existing account", async () => {
+    const app = await testApp();
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: {
+        "x-dfit-install-id": "install-existing-account",
+        "x-dfit-platform": "ios",
+      },
+      payload: { email: "merge@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const anonymousMeal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: {
+        "x-dfit-install-id": "install-new-device",
+        "x-dfit-platform": "ios",
+        "idempotency-key": "anonymous-new-device-meal",
+      },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(anonymousMeal.statusCode).toBe(201);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      headers: {
+        "x-dfit-install-id": "install-new-device",
+        "x-dfit-platform": "ios",
+      },
+      payload: { email: "merge@example.com", password: "secret1" },
+    });
+    expect(login.statusCode).toBe(200);
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        authorization: `Bearer ${login.json().accessToken}`,
+        "x-dfit-install-id": "install-new-device",
+        "x-dfit-platform": "ios",
+      },
+    });
+
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().today.meals[0]).toMatchObject({
+      id: anonymousMeal.json().id,
+      title: "Dal rice",
+    });
+    await app.close();
+  });
+
+  it("returns to a fresh anonymous profile after logout on the same device", async () => {
+    const app = await testApp();
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: {
+        "x-dfit-install-id": "install-logout",
+        "x-dfit-platform": "ios",
+      },
+      payload: { email: "logout@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const meal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: {
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "x-dfit-install-id": "install-logout",
+        "x-dfit-platform": "ios",
+        "idempotency-key": "logout-account-meal",
+      },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(meal.statusCode).toBe(201);
+
+    const logout = await app.inject({
+      method: "POST",
+      url: "/v1/auth/logout",
+      headers: {
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "x-dfit-install-id": "install-logout",
+        "x-dfit-platform": "ios",
+      },
+    });
+    expect(logout.statusCode).toBe(204);
+
+    const anonymousBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        "x-dfit-install-id": "install-logout",
+        "x-dfit-platform": "ios",
+      },
+    });
+    expect(anonymousBootstrap.statusCode).toBe(200);
+    expect(anonymousBootstrap.json().profile.authMethod).toBe("anonymous");
+    expect(anonymousBootstrap.json().today.meals).toHaveLength(0);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      headers: {
+        "x-dfit-install-id": "install-logout",
+        "x-dfit-platform": "ios",
+      },
+      payload: { email: "logout@example.com", password: "secret1" },
+    });
+    expect(login.statusCode).toBe(200);
+
+    const accountBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        authorization: `Bearer ${login.json().accessToken}`,
+        "x-dfit-install-id": "install-logout",
+        "x-dfit-platform": "ios",
+      },
+    });
+    expect(accountBootstrap.json().today.meals[0]).toMatchObject({
+      id: meal.json().id,
     });
     await app.close();
   });

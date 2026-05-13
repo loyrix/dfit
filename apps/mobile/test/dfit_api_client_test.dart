@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dfit_mobile/src/models/captured_meal_photo.dart';
+import 'package:dfit_mobile/src/models/auth_session.dart';
 import 'package:dfit_mobile/src/models/meal.dart';
 import 'package:dfit_mobile/src/services/device_identity_store.dart';
 import 'package:dfit_mobile/src/services/dfit_api_client.dart';
@@ -247,6 +248,52 @@ void main() {
     expect(bootstrap.quota.totalRemaining, 3);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
     expect(bootstrap.weeklyRange.summary.dailyAverage.calories, 26);
+  });
+
+  test('sends account token and parses email signup sessions', () async {
+    final client = DFitApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      loadAuthSession: () async => AuthSession(
+        provider: AuthProvider.email,
+        displayName: 'friend@test.com',
+        linkedAt: DateTime(2026, 5, 13),
+        profileId: 'profile_1',
+        accessToken: 'token_existing',
+      ),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/auth/email/signup');
+        expect(request.headers['authorization'], 'Bearer token_existing');
+        expect(jsonDecode(request.body), {
+          'email': 'friend@test.com',
+          'password': 'secret1',
+        });
+        return http.Response(
+          jsonEncode({
+            'profile': {
+              'id': 'profile_2',
+              'authMethod': 'email',
+              'email': 'friend@test.com',
+              'timezone': 'Asia/Kolkata',
+              'linkedAt': '2026-05-13T10:00:00.000Z',
+              'createdAt': '2026-05-13T10:00:00.000Z',
+            },
+            'accessToken': 'token_created',
+            'expiresAt': '2026-06-12T10:00:00.000Z',
+          }),
+          201,
+        );
+      }),
+    );
+
+    final session = await client.signUpWithEmail(
+      email: 'friend@test.com',
+      password: 'secret1',
+    );
+
+    expect(session.profileId, 'profile_2');
+    expect(session.displayName, 'friend@test.com');
+    expect(session.accessToken, 'token_created');
   });
 
   test('fetches seven day journal range', () async {

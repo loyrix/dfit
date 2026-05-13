@@ -1,17 +1,16 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/auth_session.dart';
+import '../services/account_session_store.dart';
+import '../services/dfit_api_client.dart';
 
 class AuthController extends ChangeNotifier {
-  static const _sessionKey = 'dfit.auth_session';
-
-  AuthController({AccountAuthGateway? gateway})
-    : _gateway = gateway ?? DeviceAccountAuthGateway();
+  AuthController({AccountAuthGateway? gateway, AccountSessionStore? store})
+    : _gateway = gateway ?? DFitAccountAuthGateway(),
+      _store = store ?? AccountSessionStore();
 
   final AccountAuthGateway _gateway;
+  final AccountSessionStore _store;
   AuthSession? _session;
   bool _loading = false;
   String? _error;
@@ -22,14 +21,7 @@ class AuthController extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> load() async {
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      final raw = preferences.getString(_sessionKey);
-      if (raw == null || raw.isEmpty) return;
-      _session = AuthSession.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-    } catch (_) {
-      _session = null;
-    }
+    _session = await _store.load();
     notifyListeners();
   }
 
@@ -41,12 +33,11 @@ class AuthController extends ChangeNotifier {
 
     try {
       final session = await _gateway.signIn(provider);
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setString(_sessionKey, jsonEncode(session.toJson()));
+      await _store.save(session);
       _session = session;
       return session;
     } catch (_) {
-      _error = 'Account linking is unavailable right now.';
+      _error = 'Use email login for this test build.';
       return null;
     } finally {
       _loading = false;
@@ -70,8 +61,7 @@ class AuthController extends ChangeNotifier {
         email: email,
         password: password,
       );
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setString(_sessionKey, jsonEncode(session.toJson()));
+      await _store.save(session);
       _session = session;
       return session;
     } catch (_) {
@@ -86,8 +76,8 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.remove(_sessionKey);
+    await _gateway.signOut();
+    await _store.clear();
     _session = null;
     notifyListeners();
   }
@@ -100,17 +90,18 @@ abstract class AccountAuthGateway {
     required String email,
     required String password,
   });
+  Future<void> signOut();
 }
 
-class DeviceAccountAuthGateway implements AccountAuthGateway {
+class DFitAccountAuthGateway implements AccountAuthGateway {
+  DFitAccountAuthGateway({DFitApiClient? apiClient})
+    : _apiClient = apiClient ?? DFitApiClient();
+
+  final DFitApiClient _apiClient;
+
   @override
   Future<AuthSession> signIn(AuthProvider provider) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    return AuthSession(
-      provider: provider,
-      displayName: '${provider.label} account',
-      linkedAt: DateTime.now(),
-    );
+    throw UnsupportedError('${provider.label} login is not wired yet.');
   }
 
   @override
@@ -119,11 +110,17 @@ class DeviceAccountAuthGateway implements AccountAuthGateway {
     required String email,
     required String password,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    return AuthSession(
-      provider: AuthProvider.email,
-      displayName: email.trim().toLowerCase(),
-      linkedAt: DateTime.now(),
-    );
+    return mode == EmailAuthMode.signUp
+        ? _apiClient.signUpWithEmail(email: email, password: password)
+        : _apiClient.loginWithEmail(email: email, password: password);
+  }
+
+  @override
+  Future<void> signOut() async {
+    try {
+      await _apiClient.logout();
+    } catch (_) {
+      // Local sign-out must still work if the token is already expired.
+    }
   }
 }
