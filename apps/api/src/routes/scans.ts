@@ -44,19 +44,27 @@ export const registerScanRoutes = async (
       });
     }
 
+    const userHint = parsed.data.hint?.trim() || undefined;
+    const scanWithRequestContext = {
+      ...scan,
+      status: "analyzing" as const,
+      userHint,
+      imageMimeType: parsed.data.image?.mimeType,
+      imageByteSize: parsed.data.image?.byteSize,
+    };
+    await repository.updateScan(scanWithRequestContext);
+
     let analyzedResult;
     try {
       analyzedResult = await aiProvider.analyzeMealImage({
         scanId: scan.id,
-        userHint: parsed.data.hint,
+        userHint,
         image: parsed.data.image,
       });
     } catch (error) {
       await repository.updateScan({
-        ...scan,
+        ...scanWithRequestContext,
         status: "failed",
-        imageMimeType: parsed.data.image?.mimeType,
-        imageByteSize: parsed.data.image?.byteSize,
       });
 
       if (error instanceof AiProviderError) {
@@ -77,13 +85,11 @@ export const registerScanRoutes = async (
     await repository.consumeCredit(decision.reason);
 
     await repository.updateScan({
-      ...scan,
+      ...scanWithRequestContext,
       status: "ready_for_review",
       creditReason: decision.reason,
       analyzedResponse: analyzedResult.analysis,
       aiProviderRun: analyzedResult.providerRun,
-      imageMimeType: parsed.data.image?.mimeType,
-      imageByteSize: parsed.data.image?.byteSize,
     });
 
     return analyzedResult.analysis;

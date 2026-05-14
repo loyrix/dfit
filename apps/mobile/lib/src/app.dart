@@ -130,6 +130,11 @@ class _DFitAppState extends State<DFitApp> {
                 builder: (_) => AnalyzingScreen(
                   photo: photo,
                   onAnalyze: _journalController.analyzeCapturedMeal,
+                  onScanCreditRequired: () async {
+                    await _openAccountHome(AccountGateReason.quotaExhausted);
+                    await _journalController.refreshQuota();
+                  },
+                  onAddManually: _openManualReview,
                   onAnalyzed: (analysis) {
                     _navigatorKey.currentState!.pushReplacement<void, void>(
                       MaterialPageRoute<void>(

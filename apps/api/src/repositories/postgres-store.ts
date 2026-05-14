@@ -69,6 +69,7 @@ type ScanRow = {
   profile_id: string;
   status: ScanSession["status"];
   consumed_credit_reason: ScanSession["creditReason"] | null;
+  user_hint: string | null;
   image_mime_type: string | null;
   image_byte_size: number | null;
   created_at: string;
@@ -506,6 +507,7 @@ export class PostgresStore implements AppRepository {
         scan_sessions.profile_id::text,
         scan_sessions.status,
         scan_sessions.consumed_credit_reason,
+        scan_sessions.user_hint,
         scan_sessions.image_mime_type,
         scan_sessions.image_byte_size,
         scan_sessions.created_at::text,
@@ -536,6 +538,7 @@ export class PostgresStore implements AppRepository {
         set
           status = ${scan.status},
           consumed_credit_reason = ${scan.creditReason ?? null},
+          user_hint = coalesce(${scan.userHint ?? null}, user_hint),
           image_mime_type = coalesce(${scan.imageMimeType ?? null}, image_mime_type),
           image_byte_size = coalesce(${scan.imageByteSize ?? null}, image_byte_size),
           updated_at = now()
@@ -1085,6 +1088,7 @@ export class PostgresStore implements AppRepository {
       status: row.status,
       creditReason: row.consumed_credit_reason ?? undefined,
       analyzedResponse: row.analyzed_response ?? undefined,
+      userHint: row.user_hint ?? undefined,
       imageMimeType: row.image_mime_type ?? undefined,
       imageByteSize: row.image_byte_size ?? undefined,
       createdAt: row.created_at,

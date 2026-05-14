@@ -293,6 +293,26 @@ class DFitApiException implements Exception {
     return null;
   }
 
+  String? get message {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded['message'] as String?;
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  bool get retryable {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded['retryable'] == true;
+    } catch (_) {
+      return statusCode >= 500;
+    }
+    return statusCode >= 500;
+  }
+
   bool get isScanCreditRequired {
     return statusCode == 402 || errorCode == 'scan_credit_required';
   }

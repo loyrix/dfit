@@ -520,7 +520,8 @@ describe("DFit API", () => {
         };
       },
     };
-    const app = await buildApp({ repository: new InMemoryStore(), aiProvider });
+    const repository = new InMemoryStore();
+    const app = await buildApp({ repository, aiProvider });
     const prepared = await app.inject({
       method: "POST",
       url: "/v1/scans/prepare",
@@ -551,6 +552,10 @@ describe("DFit API", () => {
         base64: "AQID",
         byteSize: 3,
       },
+    });
+    await expect(repository.getScan(scanId)).resolves.toMatchObject({
+      userHint: "dal chawal roti",
+      status: "ready_for_review",
     });
     await app.close();
   });

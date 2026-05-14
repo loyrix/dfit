@@ -14,11 +14,15 @@ class AnalyzingScreen extends StatefulWidget {
     required this.photo,
     required this.onAnalyze,
     required this.onAnalyzed,
+    this.onScanCreditRequired,
+    this.onAddManually,
   });
 
   final CapturedMealPhoto photo;
   final Future<ScanAnalysis> Function(CapturedMealPhoto photo) onAnalyze;
   final ValueChanged<ScanAnalysis> onAnalyzed;
+  final Future<void> Function()? onScanCreditRequired;
+  final VoidCallback? onAddManually;
 
   @override
   State<AnalyzingScreen> createState() => _AnalyzingScreenState();
@@ -33,7 +37,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     'Balancing macros',
   ];
 
-  String? _error;
+  _AnalysisFailure? _failure;
   int _activeStep = 1;
   Timer? _stepTimer;
   late final AnimationController _controller = AnimationController(
@@ -56,8 +60,8 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
   }
 
   Future<void> _runAnalysis() async {
-    if (_error != null) {
-      setState(() => _error = null);
+    if (_failure != null) {
+      setState(() => _failure = null);
     }
     _startStepTimer(reset: true);
 
@@ -69,7 +73,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
       if (!mounted) return;
       _stepTimer?.cancel();
       setState(() {
-        _error = _analysisErrorMessage(error);
+        _failure = _AnalysisFailure.from(error);
       });
     }
   }
@@ -80,105 +84,118 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
       _activeStep = 1;
     }
     _stepTimer = Timer.periodic(const Duration(milliseconds: 1050), (_) {
-      if (!mounted || _error != null) return;
+      if (!mounted || _failure != null) return;
       setState(() {
         _activeStep = math.min(_activeStep + 1, _steps.length - 1);
       });
     });
   }
 
-  String _analysisErrorMessage(Object error) {
-    if (error is DFitApiException) {
-      if (error.isScanCreditRequired) {
-        return 'No scan credits left today. Add manually for now or refresh after credits reset.';
-      }
-      if (error.statusCode >= 500) {
-        return 'DFit API is taking longer than expected. Retry in a moment.';
-      }
-      return 'Could not analyze this meal (${error.statusCode}). Try again.';
-    }
-    return 'Could not analyze this meal. Check the API connection and try again.';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final error = _error;
+    final failure = _failure;
+    final plateHint = widget.photo.userHint?.trim();
 
     return Scaffold(
       backgroundColor: DFitColors.bgInk,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _ScanMark(animation: _controller),
-              const SizedBox(height: 36),
-              Text(
-                _error == null ? 'Reading your plate' : 'Scan paused',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: Colors.white),
-              ),
-              const SizedBox(height: 7),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                child: Text(
-                  _error == null
-                      ? _progressLabel(_activeStep)
-                      : 'Ready when you are',
-                  key: ValueKey(_error == null ? _activeStep : 'error'),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.52),
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.03),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.06),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    for (var index = 0; index < _steps.length; index++)
-                      _StepRow(
-                        label: _steps[index],
-                        done: error == null && index < _activeStep,
-                        active: error == null && index == _activeStep,
-                      ),
-                  ],
-                ),
-              ),
-              if (error != null) ...[
-                const SizedBox(height: 18),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    error,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _ScanMark(animation: _controller),
+                        const SizedBox(height: 36),
+                        Text(
+                          failure == null
+                              ? 'Reading your plate'
+                              : failure.title,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: Colors.white),
+                        ),
+                        const SizedBox(height: 7),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: Text(
+                            failure == null
+                                ? _progressLabel(_activeStep)
+                                : failure.subtitle,
+                            key: ValueKey(
+                              failure == null ? _activeStep : failure.kind,
+                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.52),
+                                  letterSpacing: 0.2,
+                                ),
+                          ),
+                        ),
+                        if (plateHint != null && plateHint.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _HintPill(label: plateHint),
+                        ],
+                        const SizedBox(height: 18),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 32),
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.06),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < _steps.length;
+                                index++
+                              )
+                                _StepRow(
+                                  label: _steps[index],
+                                  done: failure == null && index < _activeStep,
+                                  active:
+                                      failure == null && index == _activeStep,
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (failure != null) ...[
+                          const SizedBox(height: 18),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              failure.message,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _FailureActions(
+                            failure: failure,
+                            onRetry: _runAnalysis,
+                            onScanCreditRequired: widget.onScanCreditRequired,
+                            onAddManually: widget.onAddManually,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _runAnalysis,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: DFitColors.accent,
-                    foregroundColor: DFitColors.accentDeep,
-                  ),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ],
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -191,6 +208,149 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
       3 => 'Preparing your macro review',
       _ => 'Securing the capture',
     };
+  }
+}
+
+enum _AnalysisFailureKind { quota, provider, invalidImage, offline }
+
+class _AnalysisFailure {
+  const _AnalysisFailure({
+    required this.kind,
+    required this.title,
+    required this.subtitle,
+    required this.message,
+  });
+
+  final _AnalysisFailureKind kind;
+  final String title;
+  final String subtitle;
+  final String message;
+
+  factory _AnalysisFailure.from(Object error) {
+    if (error is DFitApiException) {
+      if (error.isScanCreditRequired) {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.quota,
+          title: 'Unlock scans',
+          subtitle: 'Your free scans are used',
+          message:
+              'Create or open your account to keep this journal safe, then unlock more scans when credits are available.',
+        );
+      }
+      if (error.errorCode == 'invalid_scan_image') {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.invalidImage,
+          title: 'Retake photo',
+          subtitle: 'The image needs one more try',
+          message:
+              'Use a clear top view with the full plate visible. DFit does not store the food photo.',
+        );
+      }
+      if (error.retryable || error.statusCode >= 500) {
+        return _AnalysisFailure(
+          kind: _AnalysisFailureKind.provider,
+          title: 'Still thinking',
+          subtitle: 'The AI took too long',
+          message:
+              error.message ??
+              'DFit API is taking longer than expected. Retry in a moment.',
+        );
+      }
+      return _AnalysisFailure(
+        kind: _AnalysisFailureKind.provider,
+        title: 'Scan paused',
+        subtitle: 'Review needed',
+        message:
+            error.message ??
+            'Could not analyze this meal (${error.statusCode}). Try again.',
+      );
+    }
+
+    return const _AnalysisFailure(
+      kind: _AnalysisFailureKind.offline,
+      title: 'Connection paused',
+      subtitle: 'Could not reach DFit',
+      message: 'Check the API connection and try again.',
+    );
+  }
+}
+
+class _FailureActions extends StatelessWidget {
+  const _FailureActions({
+    required this.failure,
+    required this.onRetry,
+    this.onScanCreditRequired,
+    this.onAddManually,
+  });
+
+  final _AnalysisFailure failure;
+  final VoidCallback onRetry;
+  final Future<void> Function()? onScanCreditRequired;
+  final VoidCallback? onAddManually;
+
+  @override
+  Widget build(BuildContext context) {
+    final isQuota = failure.kind == _AnalysisFailureKind.quota;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FilledButton(
+          onPressed: isQuota ? _handleQuotaAction : onRetry,
+          style: FilledButton.styleFrom(
+            backgroundColor: DFitColors.accent,
+            foregroundColor: DFitColors.accentDeep,
+          ),
+          child: Text(isQuota ? 'Open account' : 'Retry scan'),
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: isQuota && onAddManually != null
+              ? onAddManually
+              : () => Navigator.of(context).pop(),
+          child: Text(
+            isQuota && onAddManually != null ? 'Add manually' : 'Back',
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _handleQuotaAction() {
+    final scanCreditAction = onScanCreditRequired;
+    if (scanCreditAction != null) {
+      unawaited(scanCreditAction());
+      return;
+    }
+    onAddManually?.call();
+  }
+}
+
+class _HintPill extends StatelessWidget {
+  const _HintPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 280),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      decoration: BoxDecoration(
+        color: DFitColors.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: DFitColors.accent.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: DFitColors.accent,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
   }
 }
 

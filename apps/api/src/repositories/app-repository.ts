@@ -40,6 +40,7 @@ export type ScanSession = {
   creditReason?: "free" | "rewarded" | "premium";
   analyzedResponse?: unknown;
   aiProviderRun?: AiProviderRunMetadata;
+  userHint?: string;
   imageMimeType?: string;
   imageByteSize?: number;
   createdAt: string;

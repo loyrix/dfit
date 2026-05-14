@@ -1,13 +1,19 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dfit_mobile/src/app.dart';
 import 'package:dfit_mobile/src/models/auth_session.dart';
+import 'package:dfit_mobile/src/models/captured_meal_photo.dart';
 import 'package:dfit_mobile/src/models/meal.dart';
 import 'package:dfit_mobile/src/screens/account_gate_screen.dart';
 import 'package:dfit_mobile/src/screens/account_profile_screen.dart';
+import 'package:dfit_mobile/src/screens/analyzing_screen.dart';
 import 'package:dfit_mobile/src/screens/meal_detail_screen.dart';
 import 'package:dfit_mobile/src/screens/review_meal_screen.dart';
 import 'package:dfit_mobile/src/screens/settings_screen.dart';
 import 'package:dfit_mobile/src/screens/startup_error_screen.dart';
 import 'package:dfit_mobile/src/screens/today_screen.dart';
+import 'package:dfit_mobile/src/services/dfit_api_client.dart';
 import 'package:dfit_mobile/src/theme/dfit_theme.dart';
 import 'package:dfit_mobile/src/widgets/primitive_icons.dart';
 import 'package:flutter/material.dart';
@@ -210,6 +216,48 @@ void main() {
     );
     expect(find.text('0'), findsNothing);
     expect(find.byType(FloatingActionButton), findsNothing);
+  });
+
+  testWidgets('analysis quota failure offers account handoff', (tester) async {
+    var accountOpened = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: AnalyzingScreen(
+          photo: CapturedMealPhoto(
+            bytes: Uint8List.fromList([1, 2, 3]),
+            mimeType: 'image/jpeg',
+            fileName: 'plate.jpg',
+            userHint: 'dal rice',
+          ),
+          onAnalyze: (_) async {
+            throw DFitApiException(
+              402,
+              jsonEncode({'error': 'scan_credit_required'}),
+            );
+          },
+          onAnalyzed: (_) {},
+          onScanCreditRequired: () async {
+            accountOpened = true;
+          },
+          onAddManually: () {},
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Unlock scans'), findsOneWidget);
+    expect(find.text('Open account'), findsOneWidget);
+    expect(find.text('dal rice'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Open account'));
+    await tester.tap(find.text('Open account'));
+    await tester.pump();
+
+    expect(accountOpened, isTrue);
   });
 
   testWidgets('account gate offers Apple Google and email auth', (
