@@ -48,6 +48,8 @@ void main() {
     expect(find.text('Center your plate'), findsOneWidget);
     expect(find.text("What's on the plate?"), findsOneWidget);
     expect(find.text('full plate'), findsOneWidget);
+    expect(find.text('Upload'), findsOneWidget);
+    expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
 
   testWidgets('skips welcome after onboarding is seen', (tester) async {
