@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/auth_session.dart';
 import '../services/account_session_store.dart';
+import '../services/app_diagnostics.dart';
 import '../services/dfit_api_client.dart';
 
 class AuthController extends ChangeNotifier {
@@ -36,7 +37,13 @@ class AuthController extends ChangeNotifier {
       await _store.save(session);
       _session = session;
       return session;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'auth.provider',
+        error,
+        stackTrace: stackTrace,
+        context: {'provider': provider.name},
+      );
       _error = 'Use email login for this test build.';
       return null;
     } finally {
@@ -64,7 +71,13 @@ class AuthController extends ChangeNotifier {
       await _store.save(session);
       _session = session;
       return session;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'auth.email',
+        error,
+        stackTrace: stackTrace,
+        context: {'mode': mode.name},
+      );
       _error = mode == EmailAuthMode.signUp
           ? 'Could not create this account right now.'
           : 'Could not log in with those details.';
@@ -119,7 +132,12 @@ class DFitAccountAuthGateway implements AccountAuthGateway {
   Future<void> signOut() async {
     try {
       await _apiClient.logout();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'auth.logout',
+        error,
+        stackTrace: stackTrace,
+      );
       // Local sign-out must still work if the token is already expired.
     }
   }

@@ -1,6 +1,7 @@
 import type {
   AnalyzeScanRequestContract,
   AnalyzeScanResponseContract,
+  ConfirmScanResponseContract,
   ConfirmScanRequestContract,
   CreateMealRequestContract,
   JournalRangeResponseContract,
@@ -56,15 +57,12 @@ export class DFitClient {
     scanId: string,
     body: ConfirmScanRequestContract,
     idempotencyKey: string,
-  ): Promise<{ mealId: string; totals: MealContract["totals"] }> {
-    return this.request<{ mealId: string; totals: MealContract["totals"] }>(
-      `/v1/scans/${scanId}/confirm`,
-      {
-        method: "POST",
-        body,
-        idempotencyKey,
-      },
-    );
+  ): Promise<ConfirmScanResponseContract> {
+    return this.request<ConfirmScanResponseContract>(`/v1/scans/${scanId}/confirm`, {
+      method: "POST",
+      body,
+      idempotencyKey,
+    });
   }
 
   private async request<T>(

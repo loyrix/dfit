@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/auth_session.dart';
 import 'models/meal.dart';
+import 'navigation/dfit_page_route.dart';
 import 'screens/account_gate_screen.dart';
 import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
@@ -11,7 +12,9 @@ import 'screens/meal_detail_screen.dart';
 import 'screens/review_meal_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/today_screen.dart';
+import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'services/app_diagnostics.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'theme/dfit_colors.dart';
@@ -91,6 +94,7 @@ class _DFitAppState extends State<DFitApp> {
           onAddManually: _openManualReview,
           onOpenSettings: _openSettings,
           onOpenMeal: _openMealDetail,
+          onOpenWeeklyJournal: _openWeeklyJournal,
         );
       },
     );
@@ -252,6 +256,7 @@ class _DFitAppState extends State<DFitApp> {
             return SettingsScreen(
               themeMode: _themeMode,
               session: _authController.session,
+              diagnosticsEntries: AppDiagnostics.instance.entries,
               onOpenAccount: () =>
                   _openAccountHome(AccountGateReason.saveJournal),
               onThemeChanged: (mode) {
@@ -332,7 +337,25 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openMealDetail(MealLog meal) async {
     await _navigatorKey.currentState!.push<void>(
-      MaterialPageRoute<void>(builder: (_) => MealDetailScreen(meal: meal)),
+      dfitPageRoute<void>(builder: (_) => MealDetailScreen(meal: meal)),
+    );
+  }
+
+  Future<void> _openWeeklyJournal() async {
+    final range = _journalController.weeklyRange;
+    if (range == null) return;
+
+    await _navigatorKey.currentState!.push<void>(
+      dfitPageRoute<void>(
+        builder: (_) => WeeklyJournalScreen(
+          range: range,
+          target: _journalController.target,
+          isSyncing: _journalController.loading,
+          syncMessage: _journalController.error,
+          onRefresh: _journalController.loadToday,
+          onOpenMeal: _openMealDetail,
+        ),
+      ),
     );
   }
 }

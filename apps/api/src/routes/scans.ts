@@ -4,6 +4,7 @@ import { decideScanQuota } from "@dfit/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";
+import { toApiMeal } from "./journal-presenter.js";
 
 export const registerScanRoutes = async (
   app: FastifyInstance,
@@ -130,6 +131,7 @@ export const registerScanRoutes = async (
     return reply.status(201).send({
       mealId: meal.mealId,
       totals: meal.totals,
+      meal: toApiMeal(scan.profileId, meal),
     });
   });
 };

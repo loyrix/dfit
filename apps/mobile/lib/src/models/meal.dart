@@ -480,15 +480,23 @@ class ScanAnalysis {
 }
 
 class ConfirmedScanMeal {
-  const ConfirmedScanMeal({required this.mealId, required this.totals});
+  const ConfirmedScanMeal({
+    required this.mealId,
+    required this.totals,
+    this.meal,
+  });
 
   final String mealId;
   final MacroTotals totals;
+  final MealLog? meal;
 
   factory ConfirmedScanMeal.fromJson(Map<String, dynamic> json) {
     return ConfirmedScanMeal(
       mealId: json['mealId'] as String,
       totals: MacroTotals.fromJson(json['totals'] as Map<String, dynamic>),
+      meal: json['meal'] == null
+          ? null
+          : MealLog.fromJson(json['meal'] as Map<String, dynamic>),
     );
   }
 }

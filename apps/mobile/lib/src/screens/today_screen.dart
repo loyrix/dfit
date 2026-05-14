@@ -25,6 +25,7 @@ class TodayScreen extends StatelessWidget {
     required this.onAddManually,
     required this.onOpenSettings,
     required this.onOpenMeal,
+    required this.onOpenWeeklyJournal,
   });
 
   final List<MealLog> meals;
@@ -40,6 +41,7 @@ class TodayScreen extends StatelessWidget {
   final VoidCallback onAddManually;
   final VoidCallback onOpenSettings;
   final ValueChanged<MealLog> onOpenMeal;
+  final VoidCallback onOpenWeeklyJournal;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +109,12 @@ class TodayScreen extends StatelessWidget {
                     MacroBarGroup(totals: totals, target: target),
                     if (weeklyRange != null) ...[
                       const SizedBox(height: 12),
-                      _WeeklySummaryCard(range: weeklyRange!),
+                      _WeeklySummaryCard(
+                        range: weeklyRange!,
+                        onTap: onOpenWeeklyJournal,
+                        syncing: loading,
+                        hasSyncIssue: syncMessage != null,
+                      ),
                     ],
                     const SizedBox(height: 22),
                     if (isEmpty)
@@ -169,9 +176,17 @@ class TodayScreen extends StatelessWidget {
 }
 
 class _WeeklySummaryCard extends StatelessWidget {
-  const _WeeklySummaryCard({required this.range});
+  const _WeeklySummaryCard({
+    required this.range,
+    required this.onTap,
+    required this.syncing,
+    required this.hasSyncIssue,
+  });
 
   final JournalRangeData range;
+  final VoidCallback onTap;
+  final bool syncing;
+  final bool hasSyncIssue;
 
   @override
   Widget build(BuildContext context) {
@@ -179,53 +194,109 @@ class _WeeklySummaryCard extends StatelessWidget {
     final summary = range.summary;
     final trackedText = '${summary.activeDays}/${summary.windowDays} days';
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
+    return Material(
+      color: colors.surfaceCard,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '7 DAY SUMMARY',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                    letterSpacing: 1.4,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.border, width: 0.5),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '7 DAY SUMMARY',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.textSecondary,
+                                    letterSpacing: 1.4,
+                                  ),
+                            ),
+                            if (syncing || hasSyncIssue) ...[
+                              const SizedBox(width: 8),
+                              _SyncDot(
+                                color: hasSyncIssue
+                                    ? colors.accentText
+                                    : DFitColors.accent,
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          trackedText,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          hasSyncIssue
+                              ? 'Showing saved journal'
+                              : syncing
+                              ? '${summary.mealCount} meals logged - syncing'
+                              : '${summary.mealCount} meals logged',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  trackedText,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${summary.mealCount} meals logged',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-                ),
-              ],
-            ),
+                  _WeeklyMetric(
+                    label: 'avg kcal',
+                    value: '${summary.dailyAverage.calories}',
+                  ),
+                  const SizedBox(width: 8),
+                  _WeeklyMetric(
+                    label: 'protein',
+                    value: '${summary.dailyAverage.proteinG.round()}g',
+                    accent: true,
+                  ),
+                ],
+              ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: syncing
+                    ? Padding(
+                        key: const ValueKey('weekly-syncing'),
+                        padding: const EdgeInsets.only(top: 12),
+                        child: LinearProgressIndicator(
+                          minHeight: 2,
+                          color: DFitColors.accent,
+                          backgroundColor: colors.mutedFill,
+                        ),
+                      )
+                    : const SizedBox.shrink(key: ValueKey('weekly-idle')),
+              ),
+            ],
           ),
-          _WeeklyMetric(
-            label: 'avg kcal',
-            value: '${summary.dailyAverage.calories}',
-          ),
-          const SizedBox(width: 8),
-          _WeeklyMetric(
-            label: 'protein',
-            value: '${summary.dailyAverage.proteinG.round()}g',
-            accent: true,
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _SyncDot extends StatelessWidget {
+  const _SyncDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

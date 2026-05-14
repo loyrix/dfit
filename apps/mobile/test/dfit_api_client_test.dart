@@ -45,6 +45,21 @@ void main() {
     expect(error.isScanCreditRequired, isTrue);
   });
 
+  test('reads API error messages and retry hints', () {
+    final error = DFitApiException(
+      504,
+      jsonEncode({
+        'error': 'ai_provider_timeout',
+        'message': 'Gemini analysis timed out.',
+        'retryable': true,
+      }),
+    );
+
+    expect(error.errorCode, 'ai_provider_timeout');
+    expect(error.message, 'Gemini analysis timed out.');
+    expect(error.retryable, isTrue);
+  });
+
   test('prepares and analyzes a scan', () async {
     final requests = <http.Request>[];
     final client = DFitApiClient(
@@ -374,6 +389,26 @@ void main() {
               'carbsG': 25.2,
               'fatG': 5.4,
             },
+            'meal': {
+              'id': 'meal_1',
+              'mealType': 'lunch',
+              'title': 'Dal rice',
+              'loggedAt': '2026-05-12T09:00:00.000Z',
+              'items': [
+                {
+                  'displayName': 'Dal',
+                  'quantity': 1,
+                  'unit': 'katori',
+                  'grams': 180,
+                  'nutrition': {
+                    'calories': 180,
+                    'proteinG': 10.8,
+                    'carbsG': 25.2,
+                    'fatG': 5.4,
+                  },
+                },
+              ],
+            },
           }),
           201,
         );
@@ -403,5 +438,7 @@ void main() {
 
     expect(confirmed.mealId, 'meal_1');
     expect(confirmed.totals.calories, 180);
+    expect(confirmed.meal?.title, 'Dal rice');
+    expect(confirmed.meal?.items.single.name, 'Dal');
   });
 }

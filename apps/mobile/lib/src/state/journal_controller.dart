@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
+import '../services/app_diagnostics.dart';
 import '../services/dfit_api_client.dart';
 import '../services/journal_cache_store.dart';
 
@@ -56,7 +59,12 @@ class JournalController extends ChangeNotifier {
       final bootstrap = await _apiClient.fetchBootstrap();
       _applyBootstrap(bootstrap);
       await _cacheStore.save(bootstrap);
-    } catch (error) {
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'journal.load_today',
+        error,
+        stackTrace: stackTrace,
+      );
       _error = _journalErrorMessage(error);
     } finally {
       _loading = false;
@@ -75,11 +83,16 @@ class JournalController extends ChangeNotifier {
         items: items,
         idempotencyKey: key,
       );
-      _meals = [meal, ..._meals];
-      _totals = _totals + meal.totals;
+      _upsertLocalMeal(meal);
       _error = null;
-      await loadToday();
-    } catch (_) {
+      _refreshJournalSoon();
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'journal.save_meal',
+        error,
+        stackTrace: stackTrace,
+        context: {'items': items.length},
+      );
       final now = DateTime.now();
       final pendingMeal = MealLog(
         id: now.microsecondsSinceEpoch.toString(),
@@ -89,8 +102,7 @@ class JournalController extends ChangeNotifier {
         items: items,
         syncState: MealSyncState.pending,
       );
-      _meals = [pendingMeal, ..._meals];
-      _totals = _totals + pendingMeal.totals;
+      _upsertLocalMeal(pendingMeal);
       _error = 'Saved locally. Will sync when the API is reachable.';
     }
 
@@ -98,6 +110,22 @@ class JournalController extends ChangeNotifier {
   }
 
   Future<void> refreshQuota() => _refreshQuota();
+
+  void _refreshJournalSoon() {
+    unawaited(loadToday());
+  }
+
+  void _upsertLocalMeal(MealLog meal) {
+    _meals = [meal, ..._meals.where((existing) => existing.id != meal.id)];
+    _totals = _sumMealTotals(_meals);
+  }
+
+  MacroTotals _sumMealTotals(List<MealLog> meals) {
+    return meals.fold<MacroTotals>(
+      MacroTotals.zero,
+      (total, meal) => total + meal.totals,
+    );
+  }
 
   void _applyBootstrap(AppBootstrapData bootstrap) {
     _meals = bootstrap.today.meals;
@@ -113,7 +141,12 @@ class JournalController extends ChangeNotifier {
     try {
       _quota = await _apiClient.fetchQuota();
       if (notify) notifyListeners();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'quota.refresh',
+        error,
+        stackTrace: stackTrace,
+      );
       // Quota is helpful context, but journal loading should not fail because
       // this small side request failed.
     }
@@ -129,19 +162,32 @@ class JournalController extends ChangeNotifier {
   Future<ScanAnalysis> analyzeCapturedMeal(CapturedMealPhoto photo) async {
     _error = null;
     final seed = DateTime.now().microsecondsSinceEpoch;
-    final prepared = await _apiClient.prepareScan(
-      idempotencyKey: 'scan-prepare-$seed',
-    );
-    _quota = prepared.quota;
-    notifyListeners();
+    try {
+      final prepared = await _apiClient.prepareScan(
+        idempotencyKey: 'scan-prepare-$seed',
+      );
+      _quota = prepared.quota;
+      notifyListeners();
 
-    final analysis = await _apiClient.analyzeScan(
-      scanId: prepared.scanId,
-      idempotencyKey: 'scan-analyze-$seed',
-      photo: photo,
-    );
-    await _refreshQuota(notify: false);
-    return analysis;
+      final analysis = await _apiClient.analyzeScan(
+        scanId: prepared.scanId,
+        idempotencyKey: 'scan-analyze-$seed',
+        photo: photo,
+      );
+      await _refreshQuota(notify: false);
+      return analysis;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'scan.analyze',
+        error,
+        stackTrace: stackTrace,
+        context: {
+          'hasHint': photo.userHint?.trim().isNotEmpty == true,
+          'bytes': photo.byteSize,
+        },
+      );
+      rethrow;
+    }
   }
 
   Future<void> confirmAnalyzedMeal({
@@ -152,13 +198,35 @@ class JournalController extends ChangeNotifier {
   }) async {
     final key = 'scan-confirm-${DateTime.now().microsecondsSinceEpoch}';
 
-    await _apiClient.confirmScan(
-      scanId: scanId,
-      type: type,
-      title: title,
-      items: items,
-      idempotencyKey: key,
-    );
-    await loadToday();
+    try {
+      final confirmed = await _apiClient.confirmScan(
+        scanId: scanId,
+        type: type,
+        title: title,
+        items: items,
+        idempotencyKey: key,
+      );
+      final meal =
+          confirmed.meal ??
+          MealLog(
+            id: confirmed.mealId,
+            type: type,
+            title: title,
+            loggedAt: DateTime.now(),
+            items: items,
+          );
+      _upsertLocalMeal(meal);
+      _error = null;
+      notifyListeners();
+      _refreshJournalSoon();
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'scan.confirm',
+        error,
+        stackTrace: stackTrace,
+        context: {'items': items.length},
+      );
+      rethrow;
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
+import '../services/app_diagnostics.dart';
 import '../theme/dfit_colors.dart';
 import '../theme/dfit_theme.dart';
 import '../widgets/primitive_icons.dart';
@@ -12,12 +13,14 @@ class SettingsScreen extends StatelessWidget {
     required this.onThemeChanged,
     required this.session,
     required this.onOpenAccount,
+    this.diagnosticsEntries = const [],
   });
 
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
   final AuthSession? session;
   final VoidCallback onOpenAccount;
+  final List<DiagnosticEntry> diagnosticsEntries;
 
   @override
   Widget build(BuildContext context) {
@@ -69,8 +72,57 @@ class SettingsScreen extends StatelessWidget {
                 _StaticRow(label: 'Anonymous journal on this device'),
               ],
             ),
+            const SizedBox(height: 18),
+            _DiagnosticsSection(entries: diagnosticsEntries),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DiagnosticsSection extends StatelessWidget {
+  const _DiagnosticsSection({required this.entries});
+
+  final List<DiagnosticEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleEntries = entries.take(3).toList();
+
+    return _SettingsSection(
+      title: 'DIAGNOSTICS',
+      children: visibleEntries.isEmpty
+          ? const [_StaticRow(label: 'No recent issues')]
+          : [for (final entry in visibleEntries) _DiagnosticRow(entry: entry)],
+    );
+  }
+}
+
+class _DiagnosticRow extends StatelessWidget {
+  const _DiagnosticRow({required this.entry});
+
+  final DiagnosticEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return ListTile(
+      title: Text(entry.scope, style: Theme.of(context).textTheme.bodyMedium),
+      subtitle: Text(
+        entry.message,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+      ),
+      trailing: Text(
+        entry.compactTime,
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: colors.textTertiary),
       ),
     );
   }

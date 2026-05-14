@@ -110,6 +110,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               _ReviewItemRow(
                 rowKey: ValueKey('${_items[index].name}-$index'),
                 item: _items[index],
+                onEdit: () => _openEditItemSheet(index),
                 onIncrement: () => _changeQuantity(index, 1),
                 onDecrement: () => _changeQuantity(index, -1),
                 onDelete: () {
@@ -218,8 +219,27 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     });
   }
 
+  Future<void> _openEditItemSheet(int index) async {
+    final result = await showModalBottomSheet<_EditItemResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditItemSheet(item: _items[index]),
+    );
+    if (result == null || !mounted) return;
+
+    if (result.delete) {
+      setState(() => _items.removeAt(index));
+      return;
+    }
+
+    final item = result.item;
+    if (item == null) return;
+    setState(() => _items[index] = item);
+  }
+
   Future<void> _openAddItemSheet() async {
-    final selected = await showModalBottomSheet<MealItem>(
+    final choice = await showModalBottomSheet<_AddItemChoice>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _AddItemSheet(
@@ -230,17 +250,32 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             .toList(),
       ),
     );
-    if (selected == null || !mounted) return;
+    if (choice == null || !mounted) return;
 
+    final selected = choice.item;
     final existingIndex = _items.indexWhere(
       (item) => item.name == selected.name,
     );
+    late final int nextIndex;
     if (existingIndex == -1) {
       setState(() => _items.add(selected));
+      nextIndex = _items.length - 1;
     } else {
       _changeQuantity(existingIndex, 1);
+      nextIndex = existingIndex;
+    }
+
+    if (choice.editImmediately) {
+      await _openEditItemSheet(nextIndex);
     }
   }
+}
+
+class _AddItemChoice {
+  const _AddItemChoice(this.item, {this.editImmediately = false});
+
+  final MealItem item;
+  final bool editImmediately;
 }
 
 class _AddItemSheet extends StatelessWidget {
@@ -267,6 +302,35 @@ class _AddItemSheet extends StatelessWidget {
           children: [
             Text('Add item', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => Navigator.of(context).pop(
+                const _AddItemChoice(
+                  MealItem(
+                    name: 'Custom item',
+                    quantity: 1,
+                    unit: 'serving',
+                    grams: 100,
+                    nutrition: MacroTotals(
+                      calories: 100,
+                      proteinG: 0,
+                      carbsG: 0,
+                      fatG: 0,
+                    ),
+                  ),
+                  editImmediately: true,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.textPrimary,
+                side: BorderSide(color: colors.border),
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Custom item'),
+            ),
+            const SizedBox(height: 8),
             if (items.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 18),
@@ -287,7 +351,7 @@ class _AddItemSheet extends StatelessWidget {
                     '${item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 1)} ${item.unit} - ${item.grams}g',
                   ),
                   trailing: Text('${item.nutrition.calories}'),
-                  onTap: () => Navigator.of(context).pop(item),
+                  onTap: () => Navigator.of(context).pop(_AddItemChoice(item)),
                 ),
           ],
         ),
@@ -357,6 +421,7 @@ class _ReviewItemRow extends StatelessWidget {
   const _ReviewItemRow({
     required this.rowKey,
     required this.item,
+    required this.onEdit,
     required this.onIncrement,
     required this.onDecrement,
     required this.onDelete,
@@ -364,6 +429,7 @@ class _ReviewItemRow extends StatelessWidget {
 
   final Key rowKey;
   final MealItem item;
+  final VoidCallback onEdit;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final VoidCallback onDelete;
@@ -389,84 +455,87 @@ class _ReviewItemRow extends StatelessWidget {
           ).textTheme.bodySmall?.copyWith(color: _reviewAccentText(context)),
         ),
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
-        decoration: BoxDecoration(
-          color: lowConfidence
-              ? DFitColors.accent.withValues(alpha: 0.08)
-              : null,
-          border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              height: 32,
-              decoration: BoxDecoration(
-                color: colors.mutedFill,
-                border: Border.all(color: borderColor, width: 0.5),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  _StepperButton(label: '-', onTap: onDecrement),
-                  Text(
-                    _formatQuantity(item.quantity),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: _reviewPrimaryText(context),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  _StepperButton(label: '+', onTap: onIncrement),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          item.name,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
+      child: InkWell(
+        onTap: onEdit,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
+          decoration: BoxDecoration(
+            color: lowConfidence
+                ? DFitColors.accent.withValues(alpha: 0.08)
+                : null,
+            border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                height: 32,
+                decoration: BoxDecoration(
+                  color: colors.mutedFill,
+                  border: Border.all(color: borderColor, width: 0.5),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    _StepperButton(label: '-', onTap: onDecrement),
+                    Text(
+                      _formatQuantity(item.quantity),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: _reviewPrimaryText(context),
+                        fontWeight: FontWeight.w500,
                       ),
-                      if (lowConfidence) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: DFitColors.accentLow,
-                            shape: BoxShape.circle,
+                    ),
+                    _StepperButton(label: '+', onTap: onIncrement),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),
+                        if (lowConfidence) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: DFitColors.accentLow,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      _UnitChip(text: item.unit, highlighted: true),
-                      const SizedBox(width: 5),
-                      _UnitChip(text: '~${item.grams}g'),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        _UnitChip(text: item.unit, highlighted: true),
+                        const SizedBox(width: 5),
+                        _UnitChip(text: '~${item.grams}g'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              '${item.nutrition.calories}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: _reviewPrimaryText(context),
-                fontWeight: FontWeight.w500,
+              const SizedBox(width: 10),
+              Text(
+                '${item.nutrition.calories}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: _reviewPrimaryText(context),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -475,6 +544,375 @@ class _ReviewItemRow extends StatelessWidget {
   String _formatQuantity(double value) {
     return value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
   }
+}
+
+class _EditItemResult {
+  const _EditItemResult.update(this.item) : delete = false;
+  const _EditItemResult.delete() : item = null, delete = true;
+
+  final MealItem? item;
+  final bool delete;
+}
+
+class _EditItemSheet extends StatefulWidget {
+  const _EditItemSheet({required this.item});
+
+  final MealItem item;
+
+  @override
+  State<_EditItemSheet> createState() => _EditItemSheetState();
+}
+
+class _EditItemSheetState extends State<_EditItemSheet> {
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.item.name,
+  );
+  late final TextEditingController _quantityController = TextEditingController(
+    text: _formatInputNumber(widget.item.quantity),
+  );
+  late final TextEditingController _gramsController = TextEditingController(
+    text: widget.item.grams.toString(),
+  );
+  late final TextEditingController _caloriesController = TextEditingController(
+    text: widget.item.nutrition.calories.toString(),
+  );
+  late final TextEditingController _proteinController = TextEditingController(
+    text: _formatInputNumber(widget.item.nutrition.proteinG),
+  );
+  late final TextEditingController _carbsController = TextEditingController(
+    text: _formatInputNumber(widget.item.nutrition.carbsG),
+  );
+  late final TextEditingController _fatController = TextEditingController(
+    text: _formatInputNumber(widget.item.nutrition.fatG),
+  );
+  late String _unit = _portionUnits.contains(widget.item.unit)
+      ? widget.item.unit
+      : 'serving';
+  String? _validation;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _quantityController.dispose();
+    _gramsController.dispose();
+    _caloriesController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottomInset),
+        child: Container(
+          constraints: const BoxConstraints(maxHeight: 680),
+          decoration: BoxDecoration(
+            color: colors.surfaceCard,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.border),
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Edit item',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Delete',
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(const _EditItemResult.delete()),
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _EditTextField(
+                key: const ValueKey('edit-item-name'),
+                label: 'Food',
+                controller: _nameController,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _EditTextField(
+                      key: const ValueKey('edit-item-quantity'),
+                      label: 'Qty',
+                      controller: _quantityController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _unit,
+                      items: [
+                        for (final unit in _portionUnits)
+                          DropdownMenuItem(value: unit, child: Text(unit)),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _unit = value);
+                      },
+                      decoration: _fieldDecoration(context, 'Unit'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _EditTextField(
+                      key: const ValueKey('edit-item-grams'),
+                      label: 'Grams',
+                      controller: _gramsController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _EditTextField(
+                      key: const ValueKey('edit-item-calories'),
+                      label: 'Kcal',
+                      controller: _caloriesController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _EditTextField(
+                      key: const ValueKey('edit-item-protein'),
+                      label: 'Protein',
+                      controller: _proteinController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _EditTextField(
+                      key: const ValueKey('edit-item-carbs'),
+                      label: 'Carbs',
+                      controller: _carbsController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _EditTextField(
+                      key: const ValueKey('edit-item-fat'),
+                      label: 'Fat',
+                      controller: _fatController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ),
+                ],
+              ),
+              if (_validation != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _validation!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _reviewAccentText(context),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _save,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.primaryAction,
+                  foregroundColor: colors.primaryActionText,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Save changes'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _save() {
+    final name = _nameController.text.trim();
+    final quantity = _parsePositiveDouble(_quantityController.text);
+    final grams = _parsePositiveInt(_gramsController.text);
+    final calories = _parseNonNegativeInt(_caloriesController.text);
+    final protein = _parseNonNegativeDouble(_proteinController.text);
+    final carbs = _parseNonNegativeDouble(_carbsController.text);
+    final fat = _parseNonNegativeDouble(_fatController.text);
+
+    if (name.isEmpty ||
+        quantity == null ||
+        grams == null ||
+        calories == null ||
+        protein == null ||
+        carbs == null ||
+        fat == null) {
+      setState(() {
+        _validation = 'Check the name and numbers before saving.';
+      });
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _EditItemResult.update(
+        widget.item.copyWith(
+          name: name,
+          quantity: quantity,
+          unit: _unit,
+          grams: grams,
+          nutrition: MacroTotals(
+            calories: calories,
+            proteinG: protein,
+            carbsG: carbs,
+            fatG: fat,
+          ),
+          confidence: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _EditTextField extends StatelessWidget {
+  const _EditTextField({
+    super.key,
+    required this.label,
+    required this.controller,
+    this.keyboardType,
+    this.textInputAction,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      decoration: _fieldDecoration(context, label),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(letterSpacing: 0),
+    );
+  }
+}
+
+InputDecoration _fieldDecoration(BuildContext context, String label) {
+  final colors = context.dfit;
+
+  return InputDecoration(
+    labelText: label,
+    labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+      color: colors.textSecondary,
+      letterSpacing: 0.4,
+    ),
+    filled: true,
+    fillColor: colors.mutedFill,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: colors.border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: colors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: colors.accent),
+    ),
+  );
+}
+
+const _portionUnits = [
+  'gram',
+  'ml',
+  'piece',
+  'serving',
+  'bowl',
+  'katori',
+  'cup',
+  'tablespoon',
+  'teaspoon',
+  'ladle',
+  'roti',
+  'idli',
+  'dosa',
+  'slice',
+  'scoop',
+  'small',
+  'medium',
+  'large',
+];
+
+String _formatInputNumber(double value) {
+  return value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
+}
+
+double? _parsePositiveDouble(String value) {
+  final parsed = double.tryParse(value.trim());
+  if (parsed == null || parsed <= 0) return null;
+  return parsed;
+}
+
+double? _parseNonNegativeDouble(String value) {
+  final parsed = double.tryParse(value.trim());
+  if (parsed == null || parsed < 0) return null;
+  return parsed;
+}
+
+int? _parsePositiveInt(String value) {
+  final parsed = num.tryParse(value.trim());
+  if (parsed == null || parsed <= 0) return null;
+  return parsed.round();
+}
+
+int? _parseNonNegativeInt(String value) {
+  final parsed = num.tryParse(value.trim());
+  if (parsed == null || parsed < 0) return null;
+  return parsed.round();
 }
 
 class _StepperButton extends StatelessWidget {

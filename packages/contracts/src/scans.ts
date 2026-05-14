@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { idSchema, macroTotalsSchema, portionUnitSchema } from "./common.js";
-import { mealTypeSchema } from "./meals.js";
+import { mealSchema, mealTypeSchema } from "./meals.js";
 
 export const scanStatusSchema = z.enum([
   "prepared",
@@ -71,7 +71,14 @@ export const confirmScanRequestSchema = z.object({
   ),
 });
 
+export const confirmScanResponseSchema = z.object({
+  mealId: idSchema,
+  totals: macroTotalsSchema,
+  meal: mealSchema.optional(),
+});
+
 export type PrepareScanResponseContract = z.infer<typeof prepareScanResponseSchema>;
 export type AnalyzeScanRequestContract = z.infer<typeof analyzeScanRequestSchema>;
 export type AnalyzeScanResponseContract = z.infer<typeof analyzeScanResponseSchema>;
 export type ConfirmScanRequestContract = z.infer<typeof confirmScanRequestSchema>;
+export type ConfirmScanResponseContract = z.infer<typeof confirmScanResponseSchema>;

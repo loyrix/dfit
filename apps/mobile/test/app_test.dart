@@ -13,6 +13,8 @@ import 'package:dfit_mobile/src/screens/review_meal_screen.dart';
 import 'package:dfit_mobile/src/screens/settings_screen.dart';
 import 'package:dfit_mobile/src/screens/startup_error_screen.dart';
 import 'package:dfit_mobile/src/screens/today_screen.dart';
+import 'package:dfit_mobile/src/screens/weekly_journal_screen.dart';
+import 'package:dfit_mobile/src/services/app_diagnostics.dart';
 import 'package:dfit_mobile/src/services/dfit_api_client.dart';
 import 'package:dfit_mobile/src/theme/dfit_theme.dart';
 import 'package:dfit_mobile/src/widgets/primitive_icons.dart';
@@ -23,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    AppDiagnostics.instance.clear();
   });
 
   testWidgets('renders DFit welcome screen', (tester) async {
@@ -82,6 +85,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('kcal - 2 items'), findsOneWidget);
+  });
+
+  testWidgets('edits AI review item details before confirming', (tester) async {
+    List<MealItem>? confirmedItems;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: ReviewMealScreen(
+          initialItems: sampleDetectedItems().take(1).toList(),
+          onConfirm: (_, items) async {
+            confirmedItems = items;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Dal'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-name')),
+      'Dal tadka',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-quantity')),
+      '1.5',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-grams')),
+      '220',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-calories')),
+      '240',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-protein')),
+      '14',
+    );
+    await tester.enterText(find.byKey(const ValueKey('edit-item-carbs')), '30');
+    await tester.enterText(find.byKey(const ValueKey('edit-item-fat')), '8');
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dal tadka'), findsOneWidget);
+    expect(find.text('240'), findsWidgets);
+
+    await tester.tap(find.text('Confirm meal'));
+    await tester.pump();
+
+    expect(confirmedItems, isNotNull);
+    expect(confirmedItems!.single.name, 'Dal tadka');
+    expect(confirmedItems!.single.quantity, 1.5);
+    expect(confirmedItems!.single.grams, 220);
+    expect(confirmedItems!.single.nutrition.calories, 240);
   });
 
   testWidgets('renders meal review controls in dark mode', (tester) async {
@@ -153,6 +212,7 @@ void main() {
           onAddManually: () {},
           onOpenSettings: () {},
           onOpenMeal: (_) {},
+          onOpenWeeklyJournal: () {},
         ),
       ),
     );
@@ -167,6 +227,158 @@ void main() {
 
     await tester.tap(find.byType(PrimitiveCameraIcon));
     expect(scanTapped, isTrue);
+  });
+
+  testWidgets('weekly summary opens the full journal flow', (tester) async {
+    var openedWeeklyJournal = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: TodayScreen(
+          meals: const [],
+          totals: MacroTotals.zero,
+          target: defaultTarget,
+          weeklyRange: const JournalRangeData(
+            startDate: '2026-05-06',
+            endDate: '2026-05-12',
+            days: [],
+            summary: JournalRangeSummary(
+              windowDays: 7,
+              activeDays: 1,
+              mealCount: 1,
+              totals: MacroTotals.zero,
+              dailyAverage: MacroTotals.zero,
+            ),
+          ),
+          onRefresh: () async {},
+          onScan: () {},
+          onAddManually: () {},
+          onOpenSettings: () {},
+          onOpenMeal: (_) {},
+          onOpenWeeklyJournal: () => openedWeeklyJournal = true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('7 DAY SUMMARY'));
+    await tester.pump();
+
+    expect(openedWeeklyJournal, isTrue);
+  });
+
+  testWidgets('weekly journal analyses day rows and opens meals', (
+    tester,
+  ) async {
+    MealLog? openedMeal;
+    final olderMeal = MealLog(
+      id: 'older-meal',
+      type: MealType.dinner,
+      title: 'Yesterday dal bowl',
+      loggedAt: DateTime(2026, 5, 11, 20),
+      items: sampleDetectedItems().take(1).toList(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: WeeklyJournalScreen(
+          target: defaultTarget,
+          range: JournalRangeData(
+            startDate: '2026-05-06',
+            endDate: '2026-05-12',
+            days: [
+              const JournalDayData(
+                date: '2026-05-10',
+                mealCount: 0,
+                totals: MacroTotals.zero,
+                meals: [],
+              ),
+              JournalDayData(
+                date: '2026-05-11',
+                mealCount: 1,
+                totals: olderMeal.totals,
+                meals: [olderMeal],
+              ),
+            ],
+            summary: const JournalRangeSummary(
+              windowDays: 7,
+              activeDays: 1,
+              mealCount: 1,
+              totals: MacroTotals(
+                calories: 180,
+                proteinG: 10.8,
+                carbsG: 25.2,
+                fatG: 5.4,
+              ),
+              dailyAverage: MacroTotals(
+                calories: 26,
+                proteinG: 1.5,
+                carbsG: 3.6,
+                fatG: 0.8,
+              ),
+            ),
+          ),
+          onOpenMeal: (meal) => openedMeal = meal,
+        ),
+      ),
+    );
+
+    expect(find.text('7 DAY JOURNAL'), findsOneWidget);
+    expect(find.text('MON 11 MAY'), findsOneWidget);
+    expect(find.text('No meals logged'), findsOneWidget);
+
+    await tester.tap(find.text('MON 11 MAY'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DAY ANALYSIS'), findsOneWidget);
+    expect(find.text('Yesterday dal bowl'), findsWidgets);
+
+    await tester.tap(find.text('Yesterday dal bowl').first);
+    await tester.pumpAndSettle();
+
+    expect(openedMeal?.id, 'older-meal');
+  });
+
+  testWidgets('weekly journal covers empty and syncing states in light mode', (
+    tester,
+  ) async {
+    var retried = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.light(),
+        home: WeeklyJournalScreen(
+          target: defaultTarget,
+          range: const JournalRangeData(
+            startDate: '2026-05-06',
+            endDate: '2026-05-12',
+            days: [],
+            summary: JournalRangeSummary(
+              windowDays: 7,
+              activeDays: 0,
+              mealCount: 0,
+              totals: MacroTotals.zero,
+              dailyAverage: MacroTotals.zero,
+            ),
+          ),
+          isSyncing: true,
+          syncMessage: 'Could not refresh journal.',
+          onRefresh: () async {
+            retried = true;
+          },
+          onOpenMeal: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Showing saved journal'), findsOneWidget);
+    expect(find.text('No journal days yet'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+
+    expect(retried, isTrue);
   });
 
   testWidgets('meal detail owns meal-level macro profile', (tester) async {
@@ -206,6 +418,7 @@ void main() {
           onAddManually: () {},
           onOpenSettings: () {},
           onOpenMeal: (_) {},
+          onOpenWeeklyJournal: () {},
         ),
       ),
     );
@@ -326,6 +539,33 @@ void main() {
     expect(find.text('Profile'), findsOneWidget);
     expect(find.text('friend@test.com - Email'), findsOneWidget);
     expect(find.text('Save your journal'), findsNothing);
+  });
+
+  testWidgets('settings shows recent diagnostics', (tester) async {
+    AppDiagnostics.instance.clear();
+    AppDiagnostics.instance.record('journal.load_today', Exception('timeout'));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: SettingsScreen(
+          themeMode: ThemeMode.dark,
+          session: null,
+          diagnosticsEntries: AppDiagnostics.instance.entries,
+          onThemeChanged: (_) {},
+          onOpenAccount: () {},
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -720));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DIAGNOSTICS'), findsOneWidget);
+    expect(find.text('journal.load_today'), findsOneWidget);
+    expect(find.textContaining('timeout'), findsOneWidget);
+
+    AppDiagnostics.instance.clear();
   });
 
   testWidgets('profile page exposes logout action', (tester) async {

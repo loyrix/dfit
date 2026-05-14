@@ -146,6 +146,11 @@ describe("DFit API", () => {
       },
     });
     expect(confirmed.statusCode).toBe(201);
+    expect(confirmed.json().meal).toMatchObject({
+      id: confirmed.json().mealId,
+      title: "Dal rice, roti and sabzi",
+      mealType: "lunch",
+    });
 
     const today = await app.inject({ method: "GET", url: "/v1/journal/today" });
     expect(today.statusCode).toBe(200);
