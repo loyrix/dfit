@@ -545,18 +545,13 @@ export class PostgresStore implements AppRepository {
         where id = ${scan.id}
       `;
 
-      if (scan.analyzedResponse) {
+      if (scan.analyzedResponse && scan.aiProviderRun) {
         await tx`
           delete from ai_predictions
           where scan_session_id = ${scan.id}
         `;
 
-        const providerRun = scan.aiProviderRun ?? {
-          provider: "mock" as const,
-          model: "mock-indian-plate-v1",
-          promptVersion: "mock_v1",
-          schemaVersion: "scan_v1",
-        };
+        const providerRun = scan.aiProviderRun;
 
         const [run] = await tx<{ id: string }[]>`
           insert into ai_provider_runs (
