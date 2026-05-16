@@ -9,7 +9,7 @@ import {
   type AnalyzeMealImageResult,
 } from "./ai-provider.js";
 
-const promptVersion = "gemini_food_photo_v2";
+const promptVersion = "gemini_food_photo_v3";
 const schemaVersion = "scan_v1";
 
 const preparationSchema = z.enum(["home", "restaurant", "packaged", "unknown"]);
@@ -277,9 +277,39 @@ const buildFoodPhotoPrompt = (userHint?: string) => {
   const normalizedHint = userHint?.replace(/\s+/g, " ").trim();
 
   return `
-You are DFit's food photo nutrition analyst. Analyze the attached meal photo for an editable
-food journal. Be Indian-first and global-ready: identify Indian/home-cooked foods, Hinglish
-names, and common household portions when visible, while still supporting global foods.
+You are DFit's advanced Indian food recognition and nutrition analysis AI. Analyze the attached
+meal photo for an editable food journal. Be Indian-first and global-ready: recognize Indian
+home-cooked foods, common English food names, Hinglish terms, regional Indian names, and
+global foods when they are actually visible.
+
+VISIBLE-ONLY RULES:
+- Analyze ONLY food items that are actually visible in the image.
+- Do NOT invent, hallucinate, or assume food items.
+- Do NOT assume hidden ingredients.
+- Do NOT add oil, butter, ghee, cheese, sugar, sauces, chutneys, pickles, garnishes, or
+  condiments unless they are clearly visible as separate food evidence.
+- If uncertain, prefer a conservative identification, lower confidence, and add a plausible
+  alternative identification in aliases rather than guessing.
+- Accuracy is more important than completeness.
+
+PORTION ESTIMATION METHOD:
+- Use plate geometry, relative object scaling, estimated plate diameter, food area coverage,
+  visible height/depth from perspective, known average food dimensions, realistic Indian
+  serving references, and density-based volume-to-weight estimation.
+- Count visible pieces/items individually whenever possible.
+- Separate different visible foods individually; do not merge them into generic categories.
+- If foods overlap or are partially hidden, estimate only the visible portion conservatively.
+- Estimate the visible consumed portion, not nutrition per 100g.
+
+OUTPUT MAPPING:
+- Use name for the most precise visible food identification.
+- Use aliases only for genuinely plausible alternative English, Hinglish, or regional names.
+- Use confidence from 0 to 1 to represent uncertainty.
+- Use quantity plus unit for the best visible household measure; use piece-like units when
+  countable pieces are visible.
+- Always provide estimatedGrams and calories, proteinG, carbsG, fatG, and fiberG when feasible.
+- Keep names short and user-editable.
+- Work through the visual reasoning internally, but return only the required JSON schema.
 
 ${
   normalizedHint
@@ -287,12 +317,11 @@ ${
     : "No user plate hint was provided."
 }
 
-Return JSON only. Estimate nutrition for the visible consumed portion, not per 100g. Calories
-are kcal. Protein, carbs, fat, fiber, and sugar are grams. Sodium is milligrams. Prefer these
-portion units when appropriate: gram, ml, piece, serving, bowl, katori, cup, tablespoon,
-teaspoon, ladle, roti, idli, dosa, slice, scoop, small, medium, large.
+Return JSON only. Calories are kcal. Protein, carbs, fat, fiber, and sugar are grams. Sodium
+is milligrams. Prefer these portion units when appropriate: gram, ml, piece, serving, bowl,
+katori, cup, tablespoon, teaspoon, ladle, roti, idli, dosa, slice, scoop, small, medium,
+large.
 
 If the image has no food, return an empty items array with mealName "No food detected".
-Use confidence from 0 to 1 for each item. Keep names short and user-editable.
 `.trim();
 };

@@ -92,6 +92,7 @@ describe("GeminiAiProvider", () => {
     expect(result.providerRun).toMatchObject({
       provider: "gemini",
       model: "gemini-test",
+      promptVersion: "gemini_food_photo_v3",
       inputTokenEstimate: 100,
       outputTokenEstimate: 50,
     });
@@ -103,6 +104,11 @@ describe("GeminiAiProvider", () => {
     const prompt = (requestBody as { contents: Array<{ parts: Array<{ text?: string }> }> })
       .contents[0]?.parts[0]?.text;
     expect(prompt).toContain('User typed this optional plate hint: "dal rice roti"');
+    expect(prompt).toContain("Analyze ONLY food items that are actually visible");
+    expect(prompt).toContain("Do NOT invent, hallucinate, or assume food items");
+    expect(prompt).toContain("plate geometry");
+    expect(prompt).toContain("Count visible pieces/items individually");
+    expect(prompt).toContain("return only the required JSON schema");
   });
 
   it("fails closed when the Gemini API key is missing", async () => {
