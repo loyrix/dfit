@@ -4,13 +4,13 @@ extension MealTypeLabel on MealType {
   String get label {
     switch (this) {
       case MealType.breakfast:
-        return 'BREAKFAST';
+        return 'Breakfast';
       case MealType.lunch:
-        return 'LUNCH';
+        return 'Lunch';
       case MealType.snack:
-        return 'SNACK';
+        return 'Snack';
       case MealType.dinner:
-        return 'DINNER';
+        return 'Dinner';
     }
   }
 }
@@ -55,6 +55,15 @@ class MacroTotals {
       'carbsG': carbsG,
       'fatG': fatG,
     };
+  }
+
+  MacroTotals scaledBy(double factor) {
+    return MacroTotals(
+      calories: (calories * factor).round(),
+      proteinG: proteinG * factor,
+      carbsG: carbsG * factor,
+      fatG: fatG * factor,
+    );
   }
 }
 
@@ -128,6 +137,26 @@ class MealItem {
       'nutrition': nutrition.toJson(),
       'confidence': confidence,
     };
+  }
+
+  MealItem scaledToQuantity(double nextQuantity) {
+    if (quantity <= 0) return copyWith(quantity: nextQuantity);
+    final factor = nextQuantity / quantity;
+    return copyWith(
+      quantity: nextQuantity,
+      grams: (grams * factor).round(),
+      nutrition: nutrition.scaledBy(factor),
+    );
+  }
+
+  MealItem scaledToGrams(int nextGrams) {
+    if (grams <= 0) return copyWith(grams: nextGrams);
+    final factor = nextGrams / grams;
+    return copyWith(
+      quantity: quantity * factor,
+      grams: nextGrams,
+      nutrition: nutrition.scaledBy(factor),
+    );
   }
 }
 
@@ -252,23 +281,38 @@ class JournalRangeSummary {
     required this.activeDays,
     required this.mealCount,
     required this.totals,
-    required this.dailyAverage,
+    required this.trackedDayAverage,
+    required this.calendarDayAverage,
   });
 
   final int windowDays;
   final int activeDays;
   final int mealCount;
   final MacroTotals totals;
-  final MacroTotals dailyAverage;
+  final MacroTotals trackedDayAverage;
+  final MacroTotals calendarDayAverage;
 
   factory JournalRangeSummary.fromJson(Map<String, dynamic> json) {
+    final totals = MacroTotals.fromJson(json['totals'] as Map<String, dynamic>);
+    final activeDays = json['activeDays'] as int;
+    final windowDays = json['windowDays'] as int;
+    final legacyDailyAverage = json['dailyAverage'];
+
     return JournalRangeSummary(
-      windowDays: json['windowDays'] as int,
-      activeDays: json['activeDays'] as int,
+      windowDays: windowDays,
+      activeDays: activeDays,
       mealCount: json['mealCount'] as int,
-      totals: MacroTotals.fromJson(json['totals'] as Map<String, dynamic>),
-      dailyAverage: MacroTotals.fromJson(
-        json['dailyAverage'] as Map<String, dynamic>,
+      totals: totals,
+      trackedDayAverage: _summaryAverageFromJson(
+        json['trackedDayAverage'],
+        fallback: legacyDailyAverage,
+        totals: totals,
+        divisor: activeDays,
+      ),
+      calendarDayAverage: _summaryAverageFromJson(
+        json['calendarDayAverage'],
+        totals: totals,
+        divisor: windowDays,
       ),
     );
   }
@@ -279,8 +323,20 @@ class JournalRangeSummary {
       'activeDays': activeDays,
       'mealCount': mealCount,
       'totals': totals.toJson(),
-      'dailyAverage': dailyAverage.toJson(),
+      'trackedDayAverage': trackedDayAverage.toJson(),
+      'calendarDayAverage': calendarDayAverage.toJson(),
     };
+  }
+
+  static MacroTotals _summaryAverageFromJson(
+    Object? value, {
+    Object? fallback,
+    required MacroTotals totals,
+    required int divisor,
+  }) {
+    final raw = value ?? fallback;
+    if (raw is Map<String, dynamic>) return MacroTotals.fromJson(raw);
+    return totals.scaledBy(1 / (divisor <= 0 ? 1 : divisor));
   }
 }
 
@@ -316,6 +372,38 @@ class JournalRangeData {
       'endDate': endDate,
       'days': days.map((day) => day.toJson()).toList(),
       'summary': summary.toJson(),
+    };
+  }
+}
+
+class JournalWeekOption {
+  const JournalWeekOption({
+    required this.weekOffset,
+    required this.startDate,
+    required this.endDate,
+    required this.activeDays,
+  });
+
+  final int weekOffset;
+  final String startDate;
+  final String endDate;
+  final int activeDays;
+
+  factory JournalWeekOption.fromJson(Map<String, dynamic> json) {
+    return JournalWeekOption(
+      weekOffset: json['weekOffset'] as int,
+      startDate: json['startDate'] as String,
+      endDate: json['endDate'] as String,
+      activeDays: json['activeDays'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'weekOffset': weekOffset,
+      'startDate': startDate,
+      'endDate': endDate,
+      'activeDays': activeDays,
     };
   }
 }
@@ -500,13 +588,6 @@ class ConfirmedScanMeal {
     );
   }
 }
-
-const defaultTarget = MacroTotals(
-  calories: 1900,
-  proteinG: 120,
-  carbsG: 220,
-  fatG: 65,
-);
 
 List<MealItem> sampleDetectedItems() {
   return const [

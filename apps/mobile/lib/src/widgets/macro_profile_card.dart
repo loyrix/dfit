@@ -34,7 +34,7 @@ class MacroProfileCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'MACRO PROFILE',
+                  'Macro Profile',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.textSecondary,
                     letterSpacing: 1.4,
@@ -53,29 +53,29 @@ class MacroProfileCard extends StatelessWidget {
                 child: Column(
                   children: [
                     _ProfileMetric(
-                      label: 'protein',
+                      label: 'Protein',
                       value:
                           '${_formatGrams(profile.totals.proteinG)}g · ${profile.proteinPercent}%',
                       color: _proteinColor,
                     ),
                     const SizedBox(height: 10),
                     _ProfileMetric(
-                      label: 'carbs',
+                      label: 'Carbs',
                       value:
                           '${_formatGrams(profile.totals.carbsG)}g · ${profile.carbsPercent}%',
                       color: _carbsColor,
                     ),
                     const SizedBox(height: 10),
                     _ProfileMetric(
-                      label: 'fat',
+                      label: 'Fat',
                       value:
                           '${_formatGrams(profile.totals.fatG)}g · ${profile.fatPercent}%',
                       color: _fatColor,
                     ),
                     const SizedBox(height: 10),
                     _ProfileMetric(
-                      label: 'protein density',
-                      value: '${profile.proteinDensity}g / 100 kcal',
+                      label: 'Protein density',
+                      value: '${profile.proteinDensity}g / 100 kCal',
                       color: colors.textSecondary,
                     ),
                   ],
@@ -203,7 +203,7 @@ class _MacroGauge extends StatelessWidget {
                 ),
               ),
               Text(
-                'kcal',
+                'kCal',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colors.textSecondary,
                   letterSpacing: 0,
@@ -334,7 +334,7 @@ class _ItemContributionList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'ITEM CONTRIBUTION',
+          'Item Contribution',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: context.dfit.textSecondary,
             letterSpacing: 1.2,
@@ -378,7 +378,7 @@ class _ItemContributionRow extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '${item.nutrition.calories} kcal',
+                '${item.nutrition.calories} kCal',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colors.textSecondary,
                   letterSpacing: 0,

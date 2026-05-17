@@ -71,7 +71,7 @@ class MealCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'protein ${totals.proteinG.round()}g  carbs ${totals.carbsG.round()}g  fat ${totals.fatG.round()}g',
+                        'Protein ${totals.proteinG.round()}g  Carbs ${totals.carbsG.round()}g  Fat ${totals.fatG.round()}g',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -84,7 +84,7 @@ class MealCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '${totals.calories}',
+                  '${totals.calories} kCal',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),

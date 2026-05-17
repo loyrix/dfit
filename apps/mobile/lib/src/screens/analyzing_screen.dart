@@ -7,6 +7,7 @@ import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../services/dfit_api_client.dart';
 import '../theme/dfit_colors.dart';
+import '../theme/dfit_theme.dart';
 
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
@@ -32,9 +33,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     with SingleTickerProviderStateMixin {
   static const _steps = [
     'Captured',
-    'Identifying items',
+    'Identifying visible foods',
     'Estimating portions',
-    'Balancing macros',
+    'Calculating macro nutrients',
   ];
 
   _AnalysisFailure? _failure;
@@ -95,9 +96,10 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
   Widget build(BuildContext context) {
     final failure = _failure;
     final plateHint = widget.photo.userHint?.trim();
+    final colors = context.dfit;
 
     return Scaffold(
-      backgroundColor: DFitColors.bgInk,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -118,7 +120,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                               ? 'Reading your plate'
                               : failure.title,
                           style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: Colors.white),
+                              ?.copyWith(color: colors.textPrimary),
                         ),
                         const SizedBox(height: 7),
                         AnimatedSwitcher(
@@ -132,7 +134,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                             ),
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.52),
+                                  color: colors.textSecondary,
                                   letterSpacing: 0.2,
                                 ),
                           ),
@@ -146,11 +148,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                           margin: const EdgeInsets.symmetric(horizontal: 32),
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.03),
+                            color: colors.surfaceCard,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
-                            ),
+                            border: Border.all(color: colors.border),
                           ),
                           child: Column(
                             children: [
@@ -176,9 +176,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                               failure.message,
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                  ),
+                                  ?.copyWith(color: colors.textSecondary),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -203,9 +201,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
 
   String _progressLabel(int step) {
     return switch (step) {
-      1 => 'Finding foods and edges',
-      2 => 'Checking portions and grams',
-      3 => 'Preparing your macro review',
+      1 => 'Reading visible foods',
+      2 => 'Estimating portions and grams',
+      3 => 'Calculating macro nutrients',
       _ => 'Securing the capture',
     };
   }
@@ -243,7 +241,7 @@ class _AnalysisFailure {
           title: 'Retake photo',
           subtitle: 'The image needs one more try',
           message:
-              'Use a clear top view with the full plate visible. DFit does not store the food photo.',
+              'Keep the full plate visible in a clear, well-lit photo. DFit does not store the food photo.',
         );
       }
       if (error.retryable || error.statusCode >= 500) {
@@ -333,6 +331,8 @@ class _HintPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Container(
       constraints: const BoxConstraints(maxWidth: 280),
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
@@ -346,7 +346,7 @@ class _HintPill extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: DFitColors.accent,
+          color: colors.accentText,
           letterSpacing: 0.2,
         ),
       ),
@@ -361,6 +361,8 @@ class _ScanMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return AnimatedBuilder(
       animation: animation,
       builder: (context, _) {
@@ -384,7 +386,7 @@ class _ScanMark extends StatelessWidget {
                 width: 116,
                 height: 116,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.035),
+                  color: colors.surfaceCard,
                   border: Border.all(
                     color: DFitColors.accent.withValues(alpha: 0.22),
                   ),
@@ -515,6 +517,8 @@ class _StepRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.dfit;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -525,9 +529,7 @@ class _StepRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: done ? DFitColors.accent : Colors.transparent,
               border: Border.all(
-                color: done || active
-                    ? DFitColors.accent
-                    : Colors.white.withValues(alpha: 0.18),
+                color: done || active ? DFitColors.accent : colors.border,
                 width: 1.5,
               ),
               shape: BoxShape.circle,
@@ -537,9 +539,7 @@ class _StepRow extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: active || done
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.35),
+              color: active || done ? colors.textPrimary : colors.textSecondary,
               fontWeight: active ? FontWeight.w500 : FontWeight.w400,
             ),
           ),

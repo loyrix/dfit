@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -33,6 +34,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('DFit'), findsOneWidget);
+    expect(
+      find.text('AI-powered food tracking, without the hassle.'),
+      findsOneWidget,
+    );
     expect(find.text('Start first scan'), findsOneWidget);
   });
 
@@ -44,10 +49,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('MEAL SCAN'), findsOneWidget);
-    expect(find.text('Center your plate'), findsOneWidget);
-    expect(find.text("What's on the plate?"), findsOneWidget);
-    expect(find.text('full plate'), findsOneWidget);
+    expect(find.text('Meal Scan'), findsOneWidget);
+    expect(find.text('Tell us what is on the plate'), findsOneWidget);
+    expect(find.text('Food note'), findsOneWidget);
+    expect(find.text('Add a meal photo'), findsOneWidget);
     expect(find.text('Upload'), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
@@ -86,10 +91,12 @@ void main() {
     await tester.tap(find.text('Rice'));
     await tester.pumpAndSettle();
 
-    expect(find.text('kcal - 2 items'), findsOneWidget);
+    expect(find.text('kCal - 2 items'), findsOneWidget);
   });
 
-  testWidgets('edits AI review item details before confirming', (tester) async {
+  testWidgets('scales AI review item details from portion changes', (
+    tester,
+  ) async {
     List<MealItem>? confirmedItems;
 
     await tester.pumpWidget(
@@ -97,6 +104,7 @@ void main() {
         theme: DFitTheme.dark(),
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().take(1).toList(),
+          lockInitialItems: true,
           onConfirm: (_, items) async {
             confirmedItems = items;
           },
@@ -108,41 +116,23 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-      find.byKey(const ValueKey('edit-item-name')),
-      'Dal tadka',
-    );
-    await tester.enterText(
       find.byKey(const ValueKey('edit-item-quantity')),
-      '1.5',
+      '2',
     );
-    await tester.enterText(
-      find.byKey(const ValueKey('edit-item-grams')),
-      '220',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('edit-item-calories')),
-      '240',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('edit-item-protein')),
-      '14',
-    );
-    await tester.enterText(find.byKey(const ValueKey('edit-item-carbs')), '30');
-    await tester.enterText(find.byKey(const ValueKey('edit-item-fat')), '8');
     await tester.tap(find.text('Save changes'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Dal tadka'), findsOneWidget);
-    expect(find.text('240'), findsWidgets);
+    expect(find.text('Dal'), findsOneWidget);
+    expect(find.text('360 kCal'), findsWidgets);
 
     await tester.tap(find.text('Confirm meal'));
     await tester.pump();
 
     expect(confirmedItems, isNotNull);
-    expect(confirmedItems!.single.name, 'Dal tadka');
-    expect(confirmedItems!.single.quantity, 1.5);
-    expect(confirmedItems!.single.grams, 220);
-    expect(confirmedItems!.single.nutrition.calories, 240);
+    expect(confirmedItems!.single.name, 'Dal');
+    expect(confirmedItems!.single.quantity, 2);
+    expect(confirmedItems!.single.grams, 360);
+    expect(confirmedItems!.single.nutrition.calories, 360);
   });
 
   testWidgets('renders meal review controls in dark mode', (tester) async {
@@ -156,7 +146,7 @@ void main() {
       ),
     );
 
-    expect(find.text('LUNCH'), findsOneWidget);
+    expect(find.text('Lunch'), findsOneWidget);
     expect(find.text('Add item'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -420));
     await tester.pumpAndSettle();
@@ -208,7 +198,6 @@ void main() {
             carbsG: 355,
             fatG: 39,
           ),
-          target: defaultTarget,
           onRefresh: () async {},
           onScan: () => scanTapped = true,
           onAddManually: () {},
@@ -219,15 +208,16 @@ void main() {
       ),
     );
 
-    expect(find.byType(FloatingActionButton), findsNothing);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.byType(PrimitiveCameraIcon), findsOneWidget);
-    expect(find.text('104 kcal over'), findsWidgets);
+    expect(find.text('2004'), findsOneWidget);
+    expect(find.text('1 meal logged'), findsOneWidget);
     expect(find.text('MACRO PROFILE'), findsNothing);
-    expect(find.text('70'), findsOneWidget);
-    expect(find.text('355'), findsOneWidget);
-    expect(find.text('39'), findsOneWidget);
+    expect(find.text('70g'), findsOneWidget);
+    expect(find.text('355g'), findsOneWidget);
+    expect(find.text('39g'), findsOneWidget);
 
-    await tester.tap(find.byType(PrimitiveCameraIcon));
+    await tester.tap(find.byType(FloatingActionButton));
     expect(scanTapped, isTrue);
   });
 
@@ -240,7 +230,6 @@ void main() {
         home: TodayScreen(
           meals: const [],
           totals: MacroTotals.zero,
-          target: defaultTarget,
           weeklyRange: const JournalRangeData(
             startDate: '2026-05-06',
             endDate: '2026-05-12',
@@ -250,7 +239,8 @@ void main() {
               activeDays: 1,
               mealCount: 1,
               totals: MacroTotals.zero,
-              dailyAverage: MacroTotals.zero,
+              trackedDayAverage: MacroTotals.zero,
+              calendarDayAverage: MacroTotals.zero,
             ),
           ),
           onRefresh: () async {},
@@ -263,7 +253,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('7 DAY SUMMARY'));
+    await tester.tap(find.text('7 Day Summary'));
     await tester.pump();
 
     expect(openedWeeklyJournal, isTrue);
@@ -285,7 +275,6 @@ void main() {
       MaterialApp(
         theme: DFitTheme.dark(),
         home: WeeklyJournalScreen(
-          target: defaultTarget,
           range: JournalRangeData(
             startDate: '2026-05-06',
             endDate: '2026-05-12',
@@ -313,7 +302,13 @@ void main() {
                 carbsG: 25.2,
                 fatG: 5.4,
               ),
-              dailyAverage: MacroTotals(
+              trackedDayAverage: MacroTotals(
+                calories: 180,
+                proteinG: 10.8,
+                carbsG: 25.2,
+                fatG: 5.4,
+              ),
+              calendarDayAverage: MacroTotals(
                 calories: 26,
                 proteinG: 1.5,
                 carbsG: 3.6,
@@ -321,19 +316,27 @@ void main() {
               ),
             ),
           ),
+          onLoadWeek: (_) async => throw UnimplementedError(),
+          onLoadWeeks: () async => const [
+            JournalWeekOption(
+              weekOffset: 0,
+              startDate: '2026-05-06',
+              endDate: '2026-05-12',
+              activeDays: 1,
+            ),
+          ],
           onOpenMeal: (meal) => openedMeal = meal,
         ),
       ),
     );
 
-    expect(find.text('7 DAY JOURNAL'), findsOneWidget);
+    expect(find.text('7 Day Journal'), findsOneWidget);
     expect(find.text('MON 11 MAY'), findsOneWidget);
-    expect(find.text('No meals logged'), findsOneWidget);
 
     await tester.tap(find.text('MON 11 MAY'));
     await tester.pumpAndSettle();
 
-    expect(find.text('DAY ANALYSIS'), findsOneWidget);
+    expect(find.text('Day Analysis'), findsOneWidget);
     expect(find.text('Yesterday dal bowl'), findsWidgets);
 
     await tester.tap(find.text('Yesterday dal bowl').first);
@@ -351,7 +354,6 @@ void main() {
       MaterialApp(
         theme: DFitTheme.light(),
         home: WeeklyJournalScreen(
-          target: defaultTarget,
           range: const JournalRangeData(
             startDate: '2026-05-06',
             endDate: '2026-05-12',
@@ -361,9 +363,19 @@ void main() {
               activeDays: 0,
               mealCount: 0,
               totals: MacroTotals.zero,
-              dailyAverage: MacroTotals.zero,
+              trackedDayAverage: MacroTotals.zero,
+              calendarDayAverage: MacroTotals.zero,
             ),
           ),
+          onLoadWeek: (_) async => throw UnimplementedError(),
+          onLoadWeeks: () async => const [
+            JournalWeekOption(
+              weekOffset: 0,
+              startDate: '2026-05-06',
+              endDate: '2026-05-12',
+              activeDays: 0,
+            ),
+          ],
           isSyncing: true,
           syncMessage: 'Could not refresh journal.',
           onRefresh: () async {
@@ -374,7 +386,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Showing saved journal'), findsOneWidget);
+    expect(find.text('Could not refresh journal.'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -320));
+    await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('No journal days yet'), findsOneWidget);
 
     await tester.tap(find.text('Retry'));
@@ -399,9 +413,9 @@ void main() {
       ),
     );
 
-    expect(find.text('MACRO PROFILE'), findsOneWidget);
-    expect(find.text('ITEM CONTRIBUTION'), findsOneWidget);
-    expect(find.text('protein density'), findsOneWidget);
+    expect(find.text('Macro Profile'), findsOneWidget);
+    expect(find.text('Item Contribution'), findsOneWidget);
+    expect(find.text('Protein density'), findsOneWidget);
     expect(find.text('Dal'), findsWidgets);
   });
 
@@ -412,7 +426,6 @@ void main() {
         home: TodayScreen(
           meals: const [],
           totals: MacroTotals.zero,
-          target: defaultTarget,
           loading: true,
           initialLoading: true,
           onRefresh: () async {},
@@ -431,6 +444,29 @@ void main() {
     );
     expect(find.text('0'), findsNothing);
     expect(find.byType(FloatingActionButton), findsNothing);
+  });
+
+  testWidgets('analysis screen follows the active light theme', (tester) async {
+    final completer = Completer<ScanAnalysis>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.light(),
+        home: AnalyzingScreen(
+          photo: CapturedMealPhoto(
+            bytes: Uint8List(0),
+            mimeType: 'image/jpeg',
+            fileName: 'meal.jpg',
+            userHint: 'Dal and rice',
+          ),
+          onAnalyze: (_) => completer.future,
+          onAnalyzed: (_) {},
+        ),
+      ),
+    );
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, DFitThemeColors.light().background);
   });
 
   testWidgets('analysis quota failure offers account handoff', (tester) async {
@@ -563,7 +599,7 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -720));
     await tester.pumpAndSettle();
 
-    expect(find.text('DIAGNOSTICS'), findsOneWidget);
+    expect(find.text('Diagnostics'), findsOneWidget);
     expect(find.text('journal.load_today'), findsOneWidget);
     expect(find.textContaining('timeout'), findsOneWidget);
 
@@ -589,7 +625,7 @@ void main() {
       ),
     );
 
-    expect(find.text('PROFILE'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Google account'), findsWidgets);
 
     await tester.drag(find.byType(ListView), const Offset(0, -360));

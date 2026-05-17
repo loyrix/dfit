@@ -110,6 +110,7 @@ describe("DFit API", () => {
       url: `/v1/scans/${scanId}/analyze`,
       headers: { "idempotency-key": "flow-analyze" },
       payload: {
+        hint: "dal rice roti sabzi",
         image: {
           mimeType: "image/jpeg",
           base64: "AQID",
@@ -196,7 +197,18 @@ describe("DFit API", () => {
       mealCount: 2,
     });
     expect(range.json().summary.totals.calories).toBe(360);
-    expect(range.json().summary.dailyAverage.calories).toBe(51);
+    expect(range.json().summary.trackedDayAverage.calories).toBe(180);
+    expect(range.json().summary.calendarDayAverage.calories).toBe(51);
+
+    const weeks = await app.inject({
+      method: "GET",
+      url: "/v1/journal/weeks",
+    });
+    expect(weeks.statusCode).toBe(200);
+    expect(weeks.json().weeks[0]).toMatchObject({
+      weekOffset: 0,
+      activeDays: 2,
+    });
     await app.close();
   });
 
@@ -231,10 +243,7 @@ describe("DFit API", () => {
         rewardedRemaining: 2,
         premiumRemaining: 0,
       },
-      today: {
-        target: { calories: 1900 },
-        totals: { calories: 180 },
-      },
+      today: { totals: { calories: 180 } },
       weeklyRange: {
         summary: {
           windowDays: 7,
@@ -508,7 +517,7 @@ describe("DFit API", () => {
     await app.close();
   });
 
-  it("passes optional plate hints into AI analysis", async () => {
+  it("passes plate notes into AI analysis", async () => {
     let seenInput: AnalyzeMealImageInput | undefined;
     const aiProvider: AiProvider = {
       async analyzeMealImage(input) {
@@ -562,6 +571,33 @@ describe("DFit API", () => {
       userHint: "dal chawal roti",
       status: "ready_for_review",
     });
+    await app.close();
+  });
+
+  it("requires a concise plate note before analysis", async () => {
+    const app = await testApp();
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "missing-hint-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "missing-hint-analyze" },
+      payload: {
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+
+    expect(analyzed.statusCode).toBe(400);
+    expect(analyzed.json()).toMatchObject({ error: "invalid_scan_image" });
     await app.close();
   });
 

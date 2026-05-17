@@ -5,6 +5,7 @@ import type {
   ConfirmScanRequestContract,
   CreateMealRequestContract,
   JournalRangeResponseContract,
+  JournalWeeksResponseContract,
   MealContract,
   PrepareScanResponseContract,
   TodayJournalResponseContract,
@@ -22,8 +23,14 @@ export class DFitClient {
     return this.request<TodayJournalResponseContract>("/v1/journal/today");
   }
 
-  async journalRange(days = 7): Promise<JournalRangeResponseContract> {
-    return this.request<JournalRangeResponseContract>(`/v1/journal/range?days=${days}`);
+  async journalRange(days = 7, weekOffset = 0): Promise<JournalRangeResponseContract> {
+    return this.request<JournalRangeResponseContract>(
+      `/v1/journal/range?days=${days}&weekOffset=${weekOffset}`,
+    );
+  }
+
+  async journalWeeks(): Promise<JournalWeeksResponseContract> {
+    return this.request<JournalWeeksResponseContract>("/v1/journal/weeks");
   }
 
   async createMeal(body: CreateMealRequestContract, idempotencyKey: string): Promise<MealContract> {
@@ -44,7 +51,7 @@ export class DFitClient {
   async analyzeScan(
     scanId: string,
     idempotencyKey: string,
-    body: AnalyzeScanRequestContract = {},
+    body: AnalyzeScanRequestContract,
   ): Promise<AnalyzeScanResponseContract> {
     return this.request<AnalyzeScanResponseContract>(`/v1/scans/${scanId}/analyze`, {
       method: "POST",

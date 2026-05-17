@@ -7,14 +7,12 @@ import '../widgets/dfit_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
-import '../widgets/primitive_icons.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({
     super.key,
     required this.meals,
     required this.totals,
-    required this.target,
     this.quota,
     this.weeklyRange,
     this.loading = false,
@@ -30,7 +28,6 @@ class TodayScreen extends StatelessWidget {
 
   final List<MealLog> meals;
   final MacroTotals totals;
-  final MacroTotals target;
   final ScanQuota? quota;
   final JournalRangeData? weeklyRange;
   final bool loading;
@@ -57,7 +54,7 @@ class TodayScreen extends StatelessWidget {
               onRefresh: onRefresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(16, 12, 16, isEmpty ? 120 : 28),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
                 children: [
                   Row(
                     children: [
@@ -75,16 +72,14 @@ class TodayScreen extends StatelessWidget {
                         _QuotaPill(quota: quota!),
                         const SizedBox(width: 6),
                       ],
-                      if (!isEmpty)
-                        IconButton(
-                          tooltip: 'Scan meal',
-                          onPressed: onScan,
-                          icon: const PrimitiveCameraIcon(size: 22),
-                        ),
                       IconButton(
                         tooltip: 'Settings',
                         onPressed: onOpenSettings,
-                        icon: const PrimitiveGearIcon(),
+                        icon: Icon(
+                          Icons.settings_outlined,
+                          color: colors.icon,
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
@@ -104,9 +99,9 @@ class TodayScreen extends StatelessWidget {
                   if (initialLoading)
                     const _TodayLoadingBody()
                   else ...[
-                    EnergyHeroCard(totals: totals, target: target),
+                    EnergyHeroCard(totals: totals, mealCount: meals.length),
                     const SizedBox(height: 12),
-                    MacroBarGroup(totals: totals, target: target),
+                    MacroBarGroup(totals: totals),
                     if (weeklyRange != null) ...[
                       const SizedBox(height: 12),
                       _WeeklySummaryCard(
@@ -142,12 +137,14 @@ class TodayScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            if (isEmpty)
+            if (!initialLoading)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 24,
-                child: Center(child: DFitFab(onPressed: onScan, pulsing: true)),
+                child: Center(
+                  child: DFitFab(onPressed: onScan, pulsing: isEmpty),
+                ),
               ),
           ],
         ),
@@ -192,7 +189,11 @@ class _WeeklySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.dfit;
     final summary = range.summary;
-    final trackedText = '${summary.activeDays}/${summary.windowDays} days';
+    final trackedText =
+        '${summary.activeDays} ${summary.activeDays == 1 ? 'day' : 'days'} tracked';
+    final trackedProgress = summary.windowDays == 0
+        ? 0.0
+        : (summary.activeDays / summary.windowDays).clamp(0.0, 1.0);
 
     return Material(
       color: colors.surfaceCard,
@@ -217,7 +218,7 @@ class _WeeklySummaryCard extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              '7 DAY SUMMARY',
+                              '7 Day Summary',
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: colors.textSecondary,
@@ -252,15 +253,40 @@ class _WeeklySummaryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _WeeklyMetric(
-                    label: 'avg kcal',
-                    value: '${summary.dailyAverage.calories}',
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: colors.mutedFill,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: colors.textSecondary,
+                      size: 22,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  _WeeklyMetric(
-                    label: 'protein',
-                    value: '${summary.dailyAverage.proteinG.round()}g',
-                    accent: true,
+                ],
+              ),
+              const SizedBox(height: 14),
+              _WeeklyProgressStrip(
+                totalDays: summary.windowDays,
+                progress: trackedProgress,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    'Open weekly journal',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: colors.textSecondary,
+                    size: 18,
                   ),
                 ],
               ),
@@ -282,6 +308,40 @@ class _WeeklySummaryCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _WeeklyProgressStrip extends StatelessWidget {
+  const _WeeklyProgressStrip({required this.totalDays, required this.progress});
+
+  final int totalDays;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+    final visibleDays = totalDays <= 0 ? 7 : totalDays.clamp(1, 7);
+    final filledDays = (progress * visibleDays).round();
+
+    return Row(
+      children: [
+        for (var index = 0; index < visibleDays; index++) ...[
+          Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              height: 5,
+              decoration: BoxDecoration(
+                color: index < filledDays
+                    ? DFitColors.accent
+                    : colors.mutedFill,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          if (index != visibleDays - 1) const SizedBox(width: 5),
+        ],
+      ],
     );
   }
 }
@@ -568,55 +628,6 @@ class _SkeletonBox extends StatelessWidget {
   }
 }
 
-class _WeeklyMetric extends StatelessWidget {
-  const _WeeklyMetric({
-    required this.label,
-    required this.value,
-    this.accent = false,
-  });
-
-  final String label;
-  final String value;
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.dfit;
-    final fill = accent
-        ? colors.accent.withValues(alpha: 0.18)
-        : colors.mutedFill;
-    final valueColor = accent ? colors.accentText : colors.textPrimary;
-
-    return Container(
-      width: 68,
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: valueColor,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.textSecondary,
-              letterSpacing: 0,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SyncBanner extends StatelessWidget {
   const _SyncBanner({required this.message, required this.onRetry});
 
@@ -720,7 +731,7 @@ class _MealsList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'TODAY',
+          'Today',
           style: Theme.of(
             context,
           ).textTheme.labelSmall?.copyWith(color: colors.textPrimary),

@@ -20,7 +20,6 @@ class JournalController extends ChangeNotifier {
   String? _error;
   List<MealLog> _meals = [];
   MacroTotals _totals = MacroTotals.zero;
-  MacroTotals _target = defaultTarget;
   ScanQuota? _quota;
   JournalRangeData? _weeklyRange;
   DateTime? _lastLoadedAt;
@@ -29,7 +28,6 @@ class JournalController extends ChangeNotifier {
   String? get error => _error;
   List<MealLog> get meals => List.unmodifiable(_meals);
   MacroTotals get totals => _totals;
-  MacroTotals get target => _target;
   ScanQuota? get quota => _quota;
   JournalRangeData? get weeklyRange => _weeklyRange;
   DateTime? get lastLoadedAt => _lastLoadedAt;
@@ -111,6 +109,14 @@ class JournalController extends ChangeNotifier {
 
   Future<void> refreshQuota() => _refreshQuota();
 
+  Future<JournalRangeData> loadWeeklyRange(int weekOffset) {
+    return _apiClient.fetchJournalRange(weekOffset: weekOffset);
+  }
+
+  Future<List<JournalWeekOption>> loadAvailableWeeks() {
+    return _apiClient.fetchJournalWeeks();
+  }
+
   void _refreshJournalSoon() {
     unawaited(loadToday());
   }
@@ -130,7 +136,6 @@ class JournalController extends ChangeNotifier {
   void _applyBootstrap(AppBootstrapData bootstrap) {
     _meals = bootstrap.today.meals;
     _totals = bootstrap.today.totals;
-    _target = bootstrap.today.target ?? defaultTarget;
     _weeklyRange = bootstrap.weeklyRange;
     _quota = bootstrap.quota;
     _lastLoadedAt =

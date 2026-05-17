@@ -79,6 +79,7 @@ export interface AppRepository {
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
+  listMealDates(): Promise<string[]>;
   getMeal(mealId: string): Promise<MealSummary | undefined>;
   deleteMeal(mealId: string): Promise<boolean>;
   prepareScan(profileId?: string): Promise<ScanSession>;

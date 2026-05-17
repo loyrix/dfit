@@ -44,7 +44,7 @@ class SettingsScreen extends StatelessWidget {
             _AccountCard(session: session, onTap: onOpenAccount),
             const SizedBox(height: 18),
             _SettingsSection(
-              title: 'THEME',
+              title: 'Theme',
               children: [
                 _ThemeOption(
                   label: 'System',
@@ -65,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _SettingsSection(
-              title: 'PRIVACY',
+              title: 'Privacy',
               children: const [
                 _StaticRow(label: 'Food photos are analyzed, not stored'),
                 _StaticRow(label: 'Nutrition estimates are approximate'),
@@ -91,7 +91,7 @@ class _DiagnosticsSection extends StatelessWidget {
     final visibleEntries = entries.take(3).toList();
 
     return _SettingsSection(
-      title: 'DIAGNOSTICS',
+      title: 'Diagnostics',
       children: visibleEntries.isEmpty
           ? const [_StaticRow(label: 'No recent issues')]
           : [for (final entry in visibleEntries) _DiagnosticRow(entry: entry)],

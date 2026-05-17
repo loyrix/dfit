@@ -45,7 +45,7 @@ class MealDetailScreen extends StatelessWidget {
               ).textTheme.displayLarge?.copyWith(fontSize: 54),
             ),
             Text(
-              'kcal - ${meal.items.length} items',
+              'kCal - ${meal.items.length} items',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -54,7 +54,7 @@ class MealDetailScreen extends StatelessWidget {
             const SizedBox(height: 22),
             MacroProfileCard(meal: meal),
             const SizedBox(height: 22),
-            Text('ITEMS', style: Theme.of(context).textTheme.labelSmall),
+            Text('Items', style: Theme.of(context).textTheme.labelSmall),
             const SizedBox(height: 10),
             for (final item in meal.items)
               Container(
@@ -83,7 +83,7 @@ class MealDetailScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Text('${item.nutrition.calories} kcal'),
+                    Text('${item.nutrition.calories} kCal'),
                   ],
                 ),
               ),

@@ -25,7 +25,6 @@ export const registerBootstrapRoutes = async (
         date: weeklyRange.endDate,
         timezone: profile.timezone,
         totals: todayDay.totals,
-        target: weeklyRange.target,
         meals: todayDay.meals,
       },
       weeklyRange,

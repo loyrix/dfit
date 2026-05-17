@@ -459,6 +459,17 @@ export class PostgresStore implements AppRepository {
     return meals;
   }
 
+  async listMealDates() {
+    const profile = await this.getProfile();
+    const rows = await this.sql<{ date: string }[]>`
+      select distinct local_date::text as date
+      from meals
+      where profile_id = ${profile.id}
+      order by date desc
+    `;
+    return rows.map((row) => row.date);
+  }
+
   async getMeal(mealId: string) {
     const profile = await this.getProfile();
     const [meal] = await this.sql<MealRow[]>`

@@ -28,12 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>DFit uses the camera to analyze your meal photo and does not store the image.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>DFit uses the microphone only when you dictate a short meal hint before scanning.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>DFit lets you choose a meal photo from your library for analysis and does not store the image.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>DFit uses speech recognition to turn your optional meal hint into text before analysis.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

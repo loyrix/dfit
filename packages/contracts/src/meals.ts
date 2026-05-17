@@ -45,6 +45,7 @@ export const todayJournalResponseSchema = z.object({
 
 export const journalRangeQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(31).default(7),
+  weekOffset: z.coerce.number().int().min(0).max(104).default(0),
 });
 
 export const journalDaySchema = z.object({
@@ -65,8 +66,20 @@ export const journalRangeResponseSchema = z.object({
     activeDays: z.number().int().nonnegative(),
     mealCount: z.number().int().nonnegative(),
     totals: macroTotalsSchema,
-    dailyAverage: macroTotalsSchema,
+    trackedDayAverage: macroTotalsSchema,
+    calendarDayAverage: macroTotalsSchema,
   }),
+});
+
+export const journalWeekOptionSchema = z.object({
+  weekOffset: z.number().int().nonnegative(),
+  startDate: z.string(),
+  endDate: z.string(),
+  activeDays: z.number().int().nonnegative(),
+});
+
+export const journalWeeksResponseSchema = z.object({
+  weeks: z.array(journalWeekOptionSchema),
 });
 
 export type MealContract = z.infer<typeof mealSchema>;
@@ -74,3 +87,5 @@ export type CreateMealRequestContract = z.infer<typeof createMealRequestSchema>;
 export type TodayJournalResponseContract = z.infer<typeof todayJournalResponseSchema>;
 export type JournalRangeQueryContract = z.infer<typeof journalRangeQuerySchema>;
 export type JournalRangeResponseContract = z.infer<typeof journalRangeResponseSchema>;
+export type JournalWeekOptionContract = z.infer<typeof journalWeekOptionSchema>;
+export type JournalWeeksResponseContract = z.infer<typeof journalWeeksResponseSchema>;

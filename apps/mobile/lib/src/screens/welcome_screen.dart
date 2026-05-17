@@ -51,7 +51,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                'Food tracking, without the typing.',
+                'AI-powered food tracking, without the hassle.',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.textSecondary,
                   height: 1.2,

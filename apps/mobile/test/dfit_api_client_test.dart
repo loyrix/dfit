@@ -201,12 +201,6 @@ void main() {
                 'carbsG': 25.2,
                 'fatG': 5.4,
               },
-              'target': {
-                'calories': 1900,
-                'proteinG': 120,
-                'carbsG': 220,
-                'fatG': 65,
-              },
               'meals': [
                 {
                   'id': 'meal_1',
@@ -245,7 +239,13 @@ void main() {
                   'carbsG': 25.2,
                   'fatG': 5.4,
                 },
-                'dailyAverage': {
+                'trackedDayAverage': {
+                  'calories': 180,
+                  'proteinG': 10.8,
+                  'carbsG': 25.2,
+                  'fatG': 5.4,
+                },
+                'calendarDayAverage': {
                   'calories': 26,
                   'proteinG': 1.5,
                   'carbsG': 3.6,
@@ -264,7 +264,72 @@ void main() {
     expect(bootstrap.profile.authMethod, 'anonymous');
     expect(bootstrap.quota.totalRemaining, 3);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
-    expect(bootstrap.weeklyRange.summary.dailyAverage.calories, 26);
+    expect(bootstrap.weeklyRange.summary.trackedDayAverage.calories, 180);
+  });
+
+  test('parses legacy journal summary payloads during API rollout', () async {
+    final client = DFitApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/app/bootstrap');
+        return http.Response(
+          jsonEncode({
+            'serverTime': '2026-05-12T09:00:00.000Z',
+            'profile': {
+              'id': 'profile_1',
+              'authMethod': 'anonymous',
+              'timezone': 'Asia/Kolkata',
+            },
+            'quota': {
+              'freeRemaining': 3,
+              'rewardedRemaining': 0,
+              'premiumRemaining': 0,
+            },
+            'today': {
+              'date': '2026-05-12',
+              'timezone': 'Asia/Kolkata',
+              'totals': {
+                'calories': 180,
+                'proteinG': 10.8,
+                'carbsG': 25.2,
+                'fatG': 5.4,
+              },
+              'meals': [],
+            },
+            'weeklyRange': {
+              'startDate': '2026-05-06',
+              'endDate': '2026-05-12',
+              'timezone': 'Asia/Kolkata',
+              'days': [],
+              'summary': {
+                'windowDays': 7,
+                'activeDays': 1,
+                'mealCount': 1,
+                'totals': {
+                  'calories': 180,
+                  'proteinG': 10.8,
+                  'carbsG': 25.2,
+                  'fatG': 5.4,
+                },
+                'dailyAverage': {
+                  'calories': 180,
+                  'proteinG': 10.8,
+                  'carbsG': 25.2,
+                  'fatG': 5.4,
+                },
+              },
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final bootstrap = await client.fetchBootstrap();
+
+    expect(bootstrap.weeklyRange.summary.trackedDayAverage.calories, 180);
+    expect(bootstrap.weeklyRange.summary.calendarDayAverage.calories, 26);
   });
 
   test('sends account token and parses email signup sessions', () async {
@@ -320,6 +385,7 @@ void main() {
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/journal/range');
         expect(request.url.queryParameters['days'], '7');
+        expect(request.url.queryParameters['weekOffset'], '0');
         return http.Response(
           jsonEncode({
             'startDate': '2026-05-06',
@@ -348,7 +414,13 @@ void main() {
                 'carbsG': 25.2,
                 'fatG': 5.4,
               },
-              'dailyAverage': {
+              'trackedDayAverage': {
+                'calories': 180,
+                'proteinG': 10.8,
+                'carbsG': 25.2,
+                'fatG': 5.4,
+              },
+              'calendarDayAverage': {
                 'calories': 26,
                 'proteinG': 1.5,
                 'carbsG': 3.6,
@@ -364,8 +436,43 @@ void main() {
     final range = await client.fetchJournalRange();
 
     expect(range.summary.windowDays, 7);
-    expect(range.summary.dailyAverage.calories, 26);
+    expect(range.summary.trackedDayAverage.calories, 180);
     expect(range.days.single.mealCount, 1);
+  });
+
+  test('fetches only available journal weeks', () async {
+    final client = DFitApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/journal/weeks');
+        return http.Response(
+          jsonEncode({
+            'weeks': [
+              {
+                'weekOffset': 0,
+                'startDate': '2026-05-06',
+                'endDate': '2026-05-12',
+                'activeDays': 1,
+              },
+              {
+                'weekOffset': 2,
+                'startDate': '2026-04-22',
+                'endDate': '2026-04-28',
+                'activeDays': 3,
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final weeks = await client.fetchJournalWeeks();
+
+    expect(weeks, hasLength(2));
+    expect(weeks.last.weekOffset, 2);
+    expect(weeks.last.activeDays, 3);
   });
 
   test('confirms a scan meal', () async {

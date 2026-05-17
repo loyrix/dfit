@@ -165,6 +165,15 @@ export class InMemoryStore implements AppRepository {
       .slice(0, input.limit ?? 100);
   }
 
+  async listMealDates() {
+    const profile = await this.getProfile();
+    return [...new Set(
+      [...this.meals.values()]
+        .filter((meal) => this.mealProfiles.get(meal.mealId) === profile.id)
+        .map((meal) => meal.loggedAt.slice(0, 10)),
+    )].sort((a, b) => b.localeCompare(a));
+  }
+
   async getMeal(mealId: string) {
     const profile = await this.getProfile();
     if (this.mealProfiles.get(mealId) !== profile.id) return undefined;

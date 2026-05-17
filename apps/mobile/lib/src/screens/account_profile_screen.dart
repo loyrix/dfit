@@ -55,7 +55,7 @@ class AccountProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'PROFILE',
+              'Profile',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: colors.textSecondary,
@@ -80,7 +80,7 @@ class AccountProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
             _ProfileSection(
-              title: 'ACCOUNT',
+              title: 'Account',
               children: [
                 _ProfileRow(label: 'Status', value: 'Signed in'),
                 _ProfileRow(label: 'Provider', value: session.provider.label),
@@ -89,7 +89,7 @@ class AccountProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _ProfileSection(
-              title: 'ACCESS',
+              title: 'Access',
               children: const [
                 _ProfileRow(label: 'Free scans', value: 'Used first'),
                 _ProfileRow(label: 'Ad unlocks', value: 'Coming next'),

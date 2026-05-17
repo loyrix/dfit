@@ -11,10 +11,12 @@ class ReviewMealScreen extends StatefulWidget {
     required this.initialItems,
     required this.onConfirm,
     this.initialMealType = MealType.lunch,
+    this.lockInitialItems = false,
   });
 
   final List<MealItem> initialItems;
   final MealType initialMealType;
+  final bool lockInitialItems;
   final Future<void> Function(MealType type, List<MealItem> items) onConfirm;
 
   @override
@@ -22,15 +24,24 @@ class ReviewMealScreen extends StatefulWidget {
 }
 
 class _ReviewMealScreenState extends State<ReviewMealScreen> {
-  late final List<MealItem> _items = List.of(widget.initialItems);
+  late final List<_ReviewMealEntry> _entries = widget.initialItems
+      .map(
+        (item) => _ReviewMealEntry(
+          item: item,
+          lockedFromAnalysis: widget.lockInitialItems,
+        ),
+      )
+      .toList();
   late MealType _mealType = widget.initialMealType;
   bool _saving = false;
   String? _error;
 
+  List<MealItem> get _items => _entries.map((entry) => entry.item).toList();
+
   MacroTotals get _totals {
-    return _items.fold<MacroTotals>(
+    return _entries.fold<MacroTotals>(
       MacroTotals.zero,
-      (total, item) => total + item.nutrition,
+      (total, entry) => total + entry.item.nutrition,
     );
   }
 
@@ -61,7 +72,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'ESTIMATED',
+              'Estimated',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: secondaryText,
@@ -77,7 +88,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ).textTheme.displayLarge?.copyWith(fontSize: 48),
             ),
             Text(
-              'kcal - ${_items.length} items',
+              'kCal - ${_items.length} items',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -88,17 +99,17 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _MacroChip(
-                  label: 'protein',
+                  label: 'Protein',
                   value: totals.proteinG.round(),
                   dark: true,
                 ),
                 _MacroChip(
-                  label: 'carbs',
+                  label: 'Carbs',
                   value: totals.carbsG.round(),
                   dark: true,
                 ),
                 _MacroChip(
-                  label: 'fat',
+                  label: 'Fat',
                   value: totals.fatG.round(),
                   dark: false,
                 ),
@@ -106,15 +117,13 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             ),
             const SizedBox(height: 20),
             Divider(height: 1, color: borderColor),
-            for (var index = 0; index < _items.length; index++)
+            for (var index = 0; index < _entries.length; index++)
               _ReviewItemRow(
-                rowKey: ValueKey('${_items[index].name}-$index'),
-                item: _items[index],
+                rowKey: ValueKey('${_entries[index].item.name}-$index'),
+                item: _entries[index].item,
                 onEdit: () => _openEditItemSheet(index),
-                onIncrement: () => _changeQuantity(index, 1),
-                onDecrement: () => _changeQuantity(index, -1),
                 onDelete: () {
-                  setState(() => _items.removeAt(index));
+                  setState(() => _entries.removeAt(index));
                 },
               ),
             const SizedBox(height: 16),
@@ -202,20 +211,11 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
   }
 
   void _changeQuantity(int index, int delta) {
-    final item = _items[index];
+    final entry = _entries[index];
+    final item = entry.item;
     final next = (item.quantity + delta).clamp(0.5, 12.0);
-    final scale = next / item.quantity;
     setState(() {
-      _items[index] = item.copyWith(
-        quantity: next,
-        grams: (item.grams * scale).round(),
-        nutrition: MacroTotals(
-          calories: (item.nutrition.calories * scale).round(),
-          proteinG: item.nutrition.proteinG * scale,
-          carbsG: item.nutrition.carbsG * scale,
-          fatG: item.nutrition.fatG * scale,
-        ),
-      );
+      _entries[index] = entry.copyWith(item: item.scaledToQuantity(next));
     });
   }
 
@@ -224,18 +224,21 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _EditItemSheet(item: _items[index]),
+      builder: (_) => _EditItemSheet(
+        item: _entries[index].item,
+        lockedFromAnalysis: _entries[index].lockedFromAnalysis,
+      ),
     );
     if (result == null || !mounted) return;
 
     if (result.delete) {
-      setState(() => _items.removeAt(index));
+      setState(() => _entries.removeAt(index));
       return;
     }
 
     final item = result.item;
     if (item == null) return;
-    setState(() => _items[index] = item);
+    setState(() => _entries[index] = _entries[index].copyWith(item: item));
   }
 
   Future<void> _openAddItemSheet() async {
@@ -245,7 +248,8 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
       builder: (_) => _AddItemSheet(
         items: sampleDetectedItems()
             .where(
-              (item) => !_items.any((current) => current.name == item.name),
+              (item) =>
+                  !_entries.any((current) => current.item.name == item.name),
             )
             .toList(),
       ),
@@ -253,13 +257,17 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     if (choice == null || !mounted) return;
 
     final selected = choice.item;
-    final existingIndex = _items.indexWhere(
-      (item) => item.name == selected.name,
+    final existingIndex = _entries.indexWhere(
+      (entry) => entry.item.name == selected.name,
     );
     late final int nextIndex;
     if (existingIndex == -1) {
-      setState(() => _items.add(selected));
-      nextIndex = _items.length - 1;
+      setState(
+        () => _entries.add(
+          _ReviewMealEntry(item: selected, lockedFromAnalysis: false),
+        ),
+      );
+      nextIndex = _entries.length - 1;
     } else {
       _changeQuantity(existingIndex, 1);
       nextIndex = existingIndex;
@@ -276,6 +284,23 @@ class _AddItemChoice {
 
   final MealItem item;
   final bool editImmediately;
+}
+
+class _ReviewMealEntry {
+  const _ReviewMealEntry({
+    required this.item,
+    required this.lockedFromAnalysis,
+  });
+
+  final MealItem item;
+  final bool lockedFromAnalysis;
+
+  _ReviewMealEntry copyWith({MealItem? item, bool? lockedFromAnalysis}) {
+    return _ReviewMealEntry(
+      item: item ?? this.item,
+      lockedFromAnalysis: lockedFromAnalysis ?? this.lockedFromAnalysis,
+    );
+  }
 }
 
 class _AddItemSheet extends StatelessWidget {
@@ -350,7 +375,7 @@ class _AddItemSheet extends StatelessWidget {
                   subtitle: Text(
                     '${item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 1)} ${item.unit} - ${item.grams}g',
                   ),
-                  trailing: Text('${item.nutrition.calories}'),
+                  trailing: Text('${item.nutrition.calories} kCal'),
                   onTap: () => Navigator.of(context).pop(_AddItemChoice(item)),
                 ),
           ],
@@ -422,16 +447,12 @@ class _ReviewItemRow extends StatelessWidget {
     required this.rowKey,
     required this.item,
     required this.onEdit,
-    required this.onIncrement,
-    required this.onDecrement,
     required this.onDelete,
   });
 
   final Key rowKey;
   final MealItem item;
   final VoidCallback onEdit;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
   final VoidCallback onDelete;
 
   @override
@@ -468,24 +489,17 @@ class _ReviewItemRow extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                height: 32,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   color: colors.mutedFill,
                   border: Border.all(color: borderColor, width: 0.5),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Row(
-                  children: [
-                    _StepperButton(label: '-', onTap: onDecrement),
-                    Text(
-                      _formatQuantity(item.quantity),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: _reviewPrimaryText(context),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    _StepperButton(label: '+', onTap: onIncrement),
-                  ],
+                child: Icon(
+                  Icons.edit_rounded,
+                  color: _reviewPrimaryText(context),
+                  size: 18,
                 ),
               ),
               const SizedBox(width: 12),
@@ -516,19 +530,13 @@ class _ReviewItemRow extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        _UnitChip(text: item.unit, highlighted: true),
-                        const SizedBox(width: 5),
-                        _UnitChip(text: '~${item.grams}g'),
-                      ],
-                    ),
+                    _UnitChip(text: '${item.grams}g'),
                   ],
                 ),
               ),
               const SizedBox(width: 10),
               Text(
-                '${item.nutrition.calories}',
+                '${item.nutrition.calories} kCal',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: _reviewPrimaryText(context),
                   fontWeight: FontWeight.w500,
@@ -539,10 +547,6 @@ class _ReviewItemRow extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatQuantity(double value) {
-    return value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
   }
 }
 
@@ -555,15 +559,17 @@ class _EditItemResult {
 }
 
 class _EditItemSheet extends StatefulWidget {
-  const _EditItemSheet({required this.item});
+  const _EditItemSheet({required this.item, required this.lockedFromAnalysis});
 
   final MealItem item;
+  final bool lockedFromAnalysis;
 
   @override
   State<_EditItemSheet> createState() => _EditItemSheetState();
 }
 
 class _EditItemSheetState extends State<_EditItemSheet> {
+  late MealItem _workingItem = widget.item;
   late final TextEditingController _nameController = TextEditingController(
     text: widget.item.name,
   );
@@ -589,6 +595,7 @@ class _EditItemSheetState extends State<_EditItemSheet> {
       ? widget.item.unit
       : 'serving';
   String? _validation;
+  bool _syncingDerivedFields = false;
 
   @override
   void dispose() {
@@ -646,6 +653,7 @@ class _EditItemSheetState extends State<_EditItemSheet> {
                 label: 'Food',
                 controller: _nameController,
                 textInputAction: TextInputAction.next,
+                enabled: !widget.lockedFromAnalysis,
               ),
               const SizedBox(height: 10),
               Row(
@@ -653,29 +661,34 @@ class _EditItemSheetState extends State<_EditItemSheet> {
                   Expanded(
                     child: _EditTextField(
                       key: const ValueKey('edit-item-quantity'),
-                      label: 'Qty',
+                      label: widget.lockedFromAnalysis ? 'Portions' : 'Qty',
                       controller: _quantityController,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
                       textInputAction: TextInputAction.next,
+                      onChanged: widget.lockedFromAnalysis
+                          ? _updateLockedFromQuantity
+                          : null,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _unit,
-                      items: [
-                        for (final unit in _portionUnits)
-                          DropdownMenuItem(value: unit, child: Text(unit)),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _unit = value);
-                      },
-                      decoration: _fieldDecoration(context, 'Unit'),
+                  if (!widget.lockedFromAnalysis) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _unit,
+                        items: [
+                          for (final unit in _portionUnits)
+                            DropdownMenuItem(value: unit, child: Text(unit)),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _unit = value);
+                        },
+                        decoration: _fieldDecoration(context, 'Unit'),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 10),
@@ -688,16 +701,20 @@ class _EditItemSheetState extends State<_EditItemSheet> {
                       controller: _gramsController,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.next,
+                      onChanged: widget.lockedFromAnalysis
+                          ? _updateLockedFromGrams
+                          : null,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _EditTextField(
                       key: const ValueKey('edit-item-calories'),
-                      label: 'Kcal',
+                      label: 'kCal',
                       controller: _caloriesController,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.next,
+                      enabled: !widget.lockedFromAnalysis,
                     ),
                   ),
                 ],
@@ -714,6 +731,7 @@ class _EditItemSheetState extends State<_EditItemSheet> {
                         decimal: true,
                       ),
                       textInputAction: TextInputAction.next,
+                      enabled: !widget.lockedFromAnalysis,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -726,6 +744,7 @@ class _EditItemSheetState extends State<_EditItemSheet> {
                         decimal: true,
                       ),
                       textInputAction: TextInputAction.next,
+                      enabled: !widget.lockedFromAnalysis,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -738,6 +757,7 @@ class _EditItemSheetState extends State<_EditItemSheet> {
                         decimal: true,
                       ),
                       textInputAction: TextInputAction.done,
+                      enabled: !widget.lockedFromAnalysis,
                     ),
                   ),
                 ],
@@ -793,6 +813,11 @@ class _EditItemSheetState extends State<_EditItemSheet> {
       return;
     }
 
+    if (widget.lockedFromAnalysis) {
+      Navigator.of(context).pop(_EditItemResult.update(_workingItem));
+      return;
+    }
+
     Navigator.of(context).pop(
       _EditItemResult.update(
         widget.item.copyWith(
@@ -811,6 +836,42 @@ class _EditItemSheetState extends State<_EditItemSheet> {
       ),
     );
   }
+
+  void _updateLockedFromQuantity(String value) {
+    if (_syncingDerivedFields) return;
+    final quantity = _parsePositiveDouble(value);
+    if (quantity == null) return;
+    _workingItem = widget.item.scaledToQuantity(quantity);
+    _syncDerivedFields(updateQuantity: false);
+  }
+
+  void _updateLockedFromGrams(String value) {
+    if (_syncingDerivedFields) return;
+    final grams = _parsePositiveInt(value);
+    if (grams == null) return;
+    _workingItem = widget.item.scaledToGrams(grams);
+    _syncDerivedFields(updateGrams: false);
+  }
+
+  void _syncDerivedFields({
+    bool updateQuantity = true,
+    bool updateGrams = true,
+  }) {
+    _syncingDerivedFields = true;
+    if (updateQuantity) {
+      _quantityController.text = _formatInputNumber(_workingItem.quantity);
+    }
+    if (updateGrams) {
+      _gramsController.text = _workingItem.grams.toString();
+    }
+    _caloriesController.text = _workingItem.nutrition.calories.toString();
+    _proteinController.text = _formatInputNumber(
+      _workingItem.nutrition.proteinG,
+    );
+    _carbsController.text = _formatInputNumber(_workingItem.nutrition.carbsG);
+    _fatController.text = _formatInputNumber(_workingItem.nutrition.fatG);
+    _syncingDerivedFields = false;
+  }
 }
 
 class _EditTextField extends StatelessWidget {
@@ -820,12 +881,16 @@ class _EditTextField extends StatelessWidget {
     required this.controller,
     this.keyboardType,
     this.textInputAction,
+    this.enabled = true,
+    this.onChanged,
   });
 
   final String label;
   final TextEditingController controller;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -833,6 +898,8 @@ class _EditTextField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
+      enabled: enabled,
+      onChanged: onChanged,
       decoration: _fieldDecoration(context, label),
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(letterSpacing: 0),
     );
@@ -915,61 +982,26 @@ int? _parseNonNegativeInt(String value) {
   return parsed.round();
 }
 
-class _StepperButton extends StatelessWidget {
-  const _StepperButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: 30,
-        height: 32,
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(color: _reviewPrimaryText(context)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _UnitChip extends StatelessWidget {
-  const _UnitChip({required this.text, this.highlighted = false});
+  const _UnitChip({required this.text});
 
   final String text;
-  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
-    final fill = highlighted
-        ? colors.accent.withValues(alpha: 0.16)
-        : _reviewMutedFill(context);
-    final border = highlighted
-        ? colors.accent.withValues(alpha: 0.45)
-        : _reviewBorder(context);
-    final textColor = highlighted
-        ? _reviewAccentText(context)
-        : _reviewSecondaryText(context);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: fill,
+        color: _reviewMutedFill(context),
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: border, width: 0.5),
+        border: Border.all(color: _reviewBorder(context), width: 0.5),
       ),
       child: Text(
         text,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: textColor, letterSpacing: 0),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: _reviewSecondaryText(context),
+          letterSpacing: 0,
+        ),
       ),
     );
   }

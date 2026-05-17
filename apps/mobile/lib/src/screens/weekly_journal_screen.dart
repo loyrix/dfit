@@ -8,27 +8,54 @@ import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/primitive_icons.dart';
 
-class WeeklyJournalScreen extends StatelessWidget {
+class WeeklyJournalScreen extends StatefulWidget {
   const WeeklyJournalScreen({
     super.key,
     required this.range,
-    required this.target,
     required this.onOpenMeal,
+    required this.onLoadWeek,
+    required this.onLoadWeeks,
     this.isSyncing = false,
     this.syncMessage,
     this.onRefresh,
   });
 
   final JournalRangeData range;
-  final MacroTotals target;
   final ValueChanged<MealLog> onOpenMeal;
+  final Future<JournalRangeData> Function(int weekOffset) onLoadWeek;
+  final Future<List<JournalWeekOption>> Function() onLoadWeeks;
   final bool isSyncing;
   final String? syncMessage;
   final Future<void> Function()? onRefresh;
 
   @override
+  State<WeeklyJournalScreen> createState() => _WeeklyJournalScreenState();
+}
+
+class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
+  late JournalRangeData _range = widget.range;
+  int _weekOffset = 0;
+  bool _loadingWeek = false;
+  bool _loadingAvailableWeeks = true;
+  String? _weekLoadError;
+  late List<JournalWeekOption> _availableWeeks = [
+    JournalWeekOption(
+      weekOffset: 0,
+      startDate: widget.range.startDate,
+      endDate: widget.range.endDate,
+      activeDays: widget.range.summary.activeDays,
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvailableWeeks();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final days = range.days.reversed.toList();
+    final days = _range.days.reversed.toList();
 
     return Scaffold(
       body: SafeArea(
@@ -36,30 +63,36 @@ class WeeklyJournalScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
             _JournalHeader(
-              label: '7 DAY JOURNAL',
-              title: '7 day summary',
-              subtitle: _rangeLabel(range),
+              label: '7 Day Journal',
+              title: 'Weekly summary',
+              subtitle: _rangeLabel(_range),
             ),
-            if (isSyncing || syncMessage != null) ...[
+            const SizedBox(height: 12),
+            _WeekSelector(
+              range: _range,
+              loading: _loadingWeek || _loadingAvailableWeeks,
+              onTap: _openWeekPicker,
+            ),
+            if (widget.isSyncing ||
+                widget.syncMessage != null ||
+                _loadingWeek ||
+                _weekLoadError != null) ...[
               const SizedBox(height: 12),
               _JournalSyncStrip(
-                isSyncing: isSyncing,
-                message: syncMessage,
-                onRefresh: onRefresh,
+                isSyncing: widget.isSyncing || _loadingWeek,
+                message: _weekLoadError ?? widget.syncMessage,
+                onRefresh: widget.onRefresh,
               ),
             ],
             const SizedBox(height: 16),
-            _WeeklyJournalHero(range: range),
+            _WeeklyJournalHero(range: _range),
             const SizedBox(height: 12),
             _LabeledPanel(
-              label: 'DAILY AVERAGE',
-              child: MacroBarGroup(
-                totals: range.summary.dailyAverage,
-                target: target,
-              ),
+              label: 'Tracked Day Average',
+              child: MacroBarGroup(totals: _range.summary.trackedDayAverage),
             ),
             const SizedBox(height: 22),
-            _SectionLabel('DAY WISE'),
+            _SectionLabel('Day Wise'),
             const SizedBox(height: 10),
             if (days.isEmpty)
               const _EmptyWeekCard()
@@ -75,13 +108,61 @@ class WeeklyJournalScreen extends StatelessWidget {
   void _openDay(BuildContext context, JournalDayData day) {
     Navigator.of(context).push<void>(
       dfitPageRoute<void>(
-        builder: (_) => DayJournalDetailScreen(
-          day: day,
-          target: target,
-          onOpenMeal: onOpenMeal,
-        ),
+        transition: DFitPageTransition.drillDown,
+        builder: (_) =>
+            DayJournalDetailScreen(day: day, onOpenMeal: widget.onOpenMeal),
       ),
     );
+  }
+
+  Future<void> _openWeekPicker() async {
+    if (_loadingAvailableWeeks) return;
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _WeekPickerSheet(
+        selectedWeekOffset: _weekOffset,
+        weeks: _availableWeeks,
+      ),
+    );
+    if (selected == null || selected == _weekOffset || !mounted) return;
+
+    setState(() {
+      _loadingWeek = true;
+      _weekLoadError = null;
+    });
+    try {
+      final nextRange = await widget.onLoadWeek(selected);
+      if (!mounted) return;
+      setState(() {
+        _weekOffset = selected;
+        _range = nextRange;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _weekLoadError = 'Could not load that week.';
+      });
+    } finally {
+      if (mounted) setState(() => _loadingWeek = false);
+    }
+  }
+
+  Future<void> _loadAvailableWeeks() async {
+    try {
+      final weeks = await widget.onLoadWeeks();
+      if (!mounted) return;
+      setState(() {
+        _availableWeeks = weeks.isEmpty ? _availableWeeks : weeks;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _weekLoadError ??= 'Could not load saved weeks.';
+      });
+    } finally {
+      if (mounted) setState(() => _loadingAvailableWeeks = false);
+    }
   }
 }
 
@@ -89,12 +170,10 @@ class DayJournalDetailScreen extends StatelessWidget {
   const DayJournalDetailScreen({
     super.key,
     required this.day,
-    required this.target,
     required this.onOpenMeal,
   });
 
   final JournalDayData day;
-  final MacroTotals target;
   final ValueChanged<MealLog> onOpenMeal;
 
   @override
@@ -108,21 +187,25 @@ class DayJournalDetailScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
             _JournalHeader(
-              label: 'DAY ANALYSIS',
+              label: 'Day Analysis',
               title: _dayTitle(day.date),
               subtitle: _mealCountLabel(day.mealCount),
             ),
             const SizedBox(height: 16),
             if (hasMeals) ...[
-              EnergyHeroCard(totals: day.totals, target: target),
+              EnergyHeroCard(
+                totals: day.totals,
+                mealCount: day.mealCount,
+                label: 'Day Energy',
+              ),
               const SizedBox(height: 12),
-              MacroBarGroup(totals: day.totals, target: target),
+              MacroBarGroup(totals: day.totals),
               const SizedBox(height: 18),
               _DayCompositionCard(day: day),
             ] else
               _EmptyDayOverview(day: day),
             const SizedBox(height: 22),
-            _SectionLabel('MEALS'),
+            _SectionLabel('Meals'),
             const SizedBox(height: 10),
             if (meals.isEmpty)
               const _EmptyDayCard()
@@ -198,7 +281,7 @@ class _DayMealRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  '${totals.calories}',
+                  '${totals.calories} kCal',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
@@ -340,7 +423,9 @@ class _JournalSyncStrip extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  hasError ? 'Showing saved journal' : 'Syncing latest journal',
+                  hasError
+                      ? message ?? 'Showing saved journal'
+                      : 'Syncing latest journal',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: hasError ? colors.accentText : colors.textSecondary,
                   ),
@@ -381,6 +466,128 @@ class _JournalSyncStrip extends StatelessWidget {
   }
 }
 
+class _WeekSelector extends StatelessWidget {
+  const _WeekSelector({
+    required this.range,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final JournalRangeData range;
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return Material(
+      color: colors.surfaceCard,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: loading ? null : onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.border, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Week',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _rangeLabel(range),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+              ),
+              if (loading)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.accent,
+                  ),
+                )
+              else
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: colors.textSecondary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekPickerSheet extends StatelessWidget {
+  const _WeekPickerSheet({
+    required this.selectedWeekOffset,
+    required this.weeks,
+  });
+
+  final int selectedWeekOffset;
+  final List<JournalWeekOption> weeks;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Choose week', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            for (final week in weeks)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(_weekOffsetLabel(week.weekOffset)),
+                subtitle: Text(
+                  '${_compactDate(week.startDate)} - ${_compactDate(week.endDate)}'
+                  '  ·  ${week.activeDays} ${week.activeDays == 1 ? 'day' : 'days'} tracked',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                ),
+                trailing: week.weekOffset == selectedWeekOffset
+                    ? Icon(Icons.check_rounded, color: colors.accent)
+                    : null,
+                onTap: () => Navigator.of(context).pop(week.weekOffset),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WeeklyJournalHero extends StatelessWidget {
   const _WeeklyJournalHero({required this.range});
 
@@ -403,7 +610,7 @@ class _WeeklyJournalHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'LAST 7 DAYS',
+            'Last 7 Days',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.52),
               letterSpacing: 1.8,
@@ -439,18 +646,18 @@ class _WeeklyJournalHero extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _HeroStat(label: 'meals', value: '${summary.mealCount}'),
+                child: _HeroStat(label: 'Meals', value: '${summary.mealCount}'),
               ),
               Expanded(
                 child: _HeroStat(
-                  label: 'avg kcal',
-                  value: '${summary.dailyAverage.calories}',
+                  label: 'Avg tracked day',
+                  value: '${summary.trackedDayAverage.calories} kCal',
                 ),
               ),
               Expanded(
                 child: _HeroStat(
-                  label: 'protein',
-                  value: '${summary.dailyAverage.proteinG.round()}g',
+                  label: 'Protein',
+                  value: '${summary.trackedDayAverage.proteinG.round()}g',
                 ),
               ),
             ],
@@ -641,7 +848,7 @@ class _JournalDayRow extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${day.totals.calories}',
+                            '${day.totals.calories} kCal',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontFeatures: const [
@@ -818,22 +1025,22 @@ class _DayCompositionCard extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _CompositionMetric(label: 'items', value: '$itemCount'),
+            child: _CompositionMetric(label: 'Items', value: '$itemCount'),
           ),
           Container(width: 1, height: 38, color: colors.border),
           Expanded(
             child: _CompositionMetric(
-              label: 'protein',
+              label: 'Protein',
               value: '${day.totals.proteinG.round()}g',
             ),
           ),
           Container(width: 1, height: 38, color: colors.border),
           Expanded(
             child: _CompositionMetric(
-              label: 'cal / meal',
+              label: 'kCal / meal',
               value: day.mealCount == 0
-                  ? '0'
-                  : '${(day.totals.calories / day.mealCount).round()}',
+                  ? '0 kCal'
+                  : '${(day.totals.calories / day.mealCount).round()} kCal',
             ),
           ),
         ],
@@ -960,6 +1167,14 @@ class _SectionLabel extends StatelessWidget {
 
 String _rangeLabel(JournalRangeData range) {
   return '${_compactDate(range.startDate)} - ${_compactDate(range.endDate)}';
+}
+
+String _weekOffsetLabel(int offset) {
+  return switch (offset) {
+    0 => 'This week',
+    1 => 'Last week',
+    _ => '$offset weeks ago',
+  };
 }
 
 String _compactDate(String value) {

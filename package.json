@@ -17,6 +17,7 @@
     "db:seed": "node scripts/db/migrate.cjs seed",
     "db:status": "node scripts/db/migrate.cjs status",
     "db:validate": "node scripts/db/migrate.cjs validate",
+    "data:ifct:index": "node scripts/ops/extract-ifct-food-index.cjs",
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "test": "turbo run test",

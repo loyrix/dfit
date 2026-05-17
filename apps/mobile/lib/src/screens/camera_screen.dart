@@ -3,9 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:speech_to_text/speech_recognition_error.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../theme/dfit_colors.dart';
@@ -74,15 +71,9 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen>
     with SingleTickerProviderStateMixin {
   final _picker = ImagePicker();
-  final _speech = SpeechToText();
   final _hintController = TextEditingController();
   _CaptureSource? _activeSource;
   _PreparedCapture? _preparedCapture;
-  bool _speechInitializing = false;
-  bool _speechReady = false;
-  bool _listening = false;
-  String? _speechLocaleId;
-  String? _hintStatus;
   String? _captureNotice;
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -91,7 +82,6 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void dispose() {
-    _speech.cancel();
     _hintController.dispose();
     _controller.dispose();
     super.dispose();
@@ -144,15 +134,18 @@ class _CameraScreenState extends State<CameraScreen>
     final preparedCapture = _preparedCapture;
     if (preparedCapture == null || _activeSource != null) return;
     FocusScope.of(context).unfocus();
-
-    if (_speech.isListening || _listening) {
-      await _speech.stop();
-      if (!mounted) return;
-      setState(() => _listening = false);
+    final hint = _hintController.text.trim();
+    final hintWordCount = _wordCount(hint);
+    if (hint.isEmpty || hintWordCount > 50) {
+      setState(() {
+        _captureNotice = hint.isEmpty
+            ? 'Add a short food note before scanning.'
+            : 'Keep the food note within 50 words.';
+      });
+      return;
     }
 
-    final hint = _hintController.text.trim();
-    widget.onCaptured(preparedCapture.toMealPhoto(hint.isEmpty ? null : hint));
+    widget.onCaptured(preparedCapture.toMealPhoto(hint));
   }
 
   void _clearPreparedCapture() {
@@ -163,129 +156,14 @@ class _CameraScreenState extends State<CameraScreen>
     });
   }
 
-  Future<void> _toggleListening() async {
-    if (_activeSource != null || _speechInitializing) return;
-    FocusScope.of(context).unfocus();
-
-    if (_speech.isListening || _listening) {
-      await _speech.stop();
-      if (!mounted) return;
-      setState(() {
-        _listening = false;
-        _hintStatus = _hintController.text.trim().isEmpty
-            ? null
-            : 'Voice hint ready';
-      });
-      return;
-    }
-
-    setState(() {
-      _speechInitializing = true;
-      _hintStatus = 'Preparing microphone';
-    });
-
-    try {
-      final ready = _speechReady
-          ? true
-          : await _speech.initialize(
-              onStatus: _handleSpeechStatus,
-              onError: _handleSpeechError,
-              options: [SpeechToText.androidNoBluetooth],
-            );
-      if (!mounted) return;
-
-      if (!ready) {
-        setState(() {
-          _speechReady = false;
-          _listening = false;
-          _hintStatus = 'Microphone unavailable. Type the hint instead.';
-        });
-        return;
-      }
-
-      _speechReady = true;
-      _speechLocaleId ??= (await _speech.systemLocale())?.localeId;
-
-      await _speech.listen(
-        onResult: _handleSpeechResult,
-        listenFor: const Duration(seconds: 14),
-        pauseFor: const Duration(seconds: 3),
-        localeId: _speechLocaleId,
-        listenOptions: SpeechListenOptions(
-          cancelOnError: true,
-          partialResults: true,
-          listenMode: ListenMode.dictation,
-          autoPunctuation: true,
-          enableHapticFeedback: true,
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _listening = true;
-        _hintStatus = 'Listening';
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _speechReady = false;
-        _listening = false;
-        _hintStatus = 'Voice hint paused. Type it in or try again.';
-      });
-    } finally {
-      if (mounted) setState(() => _speechInitializing = false);
-    }
-  }
-
-  void _handleSpeechResult(SpeechRecognitionResult result) {
-    final words = result.recognizedWords.trim();
-    if (words.isEmpty || !mounted) return;
-    _hintController
-      ..text = words
-      ..selection = TextSelection.collapsed(offset: words.length);
-    setState(() {
-      _hintStatus = result.finalResult ? 'Voice hint ready' : 'Listening';
-      if (result.finalResult) _listening = false;
-    });
-  }
-
-  void _handleSpeechStatus(String status) {
-    if (!mounted) return;
-    if (status == 'listening') {
-      setState(() {
-        _listening = true;
-        _hintStatus = 'Listening';
-      });
-      return;
-    }
-
-    if (status == 'done' || status == 'notListening') {
-      setState(() {
-        _listening = false;
-        _hintStatus = _hintController.text.trim().isEmpty
-            ? null
-            : 'Voice hint ready';
-      });
-    }
-  }
-
-  void _handleSpeechError(SpeechRecognitionError error) {
-    if (!mounted) return;
-    final permissionIssue = error.errorMsg.toLowerCase().contains('permission');
-    setState(() {
-      _listening = false;
-      _speechInitializing = false;
-      _hintStatus = permissionIssue
-          ? 'Microphone access is off. Type the hint instead.'
-          : 'Voice hint paused. Type it in or try again.';
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
     final activeSource = _activeSource;
     final preparedCapture = _preparedCapture;
-    final busy = activeSource != null;
+    final hintWordCount = _wordCount(_hintController.text);
+    final hasValidHint =
+        _hintController.text.trim().isNotEmpty && hintWordCount <= 50;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -311,104 +189,124 @@ class _CameraScreenState extends State<CameraScreen>
                     icon: const BackMark(),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 54, 24, 24),
-                  child: Column(
-                    children: [
-                      Text(
-                        'MEAL SCAN',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.textTertiary,
-                          letterSpacing: 2.4,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        activeSource?.title ??
-                            (preparedCapture == null
-                                ? 'Center your plate'
-                                : 'Ready to analyze'),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: Text(
-                          activeSource?.subtitle ??
-                              (preparedCapture == null
-                                  ? 'Take a photo or upload one from your library'
-                                  : 'Add context, then scan manually'),
-                          key: ValueKey(
-                            '$activeSource-${preparedCapture != null}',
-                          ),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: colors.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: Center(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 260),
-                            child: FittedBox(
-                              key: ValueKey(
-                                preparedCapture?.fileName ?? 'viewfinder',
-                              ),
-                              fit: BoxFit.scaleDown,
-                              child: preparedCapture == null
-                                  ? _LiveViewfinder(
-                                      progress: _controller.value,
-                                      capturing: busy,
-                                    )
-                                  : _PreparedMealPreview(
-                                      capture: preparedCapture,
-                                      progress: _controller.value,
-                                      onClear: _clearPreparedCapture,
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 54, 24, 24),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final previewHeight = constraints.maxHeight < 680
+                            ? 210.0
+                            : 292.0;
+                        final hasPhoto = preparedCapture != null;
+
+                        return Column(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                physics: const BouncingScrollPhysics(),
+                                children: [
+                                  Text(
+                                    'Meal Scan',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: colors.textTertiary,
+                                          letterSpacing: 2.4,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    activeSource?.title ??
+                                        'Tell us what is on the plate',
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(color: colors.textPrimary),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 180),
+                                    child: Text(
+                                      activeSource?.subtitle ??
+                                          'A short note helps DFit tell similar dishes apart.',
+                                      key: ValueKey(
+                                        '$activeSource-${preparedCapture != null}',
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: colors.textSecondary,
+                                          ),
                                     ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _PlateHintField(
+                                    controller: _hintController,
+                                    onChanged: () =>
+                                        setState(() => _captureNotice = null),
+                                  ),
+                                  SizedBox(height: hasPhoto ? 18 : 22),
+                                  SizedBox(
+                                    height: previewHeight,
+                                    child: Center(
+                                      child: AnimatedSwitcher(
+                                        duration: const Duration(
+                                          milliseconds: 260,
+                                        ),
+                                        child: FittedBox(
+                                          key: ValueKey(
+                                            preparedCapture?.fileName ??
+                                                'viewfinder',
+                                          ),
+                                          fit: BoxFit.scaleDown,
+                                          child: preparedCapture == null
+                                              ? const _EmptyCaptureState()
+                                              : _PreparedMealPreview(
+                                                  capture: preparedCapture,
+                                                  progress: _controller.value,
+                                                  onClear:
+                                                      _clearPreparedCapture,
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 180),
+                                    child: _captureNotice == null
+                                        ? const SizedBox(height: 12)
+                                        : Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 12,
+                                            ),
+                                            child: _CaptureNotice(
+                                              message: _captureNotice!,
+                                            ),
+                                          ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _PlateHintField(
-                        controller: _hintController,
-                        listening: _listening,
-                        initializing: _speechInitializing,
-                        statusText: _hintStatus,
-                        onMicTap: _toggleListening,
-                      ),
-                      const SizedBox(height: 14),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: preparedCapture == null
-                            ? _CaptureReadiness(progress: _controller.value)
-                            : _PreparedCaptureStatus(
-                                source: preparedCapture.source,
-                              ),
-                      ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: _captureNotice == null
-                            ? const SizedBox(height: 12)
-                            : Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: _CaptureNotice(message: _captureNotice!),
-                              ),
-                      ),
-                      const SizedBox(height: 16),
-                      _CaptureActionBar(
-                        progress: _controller.value,
-                        activeSource: activeSource,
-                        prepared: preparedCapture != null,
-                        onCamera: () => _captureFrom(_CaptureSource.camera),
-                        onGallery: () => _captureFrom(_CaptureSource.gallery),
-                        onAnalyze: _submitPreparedCapture,
-                      ),
-                    ],
+                            const SizedBox(height: 16),
+                            _CaptureActionBar(
+                              progress: _controller.value,
+                              activeSource: activeSource,
+                              prepared: preparedCapture != null,
+                              canAnalyze: hasValidHint,
+                              onCamera: () =>
+                                  _captureFrom(_CaptureSource.camera),
+                              onGallery: () =>
+                                  _captureFrom(_CaptureSource.gallery),
+                              onAnalyze: _submitPreparedCapture,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -419,6 +317,16 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
+  int _wordCount(String value) {
+    return value.trim().isEmpty
+        ? 0
+        : value
+              .trim()
+              .split(RegExp(r'\s+'))
+              .where((word) => word.isNotEmpty)
+              .length;
+  }
+
   String _mimeTypeFor(XFile image) {
     final mimeType = image.mimeType?.toLowerCase();
     if (mimeType == 'image/png' || mimeType == 'image/webp') return mimeType!;
@@ -426,93 +334,50 @@ class _CameraScreenState extends State<CameraScreen>
   }
 }
 
-class _LiveViewfinder extends StatelessWidget {
-  const _LiveViewfinder({required this.progress, required this.capturing});
-
-  final double progress;
-  final bool capturing;
+class _EmptyCaptureState extends StatelessWidget {
+  const _EmptyCaptureState();
 
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
-    const frameSize = 292.0;
-    const guideSize = 238.0;
-    final scanY =
-        guideSize * 0.16 +
-        (math.sin(progress * math.pi * 2) + 1) * guideSize * 0.34;
 
-    return SizedBox(
-      width: frameSize,
-      height: frameSize,
-      child: Stack(
-        alignment: Alignment.center,
+    return Container(
+      width: 292,
+      height: 210,
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      decoration: BoxDecoration(
+        color: colors.surfaceCard.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: colors.border, width: 0.7),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CustomPaint(
-            size: Size.square(frameSize),
-            painter: _FocusRingPainter(progress: progress, colors: colors),
-          ),
           Container(
-            width: guideSize,
-            height: guideSize,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: colors.surfaceCard.withValues(alpha: 0.62),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: colors.border, width: 0.7),
+              color: DFitColors.accent.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
             ),
-            child: Stack(
-              children: [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: const _CornerMark(angle: 0),
-                ),
-                Align(
-                  alignment: Alignment.topRight,
-                  child: _CornerMark(angle: math.pi / 2),
-                ),
-                Align(
-                  alignment: Alignment.bottomRight,
-                  child: _CornerMark(angle: math.pi),
-                ),
-                Align(
-                  alignment: Alignment.bottomLeft,
-                  child: _CornerMark(angle: math.pi * 1.5),
-                ),
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _PlateGuidePainter(colors: colors),
-                  ),
-                ),
-                Positioned(
-                  left: 24,
-                  right: 24,
-                  top: scanY,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: DFitColors.accent,
-                      borderRadius: BorderRadius.circular(99),
-                      boxShadow: [
-                        BoxShadow(
-                          color: DFitColors.accent.withValues(alpha: 0.35),
-                          blurRadius: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Center(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: capturing ? 8 : 6,
-                    height: capturing ? 8 : 6,
-                    decoration: const BoxDecoration(
-                      color: DFitColors.accent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
+            child: const Icon(
+              Icons.restaurant_rounded,
+              color: DFitColors.accent,
+              size: 24,
             ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Add a meal photo',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Keep the full plate visible for better accuracy.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
         ],
       ),
@@ -607,8 +472,8 @@ class _PreparedMealPreview extends StatelessWidget {
             left: 16,
             child: _PreviewChip(
               label: capture.source == _CaptureSource.camera
-                  ? 'PHOTO READY'
-                  : 'UPLOAD READY',
+                  ? 'Photo Ready'
+                  : 'Upload Ready',
             ),
           ),
           Positioned(
@@ -711,368 +576,135 @@ class _PreviewChip extends StatelessWidget {
   }
 }
 
-class _CaptureReadiness extends StatelessWidget {
-  const _CaptureReadiness({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.dfit;
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 330),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ReadinessPill(label: 'light', progress: progress, delay: 0),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ReadinessPill(
-              label: 'top view',
-              progress: progress,
-              delay: 0.28,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ReadinessPill(
-              label: 'full plate',
-              progress: progress,
-              delay: 0.56,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreparedCaptureStatus extends StatelessWidget {
-  const _PreparedCaptureStatus({required this.source});
-
-  final _CaptureSource source;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.dfit;
-
-    return Container(
-      key: const ValueKey('prepared-capture-status'),
-      constraints: const BoxConstraints(maxWidth: 330),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _StaticStatusPill(
-              label: source == _CaptureSource.camera
-                  ? 'photo ready'
-                  : 'upload ready',
-              active: true,
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: _StaticStatusPill(label: 'hint optional', active: false),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: _StaticStatusPill(label: 'not stored', active: false),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StaticStatusPill extends StatelessWidget {
-  const _StaticStatusPill({required this.label, required this.active});
-
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.dfit;
-
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      decoration: BoxDecoration(
-        color: active
-            ? DFitColors.accent.withValues(alpha: 0.25)
-            : colors.textPrimary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(
-          color: active
-              ? DFitColors.accent.withValues(alpha: 0.38)
-              : colors.border,
-          width: 0.7,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: active ? DFitColors.accent : colors.textTertiary,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: active ? colors.accentText : colors.textSecondary,
-                letterSpacing: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PlateHintField extends StatelessWidget {
-  const _PlateHintField({
-    required this.controller,
-    required this.listening,
-    required this.initializing,
-    required this.onMicTap,
-    this.statusText,
-  });
+  const _PlateHintField({required this.controller, required this.onChanged});
 
   final TextEditingController controller;
-  final bool listening;
-  final bool initializing;
-  final VoidCallback onMicTap;
-  final String? statusText;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
-    final status = statusText;
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 330),
-      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 10, 14),
       decoration: BoxDecoration(
         color: colors.surfaceCard.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colors.border, width: 0.6),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+      child: ValueListenableBuilder<TextEditingValue>(
+        valueListenable: controller,
+        builder: (context, value, _) {
+          final text = value.text.trim();
+          final wordCount = text.isEmpty
+              ? 0
+              : text
+                    .split(RegExp(r'\s+'))
+                    .where((word) => word.isNotEmpty)
+                    .length;
+          final overLimit = wordCount > 50;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  maxLength: 280,
-                  maxLines: 1,
-                  textInputAction: TextInputAction.done,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.textPrimary,
-                    letterSpacing: 0,
-                  ),
-                  decoration: InputDecoration(
-                    counterText: '',
-                    hintText: 'dal, rice, roti, sabzi',
-                    labelText: "What's on the plate?",
-                    labelStyle: Theme.of(context).textTheme.labelSmall
-                        ?.copyWith(
-                          color: colors.textSecondary,
-                          letterSpacing: 0.8,
-                        ),
-                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colors.textTertiary,
-                      letterSpacing: 0,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      maxLength: 280,
+                      minLines: 4,
+                      maxLines: null,
+                      onChanged: (_) => onChanged(),
+                      textInputAction: TextInputAction.newline,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.textPrimary,
+                        letterSpacing: 0,
+                      ),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        hintText:
+                            'Example: 2 rotis, dal, jeera rice and mixed veg sabzi',
+                        labelText: 'Food note',
+                        labelStyle: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(
+                              color: colors.textSecondary,
+                              letterSpacing: 0.8,
+                            ),
+                        hintStyle: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(
+                              color: colors.textTertiary,
+                              letterSpacing: 0,
+                              height: 1.3,
+                            ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  const _VoiceHintButton(),
+                ],
               ),
-              const SizedBox(width: 8),
-              _VoiceHintButton(
-                listening: listening,
-                initializing: initializing,
-                onTap: onMicTap,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Required',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: overLimit
+                            ? colors.accentText
+                            : colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$wordCount / 50 words',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: overLimit
+                          ? colors.accentText
+                          : colors.textSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: status == null
-                ? const SizedBox.shrink()
-                : Padding(
-                    key: ValueKey(status),
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: listening
-                                ? DFitColors.accent
-                                : colors.textTertiary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: Text(
-                            status,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: colors.textSecondary,
-                                  letterSpacing: 0,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
 class _VoiceHintButton extends StatelessWidget {
-  const _VoiceHintButton({
-    required this.listening,
-    required this.initializing,
-    required this.onTap,
-  });
-
-  final bool listening;
-  final bool initializing;
-  final VoidCallback onTap;
+  const _VoiceHintButton();
 
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
-    final background = listening
-        ? DFitColors.accent
-        : colors.textPrimary.withValues(alpha: 0.08);
-    final foreground = listening ? DFitColors.accentDeep : colors.textPrimary;
-
-    return Semantics(
-      button: true,
-      label: listening ? 'Stop voice hint' : 'Add voice hint',
-      child: InkWell(
-        onTap: initializing ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+    return Tooltip(
+      message: 'Voice input coming soon',
+      child: Semantics(
+        button: true,
+        enabled: false,
+        label: 'Voice input coming soon',
+        child: Container(
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: background,
+            color: colors.textPrimary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: listening
-                  ? DFitColors.accent.withValues(alpha: 0.7)
-                  : colors.border,
-              width: 0.7,
-            ),
+            border: Border.all(color: colors.border, width: 0.7),
           ),
-          child: Center(
-            child: initializing
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.8,
-                      color: foreground,
-                    ),
-                  )
-                : Icon(
-                    listening ? Icons.stop_rounded : Icons.mic_rounded,
-                    color: foreground,
-                    size: 20,
-                  ),
-          ),
+          child: Icon(Icons.mic_rounded, color: colors.textTertiary, size: 20),
         ),
-      ),
-    );
-  }
-}
-
-class _ReadinessPill extends StatelessWidget {
-  const _ReadinessPill({
-    required this.label,
-    required this.progress,
-    required this.delay,
-  });
-
-  final String label;
-  final double progress;
-  final double delay;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.dfit;
-    final t = (progress + delay) % 1;
-    final glow = 0.18 + (math.sin(t * math.pi) * 0.1);
-
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      decoration: BoxDecoration(
-        color: DFitColors.accent.withValues(alpha: glow),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(
-          color: DFitColors.accent.withValues(alpha: 0.35),
-          width: 0.7,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: DFitColors.accent,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.accentText,
-                letterSpacing: 0,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1083,6 +715,7 @@ class _CaptureActionBar extends StatelessWidget {
     required this.progress,
     required this.activeSource,
     required this.prepared,
+    required this.canAnalyze,
     required this.onCamera,
     required this.onGallery,
     required this.onAnalyze,
@@ -1091,6 +724,7 @@ class _CaptureActionBar extends StatelessWidget {
   final double progress;
   final _CaptureSource? activeSource;
   final bool prepared;
+  final bool canAnalyze;
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback onAnalyze;
@@ -1116,7 +750,7 @@ class _CaptureActionBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _CaptureButton(
-                    label: 'Analyze meal',
+                    label: 'Analyze plate',
                     icon: const Icon(
                       Icons.auto_awesome_rounded,
                       color: DFitColors.accentDeep,
@@ -1125,7 +759,7 @@ class _CaptureActionBar extends StatelessWidget {
                     primary: true,
                     progress: progress,
                     loading: false,
-                    disabled: disabled,
+                    disabled: disabled || !canAnalyze,
                     onTap: onAnalyze,
                   ),
                   const SizedBox(height: 8),
@@ -1383,115 +1017,5 @@ class _CameraBackdropPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _CameraBackdropPainter oldDelegate) {
     return oldDelegate.progress != progress || oldDelegate.colors != colors;
-  }
-}
-
-class _FocusRingPainter extends CustomPainter {
-  const _FocusRingPainter({required this.progress, required this.colors});
-
-  final double progress;
-  final DFitThemeColors colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.width / 2 - 5;
-    final base = Paint()
-      ..color = DFitColors.accent.withValues(alpha: 0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final arc = Paint()
-      ..shader = SweepGradient(
-        colors: [
-          Colors.transparent,
-          DFitColors.accent.withValues(alpha: 0.08),
-          DFitColors.accent.withValues(alpha: 0.64),
-          Colors.transparent,
-        ],
-        stops: const [0, 0.48, 0.78, 1],
-        transform: GradientRotation(progress * math.pi * 2),
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawCircle(center, radius, base);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      math.pi * 1.35,
-      false,
-      arc,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _FocusRingPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.colors != colors;
-  }
-}
-
-class _PlateGuidePainter extends CustomPainter {
-  const _PlateGuidePainter({required this.colors});
-
-  final DFitThemeColors colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final paint = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.08)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    canvas.drawCircle(center, size.shortestSide * 0.31, paint);
-    canvas.drawCircle(center, size.shortestSide * 0.2, paint);
-
-    final cross = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.06)
-      ..strokeWidth = 1;
-    final edge = size.shortestSide * 0.11;
-    final inner = size.shortestSide * 0.24;
-    canvas.drawLine(Offset(center.dx, edge), Offset(center.dx, inner), cross);
-    canvas.drawLine(
-      Offset(center.dx, size.height - edge),
-      Offset(center.dx, size.height - inner),
-      cross,
-    );
-    canvas.drawLine(Offset(edge, center.dy), Offset(inner, center.dy), cross);
-    canvas.drawLine(
-      Offset(size.width - edge, center.dy),
-      Offset(size.width - inner, center.dy),
-      cross,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _PlateGuidePainter oldDelegate) {
-    return oldDelegate.colors != colors;
-  }
-}
-
-class _CornerMark extends StatelessWidget {
-  const _CornerMark({required this.angle});
-
-  final double angle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: angle,
-      child: Container(
-        width: 32,
-        height: 32,
-        margin: const EdgeInsets.all(14),
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: DFitColors.accent, width: 2),
-            left: BorderSide(color: DFitColors.accent, width: 2),
-          ),
-        ),
-      ),
-    );
   }
 }

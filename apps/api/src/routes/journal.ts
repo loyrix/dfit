@@ -1,7 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { createMealRequestSchema, journalRangeQuerySchema } from "@dfit/contracts";
 import type { AppRepository } from "../repositories/app-repository.js";
-import { buildJournalRange, buildTodayJournal, toApiMeal } from "./journal-presenter.js";
+import {
+  buildJournalRange,
+  buildJournalWeeks,
+  buildTodayJournal,
+  toApiMeal,
+} from "./journal-presenter.js";
 
 export const registerJournalRoutes = async (
   app: FastifyInstance,
@@ -22,7 +27,16 @@ export const registerJournalRoutes = async (
     }
 
     const profile = await repository.getProfile();
-    return buildJournalRange(repository, profile, parsed.data.days);
+    return buildJournalRange(
+      repository,
+      profile,
+      parsed.data.days,
+      parsed.data.weekOffset,
+    );
+  });
+
+  app.get("/v1/journal/weeks", async () => {
+    return buildJournalWeeks(repository);
   });
 
   app.post("/v1/meals", async (request, reply) => {

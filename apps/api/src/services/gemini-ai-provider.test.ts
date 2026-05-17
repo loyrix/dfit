@@ -103,7 +103,7 @@ describe("GeminiAiProvider", () => {
     });
     const prompt = (requestBody as { contents: Array<{ parts: Array<{ text?: string }> }> })
       .contents[0]?.parts[0]?.text;
-    expect(prompt).toContain('User typed this optional plate hint: "dal rice roti"');
+    expect(prompt).toContain('User typed this plate note: "dal rice roti"');
     expect(prompt).toContain("Analyze ONLY food items that are actually visible");
     expect(prompt).toContain("Do NOT invent, hallucinate, or assume food items");
     expect(prompt).toContain("plate geometry");

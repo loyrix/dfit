@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/auth_session.dart';
 import 'models/meal.dart';
+import 'models/meal_type_resolver.dart';
 import 'navigation/dfit_page_route.dart';
 import 'screens/account_gate_screen.dart';
 import 'screens/account_profile_screen.dart';
@@ -29,19 +30,20 @@ class DFitApp extends StatefulWidget {
 
 class _DFitAppState extends State<DFitApp> {
   static const _hasSeenWelcomeKey = 'dfit.has_seen_welcome';
+  static const _themeModeKey = 'dfit.theme_mode';
 
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   late final AuthController _authController = AuthController();
   late final JournalController _journalController = JournalController();
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _loadWelcomeState();
+    _loadLocalPreferences();
     _authController.load();
     _journalController.loadToday();
   }
@@ -83,7 +85,6 @@ class _DFitAppState extends State<DFitApp> {
         return TodayScreen(
           meals: _journalController.meals,
           totals: _journalController.totals,
-          target: _journalController.target,
           quota: _journalController.quota,
           weeklyRange: _journalController.weeklyRange,
           loading: _journalController.loading,
@@ -100,15 +101,39 @@ class _DFitAppState extends State<DFitApp> {
     );
   }
 
-  Future<void> _loadWelcomeState() async {
+  Future<void> _loadLocalPreferences() async {
     try {
       final preferences = await SharedPreferences.getInstance();
       _hasSeenWelcome = preferences.getBool(_hasSeenWelcomeKey) ?? false;
+      _themeMode = _themeModeFromPreference(
+        preferences.getString(_themeModeKey),
+      );
     } catch (_) {
       _hasSeenWelcome = false;
+      _themeMode = ThemeMode.dark;
     }
     if (!mounted) return;
     setState(() => _welcomeStateLoaded = true);
+  }
+
+  ThemeMode _themeModeFromPreference(String? value) {
+    return switch (value) {
+      'system' => ThemeMode.system,
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.dark,
+    };
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_themeModeKey, mode.name);
+    } catch (_) {
+      // Keep the selected theme for this session even if local storage is
+      // temporarily unavailable.
+    }
   }
 
   Future<void> _markWelcomeSeen() async {
@@ -126,11 +151,11 @@ class _DFitAppState extends State<DFitApp> {
     if (!await _ensureScanAllowed()) return;
 
     await _navigatorKey.currentState!.push<void>(
-      MaterialPageRoute<void>(
+      dfitPageRoute<void>(
         builder: (_) => CameraScreen(
           onCaptured: (photo) {
             _navigatorKey.currentState!.pushReplacement<void, void>(
-              MaterialPageRoute<void>(
+              dfitPageRoute<void>(
                 builder: (_) => AnalyzingScreen(
                   photo: photo,
                   onAnalyze: _journalController.analyzeCapturedMeal,
@@ -141,10 +166,14 @@ class _DFitAppState extends State<DFitApp> {
                   onAddManually: _openManualReview,
                   onAnalyzed: (analysis) {
                     _navigatorKey.currentState!.pushReplacement<void, void>(
-                      MaterialPageRoute<void>(
+                      dfitPageRoute<void>(
                         builder: (_) => ReviewMealScreen(
                           initialItems: analysis.items,
-                          initialMealType: analysis.mealType,
+                          initialMealType: mealTypeForReview(
+                            localTime: DateTime.now(),
+                            foodSuggestedType: analysis.mealType,
+                          ),
+                          lockInitialItems: true,
                           onConfirm: (type, items) {
                             return _confirmAnalyzedMeal(
                               scanId: analysis.scanId,
@@ -168,9 +197,10 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openManualReview() async {
     await _navigatorKey.currentState!.push<void>(
-      MaterialPageRoute<void>(
+      dfitPageRoute<void>(
         builder: (_) => ReviewMealScreen(
           initialItems: sampleDetectedItems().take(2).toList(),
+          initialMealType: mealTypeForLocalTime(DateTime.now()),
           onConfirm: _saveMeal,
         ),
       ),
@@ -249,7 +279,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openSettings() async {
     await _navigatorKey.currentState!.push<void>(
-      MaterialPageRoute<void>(
+      dfitPageRoute<void>(
         builder: (_) => AnimatedBuilder(
           animation: _authController,
           builder: (context, _) {
@@ -259,9 +289,7 @@ class _DFitAppState extends State<DFitApp> {
               diagnosticsEntries: AppDiagnostics.instance.entries,
               onOpenAccount: () =>
                   _openAccountHome(AccountGateReason.saveJournal),
-              onThemeChanged: (mode) {
-                setState(() => _themeMode = mode);
-              },
+              onThemeChanged: _setThemeMode,
             );
           },
         ),
@@ -286,7 +314,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<AuthSession?> _openAccountGate(AccountGateReason reason) async {
     final result = await _navigatorKey.currentState!.push<AuthSession>(
-      MaterialPageRoute<AuthSession>(
+      dfitPageRoute<AuthSession>(
         builder: (_) => AnimatedBuilder(
           animation: _authController,
           builder: (context, _) {
@@ -317,7 +345,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openAccountProfile(AuthSession session) async {
     await _navigatorKey.currentState!.push<void>(
-      MaterialPageRoute<void>(
+      dfitPageRoute<void>(
         builder: (_) => AnimatedBuilder(
           animation: _authController,
           builder: (context, _) {
@@ -349,10 +377,11 @@ class _DFitAppState extends State<DFitApp> {
       dfitPageRoute<void>(
         builder: (_) => WeeklyJournalScreen(
           range: range,
-          target: _journalController.target,
           isSyncing: _journalController.loading,
           syncMessage: _journalController.error,
           onRefresh: _journalController.loadToday,
+          onLoadWeek: _journalController.loadWeeklyRange,
+          onLoadWeeks: _journalController.loadAvailableWeeks,
           onOpenMeal: _openMealDetail,
         ),
       ),

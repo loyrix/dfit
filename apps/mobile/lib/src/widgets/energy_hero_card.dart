@@ -4,25 +4,19 @@ import '../models/meal.dart';
 import '../theme/dfit_colors.dart';
 
 class EnergyHeroCard extends StatelessWidget {
-  const EnergyHeroCard({super.key, required this.totals, required this.target});
+  const EnergyHeroCard({
+    super.key,
+    required this.totals,
+    required this.mealCount,
+    this.label = 'Energy',
+  });
 
   final MacroTotals totals;
-  final MacroTotals target;
+  final int mealCount;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    final pct = target.calories == 0
-        ? 0.0
-        : (totals.calories / target.calories).clamp(0.0, 1.0);
-    final remaining = target.calories - totals.calories;
-    final balanceLabel = target.calories == 0
-        ? 'set target'
-        : remaining > 0
-        ? '$remaining kcal left'
-        : remaining < 0
-        ? '${remaining.abs()} kcal over'
-        : 'on target';
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -36,7 +30,7 @@ class EnergyHeroCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ENERGY',
+                label,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: Colors.white.withValues(alpha: 0.5),
                   letterSpacing: 1.8,
@@ -58,7 +52,7 @@ class EnergyHeroCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      '/${target.calories} kcal',
+                      'kCal',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.5),
                       ),
@@ -67,43 +61,21 @@ class EnergyHeroCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Row(
-                children: List.generate(10, (index) {
-                  final active = index < (pct * 10).floor();
-                  final partial = index == (pct * 10).floor() && pct > 0;
-                  return Expanded(
-                    child: Container(
-                      height: 4,
-                      margin: EdgeInsets.only(right: index == 9 ? 0 : 3),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? DFitColors.accent
-                            : partial
-                            ? DFitColors.accent.withValues(alpha: 0.35)
-                            : Colors.white.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  );
-                }),
+              Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(99),
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${(pct * 100).round()}%',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  Text(
-                    balanceLabel,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: DFitColors.accent),
-                  ),
-                ],
+              const SizedBox(height: 10),
+              Text(
+                mealCount == 0
+                    ? 'No meals logged yet'
+                    : '$mealCount ${mealCount == 1 ? 'meal' : 'meals'} logged',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: DFitColors.accent),
               ),
             ],
           ),

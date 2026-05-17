@@ -4,13 +4,6 @@ import type { AppRepository, Profile } from "../repositories/app-repository.js";
 type RouteMeal =
   Awaited<ReturnType<AppRepository["getMeal"]>> extends infer T ? NonNullable<T> : never;
 
-export const journalTarget = {
-  calories: 1900,
-  proteinG: 120,
-  carbsG: 220,
-  fatG: 65,
-};
-
 export const toApiMeal = (profileId: string, meal: RouteMeal) => ({
   id: meal.mealId,
   profileId,
@@ -43,8 +36,11 @@ const addDays = (date: Date, days: number): Date => {
 
 export const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
 
-const dateWindow = (days: number): string[] => {
-  const end = new Date();
+const dateOnly = (date: Date): Date => {
+  return new Date(`${toDateString(date)}T00:00:00.000Z`);
+};
+
+const dateWindow = (days: number, end: Date): string[] => {
   return Array.from({ length: days }, (_, index) => {
     const offset = index - (days - 1);
     return toDateString(addDays(end, offset));
@@ -69,7 +65,6 @@ export const buildTodayJournal = async (repository: AppRepository, profile: Prof
     date: today,
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
-    target: journalTarget,
     meals: meals.map((meal) => toApiMeal(profile.id, meal)),
   };
 };
@@ -78,8 +73,10 @@ export const buildJournalRange = async (
   repository: AppRepository,
   profile: Profile,
   daysCount: number,
+  weekOffset = 0,
 ) => {
-  const dates = dateWindow(daysCount);
+  const endDate = addDays(new Date(), -(weekOffset * 7));
+  const dates = dateWindow(daysCount, endDate);
   const meals = await repository.listMeals({
     fromDate: dates[0],
     toDate: dates[dates.length - 1],
@@ -101,19 +98,54 @@ export const buildJournalRange = async (
     };
   });
   const totals = sumTotals(days.map((day) => day.totals));
+  const activeDays = days.filter((day) => day.mealCount > 0).length;
 
   return {
     startDate: dates[0],
     endDate: dates[dates.length - 1],
     timezone: profile.timezone,
-    target: journalTarget,
     days,
     summary: {
       windowDays: daysCount,
-      activeDays: days.filter((day) => day.mealCount > 0).length,
+      activeDays,
       mealCount: meals.length,
       totals,
-      dailyAverage: dailyAverage(totals, daysCount),
+      trackedDayAverage: dailyAverage(totals, activeDays || 1),
+      calendarDayAverage: dailyAverage(totals, daysCount),
     },
   };
+};
+
+export const buildJournalWeeks = async (
+  repository: AppRepository,
+  daysCount = 7,
+) => {
+  const today = dateOnly(new Date());
+  const mealDates = await repository.listMealDates();
+  const mealDateSet = new Set(mealDates);
+  const offsets = new Set<number>([0]);
+
+  for (const mealDate of mealDates) {
+    const parsed = new Date(`${mealDate}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed > today) continue;
+    const daysAgo = Math.floor(
+      (today.getTime() - parsed.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    offsets.add(Math.floor(daysAgo / daysCount));
+  }
+
+  const weeks = [...offsets]
+    .sort((a, b) => a - b)
+    .map((weekOffset) => {
+      const endDate = addDays(today, -(weekOffset * daysCount));
+      const dates = dateWindow(daysCount, endDate);
+      return {
+        weekOffset,
+        startDate: dates[0],
+        endDate: dates[dates.length - 1],
+        activeDays: dates.filter((date) => mealDateSet.has(date)).length,
+      };
+    });
+
+  return { weeks };
 };
