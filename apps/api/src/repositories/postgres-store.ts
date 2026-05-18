@@ -883,6 +883,7 @@ export class PostgresStore implements AppRepository {
 
   async setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">) {
     const profile = await this.getProfile();
+    const responseBody = record.responseBody ?? {};
     await this.sql`
       insert into idempotency_keys (
         profile_id,
@@ -898,7 +899,7 @@ export class PostgresStore implements AppRepository {
         'unknown',
         'unknown',
         ${record.responseStatus},
-        ${this.sql.json(toJsonValue(record.responseBody))}
+        ${this.sql.json(toJsonValue(responseBody))}
       )
       on conflict (profile_id, idempotency_key) do nothing
     `;

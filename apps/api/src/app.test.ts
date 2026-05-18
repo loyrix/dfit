@@ -340,6 +340,14 @@ describe("DFit API", () => {
       headers: { "idempotency-key": "delete-meal" },
     });
     expect(deleted.statusCode).toBe(204);
+
+    const replayedDelete = await app.inject({
+      method: "DELETE",
+      url: `/v1/meals/${mealId}`,
+      headers: { "idempotency-key": "delete-meal" },
+    });
+    expect(replayedDelete.statusCode).toBe(204);
+
     expect(mealImageStorage.deletes).toHaveLength(1);
     expect(await repository.getScan(scanId)).toBeUndefined();
 
