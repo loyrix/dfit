@@ -14,6 +14,7 @@ import type {
   CreateMealInput,
   IdempotencyRecord,
   ListMealsInput,
+  MealDeletionPlan,
   Profile,
   ScanSession,
   UpdateMealInput,
@@ -37,6 +38,7 @@ export class InMemoryStore implements AppRepository {
   private readonly sessions = new Map<string, string>();
   private readonly meals = new Map<string, MealSummary>();
   private readonly mealProfiles = new Map<string, string>();
+  private readonly mealScanSessions = new Map<string, string>();
   private readonly scans = new Map<string, ScanSession>();
   private readonly idempotency = new Map<string, IdempotencyRecord>();
   private readonly quotas = new Map<string, ScanCreditState>();
@@ -150,6 +152,7 @@ export class InMemoryStore implements AppRepository {
 
     this.meals.set(meal.mealId, meal);
     this.mealProfiles.set(meal.mealId, input.profileId ?? (await this.getProfile()).id);
+    if (input.scanSessionId) this.mealScanSessions.set(meal.mealId, input.scanSessionId);
     return meal;
   }
 
@@ -182,6 +185,7 @@ export class InMemoryStore implements AppRepository {
         ...item,
         foodId: item.foodId ?? randomUUID(),
       })),
+      image: existing.image,
     });
 
     this.meals.set(mealId, meal);
@@ -219,9 +223,23 @@ export class InMemoryStore implements AppRepository {
     return this.meals.get(mealId);
   }
 
+  async getMealDeletionPlan(mealId: string): Promise<MealDeletionPlan | undefined> {
+    const meal = await this.getMeal(mealId);
+    if (!meal) return undefined;
+    return {
+      mealId,
+      image: meal.image,
+      scanSessionId: this.mealScanSessions.get(mealId),
+    };
+  }
+
   async deleteMeal(mealId: string) {
     const profile = await this.getProfile();
     if (this.mealProfiles.get(mealId) !== profile.id) return false;
+    const scanSessionId = this.mealScanSessions.get(mealId);
+    this.mealProfiles.delete(mealId);
+    this.mealScanSessions.delete(mealId);
+    if (scanSessionId) this.scans.delete(scanSessionId);
     return this.meals.delete(mealId);
   }
 

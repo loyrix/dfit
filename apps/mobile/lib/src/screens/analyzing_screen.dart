@@ -113,8 +113,11 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _ScanMark(animation: _controller),
-                        const SizedBox(height: 36),
+                        _AnalyzingMealPreview(
+                          photo: widget.photo,
+                          animation: _controller,
+                        ),
+                        const SizedBox(height: 28),
                         Text(
                           failure == null
                               ? 'Reading your plate'
@@ -354,9 +357,10 @@ class _HintPill extends StatelessWidget {
   }
 }
 
-class _ScanMark extends StatelessWidget {
-  const _ScanMark({required this.animation});
+class _AnalyzingMealPreview extends StatelessWidget {
+  const _AnalyzingMealPreview({required this.photo, required this.animation});
 
+  final CapturedMealPhoto photo;
   final Animation<double> animation;
 
   @override
@@ -367,36 +371,73 @@ class _ScanMark extends StatelessWidget {
       animation: animation,
       builder: (context, _) {
         final t = animation.value;
-        final scanY = 46 + (math.sin(t * math.pi * 2) + 1) * 38;
+        final scanY = 24 + (math.sin(t * math.pi * 2) + 1) * 81;
 
         return SizedBox(
-          width: 196,
-          height: 196,
+          width: 252,
+          height: 252,
           child: Stack(
-            alignment: Alignment.center,
             children: [
-              Transform.rotate(
-                angle: t * math.pi * 2,
-                child: CustomPaint(
-                  size: const Size.square(196),
-                  painter: _OrbitPainter(progress: t),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 26,
+                        offset: const Offset(0, 18),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Container(
-                width: 116,
-                height: 116,
-                decoration: BoxDecoration(
-                  color: colors.surfaceCard,
-                  border: Border.all(
-                    color: DFitColors.accent.withValues(alpha: 0.22),
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.memory(
+                        photo.bytes,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _AnalyzingMealFallback(),
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.10),
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.46),
+                            ],
+                            stops: const [0, 0.42, 1],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: DFitColors.accent.withValues(alpha: 0.22),
+                    ),
+                  ),
                 ),
               ),
               Positioned(
+                left: 18,
+                right: 18,
                 top: scanY,
                 child: Container(
-                  width: 116,
                   height: 2.5,
                   decoration: BoxDecoration(
                     color: DFitColors.accent,
@@ -411,9 +452,48 @@ class _ScanMark extends StatelessWidget {
                   ),
                 ),
               ),
-              _PulseDot(top: 55, left: 73, animation: animation, delay: 0),
-              _PulseDot(top: 90, left: 120, animation: animation, delay: 0.34),
-              _PulseDot(top: 127, left: 85, animation: animation, delay: 0.68),
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.42),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Text(
+                    'Analyzing',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 16,
+                bottom: 16,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceCard.withValues(alpha: 0.88),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: colors.border),
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: DFitColors.accent,
+                    size: 18,
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -422,89 +502,22 @@ class _ScanMark extends StatelessWidget {
   }
 }
 
-class _PulseDot extends StatelessWidget {
-  const _PulseDot({
-    required this.top,
-    required this.left,
-    required this.animation,
-    required this.delay,
-  });
-
-  final double top;
-  final double left;
-  final Animation<double> animation;
-  final double delay;
+class _AnalyzingMealFallback extends StatelessWidget {
+  const _AnalyzingMealFallback();
 
   @override
   Widget build(BuildContext context) {
-    final t = (animation.value + delay) % 1;
-    final scale = 0.82 + 0.38 * math.sin(t * math.pi);
-
-    return Positioned(
-      top: top,
-      left: left,
-      child: Transform.scale(
-        scale: scale,
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: DFitColors.accent.withValues(alpha: 0.72 + 0.28 * t),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: DFitColors.accent.withValues(alpha: 0.32),
-                blurRadius: 10,
-              ),
-            ],
-          ),
+    final colors = context.dfit;
+    return DecoratedBox(
+      decoration: BoxDecoration(color: colors.surfaceCard),
+      child: Center(
+        child: Icon(
+          Icons.restaurant_rounded,
+          color: colors.accentText,
+          size: 42,
         ),
       ),
     );
-  }
-}
-
-class _OrbitPainter extends CustomPainter {
-  const _OrbitPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.width / 2 - 5;
-    final base = Paint()
-      ..color = DFitColors.accent.withValues(alpha: 0.16)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final arc = Paint()
-      ..shader = SweepGradient(
-        colors: [
-          Colors.transparent,
-          DFitColors.accent.withValues(alpha: 0.2),
-          DFitColors.accent.withValues(alpha: 0.8),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.45, 0.78, 1.0],
-        transform: GradientRotation(progress * math.pi * 2),
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawCircle(center, radius, base);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      math.pi * 1.25,
-      false,
-      arc,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _OrbitPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }
 

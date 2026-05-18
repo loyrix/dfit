@@ -186,6 +186,17 @@ class DFitApiClient {
     return MealLog.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  Future<void> deleteMeal({
+    required String mealId,
+    required String idempotencyKey,
+  }) async {
+    final response = await _httpClient.delete(
+      Uri.parse('$baseUrl/v1/meals/$mealId'),
+      headers: await _headers(idempotencyKey: idempotencyKey),
+    );
+    _throwIfBad(response);
+  }
+
   Future<PreparedScan> prepareScan({required String idempotencyKey}) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/prepare'),

@@ -23,6 +23,7 @@ import type {
   CreateMealInput,
   IdempotencyRecord,
   ListMealsInput,
+  MealDeletionPlan,
   Profile,
   ScanSession,
   UpdateMealInput,
@@ -612,15 +613,86 @@ export class PostgresStore implements AppRepository {
     return this.mealFromRow(meal);
   }
 
+  async getMealDeletionPlan(mealId: string): Promise<MealDeletionPlan | undefined> {
+    const profile = await this.getProfile();
+    const [row] = await this.sql<
+      {
+        meal_id: string;
+        scan_session_id: string | null;
+        image_id: string | null;
+        bucket: string | null;
+        object_key: string | null;
+        mime_type: MealImageRow["mime_type"] | null;
+        byte_size: number | null;
+        width: number | null;
+        height: number | null;
+        created_at: string | null;
+      }[]
+    >`
+      select
+        meals.id::text as meal_id,
+        meals.scan_session_id::text,
+        meal_images.id::text as image_id,
+        meal_images.bucket,
+        meal_images.object_key,
+        meal_images.mime_type,
+        meal_images.byte_size,
+        meal_images.width,
+        meal_images.height,
+        meal_images.created_at::text
+      from meals
+      left join meal_images on meal_images.meal_id = meals.id
+      where meals.id = ${mealId}
+        and meals.profile_id = ${profile.id}
+      limit 1
+    `;
+    if (!row) return undefined;
+
+    return {
+      mealId: row.meal_id,
+      scanSessionId: row.scan_session_id ?? undefined,
+      image:
+        row.image_id &&
+        row.bucket &&
+        row.object_key &&
+        row.mime_type &&
+        row.byte_size &&
+        row.created_at
+          ? {
+              imageId: row.image_id,
+              bucket: row.bucket,
+              objectKey: row.object_key,
+              mimeType: row.mime_type,
+              byteSize: row.byte_size,
+              width: row.width ?? undefined,
+              height: row.height ?? undefined,
+              createdAt: row.created_at,
+            }
+          : undefined,
+    };
+  }
+
   async deleteMeal(mealId: string) {
     const profile = await this.getProfile();
-    const rows = await this.sql<{ id: string }[]>`
-      delete from meals
-      where id = ${mealId}
-        and profile_id = ${profile.id}
-      returning id::text
-    `;
-    return rows.length > 0;
+    return this.sql.begin(async (tx) => {
+      const [deleted] = await tx<{ scan_session_id: string | null }[]>`
+        delete from meals
+        where id = ${mealId}
+          and profile_id = ${profile.id}
+        returning scan_session_id::text
+      `;
+      if (!deleted) return false;
+
+      if (deleted.scan_session_id) {
+        await tx`
+          delete from scan_sessions
+          where id = ${deleted.scan_session_id}
+            and profile_id = ${profile.id}
+        `;
+      }
+
+      return true;
+    });
   }
 
   async prepareScan(profileId?: string) {

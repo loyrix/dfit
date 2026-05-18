@@ -194,109 +194,89 @@ class _CameraScreenState extends State<CameraScreen>
                     padding: const EdgeInsets.fromLTRB(24, 54, 24, 24),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final previewHeight = constraints.maxHeight < 680
-                            ? 210.0
-                            : 292.0;
+                        final compact = constraints.maxHeight < 720;
+                        final previewSize = compact ? 238.0 : 292.0;
                         final hasPhoto = preparedCapture != null;
 
                         return Column(
                           children: [
-                            Expanded(
-                              child: ListView(
-                                physics: const BouncingScrollPhysics(),
-                                children: [
-                                  Text(
-                                    'Meal Scan',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: colors.textTertiary,
-                                          letterSpacing: 2.4,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    activeSource?.title ??
-                                        'Tell us what is on the plate',
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
-                                        ?.copyWith(color: colors.textPrimary),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 180),
-                                    child: Text(
-                                      activeSource?.subtitle ??
-                                          'A short note helps DFit tell similar dishes apart.',
-                                      key: ValueKey(
-                                        '$activeSource-${preparedCapture != null}',
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: colors.textSecondary,
-                                          ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Meal Scan',
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: colors.textTertiary,
+                                      letterSpacing: 2.4,
                                     ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _PlateHintField(
-                                    controller: _hintController,
-                                    onChanged: () =>
-                                        setState(() => _captureNotice = null),
-                                  ),
-                                  SizedBox(height: hasPhoto ? 18 : 22),
-                                  SizedBox(
-                                    height: previewHeight,
-                                    child: Center(
-                                      child: AnimatedSwitcher(
-                                        duration: const Duration(
-                                          milliseconds: 260,
-                                        ),
-                                        child: FittedBox(
-                                          key: ValueKey(
-                                            preparedCapture?.fileName ??
-                                                'viewfinder',
-                                          ),
-                                          fit: BoxFit.scaleDown,
-                                          child: preparedCapture == null
-                                              ? const _EmptyCaptureState()
-                                              : _PreparedMealPreview(
-                                                  capture: preparedCapture,
-                                                  progress: _controller.value,
-                                                  onClear:
-                                                      _clearPreparedCapture,
-                                                ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 180),
-                                    child: _captureNotice == null
-                                        ? const SizedBox(height: 12)
-                                        : Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 12,
-                                            ),
-                                            child: _CaptureNotice(
-                                              message: _captureNotice!,
-                                            ),
-                                          ),
-                                  ),
-                                ],
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            _CaptureActionBar(
+                            const SizedBox(height: 10),
+                            Text(
+                              activeSource?.title ?? 'Add your meal photo',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(color: colors.textPrimary),
+                            ),
+                            const SizedBox(height: 8),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: Text(
+                                activeSource?.subtitle ??
+                                    'Use one clear image with the full plate visible.',
+                                key: ValueKey(
+                                  '$activeSource-${preparedCapture != null}',
+                                ),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                            ),
+                            SizedBox(height: compact ? 16 : 22),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, previewConstraints) {
+                                  final fittedPreviewSize = math.min(
+                                    previewSize,
+                                    math.min(
+                                      previewConstraints.maxWidth,
+                                      previewConstraints.maxHeight,
+                                    ),
+                                  );
+
+                                  return Center(
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 260,
+                                      ),
+                                      child: preparedCapture == null
+                                          ? _EmptyCaptureState(
+                                              size: fittedPreviewSize,
+                                            )
+                                          : _PreparedMealPreview(
+                                              key: ValueKey(
+                                                preparedCapture.fileName,
+                                              ),
+                                              capture: preparedCapture,
+                                              progress: _controller.value,
+                                              onClear: _clearPreparedCapture,
+                                              frameSize: fittedPreviewSize,
+                                            ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            SizedBox(height: compact ? 12 : 18),
+                            _CaptureComposerPanel(
+                              controller: _hintController,
                               progress: _controller.value,
                               activeSource: activeSource,
-                              prepared: preparedCapture != null,
+                              prepared: hasPhoto,
                               canAnalyze: hasValidHint,
+                              notice: _captureNotice,
+                              onChanged: () =>
+                                  setState(() => _captureNotice = null),
                               onCamera: () =>
                                   _captureFrom(_CaptureSource.camera),
                               onGallery: () =>
@@ -335,16 +315,19 @@ class _CameraScreenState extends State<CameraScreen>
 }
 
 class _EmptyCaptureState extends StatelessWidget {
-  const _EmptyCaptureState();
+  const _EmptyCaptureState({required this.size});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
+    final compact = size < 180;
 
     return Container(
-      width: 292,
-      height: 210,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      width: size,
+      height: size,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 28),
       decoration: BoxDecoration(
         color: colors.surfaceCard.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(28),
@@ -354,31 +337,33 @@ class _EmptyCaptureState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: compact ? 44 : 52,
+            height: compact ? 44 : 52,
             decoration: BoxDecoration(
               color: DFitColors.accent.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.restaurant_rounded,
               color: DFitColors.accent,
-              size: 24,
+              size: compact ? 21 : 24,
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Add a meal photo',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Keep the full plate visible for better accuracy.',
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-          ),
+          if (!compact) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Add a meal photo',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Take or upload one clear image.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+            ),
+          ],
         ],
       ),
     );
@@ -387,20 +372,23 @@ class _EmptyCaptureState extends StatelessWidget {
 
 class _PreparedMealPreview extends StatelessWidget {
   const _PreparedMealPreview({
+    super.key,
     required this.capture,
     required this.progress,
     required this.onClear,
+    required this.frameSize,
   });
 
   final _PreparedCapture capture;
   final double progress;
   final VoidCallback onClear;
+  final double frameSize;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.dfit;
-    const frameSize = 292.0;
-    final scanY = 40 + (math.sin(progress * math.pi * 2) + 1) * 94;
+    final scanY =
+        30 + (math.sin(progress * math.pi * 2) + 1) * (frameSize * 0.32);
 
     return SizedBox(
       width: frameSize,
@@ -587,8 +575,8 @@ class _PlateHintField extends StatelessWidget {
     final colors = context.dfit;
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 330),
-      padding: const EdgeInsets.fromLTRB(16, 16, 10, 14),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
       decoration: BoxDecoration(
         color: colors.surfaceCard.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(18),
@@ -683,6 +671,71 @@ class _PlateHintField extends StatelessWidget {
   }
 }
 
+class _CaptureComposerPanel extends StatelessWidget {
+  const _CaptureComposerPanel({
+    required this.controller,
+    required this.progress,
+    required this.activeSource,
+    required this.prepared,
+    required this.canAnalyze,
+    required this.notice,
+    required this.onChanged,
+    required this.onCamera,
+    required this.onGallery,
+    required this.onAnalyze,
+  });
+
+  final TextEditingController controller;
+  final double progress;
+  final _CaptureSource? activeSource;
+  final bool prepared;
+  final bool canAnalyze;
+  final String? notice;
+  final VoidCallback onChanged;
+  final VoidCallback onCamera;
+  final VoidCallback onGallery;
+  final VoidCallback onAnalyze;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.dfit;
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 360),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceCard.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: colors.border, width: 0.6),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _PlateHintField(controller: controller, onChanged: onChanged),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: notice == null
+                ? const SizedBox(height: 10)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: _CaptureNotice(message: notice!),
+                  ),
+          ),
+          _CaptureActionBar(
+            progress: progress,
+            activeSource: activeSource,
+            prepared: prepared,
+            canAnalyze: canAnalyze,
+            onCamera: onCamera,
+            onGallery: onGallery,
+            onAnalyze: onAnalyze,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _VoiceHintButton extends StatelessWidget {
   const _VoiceHintButton();
 
@@ -737,111 +790,100 @@ class _CaptureActionBar extends StatelessWidget {
     return AnimatedSize(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 330),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard.withValues(alpha: 0.84),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colors.border, width: 0.6),
-        ),
-        child: prepared
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _CaptureButton(
-                    label: 'Analyze plate',
-                    icon: const Icon(
-                      Icons.auto_awesome_rounded,
+      child: prepared
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _CaptureButton(
+                  label: 'Analyze plate',
+                  icon: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: DFitColors.accentDeep,
+                    size: 20,
+                  ),
+                  primary: true,
+                  progress: progress,
+                  loading: false,
+                  disabled: disabled || !canAnalyze,
+                  onTap: onAnalyze,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CaptureButton(
+                        label: 'Retake',
+                        icon: Icon(
+                          Icons.photo_camera_rounded,
+                          color: colors.textPrimary,
+                          size: 18,
+                        ),
+                        primary: false,
+                        progress: progress,
+                        loading: activeSource == _CaptureSource.camera,
+                        disabled:
+                            disabled && activeSource != _CaptureSource.camera,
+                        height: 44,
+                        onTap: onCamera,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _CaptureButton(
+                        label: 'Change',
+                        icon: Icon(
+                          Icons.photo_library_rounded,
+                          color: colors.textPrimary,
+                          size: 18,
+                        ),
+                        primary: false,
+                        progress: progress,
+                        loading: activeSource == _CaptureSource.gallery,
+                        disabled:
+                            disabled && activeSource != _CaptureSource.gallery,
+                        height: 44,
+                        onTap: onGallery,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: _CaptureButton(
+                    label: 'Take photo',
+                    icon: const PrimitiveCameraIcon(
                       color: DFitColors.accentDeep,
-                      size: 20,
+                      size: 22,
                     ),
                     primary: true,
                     progress: progress,
-                    loading: false,
-                    disabled: disabled || !canAnalyze,
-                    onTap: onAnalyze,
+                    loading: activeSource == _CaptureSource.camera,
+                    disabled: disabled && activeSource != _CaptureSource.camera,
+                    onTap: onCamera,
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _CaptureButton(
-                          label: 'Retake',
-                          icon: Icon(
-                            Icons.photo_camera_rounded,
-                            color: colors.textPrimary,
-                            size: 18,
-                          ),
-                          primary: false,
-                          progress: progress,
-                          loading: activeSource == _CaptureSource.camera,
-                          disabled:
-                              disabled && activeSource != _CaptureSource.camera,
-                          height: 44,
-                          onTap: onCamera,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _CaptureButton(
-                          label: 'Change',
-                          icon: Icon(
-                            Icons.photo_library_rounded,
-                            color: colors.textPrimary,
-                            size: 18,
-                          ),
-                          primary: false,
-                          progress: progress,
-                          loading: activeSource == _CaptureSource.gallery,
-                          disabled:
-                              disabled &&
-                              activeSource != _CaptureSource.gallery,
-                          height: 44,
-                          onTap: onGallery,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(
-                    child: _CaptureButton(
-                      label: 'Take photo',
-                      icon: const PrimitiveCameraIcon(
-                        color: DFitColors.accentDeep,
-                        size: 22,
-                      ),
-                      primary: true,
-                      progress: progress,
-                      loading: activeSource == _CaptureSource.camera,
-                      disabled:
-                          disabled && activeSource != _CaptureSource.camera,
-                      onTap: onCamera,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _CaptureButton(
+                    label: 'Upload',
+                    icon: Icon(
+                      Icons.photo_library_rounded,
+                      color: colors.textPrimary,
+                      size: 21,
                     ),
+                    primary: false,
+                    progress: progress,
+                    loading: activeSource == _CaptureSource.gallery,
+                    disabled:
+                        disabled && activeSource != _CaptureSource.gallery,
+                    onTap: onGallery,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _CaptureButton(
-                      label: 'Upload',
-                      icon: Icon(
-                        Icons.photo_library_rounded,
-                        color: colors.textPrimary,
-                        size: 21,
-                      ),
-                      primary: false,
-                      progress: progress,
-                      loading: activeSource == _CaptureSource.gallery,
-                      disabled:
-                          disabled && activeSource != _CaptureSource.gallery,
-                      onTap: onGallery,
-                    ),
-                  ),
-                ],
-              ),
-      ),
+                ),
+              ],
+            ),
     );
   }
 }

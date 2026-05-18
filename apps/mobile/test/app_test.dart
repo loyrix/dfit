@@ -50,9 +50,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Meal Scan'), findsOneWidget);
-    expect(find.text('Tell us what is on the plate'), findsOneWidget);
+    expect(find.text('Add your meal photo'), findsOneWidget);
     expect(find.text('Food note'), findsOneWidget);
-    expect(find.text('Add a meal photo'), findsOneWidget);
     expect(find.text('Upload'), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
@@ -229,6 +228,7 @@ void main() {
           onAddManually: () {},
           onOpenSettings: () {},
           onOpenMeal: (_) {},
+          onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () {},
         ),
       ),
@@ -274,6 +274,7 @@ void main() {
           onAddManually: () {},
           onOpenSettings: () {},
           onOpenMeal: (_) {},
+          onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () => openedWeeklyJournal = true,
         ),
       ),
@@ -283,6 +284,61 @@ void main() {
     await tester.pump();
 
     expect(openedWeeklyJournal, isTrue);
+  });
+
+  testWidgets('today meal rows delete by swipe after confirmation', (
+    tester,
+  ) async {
+    final meal = MealLog(
+      id: 'today-delete',
+      type: MealType.lunch,
+      title: 'Lunch',
+      loggedAt: DateTime(2026, 5, 12, 12),
+      items: sampleDetectedItems().take(1).toList(),
+    );
+    var deleted = false;
+    var meals = [meal];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return TodayScreen(
+              meals: meals,
+              totals: meals.fold<MacroTotals>(
+                MacroTotals.zero,
+                (total, entry) => total + entry.totals,
+              ),
+              onRefresh: () async {},
+              onScan: () {},
+              onAddManually: () {},
+              onOpenSettings: () {},
+              onOpenMeal: (_) {},
+              onDeleteMeal: (_) async {
+                deleted = true;
+                setState(() => meals = []);
+              },
+              onOpenWeeklyJournal: () {},
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.fling(
+      find.byType(Dismissible).first,
+      const Offset(-520, 0),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete this meal?'), findsOneWidget);
+
+    await tester.tap(find.text('Delete meal'));
+    await tester.pumpAndSettle();
+
+    expect(deleted, isTrue);
   });
 
   testWidgets('weekly journal analyses day rows and opens meals', (
@@ -351,7 +407,11 @@ void main() {
               activeDays: 1,
             ),
           ],
-          onOpenMeal: (meal) => openedMeal = meal,
+          onDeleteMeal: (_) async {},
+          onOpenMeal: (meal) async {
+            openedMeal = meal;
+            return false;
+          },
         ),
       ),
     );
@@ -407,7 +467,8 @@ void main() {
           onRefresh: () async {
             retried = true;
           },
-          onOpenMeal: (_) {},
+          onDeleteMeal: (_) async {},
+          onOpenMeal: (_) async => false,
         ),
       ),
     );
@@ -421,6 +482,54 @@ void main() {
     await tester.pump();
 
     expect(retried, isTrue);
+  });
+
+  testWidgets('day detail rows delete by swipe and refresh totals locally', (
+    tester,
+  ) async {
+    final meal = MealLog(
+      id: 'day-delete',
+      type: MealType.dinner,
+      title: 'Dinner',
+      loggedAt: DateTime(2026, 5, 11, 20),
+      items: sampleDetectedItems().take(1).toList(),
+    );
+    var deleted = false;
+    var refreshed = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: DayJournalDetailScreen(
+          day: JournalDayData(
+            date: '2026-05-11',
+            mealCount: 1,
+            totals: meal.totals,
+            meals: [meal],
+          ),
+          onOpenMeal: (_) async => false,
+          onDeleteMeal: (_) async {
+            deleted = true;
+          },
+          onMealDeleted: () async {
+            refreshed = true;
+          },
+        ),
+      ),
+    );
+
+    await tester.fling(
+      find.byType(Dismissible).first,
+      const Offset(-520, 0),
+      1200,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete meal'));
+    await tester.pumpAndSettle();
+
+    expect(deleted, isTrue);
+    expect(refreshed, isTrue);
+    expect(find.text('No meals logged'), findsWidgets);
   });
 
   testWidgets('meal detail owns meal-level macro profile', (tester) async {
@@ -504,6 +613,63 @@ void main() {
     expect(find.text('225'), findsWidgets);
   });
 
+  testWidgets('meal detail deletes after explicit confirmation', (
+    tester,
+  ) async {
+    final meal = MealLog(
+      id: 'meal-delete',
+      type: MealType.lunch,
+      title: 'Lunch',
+      loggedAt: DateTime(2026, 5, 12, 12),
+      items: sampleDetectedItems().take(1).toList(),
+    );
+    var deleted = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: Builder(
+          builder: (context) {
+            return Scaffold(
+              body: Center(
+                child: FilledButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MealDetailScreen(
+                          meal: meal,
+                          onDeleteMeal: (_) async {
+                            deleted = true;
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Open meal'),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open meal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete meal'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete this meal?'), findsOneWidget);
+
+    await tester.tap(find.text('Delete meal').last);
+    await tester.pumpAndSettle();
+
+    expect(deleted, isTrue);
+    expect(find.text('Open meal'), findsOneWidget);
+  });
+
   testWidgets('initial journal loading shows premium skeleton', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -518,6 +684,7 @@ void main() {
           onAddManually: () {},
           onOpenSettings: () {},
           onOpenMeal: (_) {},
+          onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () {},
         ),
       ),

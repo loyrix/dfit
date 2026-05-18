@@ -70,6 +70,12 @@ export type UpdateMealInput = Omit<
 
 export type AttachMealImageInput = Omit<MealImageSummary, "imageId" | "createdAt">;
 
+export type MealDeletionPlan = {
+  mealId: string;
+  image?: MealImageSummary;
+  scanSessionId?: string;
+};
+
 export type ListMealsInput = {
   fromDate?: string;
   toDate?: string;
@@ -91,6 +97,7 @@ export interface AppRepository {
   listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
   listMealDates(): Promise<string[]>;
   getMeal(mealId: string): Promise<MealSummary | undefined>;
+  getMealDeletionPlan(mealId: string): Promise<MealDeletionPlan | undefined>;
   deleteMeal(mealId: string): Promise<boolean>;
   prepareScan(profileId?: string): Promise<ScanSession>;
   getScan(scanId: string): Promise<ScanSession | undefined>;

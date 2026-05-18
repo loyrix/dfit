@@ -95,7 +95,8 @@ class _DFitAppState extends State<DFitApp> {
           onScan: _openCamera,
           onAddManually: _openManualReview,
           onOpenSettings: _openSettings,
-          onOpenMeal: _openMealDetail,
+          onOpenMeal: (meal) => _openMealDetail(meal),
+          onDeleteMeal: _deleteMeal,
           onOpenWeeklyJournal: _openWeeklyJournal,
         );
       },
@@ -368,15 +369,22 @@ class _DFitAppState extends State<DFitApp> {
     );
   }
 
-  Future<void> _openMealDetail(MealLog meal) async {
-    await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(
+  Future<bool> _openMealDetail(MealLog meal) async {
+    final deleted = await _navigatorKey.currentState!.push<bool>(
+      dfitPageRoute<bool>(
         builder: (_) => MealDetailScreen(
           meal: meal,
           onUpdateMeal: _journalController.updateMeal,
+          onDeleteMeal: _deleteMeal,
         ),
       ),
     );
+    return deleted == true;
+  }
+
+  Future<void> _deleteMeal(MealLog meal) async {
+    await _journalController.deleteMeal(meal);
+    _showJournalMessage('Meal deleted');
   }
 
   Future<void> _openWeeklyJournal() async {
@@ -393,6 +401,7 @@ class _DFitAppState extends State<DFitApp> {
           onLoadWeek: _journalController.loadWeeklyRange,
           onLoadWeeks: _journalController.loadAvailableWeeks,
           onOpenMeal: _openMealDetail,
+          onDeleteMeal: _deleteMeal,
         ),
       ),
     );

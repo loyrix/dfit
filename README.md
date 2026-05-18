@@ -50,6 +50,13 @@ To test against the local API, run the API first:
 pnpm --filter @dfit/api dev
 ```
 
+API documentation is available from the running server:
+
+```txt
+Swagger UI: http://127.0.0.1:4000/docs
+OpenAPI YAML: http://127.0.0.1:4000/openapi.yaml
+```
+
 iOS simulator local API:
 
 ```sh

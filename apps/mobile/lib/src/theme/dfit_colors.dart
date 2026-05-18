@@ -16,6 +16,8 @@ class DFitColors {
   static const accentDeep = Color(0xFF3D2E07);
   static const accentWarm = Color(0xFF6B5118);
   static const accentLow = Color(0xFFB8954A);
+  static const destructive = Color(0xFFD94B4B);
+  static const destructiveDeep = Color(0xFF8E2525);
   static const mealBreakfastBg = Color(0xFFF4D9C0);
   static const mealBreakfastFg = Color(0xFFE89B4A);
   static const mealLunchBg = Color(0xFFFAEDC0);

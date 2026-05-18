@@ -7,6 +7,7 @@ import '../widgets/dfit_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
+import '../widgets/meal_delete_controls.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({
@@ -23,6 +24,7 @@ class TodayScreen extends StatelessWidget {
     required this.onAddManually,
     required this.onOpenSettings,
     required this.onOpenMeal,
+    required this.onDeleteMeal,
     required this.onOpenWeeklyJournal,
   });
 
@@ -38,6 +40,7 @@ class TodayScreen extends StatelessWidget {
   final VoidCallback onAddManually;
   final VoidCallback onOpenSettings;
   final ValueChanged<MealLog> onOpenMeal;
+  final Future<void> Function(MealLog meal) onDeleteMeal;
   final VoidCallback onOpenWeeklyJournal;
 
   @override
@@ -118,6 +121,7 @@ class TodayScreen extends StatelessWidget {
                       _MealsList(
                         meals: meals,
                         onOpenMeal: onOpenMeal,
+                        onDeleteMeal: onDeleteMeal,
                         onAddManually: onAddManually,
                       ),
                   ],
@@ -716,11 +720,13 @@ class _MealsList extends StatelessWidget {
   const _MealsList({
     required this.meals,
     required this.onOpenMeal,
+    required this.onDeleteMeal,
     required this.onAddManually,
   });
 
   final List<MealLog> meals;
   final ValueChanged<MealLog> onOpenMeal;
+  final Future<void> Function(MealLog meal) onDeleteMeal;
   final VoidCallback onAddManually;
 
   @override
@@ -738,11 +744,36 @@ class _MealsList extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         for (final meal in meals)
-          MealCard(meal: meal, onTap: () => onOpenMeal(meal)),
+          MealCard(
+            meal: meal,
+            onTap: () => onOpenMeal(meal),
+            onDelete: () => _deleteMeal(context, meal),
+          ),
         const SizedBox(height: 8),
         TextButton(onPressed: onAddManually, child: const Text('Add manually')),
       ],
     );
+  }
+
+  Future<bool> _deleteMeal(BuildContext context, MealLog meal) async {
+    if (!await confirmMealDeletion(context)) return false;
+
+    try {
+      await onDeleteMeal(meal);
+      return true;
+    } catch (_) {
+      if (!context.mounted) return false;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Could not delete this meal. Try again.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: context.dfit.surfaceHero,
+          ),
+        );
+      return false;
+    }
   }
 }
 

@@ -134,6 +134,32 @@ class JournalController extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteMeal(MealLog meal) async {
+    if (meal.syncState == MealSyncState.pending) {
+      _removeLocalMeal(meal.id);
+      _error = null;
+      notifyListeners();
+      return;
+    }
+
+    final key = 'meal-delete-${DateTime.now().microsecondsSinceEpoch}';
+    try {
+      await _apiClient.deleteMeal(mealId: meal.id, idempotencyKey: key);
+      _removeLocalMeal(meal.id);
+      _error = null;
+      notifyListeners();
+      _refreshJournalSoon();
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'journal.delete_meal',
+        error,
+        stackTrace: stackTrace,
+        context: {'mealId': meal.id},
+      );
+      rethrow;
+    }
+  }
+
   Future<void> refreshQuota() => _refreshQuota();
 
   Future<JournalRangeData> loadWeeklyRange(int weekOffset) {
@@ -150,6 +176,11 @@ class JournalController extends ChangeNotifier {
 
   void _upsertLocalMeal(MealLog meal) {
     _meals = [meal, ..._meals.where((existing) => existing.id != meal.id)];
+    _totals = _sumMealTotals(_meals);
+  }
+
+  void _removeLocalMeal(String mealId) {
+    _meals = _meals.where((meal) => meal.id != mealId).toList();
     _totals = _sumMealTotals(_meals);
   }
 

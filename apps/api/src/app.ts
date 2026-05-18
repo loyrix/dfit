@@ -1,5 +1,9 @@
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import Fastify, { type FastifyInstance } from "fastify";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createSqlClient, type SqlClient } from "./db/client.js";
 import { registerIdempotency } from "./plugins/idempotency.js";
 import { registerRequestContext } from "./request-context.js";
@@ -56,6 +60,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await app.register(cors, {
     origin: true,
   });
+  await registerApiDocumentation(app);
 
   await registerRequestContext(app);
   await registerIdempotency(app, repository);
@@ -67,4 +72,32 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
 
   return app;
+};
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(currentDir, "../../..");
+const openApiSpecPath = path.join(repoRoot, "docs/openapi.yaml");
+
+const registerApiDocumentation = async (app: FastifyInstance) => {
+  await app.register(swagger, {
+    mode: "static",
+    specification: {
+      path: openApiSpecPath,
+      baseDir: path.dirname(openApiSpecPath),
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: "/docs",
+    uiConfig: {
+      docExpansion: "list",
+      deepLinking: true,
+    },
+    staticCSP: true,
+  });
+
+  app.get("/openapi.yaml", async (_request, reply) => {
+    const specification = app.swagger({ yaml: true });
+    return reply.type("application/yaml").send(specification);
+  });
 };

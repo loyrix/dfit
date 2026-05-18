@@ -1,0 +1,1423 @@
+openapi: 3.1.0
+info:
+  title: DFit API
+  version: 0.0.0
+  description: |
+    Public HTTP API for DFit, a camera-first nutrition journal.
+
+    DFit is anonymous-first. Most user-scoped endpoints resolve identity in this order:
+    1. `Authorization: Bearer <token>` for a signed-in session
+    2. `x-dfit-install-id` for an anonymous device profile
+    3. a fallback demo profile when neither is present
+
+    The current backend reads authentication context but does not yet enforce a hard
+    authenticated-only boundary on most endpoints. This document therefore marks those
+    endpoints as supporting optional identity rather than requiring login.
+
+    Every mutating endpoint except `/v1/auth/*` requires an `Idempotency-Key` header.
+servers:
+  - url: https://dfit-api.vercel.app
+    description: Production
+  - url: http://127.0.0.1:4000
+    description: Local development
+
+tags:
+  - name: System
+  - name: Bootstrap
+  - name: Foods
+  - name: Auth
+  - name: Profile
+  - name: Journal
+  - name: Meals
+  - name: Scans
+
+paths:
+  /:
+    get:
+      tags: [System]
+      summary: Service root
+      description: Returns a minimal service identity payload used for quick environment checks.
+      responses:
+        "200":
+          description: Service is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatus"
+              examples:
+                default:
+                  value:
+                    ok: true
+                    service: dfit-api
+                    version: 0.0.0
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Returns a lightweight liveness response for monitoring and deployment checks.
+      responses:
+        "200":
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatus"
+
+  /v1/config:
+    get:
+      tags: [System]
+      summary: Get app configuration
+      description: Returns client-facing feature flags and scan limits used to configure the app shell.
+      responses:
+        "200":
+          description: Current app configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppConfig"
+
+  /v1/app/bootstrap:
+    get:
+      tags: [Bootstrap]
+      summary: Bootstrap the app
+      description: |
+        Returns the initial payload needed to render the signed-in or anonymous app:
+        current profile, scan quota, today's journal, and the current weekly range.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/PlatformHeader"
+        - $ref: "#/components/parameters/LocaleHeader"
+        - $ref: "#/components/parameters/RegionHeader"
+        - $ref: "#/components/parameters/TimezoneHeader"
+      responses:
+        "200":
+          description: Initial application state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapResponse"
+
+  /v1/foods:
+    get:
+      tags: [Foods]
+      summary: Search foods
+      description: Searches the food catalog by name or alias.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Search phrase. Empty string returns repository-defined default matches.
+          schema:
+            type: string
+          example: dosa
+      responses:
+        "200":
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodSearchResponse"
+
+  /v1/foods/{id}:
+    get:
+      tags: [Foods]
+      summary: Get food details
+      description: Returns one canonical food record by ID.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/FoodIdPath"
+      responses:
+        "200":
+          description: Food record.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Food"
+        "404":
+          $ref: "#/components/responses/FoodNotFound"
+
+  /v1/foods/{id}/units:
+    get:
+      tags: [Foods]
+      summary: Get food portion units
+      description: Returns supported portion conversions for a food item.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/FoodIdPath"
+      responses:
+        "200":
+          description: Portion conversions for the food.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FoodUnitsResponse"
+        "404":
+          $ref: "#/components/responses/FoodNotFound"
+
+  /v1/auth/anonymous:
+    post:
+      tags: [Auth]
+      summary: Start anonymous session
+      description: |
+        Returns the current anonymous profile and a development anonymous access token.
+        The device can be associated through `x-dfit-install-id`.
+      security:
+        - installId: []
+        - {}
+      responses:
+        "200":
+          description: Anonymous session context.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnonymousAuthResponse"
+
+  /v1/auth/email/signup:
+    post:
+      tags: [Auth]
+      summary: Sign up with email
+      description: |
+        Creates an email account. If the current user is anonymous, the account is linked
+        to that anonymous profile; otherwise a separate email profile is created.
+      security:
+        - installId: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailAuthRequest"
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  password: secret123
+      responses:
+        "201":
+          description: Account created and session issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSession"
+        "400":
+          $ref: "#/components/responses/InvalidEmailAuth"
+        "409":
+          description: Email is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
+  /v1/auth/email/login:
+    post:
+      tags: [Auth]
+      summary: Log in with email
+      description: |
+        Authenticates an email account and returns a session. If the caller currently has
+        an anonymous profile on the device, its data may be merged into the account profile.
+      security:
+        - installId: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailAuthRequest"
+      responses:
+        "200":
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSession"
+        "400":
+          $ref: "#/components/responses/InvalidEmailAuth"
+        "401":
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out
+      description: |
+        Revokes the bearer session when provided. The endpoint is intentionally tolerant:
+        if no token is supplied, it still returns success.
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        "204":
+          description: Session revoked or no active session present.
+
+  /v1/profiles/me:
+    get:
+      tags: [Profile]
+      summary: Get current profile
+      description: Returns the current profile resolved from bearer token, install ID, or fallback profile.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/PlatformHeader"
+        - $ref: "#/components/parameters/LocaleHeader"
+        - $ref: "#/components/parameters/RegionHeader"
+        - $ref: "#/components/parameters/TimezoneHeader"
+      responses:
+        "200":
+          description: Current profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEnvelope"
+
+  /v1/journal/today:
+    get:
+      tags: [Journal]
+      summary: Get today's journal
+      description: Returns today's meals and nutrition totals for the current profile.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      responses:
+        "200":
+          description: Today's journal.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TodayJournalResponse"
+
+  /v1/journal/range:
+    get:
+      tags: [Journal]
+      summary: Get journal range
+      description: Returns a rolling journal window plus aggregate summary metrics.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: Number of days in the returned window.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 31
+            default: 7
+        - name: weekOffset
+          in: query
+          required: false
+          description: Number of 7-day windows to move backward from the current week.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 104
+            default: 0
+      responses:
+        "200":
+          description: Journal range.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalRangeResponse"
+        "400":
+          description: Invalid range query.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
+  /v1/journal/weeks:
+    get:
+      tags: [Journal]
+      summary: List available journal weeks
+      description: Returns week buckets that contain tracked meals, plus the current week.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      responses:
+        "200":
+          description: Available journal weeks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalWeeksResponse"
+
+  /v1/meals:
+    post:
+      tags: [Meals]
+      summary: Create meal
+      description: Creates a manually logged meal for the current profile.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMealRequest"
+      responses:
+        "201":
+          description: Meal created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+        "400":
+          description: Invalid meal payload or missing idempotency key.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/ErrorWithMessage"
+
+  /v1/meals/{id}:
+    get:
+      tags: [Meals]
+      summary: Get meal
+      description: Returns one meal belonging to the current profile.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/MealIdPath"
+      responses:
+        "200":
+          description: Meal found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+        "404":
+          $ref: "#/components/responses/MealNotFound"
+    patch:
+      tags: [Meals]
+      summary: Update meal
+      description: Replaces editable meal details while preserving the original logged timestamp.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/MealIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMealRequest"
+      responses:
+        "200":
+          description: Meal updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+        "400":
+          description: Invalid meal update or missing idempotency key.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/ErrorWithMessage"
+        "404":
+          $ref: "#/components/responses/MealNotFound"
+    delete:
+      tags: [Meals]
+      summary: Delete meal
+      description: Deletes a meal. If the meal has a stored image, the image is deleted first.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/MealIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "204":
+          description: Meal deleted.
+        "400":
+          description: Missing idempotency key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "404":
+          $ref: "#/components/responses/MealNotFound"
+        "503":
+          description: Meal image storage is not configured, so delete cannot safely complete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "502":
+          description: Stored meal image could not be deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
+  /v1/quota:
+    get:
+      tags: [Scans]
+      summary: Get scan quota
+      description: Returns remaining free, rewarded, and premium scan credits for the current profile.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      responses:
+        "200":
+          description: Current quota.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quota"
+
+  /v1/scans/prepare:
+    post:
+      tags: [Scans]
+      summary: Prepare scan session
+      description: Creates a scan session before image analysis begins.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      responses:
+        "201":
+          description: Scan session prepared.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrepareScanResponse"
+        "400":
+          description: Missing idempotency key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
+  /v1/scans/{id}/analyze:
+    post:
+      tags: [Scans]
+      summary: Analyze scan
+      description: |
+        Runs food-photo analysis for a prepared scan. The caller may include a short human hint
+        and an image. On success, the scan consumes one available credit and returns editable
+        analysis output for review.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/ScanIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeScanRequest"
+      responses:
+        "200":
+          description: Analysis ready for review. If the scan was already analyzed, the cached analysis is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeScanResponse"
+        "400":
+          description: Invalid scan image payload or missing idempotency key.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/ErrorWithMessage"
+        "402":
+          description: No available scan credit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanCreditRequiredError"
+        "404":
+          $ref: "#/components/responses/ScanNotFound"
+        "502":
+          description: AI provider failed or returned invalid output.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
+        "503":
+          description: AI provider is not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
+        "504":
+          description: AI provider timed out.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
+
+  /v1/scans/{id}/confirm:
+    post:
+      tags: [Scans]
+      summary: Confirm scan
+      description: |
+        Persists the reviewed AI result as a meal. If an image is supplied and image storage
+        is configured, the image is uploaded and attached to the resulting meal.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/ScanIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmScanRequest"
+      responses:
+        "201":
+          description: Scan confirmed and meal created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmScanResponse"
+        "400":
+          description: Invalid confirmation payload, image size mismatch, or missing idempotency key.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/SimpleError"
+                  - $ref: "#/components/schemas/ErrorWithMessage"
+        "404":
+          $ref: "#/components/responses/ScanNotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque session token
+      description: Optional signed-in session token.
+    installId:
+      type: apiKey
+      in: header
+      name: x-dfit-install-id
+      description: Optional anonymous device identifier used to resolve or create a device profile.
+
+  parameters:
+    FoodIdPath:
+      name: id
+      in: path
+      required: true
+      description: Food ID.
+      schema:
+        type: string
+    MealIdPath:
+      name: id
+      in: path
+      required: true
+      description: Meal ID.
+      schema:
+        type: string
+    ScanIdPath:
+      name: id
+      in: path
+      required: true
+      description: Scan session ID.
+      schema:
+        type: string
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Required for mutating requests outside `/v1/auth/*`; repeated keys replay the cached response.
+      schema:
+        type: string
+        minLength: 1
+      example: 5f8b5b42-1844-4d12-bf3e-0f4208652f0b
+    PlatformHeader:
+      name: x-dfit-platform
+      in: header
+      required: false
+      schema:
+        type: string
+        enum: [ios, android]
+    LocaleHeader:
+      name: x-dfit-locale
+      in: header
+      required: false
+      schema:
+        type: string
+      example: en-IN
+    RegionHeader:
+      name: x-dfit-region
+      in: header
+      required: false
+      schema:
+        type: string
+      example: IN
+    TimezoneHeader:
+      name: x-dfit-timezone
+      in: header
+      required: false
+      schema:
+        type: string
+      example: Asia/Kolkata
+
+  responses:
+    FoodNotFound:
+      description: Food was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SimpleError"
+          examples:
+            default:
+              value:
+                error: food_not_found
+    MealNotFound:
+      description: Meal was not found for the current profile.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SimpleError"
+          examples:
+            default:
+              value:
+                error: meal_not_found
+    ScanNotFound:
+      description: Scan was not found for the current profile.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SimpleError"
+          examples:
+            default:
+              value:
+                error: scan_not_found
+    InvalidEmailAuth:
+      description: Invalid email or password payload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationError"
+
+  schemas:
+    ServiceStatus:
+      type: object
+      required: [ok, service, version]
+      properties:
+        ok:
+          type: boolean
+        service:
+          type: string
+        version:
+          type: string
+
+    AppConfig:
+      type: object
+      required: [appName, scanLimits, features]
+      properties:
+        appName:
+          type: string
+        scanLimits:
+          type: object
+          required: [freePerDay, rewardedCapPerDay, launchTotalCapPerDay]
+          properties:
+            freePerDay:
+              type: integer
+            rewardedCapPerDay:
+              type: integer
+            launchTotalCapPerDay:
+              type: integer
+        features:
+          type: object
+          required: [aiProvider, noImageStorage, accountLink, premium]
+          properties:
+            aiProvider:
+              type: string
+              enum: [mock, openai, gemini]
+            noImageStorage:
+              type: boolean
+            accountLink:
+              type: boolean
+            premium:
+              type: boolean
+
+    Profile:
+      type: object
+      required: [id, authMethod, timezone, createdAt]
+      properties:
+        id:
+          type: string
+        authMethod:
+          type: string
+          enum: [anonymous, apple, google, email]
+        email:
+          type: string
+          format: email
+        timezone:
+          type: string
+        linkedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ProfileEnvelope:
+      type: object
+      required: [profile]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+
+    AccountSession:
+      type: object
+      required: [profile, accessToken, expiresAt]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        accessToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    AnonymousAuthResponse:
+      type: object
+      required: [profile, accessToken]
+      properties:
+        profile:
+          $ref: "#/components/schemas/Profile"
+        accessToken:
+          type: string
+
+    EmailAuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+
+    MacroTotals:
+      type: object
+      required: [calories, proteinG, carbsG, fatG]
+      properties:
+        calories:
+          type: number
+          minimum: 0
+        proteinG:
+          type: number
+          minimum: 0
+        carbsG:
+          type: number
+          minimum: 0
+        fatG:
+          type: number
+          minimum: 0
+        fiberG:
+          type: number
+          minimum: 0
+        sugarG:
+          type: number
+          minimum: 0
+        sodiumMg:
+          type: number
+          minimum: 0
+
+    PortionUnit:
+      type: string
+      enum:
+        - gram
+        - ml
+        - piece
+        - serving
+        - bowl
+        - katori
+        - cup
+        - tablespoon
+        - teaspoon
+        - ladle
+        - roti
+        - idli
+        - dosa
+        - slice
+        - scoop
+        - small
+        - medium
+        - large
+
+    PortionConversion:
+      type: object
+      required: [unit, grams, confidence]
+      properties:
+        unit:
+          $ref: "#/components/schemas/PortionUnit"
+        grams:
+          type: number
+          minimum: 0
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    Food:
+      type: object
+      required: [id, canonicalName, region, aliases, source, nutritionPer100g, portions]
+      properties:
+        id:
+          type: string
+        canonicalName:
+          type: string
+        region:
+          type: string
+          enum: [IN, GLOBAL]
+        aliases:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+        nutritionPer100g:
+          $ref: "#/components/schemas/MacroTotals"
+        portions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortionConversion"
+
+    FoodSearchResult:
+      allOf:
+        - $ref: "#/components/schemas/Food"
+        - type: object
+          required: [score]
+          properties:
+            matchedAlias:
+              type: string
+            score:
+              type: number
+
+    FoodSearchResponse:
+      type: object
+      required: [query, results]
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/FoodSearchResult"
+
+    FoodUnitsResponse:
+      type: object
+      required: [foodId, portions]
+      properties:
+        foodId:
+          type: string
+        portions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortionConversion"
+
+    MealItem:
+      type: object
+      required: [id, displayName, quantity, unit, grams, nutrition, userEdited]
+      properties:
+        id:
+          type: string
+        foodId:
+          type: string
+        displayName:
+          type: string
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        unit:
+          $ref: "#/components/schemas/PortionUnit"
+        grams:
+          type: number
+          minimum: 0
+        nutrition:
+          $ref: "#/components/schemas/MacroTotals"
+        userEdited:
+          type: boolean
+
+    MealImage:
+      type: object
+      required: [url, mimeType, byteSize]
+      properties:
+        url:
+          type: string
+          format: uri
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        byteSize:
+          type: integer
+          minimum: 1
+        width:
+          type: integer
+          minimum: 1
+        height:
+          type: integer
+          minimum: 1
+
+    Meal:
+      type: object
+      required: [id, profileId, mealType, title, loggedAt, items, totals]
+      properties:
+        id:
+          type: string
+        profileId:
+          type: string
+        mealType:
+          type: string
+          enum: [breakfast, lunch, snack, dinner]
+        title:
+          type: string
+        loggedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MealItem"
+        totals:
+          $ref: "#/components/schemas/MacroTotals"
+        image:
+          $ref: "#/components/schemas/MealImage"
+
+    CreateMealItem:
+      type: object
+      required: [displayName, quantity, unit, grams, nutrition]
+      properties:
+        foodId:
+          type: string
+        displayName:
+          type: string
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        unit:
+          $ref: "#/components/schemas/PortionUnit"
+        grams:
+          type: number
+          minimum: 0
+        nutrition:
+          $ref: "#/components/schemas/MacroTotals"
+        userEdited:
+          type: boolean
+          default: false
+
+    CreateMealRequest:
+      type: object
+      required: [mealType, title, items]
+      properties:
+        mealType:
+          type: string
+          enum: [breakfast, lunch, snack, dinner]
+        title:
+          type: string
+        loggedAt:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateMealItem"
+
+    UpdateMealRequest:
+      type: object
+      required: [mealType, title, items]
+      properties:
+        mealType:
+          type: string
+          enum: [breakfast, lunch, snack, dinner]
+        title:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateMealItem"
+
+    TodayJournalResponse:
+      type: object
+      required: [date, timezone, totals, meals]
+      properties:
+        date:
+          type: string
+        timezone:
+          type: string
+        totals:
+          $ref: "#/components/schemas/MacroTotals"
+        target:
+          $ref: "#/components/schemas/MacroTotals"
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Meal"
+
+    JournalDay:
+      type: object
+      required: [date, mealCount, totals, meals]
+      properties:
+        date:
+          type: string
+        mealCount:
+          type: integer
+          minimum: 0
+        totals:
+          $ref: "#/components/schemas/MacroTotals"
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Meal"
+
+    JournalRangeSummary:
+      type: object
+      required:
+        - windowDays
+        - activeDays
+        - mealCount
+        - totals
+        - trackedDayAverage
+        - calendarDayAverage
+      properties:
+        windowDays:
+          type: integer
+          minimum: 1
+        activeDays:
+          type: integer
+          minimum: 0
+        mealCount:
+          type: integer
+          minimum: 0
+        totals:
+          $ref: "#/components/schemas/MacroTotals"
+        trackedDayAverage:
+          $ref: "#/components/schemas/MacroTotals"
+        calendarDayAverage:
+          $ref: "#/components/schemas/MacroTotals"
+
+    JournalRangeResponse:
+      type: object
+      required: [startDate, endDate, timezone, days, summary]
+      properties:
+        startDate:
+          type: string
+        endDate:
+          type: string
+        timezone:
+          type: string
+        target:
+          $ref: "#/components/schemas/MacroTotals"
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalDay"
+        summary:
+          $ref: "#/components/schemas/JournalRangeSummary"
+
+    JournalWeekOption:
+      type: object
+      required: [weekOffset, startDate, endDate, activeDays]
+      properties:
+        weekOffset:
+          type: integer
+          minimum: 0
+        startDate:
+          type: string
+        endDate:
+          type: string
+        activeDays:
+          type: integer
+          minimum: 0
+
+    JournalWeeksResponse:
+      type: object
+      required: [weeks]
+      properties:
+        weeks:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalWeekOption"
+
+    Quota:
+      type: object
+      required: [freeRemaining, rewardedRemaining, premiumRemaining]
+      properties:
+        freeRemaining:
+          type: integer
+          minimum: 0
+        rewardedRemaining:
+          type: integer
+          minimum: 0
+        premiumRemaining:
+          type: integer
+          minimum: 0
+
+    PrepareScanResponse:
+      type: object
+      required: [scanId, status, quota]
+      properties:
+        scanId:
+          type: string
+        status:
+          type: string
+          enum: [prepared, analyzing, needs_ad, ready_for_review, confirmed, cancelled, failed]
+        quota:
+          $ref: "#/components/schemas/Quota"
+
+    ScanImage:
+      type: object
+      required: [mimeType, base64, byteSize]
+      properties:
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        base64:
+          type: string
+          minLength: 1
+          maxLength: 8000000
+          description: Base64-encoded image bytes.
+        byteSize:
+          type: integer
+          minimum: 1
+          maximum: 6000000
+
+    AnalyzeScanRequest:
+      type: object
+      required: [hint]
+      properties:
+        hint:
+          type: string
+          minLength: 1
+          maxLength: 280
+          description: Optional human clue about the plate; current schema requires a non-empty value.
+        image:
+          $ref: "#/components/schemas/ScanImage"
+
+    AnalyzedMealItem:
+      type: object
+      required:
+        - id
+        - name
+        - aliases
+        - quantity
+        - unit
+        - estimatedGrams
+        - preparation
+        - confidence
+        - nutrition
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        aliases:
+          type: array
+          items:
+            type: string
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        unit:
+          $ref: "#/components/schemas/PortionUnit"
+        estimatedGrams:
+          type: number
+          minimum: 0
+        preparation:
+          type: string
+          enum: [home, restaurant, packaged, unknown]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        nutrition:
+          $ref: "#/components/schemas/MacroTotals"
+
+    AnalyzeScanResponse:
+      type: object
+      required: [scanId, status, mealType, mealName, detectedLanguage, items, totals]
+      properties:
+        scanId:
+          type: string
+        status:
+          type: string
+          const: ready_for_review
+        mealType:
+          type: string
+          enum: [breakfast, lunch, snack, dinner]
+        mealName:
+          type: string
+        detectedLanguage:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyzedMealItem"
+        totals:
+          $ref: "#/components/schemas/MacroTotals"
+
+    ConfirmScanItem:
+      type: object
+      required: [name, quantity, unit, estimatedGrams, nutrition]
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        unit:
+          $ref: "#/components/schemas/PortionUnit"
+        estimatedGrams:
+          type: number
+          minimum: 0
+        nutrition:
+          $ref: "#/components/schemas/MacroTotals"
+
+    ConfirmScanRequest:
+      type: object
+      required: [mealType, title, items]
+      properties:
+        mealType:
+          type: string
+          enum: [breakfast, lunch, snack, dinner]
+        title:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfirmScanItem"
+        image:
+          $ref: "#/components/schemas/ScanImage"
+
+    ConfirmScanResponse:
+      type: object
+      required: [mealId, totals, meal]
+      properties:
+        mealId:
+          type: string
+        totals:
+          $ref: "#/components/schemas/MacroTotals"
+        meal:
+          $ref: "#/components/schemas/Meal"
+
+    BootstrapResponse:
+      type: object
+      required: [serverTime, profile, quota, today, weeklyRange]
+      properties:
+        serverTime:
+          type: string
+          format: date-time
+        profile:
+          $ref: "#/components/schemas/Profile"
+        quota:
+          $ref: "#/components/schemas/Quota"
+        today:
+          $ref: "#/components/schemas/TodayJournalResponse"
+        weeklyRange:
+          $ref: "#/components/schemas/JournalRangeResponse"
+
+    SimpleError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    ErrorWithMessage:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    ValidationIssue:
+      type: object
+      additionalProperties: true
+
+    ValidationError:
+      type: object
+      required: [error, issues]
+      properties:
+        error:
+          type: string
+        issues:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationIssue"
+
+    ScanCreditRequiredError:
+      type: object
+      required: [error, reason, quota]
+      properties:
+        error:
+          type: string
+          const: scan_credit_required
+        reason:
+          type: string
+          enum: [needs_rewarded_ad, exhausted]
+        quota:
+          $ref: "#/components/schemas/Quota"
+
+    AiProviderError:
+      type: object
+      required: [error, message, retryable]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean

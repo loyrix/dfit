@@ -6,6 +6,7 @@ import '../theme/dfit_colors.dart';
 import '../theme/dfit_theme.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
+import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
 
 class WeeklyJournalScreen extends StatefulWidget {
@@ -13,6 +14,7 @@ class WeeklyJournalScreen extends StatefulWidget {
     super.key,
     required this.range,
     required this.onOpenMeal,
+    required this.onDeleteMeal,
     required this.onLoadWeek,
     required this.onLoadWeeks,
     this.isSyncing = false,
@@ -21,7 +23,8 @@ class WeeklyJournalScreen extends StatefulWidget {
   });
 
   final JournalRangeData range;
-  final ValueChanged<MealLog> onOpenMeal;
+  final Future<bool> Function(MealLog meal) onOpenMeal;
+  final Future<void> Function(MealLog meal) onDeleteMeal;
   final Future<JournalRangeData> Function(int weekOffset) onLoadWeek;
   final Future<List<JournalWeekOption>> Function() onLoadWeeks;
   final bool isSyncing;
@@ -105,12 +108,16 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
     );
   }
 
-  void _openDay(BuildContext context, JournalDayData day) {
-    Navigator.of(context).push<void>(
+  Future<void> _openDay(BuildContext context, JournalDayData day) async {
+    await Navigator.of(context).push<void>(
       dfitPageRoute<void>(
         transition: DFitPageTransition.drillDown,
-        builder: (_) =>
-            DayJournalDetailScreen(day: day, onOpenMeal: widget.onOpenMeal),
+        builder: (_) => DayJournalDetailScreen(
+          day: day,
+          onOpenMeal: widget.onOpenMeal,
+          onDeleteMeal: widget.onDeleteMeal,
+          onMealDeleted: () => _loadWeek(_weekOffset),
+        ),
       ),
     );
   }
@@ -127,6 +134,27 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
     );
     if (selected == null || selected == _weekOffset || !mounted) return;
 
+    await _loadWeek(selected);
+  }
+
+  Future<void> _loadAvailableWeeks() async {
+    try {
+      final weeks = await widget.onLoadWeeks();
+      if (!mounted) return;
+      setState(() {
+        _availableWeeks = weeks.isEmpty ? _availableWeeks : weeks;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _weekLoadError ??= 'Could not load saved weeks.';
+      });
+    } finally {
+      if (mounted) setState(() => _loadingAvailableWeeks = false);
+    }
+  }
+
+  Future<void> _loadWeek(int selected) async {
     setState(() {
       _loadingWeek = true;
       _weekLoadError = null;
@@ -147,38 +175,32 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
       if (mounted) setState(() => _loadingWeek = false);
     }
   }
-
-  Future<void> _loadAvailableWeeks() async {
-    try {
-      final weeks = await widget.onLoadWeeks();
-      if (!mounted) return;
-      setState(() {
-        _availableWeeks = weeks.isEmpty ? _availableWeeks : weeks;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _weekLoadError ??= 'Could not load saved weeks.';
-      });
-    } finally {
-      if (mounted) setState(() => _loadingAvailableWeeks = false);
-    }
-  }
 }
 
-class DayJournalDetailScreen extends StatelessWidget {
+class DayJournalDetailScreen extends StatefulWidget {
   const DayJournalDetailScreen({
     super.key,
     required this.day,
     required this.onOpenMeal,
+    required this.onDeleteMeal,
+    required this.onMealDeleted,
   });
 
   final JournalDayData day;
-  final ValueChanged<MealLog> onOpenMeal;
+  final Future<bool> Function(MealLog meal) onOpenMeal;
+  final Future<void> Function(MealLog meal) onDeleteMeal;
+  final Future<void> Function() onMealDeleted;
+
+  @override
+  State<DayJournalDetailScreen> createState() => _DayJournalDetailScreenState();
+}
+
+class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
+  late JournalDayData _day = widget.day;
 
   @override
   Widget build(BuildContext context) {
-    final meals = day.meals;
+    final meals = _day.meals;
     final hasMeals = meals.isNotEmpty;
 
     return Scaffold(
@@ -188,22 +210,22 @@ class DayJournalDetailScreen extends StatelessWidget {
           children: [
             _JournalHeader(
               label: 'Day Analysis',
-              title: _dayTitle(day.date),
-              subtitle: _mealCountLabel(day.mealCount),
+              title: _dayTitle(_day.date),
+              subtitle: _mealCountLabel(_day.mealCount),
             ),
             const SizedBox(height: 16),
             if (hasMeals) ...[
               EnergyHeroCard(
-                totals: day.totals,
-                mealCount: day.mealCount,
+                totals: _day.totals,
+                mealCount: _day.mealCount,
                 label: 'Day Energy',
               ),
               const SizedBox(height: 12),
-              MacroBarGroup(totals: day.totals),
+              MacroBarGroup(totals: _day.totals),
               const SizedBox(height: 18),
-              _DayCompositionCard(day: day),
+              _DayCompositionCard(day: _day),
             ] else
-              _EmptyDayOverview(day: day),
+              _EmptyDayOverview(day: _day),
             const SizedBox(height: 22),
             _SectionLabel('Meals'),
             const SizedBox(height: 10),
@@ -211,19 +233,75 @@ class DayJournalDetailScreen extends StatelessWidget {
               const _EmptyDayCard()
             else
               for (final meal in meals)
-                _DayMealRow(meal: meal, onTap: () => onOpenMeal(meal)),
+                _DayMealRow(
+                  meal: meal,
+                  onTap: () => _openMeal(context, meal),
+                  onDelete: () => _deleteMeal(context, meal),
+                ),
           ],
         ),
       ),
     );
   }
+
+  Future<void> _openMeal(BuildContext context, MealLog meal) async {
+    final deleted = await widget.onOpenMeal(meal);
+    if (deleted && context.mounted) {
+      _removeMeal(meal);
+      await widget.onMealDeleted();
+    }
+  }
+
+  Future<bool> _deleteMeal(BuildContext context, MealLog meal) async {
+    if (!await confirmMealDeletion(context)) return false;
+
+    try {
+      await widget.onDeleteMeal(meal);
+      if (!mounted) return false;
+      _removeMeal(meal);
+      await widget.onMealDeleted();
+      return true;
+    } catch (_) {
+      if (!context.mounted) return false;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Could not delete this meal. Try again.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: context.dfit.surfaceHero,
+          ),
+        );
+      return false;
+    }
+  }
+
+  void _removeMeal(MealLog meal) {
+    final meals = _day.meals.where((entry) => entry.id != meal.id).toList();
+    setState(() {
+      _day = JournalDayData(
+        date: _day.date,
+        mealCount: meals.length,
+        totals: meals.fold<MacroTotals>(
+          MacroTotals.zero,
+          (total, entry) => total + entry.totals,
+        ),
+        meals: meals,
+      );
+    });
+  }
 }
 
 class _DayMealRow extends StatelessWidget {
-  const _DayMealRow({required this.meal, required this.onTap});
+  const _DayMealRow({
+    required this.meal,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   final MealLog meal;
   final VoidCallback onTap;
+  final Future<bool> Function() onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -231,65 +309,71 @@ class _DayMealRow extends StatelessWidget {
     final totals = meal.totals;
     final itemNames = meal.items.map((item) => item.name).join(', ');
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: colors.surfaceCard,
+    final row = Material(
+      color: colors.surfaceCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border, width: 0.5),
-            ),
-            child: Row(
-              children: [
-                _MealBadge(type: meal.type),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        meal.type.label,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.textSecondary,
-                          letterSpacing: 1.4,
-                        ),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.border, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              _MealBadge(type: meal.type),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      meal.type.label,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
+                        letterSpacing: 1.4,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        meal.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      meal.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      itemNames,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        itemNames,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  '${totals.calories} kCal',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${totals.calories} kCal',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: MealDeleteDismissible(
+        dismissKey: ValueKey('day-meal-${meal.id}'),
+        onDelete: onDelete,
+        child: row,
       ),
     );
   }

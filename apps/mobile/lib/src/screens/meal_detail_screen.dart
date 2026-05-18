@@ -5,14 +5,21 @@ import '../theme/dfit_colors.dart';
 import '../theme/dfit_theme.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_profile_card.dart';
+import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
 
 class MealDetailScreen extends StatefulWidget {
-  const MealDetailScreen({super.key, required this.meal, this.onUpdateMeal});
+  const MealDetailScreen({
+    super.key,
+    required this.meal,
+    this.onUpdateMeal,
+    this.onDeleteMeal,
+  });
 
   final MealLog meal;
   final Future<MealLog> Function(MealLog meal, List<MealItem> items)?
   onUpdateMeal;
+  final Future<void> Function(MealLog meal)? onDeleteMeal;
 
   @override
   State<MealDetailScreen> createState() => _MealDetailScreenState();
@@ -22,6 +29,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   late MealLog _meal = widget.meal;
   late List<MealItem> _draftItems = widget.meal.items.toList();
   bool _saving = false;
+  bool _deleting = false;
   String? _error;
 
   MealLog get _draftMeal => MealLog(
@@ -46,6 +54,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final totals = _draftMeal.totals;
     final colors = context.dfit;
     final canEdit = widget.onUpdateMeal != null;
+    final canDelete = widget.onDeleteMeal != null;
 
     return Scaffold(
       body: SafeArea(
@@ -60,6 +69,35 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                 ),
                 const Spacer(),
                 if (_hasChanges) const _UnsavedChangesPill(),
+                if (canDelete) ...[
+                  const SizedBox(width: 8),
+                  PopupMenuButton<_MealAction>(
+                    tooltip: 'Meal actions',
+                    enabled: !_deleting,
+                    icon: Icon(Icons.more_horiz_rounded, color: colors.icon),
+                    onSelected: (action) {
+                      if (action == _MealAction.delete) {
+                        _requestDeleteMeal();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem<_MealAction>(
+                        value: _MealAction.delete,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              color: DFitColors.destructive,
+                              size: 19,
+                            ),
+                            const SizedBox(width: 10),
+                            const Text('Delete meal'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
             if (_meal.image != null) ...[
@@ -114,7 +152,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             if (canEdit) ...[
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: !_hasChanges || _saving ? null : _saveChanges,
+                onPressed: !_hasChanges || _saving || _deleting
+                    ? null
+                    : _saveChanges,
                 style: FilledButton.styleFrom(
                   backgroundColor: colors.primaryAction,
                   foregroundColor: colors.primaryActionText,
@@ -145,7 +185,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               ),
               if (_hasChanges)
                 TextButton(
-                  onPressed: _saving ? null : _resetChanges,
+                  onPressed: _saving || _deleting ? null : _resetChanges,
                   child: const Text('Reset changes'),
                 ),
             ],
@@ -156,7 +196,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Future<void> _openEditItemSheet(int index) async {
-    if (widget.onUpdateMeal == null) return;
+    if (widget.onUpdateMeal == null || _deleting) return;
     final result = await showModalBottomSheet<MealItemEditResult>(
       context: context,
       isScrollControlled: true,
@@ -205,7 +245,33 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       _draftItems = _meal.items.toList();
     });
   }
+
+  Future<void> _requestDeleteMeal() async {
+    final deleteMeal = widget.onDeleteMeal;
+    if (deleteMeal == null || _deleting) return;
+
+    final confirmed = await confirmMealDeletion(context);
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _deleting = true;
+      _error = null;
+    });
+    try {
+      await deleteMeal(_meal);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _deleting = false;
+        _error = 'Could not delete this meal. Try again.';
+      });
+    }
+  }
 }
+
+enum _MealAction { delete }
 
 class _MealHeroImage extends StatelessWidget {
   const _MealHeroImage({required this.image});

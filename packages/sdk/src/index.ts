@@ -54,6 +54,13 @@ export class DFitClient {
     });
   }
 
+  async deleteMeal(mealId: string, idempotencyKey: string): Promise<void> {
+    await this.request<void>(`/v1/meals/${mealId}`, {
+      method: "DELETE",
+      idempotencyKey,
+    });
+  }
+
   async prepareScan(idempotencyKey: string): Promise<PrepareScanResponseContract> {
     return this.request<PrepareScanResponseContract>("/v1/scans/prepare", {
       method: "POST",
@@ -103,6 +110,8 @@ export class DFitClient {
     if (!response.ok) {
       throw new Error(`DFit API request failed: ${response.status} ${await response.text()}`);
     }
+
+    if (response.status === 204) return undefined as T;
 
     return response.json() as Promise<T>;
   }

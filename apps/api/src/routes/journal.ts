@@ -112,4 +112,37 @@ export const registerJournalRoutes = async (
     const profile = await repository.getProfile();
     return toApiMeal(profile.id, meal, mealImageStorage);
   });
+
+  app.delete("/v1/meals/:id", async (request, reply) => {
+    const params = request.params as { id: string };
+    const deletionPlan = await repository.getMealDeletionPlan(params.id);
+    if (!deletionPlan) return reply.status(404).send({ error: "meal_not_found" });
+
+    if (deletionPlan.image) {
+      if (!mealImageStorage.enabled) {
+        return reply.status(503).send({
+          error: "meal_image_delete_unavailable",
+          message: "Meal image storage is not configured.",
+        });
+      }
+
+      try {
+        await mealImageStorage.deleteMealImage(deletionPlan.image);
+      } catch (error) {
+        request.log.error(
+          { err: error, mealId: params.id, imageId: deletionPlan.image.imageId },
+          "meal image delete failed",
+        );
+        return reply.status(502).send({
+          error: "meal_image_delete_failed",
+          message: "Could not delete the stored meal image.",
+        });
+      }
+    }
+
+    const deleted = await repository.deleteMeal(params.id);
+    if (!deleted) return reply.status(404).send({ error: "meal_not_found" });
+
+    return reply.status(204).send();
+  });
 };

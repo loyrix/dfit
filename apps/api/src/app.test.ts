@@ -9,12 +9,14 @@ import type {
   StoredMealImage,
   UploadMealImageInput,
 } from "./services/meal-image-storage.js";
+import type { MealImageSummary } from "@dfit/domain";
 
 const testApp = () => buildApp({ repository: new InMemoryStore() });
 
 class TestMealImageStorage implements MealImageStorage {
   readonly enabled = true;
   readonly uploads: UploadMealImageInput[] = [];
+  readonly deletes: MealImageSummary[] = [];
 
   async uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage> {
     this.uploads.push(input);
@@ -26,10 +28,12 @@ class TestMealImageStorage implements MealImageStorage {
     };
   }
 
-  async createSignedReadUrl(image: {
-    objectKey: string;
-  }): Promise<string> {
+  async createSignedReadUrl(image: MealImageSummary): Promise<string> {
     return `https://images.test/${image.objectKey}`;
+  }
+
+  async deleteMealImage(image: MealImageSummary): Promise<void> {
+    this.deletes.push(image);
   }
 }
 
@@ -59,6 +63,20 @@ describe("DFit API", () => {
     const response = await app.inject({ method: "GET", url: "/health" });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, service: "dfit-api" });
+    await app.close();
+  });
+
+  it("serves interactive API documentation and the raw OpenAPI document", async () => {
+    const app = await testApp();
+    const docs = await app.inject({ method: "GET", url: "/docs" });
+    const spec = await app.inject({ method: "GET", url: "/openapi.yaml" });
+
+    expect(docs.statusCode).toBe(200);
+    expect(docs.headers["content-type"]).toContain("text/html");
+    expect(spec.statusCode).toBe(200);
+    expect(spec.headers["content-type"]).toContain("application/yaml");
+    expect(spec.body).toContain("title: DFit API");
+
     await app.close();
   });
 
@@ -257,6 +275,76 @@ describe("DFit API", () => {
 
     const today = await app.inject({ method: "GET", url: "/v1/journal/today" });
     expect(today.json().meals[0].image.url).toContain("https://images.test/profiles/");
+    await app.close();
+  });
+
+  it("deletes meals with their stored image and linked scan history", async () => {
+    const repository = new InMemoryStore();
+    const mealImageStorage = new TestMealImageStorage();
+    const app = await buildApp({ repository, mealImageStorage });
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "delete-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "delete-analyze" },
+      payload: {
+        hint: "dal rice",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+    const analysis = analyzed.json();
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "delete-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+        items: analysis.items.map(
+          (item: {
+            name: string;
+            quantity: number;
+            unit: string;
+            estimatedGrams: number;
+            nutrition: unknown;
+          }) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          }),
+        ),
+      },
+    });
+    const mealId = confirmed.json().mealId as string;
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/v1/meals/${mealId}`,
+      headers: { "idempotency-key": "delete-meal" },
+    });
+    expect(deleted.statusCode).toBe(204);
+    expect(mealImageStorage.deletes).toHaveLength(1);
+    expect(await repository.getScan(scanId)).toBeUndefined();
+
+    const today = await app.inject({ method: "GET", url: "/v1/journal/today" });
+    expect(today.json().meals).toEqual([]);
     await app.close();
   });
 

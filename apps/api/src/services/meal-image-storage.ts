@@ -1,4 +1,9 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { MealImageSummary } from "@dfit/domain";
 import type { ApiConfig } from "../config.js";
@@ -16,6 +21,7 @@ export interface MealImageStorage {
   readonly enabled: boolean;
   uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage>;
   createSignedReadUrl(image: MealImageSummary): Promise<string | undefined>;
+  deleteMealImage(image: MealImageSummary): Promise<void>;
 }
 
 export class DisabledMealImageStorage implements MealImageStorage {
@@ -27,6 +33,10 @@ export class DisabledMealImageStorage implements MealImageStorage {
 
   async createSignedReadUrl(): Promise<string | undefined> {
     return undefined;
+  }
+
+  async deleteMealImage(): Promise<void> {
+    throw new Error("Meal image storage is not configured.");
   }
 }
 
@@ -82,6 +92,15 @@ export class S3MealImageStorage implements MealImageStorage {
         Key: image.objectKey,
       }),
       { expiresIn: 60 * 60 },
+    );
+  }
+
+  async deleteMealImage(image: MealImageSummary): Promise<void> {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: image.bucket,
+        Key: image.objectKey,
+      }),
     );
   }
 }
