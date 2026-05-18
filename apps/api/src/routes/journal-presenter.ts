@@ -1,27 +1,48 @@
 import { sumTotals } from "@dfit/domain";
 import type { AppRepository, Profile } from "../repositories/app-repository.js";
+import type { MealImageStorage } from "../services/meal-image-storage.js";
 
 type RouteMeal =
   Awaited<ReturnType<AppRepository["getMeal"]>> extends infer T ? NonNullable<T> : never;
 
-export const toApiMeal = (profileId: string, meal: RouteMeal) => ({
-  id: meal.mealId,
-  profileId,
-  mealType: meal.mealType,
-  title: meal.title,
-  loggedAt: meal.loggedAt,
-  items: meal.items.map((item) => ({
-    id: `${meal.mealId}_${item.displayName}`,
-    foodId: item.foodId,
-    displayName: item.displayName,
-    quantity: item.portion.quantity,
-    unit: item.portion.unit,
-    grams: item.portion.grams,
-    nutrition: item.nutrition,
-    userEdited: false,
-  })),
-  totals: meal.totals,
-});
+export const toApiMeal = async (
+  profileId: string,
+  meal: RouteMeal,
+  mealImageStorage: MealImageStorage,
+) => {
+  const imageUrl = meal.image
+    ? await mealImageStorage.createSignedReadUrl(meal.image)
+    : undefined;
+
+  return {
+    id: meal.mealId,
+    profileId,
+    mealType: meal.mealType,
+    title: meal.title,
+    loggedAt: meal.loggedAt,
+    items: meal.items.map((item) => ({
+      id: `${meal.mealId}_${item.displayName}`,
+      foodId: item.foodId,
+      displayName: item.displayName,
+      quantity: item.portion.quantity,
+      unit: item.portion.unit,
+      grams: item.portion.grams,
+      nutrition: item.nutrition,
+      userEdited: false,
+    })),
+    totals: meal.totals,
+    image:
+      meal.image && imageUrl
+        ? {
+            url: imageUrl,
+            mimeType: meal.image.mimeType,
+            byteSize: meal.image.byteSize,
+            width: meal.image.width,
+            height: meal.image.height,
+          }
+        : undefined,
+  };
+};
 
 const round = (value: number, decimals = 1): number => {
   const factor = 10 ** decimals;
@@ -57,7 +78,11 @@ const dailyAverage = (totals: ReturnType<typeof sumTotals>, days: number) => ({
   sodiumMg: Math.round((totals.sodiumMg ?? 0) / days),
 });
 
-export const buildTodayJournal = async (repository: AppRepository, profile: Profile) => {
+export const buildTodayJournal = async (
+  repository: AppRepository,
+  profile: Profile,
+  mealImageStorage: MealImageStorage,
+) => {
   const today = toDateString(new Date());
   const meals = await repository.listMeals({ fromDate: today, toDate: today });
 
@@ -65,7 +90,9 @@ export const buildTodayJournal = async (repository: AppRepository, profile: Prof
     date: today,
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
-    meals: meals.map((meal) => toApiMeal(profile.id, meal)),
+    meals: await Promise.all(
+      meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage)),
+    ),
   };
 };
 
@@ -73,6 +100,7 @@ export const buildJournalRange = async (
   repository: AppRepository,
   profile: Profile,
   daysCount: number,
+  mealImageStorage: MealImageStorage,
   weekOffset = 0,
 ) => {
   const endDate = addDays(new Date(), -(weekOffset * 7));
@@ -88,15 +116,17 @@ export const buildJournalRange = async (
     mealsByDate.set(day, [...(mealsByDate.get(day) ?? []), meal]);
   }
 
-  const days = dates.map((date) => {
+  const days = await Promise.all(dates.map(async (date) => {
     const dayMeals = mealsByDate.get(date) ?? [];
     return {
       date,
       mealCount: dayMeals.length,
       totals: sumTotals(dayMeals.map((meal) => meal.totals)),
-      meals: dayMeals.map((meal) => toApiMeal(profile.id, meal)),
+      meals: await Promise.all(
+        dayMeals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage)),
+      ),
     };
-  });
+  }));
   const totals = sumTotals(days.map((day) => day.totals));
   const activeDays = days.filter((day) => day.mealCount > 0).length;
 

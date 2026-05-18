@@ -74,6 +74,7 @@ class MealItem {
     required this.unit,
     required this.grams,
     required this.nutrition,
+    this.foodId,
     this.confidence = 1,
   });
 
@@ -82,6 +83,7 @@ class MealItem {
   final String unit;
   final int grams;
   final MacroTotals nutrition;
+  final String? foodId;
   final double confidence;
 
   MealItem copyWith({
@@ -90,6 +92,7 @@ class MealItem {
     String? unit,
     int? grams,
     MacroTotals? nutrition,
+    String? foodId,
     double? confidence,
   }) {
     return MealItem(
@@ -98,6 +101,7 @@ class MealItem {
       unit: unit ?? this.unit,
       grams: grams ?? this.grams,
       nutrition: nutrition ?? this.nutrition,
+      foodId: foodId ?? this.foodId,
       confidence: confidence ?? this.confidence,
     );
   }
@@ -111,6 +115,7 @@ class MealItem {
       nutrition: MacroTotals.fromJson(
         json['nutrition'] as Map<String, dynamic>,
       ),
+      foodId: json['foodId'] as String?,
       confidence: 1,
     );
   }
@@ -124,6 +129,7 @@ class MealItem {
       nutrition: MacroTotals.fromJson(
         json['nutrition'] as Map<String, dynamic>,
       ),
+      foodId: json['foodId'] as String?,
       confidence: (json['confidence'] as num).toDouble(),
     );
   }
@@ -135,6 +141,7 @@ class MealItem {
       'unit': unit,
       'grams': grams,
       'nutrition': nutrition.toJson(),
+      if (foodId != null) 'foodId': foodId,
       'confidence': confidence,
     };
   }
@@ -162,6 +169,42 @@ class MealItem {
 
 enum MealSyncState { synced, pending }
 
+class MealImage {
+  const MealImage({
+    required this.url,
+    required this.mimeType,
+    required this.byteSize,
+    this.width,
+    this.height,
+  });
+
+  final String url;
+  final String mimeType;
+  final int byteSize;
+  final int? width;
+  final int? height;
+
+  factory MealImage.fromJson(Map<String, dynamic> json) {
+    return MealImage(
+      url: json['url'] as String,
+      mimeType: json['mimeType'] as String,
+      byteSize: json['byteSize'] as int,
+      width: json['width'] as int?,
+      height: json['height'] as int?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'url': url,
+      'mimeType': mimeType,
+      'byteSize': byteSize,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+    };
+  }
+}
+
 class MealLog {
   const MealLog({
     required this.id,
@@ -169,6 +212,7 @@ class MealLog {
     required this.title,
     required this.loggedAt,
     required this.items,
+    this.image,
     this.syncState = MealSyncState.synced,
   });
 
@@ -177,6 +221,7 @@ class MealLog {
   final String title;
   final DateTime loggedAt;
   final List<MealItem> items;
+  final MealImage? image;
   final MealSyncState syncState;
 
   MacroTotals get totals {
@@ -194,6 +239,9 @@ class MealLog {
       items: (json['items'] as List<dynamic>)
           .map((item) => MealItem.fromJson(item as Map<String, dynamic>))
           .toList(),
+      image: json['image'] == null
+          ? null
+          : MealImage.fromJson(json['image'] as Map<String, dynamic>),
     );
   }
 
@@ -205,6 +253,7 @@ class MealLog {
       'loggedAt': loggedAt.toUtc().toIso8601String(),
       'items': items.map((item) => item.toJson()).toList(),
       'totals': totals.toJson(),
+      if (image != null) 'image': image!.toJson(),
     };
   }
 }

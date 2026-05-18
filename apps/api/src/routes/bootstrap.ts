@@ -1,15 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import type { AppRepository } from "../repositories/app-repository.js";
+import type { MealImageStorage } from "../services/meal-image-storage.js";
 import { buildJournalRange } from "./journal-presenter.js";
 
 export const registerBootstrapRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
+  mealImageStorage: MealImageStorage,
 ): Promise<void> => {
   app.get("/v1/app/bootstrap", async () => {
     const profile = await repository.getProfile();
     const [weeklyRange, quota] = await Promise.all([
-      buildJournalRange(repository, profile, 7),
+      buildJournalRange(repository, profile, 7, mealImageStorage),
       repository.getQuota(),
     ]);
     const todayDay =

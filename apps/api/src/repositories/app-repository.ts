@@ -1,6 +1,7 @@
 import type {
   FoodRecord,
   FoodSearchResult,
+  MealImageSummary,
   MealItemNutrition,
   MealSummary,
   ScanCreditState,
@@ -62,6 +63,13 @@ export type CreateMealInput = {
   items: Array<Omit<MealItemNutrition, "foodId"> & { foodId?: string }>;
 };
 
+export type UpdateMealInput = Omit<
+  CreateMealInput,
+  "profileId" | "loggedAt" | "source" | "scanSessionId"
+>;
+
+export type AttachMealImageInput = Omit<MealImageSummary, "imageId" | "createdAt">;
+
 export type ListMealsInput = {
   fromDate?: string;
   toDate?: string;
@@ -78,6 +86,8 @@ export interface AppRepository {
   getQuota(): Promise<ScanCreditState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
+  attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
+  updateMeal(mealId: string, input: UpdateMealInput): Promise<MealSummary | undefined>;
   listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
   listMealDates(): Promise<string[]>;
   getMeal(mealId: string): Promise<MealSummary | undefined>;

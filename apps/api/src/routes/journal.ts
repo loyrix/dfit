@@ -1,5 +1,9 @@
 import type { FastifyInstance } from "fastify";
-import { createMealRequestSchema, journalRangeQuerySchema } from "@dfit/contracts";
+import {
+  createMealRequestSchema,
+  journalRangeQuerySchema,
+  updateMealRequestSchema,
+} from "@dfit/contracts";
 import type { AppRepository } from "../repositories/app-repository.js";
 import {
   buildJournalRange,
@@ -7,14 +11,16 @@ import {
   buildTodayJournal,
   toApiMeal,
 } from "./journal-presenter.js";
+import type { MealImageStorage } from "../services/meal-image-storage.js";
 
 export const registerJournalRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
+  mealImageStorage: MealImageStorage,
 ): Promise<void> => {
   app.get("/v1/journal/today", async () => {
     const profile = await repository.getProfile();
-    return buildTodayJournal(repository, profile);
+    return buildTodayJournal(repository, profile, mealImageStorage);
   });
 
   app.get("/v1/journal/range", async (request, reply) => {
@@ -31,6 +37,7 @@ export const registerJournalRoutes = async (
       repository,
       profile,
       parsed.data.days,
+      mealImageStorage,
       parsed.data.weekOffset,
     );
   });
@@ -53,6 +60,7 @@ export const registerJournalRoutes = async (
       title: parsed.data.title,
       loggedAt: parsed.data.loggedAt,
       items: parsed.data.items.map((item) => ({
+        foodId: item.foodId,
         displayName: item.displayName,
         portion: {
           quantity: item.quantity,
@@ -64,7 +72,7 @@ export const registerJournalRoutes = async (
     });
 
     const profile = await repository.getProfile();
-    return reply.status(201).send(toApiMeal(profile.id, meal));
+    return reply.status(201).send(await toApiMeal(profile.id, meal, mealImageStorage));
   });
 
   app.get("/v1/meals/:id", async (request, reply) => {
@@ -72,6 +80,36 @@ export const registerJournalRoutes = async (
     const meal = await repository.getMeal(params.id);
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
     const profile = await repository.getProfile();
-    return toApiMeal(profile.id, meal);
+    return toApiMeal(profile.id, meal, mealImageStorage);
+  });
+
+  app.patch("/v1/meals/:id", async (request, reply) => {
+    const params = request.params as { id: string };
+    const parsed = updateMealRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_meal_update",
+        issues: parsed.error.issues,
+      });
+    }
+
+    const meal = await repository.updateMeal(params.id, {
+      mealType: parsed.data.mealType,
+      title: parsed.data.title,
+      items: parsed.data.items.map((item) => ({
+        foodId: item.foodId,
+        displayName: item.displayName,
+        portion: {
+          quantity: item.quantity,
+          unit: item.unit,
+          grams: item.grams,
+        },
+        nutrition: item.nutrition,
+      })),
+    });
+    if (!meal) return reply.status(404).send({ error: "meal_not_found" });
+
+    const profile = await repository.getProfile();
+    return toApiMeal(profile.id, meal, mealImageStorage);
   });
 };

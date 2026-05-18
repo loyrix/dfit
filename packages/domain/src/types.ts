@@ -43,6 +43,17 @@ export type MealItemNutrition = {
   nutrition: MacroTotals;
 };
 
+export type MealImageSummary = {
+  imageId: string;
+  bucket: string;
+  objectKey: string;
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  byteSize: number;
+  width?: number;
+  height?: number;
+  createdAt: string;
+};
+
 export type MealSummary = {
   mealId: string;
   mealType: "breakfast" | "lunch" | "snack" | "dinner";
@@ -50,6 +61,7 @@ export type MealSummary = {
   loggedAt: string;
   items: MealItemNutrition[];
   totals: MacroTotals;
+  image?: MealImageSummary;
 };
 
 export type ScanCreditState = {

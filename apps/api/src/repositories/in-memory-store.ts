@@ -10,11 +10,13 @@ import type {
   AccountSession,
   AccountAuthError,
   AppRepository,
+  AttachMealImageInput,
   CreateMealInput,
   IdempotencyRecord,
   ListMealsInput,
   Profile,
   ScanSession,
+  UpdateMealInput,
 } from "./app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AccountAuthError as AuthError } from "./app-repository.js";
@@ -151,6 +153,41 @@ export class InMemoryStore implements AppRepository {
     return meal;
   }
 
+  async attachMealImage(mealId: string, input: AttachMealImageInput) {
+    const existing = await this.getMeal(mealId);
+    if (!existing) return undefined;
+
+    const meal = {
+      ...existing,
+      image: {
+        imageId: randomUUID(),
+        ...input,
+        createdAt: new Date().toISOString(),
+      },
+    };
+    this.meals.set(mealId, meal);
+    return meal;
+  }
+
+  async updateMeal(mealId: string, input: UpdateMealInput) {
+    const existing = await this.getMeal(mealId);
+    if (!existing) return undefined;
+
+    const meal = createMealSummary({
+      mealId: existing.mealId,
+      mealType: input.mealType,
+      title: input.title,
+      loggedAt: existing.loggedAt,
+      items: input.items.map((item) => ({
+        ...item,
+        foodId: item.foodId ?? randomUUID(),
+      })),
+    });
+
+    this.meals.set(mealId, meal);
+    return meal;
+  }
+
   async listMeals(input: ListMealsInput = {}) {
     const profile = await this.getProfile();
     return [...this.meals.values()]
@@ -167,11 +204,13 @@ export class InMemoryStore implements AppRepository {
 
   async listMealDates() {
     const profile = await this.getProfile();
-    return [...new Set(
-      [...this.meals.values()]
-        .filter((meal) => this.mealProfiles.get(meal.mealId) === profile.id)
-        .map((meal) => meal.loggedAt.slice(0, 10)),
-    )].sort((a, b) => b.localeCompare(a));
+    return [
+      ...new Set(
+        [...this.meals.values()]
+          .filter((meal) => this.mealProfiles.get(meal.mealId) === profile.id)
+          .map((meal) => meal.loggedAt.slice(0, 10)),
+      ),
+    ].sort((a, b) => b.localeCompare(a));
   }
 
   async getMeal(mealId: string) {

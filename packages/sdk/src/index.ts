@@ -9,6 +9,7 @@ import type {
   MealContract,
   PrepareScanResponseContract,
   TodayJournalResponseContract,
+  UpdateMealRequestContract,
 } from "@dfit/contracts";
 
 export type DFitClientOptions = {
@@ -36,6 +37,18 @@ export class DFitClient {
   async createMeal(body: CreateMealRequestContract, idempotencyKey: string): Promise<MealContract> {
     return this.request<MealContract>("/v1/meals", {
       method: "POST",
+      body,
+      idempotencyKey,
+    });
+  }
+
+  async updateMeal(
+    mealId: string,
+    body: UpdateMealRequestContract,
+    idempotencyKey: string,
+  ): Promise<MealContract> {
+    return this.request<MealContract>(`/v1/meals/${mealId}`, {
+      method: "PATCH",
       body,
       idempotencyKey,
     });

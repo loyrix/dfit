@@ -22,6 +22,12 @@ export const prepareScanResponseSchema = z.object({
   }),
 });
 
+export const scanImageSchema = z.object({
+  mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  base64: z.string().min(1).max(8_000_000),
+  byteSize: z.number().int().positive().max(6_000_000),
+});
+
 export const analyzeScanRequestSchema = z
   .object({
     hint: z
@@ -32,13 +38,7 @@ export const analyzeScanRequestSchema = z
       .refine((value) => value.split(/\s+/).filter(Boolean).length <= 50, {
         message: "Plate hint must be 50 words or fewer.",
       }),
-    image: z
-      .object({
-        mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
-        base64: z.string().min(1).max(8_000_000),
-        byteSize: z.number().int().positive().max(6_000_000),
-      })
-      .optional(),
+    image: scanImageSchema.optional(),
   });
 
 export const analyzedMealItemSchema = z.object({
@@ -75,6 +75,7 @@ export const confirmScanRequestSchema = z.object({
       nutrition: true,
     }),
   ),
+  image: scanImageSchema.optional(),
 });
 
 export const confirmScanResponseSchema = z.object({

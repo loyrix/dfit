@@ -94,6 +94,32 @@ void main() {
     expect(find.text('kCal - 2 items'), findsOneWidget);
   });
 
+  testWidgets('shows the captured meal photo during scan review', (
+    tester,
+  ) async {
+    final photo = CapturedMealPhoto(
+      bytes: base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      ),
+      mimeType: 'image/png',
+      fileName: 'meal.png',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: ReviewMealScreen(
+          initialItems: sampleDetectedItems().take(1).toList(),
+          photo: photo,
+          onConfirm: (_, _) async {},
+        ),
+      ),
+    );
+
+    expect(find.text('Captured meal'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
   testWidgets('scales AI review item details from portion changes', (
     tester,
   ) async {
@@ -417,6 +443,65 @@ void main() {
     expect(find.text('Item Contribution'), findsOneWidget);
     expect(find.text('Protein density'), findsOneWidget);
     expect(find.text('Dal'), findsWidgets);
+  });
+
+  testWidgets('meal detail previews inline edits before saving them', (
+    tester,
+  ) async {
+    final meal = MealLog(
+      id: 'meal-1',
+      type: MealType.lunch,
+      title: 'Lunch',
+      loggedAt: DateTime(2026, 5, 12, 12),
+      items: sampleDetectedItems().take(1).toList(),
+    );
+    MealLog? savedMeal;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: DFitTheme.dark(),
+        home: MealDetailScreen(
+          meal: meal,
+          onUpdateMeal: (_, items) async {
+            savedMeal = MealLog(
+              id: meal.id,
+              type: meal.type,
+              title: meal.title,
+              loggedAt: meal.loggedAt,
+              items: items,
+            );
+            return savedMeal!;
+          },
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -420));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.edit_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit item'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-grams')),
+      '225',
+    );
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('225'), findsWidgets);
+    expect(find.text('1.3 katori - 225g'), findsOneWidget);
+    expect(savedMeal, isNull);
+
+    await tester.tap(find.text('Save updated meal'));
+    await tester.pumpAndSettle();
+
+    expect(savedMeal, isNotNull);
+    expect(savedMeal!.items.single.quantity, 1.25);
+    expect(savedMeal!.items.single.grams, 225);
+    expect(savedMeal!.totals.calories, 225);
+    expect(find.byType(MealDetailScreen), findsOneWidget);
+    expect(find.text('225'), findsWidgets);
   });
 
   testWidgets('initial journal loading shows premium skeleton', (tester) async {

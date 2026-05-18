@@ -14,6 +14,14 @@ export const mealItemSchema = z.object({
   userEdited: z.boolean().default(false),
 });
 
+export const mealImageSchema = z.object({
+  url: z.string().url(),
+  mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  byteSize: z.number().int().positive(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+
 export const mealSchema = z.object({
   id: idSchema,
   profileId: idSchema,
@@ -22,6 +30,7 @@ export const mealSchema = z.object({
   loggedAt: isoDateTimeSchema,
   items: z.array(mealItemSchema),
   totals: macroTotalsSchema,
+  image: mealImageSchema.optional(),
 });
 
 export const createMealRequestSchema = z.object({
@@ -33,6 +42,10 @@ export const createMealRequestSchema = z.object({
       id: true,
     }),
   ),
+});
+
+export const updateMealRequestSchema = createMealRequestSchema.omit({
+  loggedAt: true,
 });
 
 export const todayJournalResponseSchema = z.object({
@@ -84,6 +97,7 @@ export const journalWeeksResponseSchema = z.object({
 
 export type MealContract = z.infer<typeof mealSchema>;
 export type CreateMealRequestContract = z.infer<typeof createMealRequestSchema>;
+export type UpdateMealRequestContract = z.infer<typeof updateMealRequestSchema>;
 export type TodayJournalResponseContract = z.infer<typeof todayJournalResponseSchema>;
 export type JournalRangeQueryContract = z.infer<typeof journalRangeQuerySchema>;
 export type JournalRangeResponseContract = z.infer<typeof journalRangeResponseSchema>;

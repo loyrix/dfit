@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/auth_session.dart';
+import 'models/captured_meal_photo.dart';
 import 'models/meal.dart';
 import 'models/meal_type_resolver.dart';
 import 'navigation/dfit_page_route.dart';
@@ -174,12 +175,14 @@ class _DFitAppState extends State<DFitApp> {
                             foodSuggestedType: analysis.mealType,
                           ),
                           lockInitialItems: true,
+                          photo: photo,
                           onConfirm: (type, items) {
                             return _confirmAnalyzedMeal(
                               scanId: analysis.scanId,
                               title: analysis.mealName,
                               type: type,
                               items: items,
+                              photo: photo,
                             );
                           },
                         ),
@@ -218,12 +221,14 @@ class _DFitAppState extends State<DFitApp> {
     required String title,
     required MealType type,
     required List<MealItem> items,
+    CapturedMealPhoto? photo,
   }) async {
     await _journalController.confirmAnalyzedMeal(
       scanId: scanId,
       title: title,
       type: type,
       items: items,
+      photo: photo,
     );
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
     _showJournalMessage('Scan saved');
@@ -365,7 +370,12 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openMealDetail(MealLog meal) async {
     await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(builder: (_) => MealDetailScreen(meal: meal)),
+      dfitPageRoute<void>(
+        builder: (_) => MealDetailScreen(
+          meal: meal,
+          onUpdateMeal: _journalController.updateMeal,
+        ),
+      ),
     );
   }
 

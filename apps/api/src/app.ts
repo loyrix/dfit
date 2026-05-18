@@ -15,11 +15,16 @@ import { config } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
 import { registerBootstrapRoutes } from "./routes/bootstrap.js";
+import {
+  createMealImageStorage,
+  type MealImageStorage,
+} from "./services/meal-image-storage.js";
 
 export type BuildAppOptions = {
   repository?: AppRepository;
   sql?: SqlClient;
   aiProvider?: AiProvider;
+  mealImageStorage?: MealImageStorage;
 };
 
 export const buildApp = async (options: BuildAppOptions = {}) => {
@@ -40,6 +45,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   const aiProvider =
     options.aiProvider ??
     (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config));
+  const mealImageStorage = options.mealImageStorage ?? createMealImageStorage(config);
 
   if (sql) {
     app.addHook("onClose", async () => {
@@ -56,9 +62,9 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerConfigRoutes(app);
   await registerFoodRoutes(app, repository);
   await registerProfileRoutes(app, repository);
-  await registerBootstrapRoutes(app, repository);
-  await registerJournalRoutes(app, repository);
-  await registerScanRoutes(app, repository, aiProvider);
+  await registerBootstrapRoutes(app, repository, mealImageStorage);
+  await registerJournalRoutes(app, repository, mealImageStorage);
+  await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
 
   return app;
 };

@@ -107,6 +107,33 @@ class JournalController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<MealLog> updateMeal(MealLog meal, List<MealItem> items) async {
+    final key = 'meal-update-${DateTime.now().microsecondsSinceEpoch}';
+
+    try {
+      final updated = await _apiClient.updateMeal(
+        mealId: meal.id,
+        type: meal.type,
+        title: meal.title,
+        items: items,
+        idempotencyKey: key,
+      );
+      _upsertLocalMeal(updated);
+      _error = null;
+      notifyListeners();
+      _refreshJournalSoon();
+      return updated;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'journal.update_meal',
+        error,
+        stackTrace: stackTrace,
+        context: {'mealId': meal.id, 'items': items.length},
+      );
+      rethrow;
+    }
+  }
+
   Future<void> refreshQuota() => _refreshQuota();
 
   Future<JournalRangeData> loadWeeklyRange(int weekOffset) {
@@ -200,6 +227,7 @@ class JournalController extends ChangeNotifier {
     required MealType type,
     required String title,
     required List<MealItem> items,
+    CapturedMealPhoto? photo,
   }) async {
     final key = 'scan-confirm-${DateTime.now().microsecondsSinceEpoch}';
 
@@ -210,6 +238,7 @@ class JournalController extends ChangeNotifier {
         title: title,
         items: items,
         idempotencyKey: key,
+        photo: photo,
       );
       final meal =
           confirmed.meal ??
@@ -219,6 +248,7 @@ class JournalController extends ChangeNotifier {
             title: title,
             loggedAt: DateTime.now(),
             items: items,
+            image: null,
           );
       _upsertLocalMeal(meal);
       _error = null;

@@ -4,8 +4,34 @@ import { currentRequestIdentity, type RequestIdentity } from "./request-context.
 import { InMemoryStore } from "./repositories/in-memory-store.js";
 import type { AiProvider, AnalyzeMealImageInput } from "./services/ai-provider.js";
 import { analyzeWithMockProvider } from "./services/mock-ai-provider.js";
+import type {
+  MealImageStorage,
+  StoredMealImage,
+  UploadMealImageInput,
+} from "./services/meal-image-storage.js";
 
 const testApp = () => buildApp({ repository: new InMemoryStore() });
+
+class TestMealImageStorage implements MealImageStorage {
+  readonly enabled = true;
+  readonly uploads: UploadMealImageInput[] = [];
+
+  async uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage> {
+    this.uploads.push(input);
+    return {
+      bucket: "meal-images",
+      objectKey: `profiles/${input.profileId}/meals/${input.mealId}/original.jpg`,
+      mimeType: input.mimeType,
+      byteSize: input.bytes.byteLength,
+    };
+  }
+
+  async createSignedReadUrl(image: {
+    objectKey: string;
+  }): Promise<string> {
+    return `https://images.test/${image.objectKey}`;
+  }
+}
 
 const mealPayload = (loggedAt: string) => ({
   mealType: "lunch",
@@ -162,6 +188,78 @@ describe("DFit API", () => {
     await app.close();
   });
 
+  it("stores a confirmed scan image and returns a signed image URL", async () => {
+    const mealImageStorage = new TestMealImageStorage();
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      mealImageStorage,
+    });
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "image-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "image-analyze" },
+      payload: {
+        hint: "dal rice",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+    expect(analyzed.statusCode).toBe(200);
+
+    const analysis = analyzed.json();
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "image-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+        items: analysis.items.map(
+          (item: {
+            name: string;
+            quantity: number;
+            unit: string;
+            estimatedGrams: number;
+            nutrition: unknown;
+          }) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          }),
+        ),
+      },
+    });
+
+    expect(confirmed.statusCode).toBe(201);
+    expect(mealImageStorage.uploads).toHaveLength(1);
+    expect(confirmed.json().meal.image).toMatchObject({
+      url: expect.stringContaining("https://images.test/profiles/"),
+      mimeType: "image/jpeg",
+      byteSize: 3,
+    });
+
+    const today = await app.inject({ method: "GET", url: "/v1/journal/today" });
+    expect(today.json().meals[0].image.url).toContain("https://images.test/profiles/");
+    await app.close();
+  });
+
   it("returns a seven day journal range with daily summary", async () => {
     const app = await testApp();
     const now = new Date();
@@ -208,6 +306,76 @@ describe("DFit API", () => {
     expect(weeks.json().weeks[0]).toMatchObject({
       weekOffset: 0,
       activeDays: 2,
+    });
+    await app.close();
+  });
+
+  it("updates an existing meal with previewed portion changes", async () => {
+    const app = await testApp();
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { "idempotency-key": "preview-create" },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(created.statusCode).toBe(201);
+
+    const mealId = created.json().id as string;
+    const updated = await app.inject({
+      method: "PATCH",
+      url: `/v1/meals/${mealId}`,
+      headers: { "idempotency-key": "preview-update" },
+      payload: {
+        mealType: "lunch",
+        title: "Dal rice",
+        items: [
+          {
+            foodId: "food_dal",
+            displayName: "Dal",
+            quantity: 2,
+            unit: "katori",
+            grams: 360,
+            nutrition: {
+              calories: 360,
+              proteinG: 21.6,
+              carbsG: 50.4,
+              fatG: 10.8,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json()).toMatchObject({
+      id: mealId,
+      totals: {
+        calories: 360,
+        proteinG: 21.6,
+        carbsG: 50.4,
+        fatG: 10.8,
+      },
+      items: [
+        {
+          displayName: "Dal",
+          foodId: "food_dal",
+          quantity: 2,
+          grams: 360,
+          nutrition: {
+            calories: 360,
+          },
+        },
+      ],
+    });
+
+    const reloaded = await app.inject({
+      method: "GET",
+      url: `/v1/meals/${mealId}`,
+    });
+    expect(reloaded.statusCode).toBe(200);
+    expect(reloaded.json()).toMatchObject({
+      id: mealId,
+      totals: { calories: 360 },
     });
     await app.close();
   });

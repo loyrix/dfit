@@ -136,6 +136,42 @@ class DFitApiClient {
             .map(
               (item) => {
                 'displayName': item.name,
+                if (item.foodId != null) 'foodId': item.foodId,
+                'quantity': item.quantity,
+                'unit': item.unit,
+                'grams': item.grams,
+                'nutrition': item.nutrition.toJson(),
+                'userEdited': true,
+              },
+            )
+            .toList(),
+      }),
+    );
+    _throwIfBad(response);
+    return MealLog.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<MealLog> updateMeal({
+    required String mealId,
+    required MealType type,
+    required String title,
+    required List<MealItem> items,
+    required String idempotencyKey,
+  }) async {
+    final response = await _httpClient.patch(
+      Uri.parse('$baseUrl/v1/meals/$mealId'),
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
+      body: jsonEncode({
+        'mealType': type.name,
+        'title': title,
+        'items': items
+            .map(
+              (item) => {
+                'displayName': item.name,
+                if (item.foodId != null) 'foodId': item.foodId,
                 'quantity': item.quantity,
                 'unit': item.unit,
                 'grams': item.grams,
@@ -199,6 +235,7 @@ class DFitApiClient {
     required String title,
     required List<MealItem> items,
     required String idempotencyKey,
+    CapturedMealPhoto? photo,
   }) async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/$scanId/confirm'),
@@ -220,6 +257,12 @@ class DFitApiClient {
               },
             )
             .toList(),
+        if (photo != null)
+          'image': {
+            'mimeType': photo.mimeType,
+            'base64': base64Encode(photo.bytes),
+            'byteSize': photo.byteSize,
+          },
       }),
     );
     _throwIfBad(response);

@@ -26,6 +26,13 @@ export type ApiConfig = {
     endpoint: string;
     timeoutMs: number;
   };
+  storage: {
+    s3Endpoint?: string;
+    s3Region?: string;
+    s3AccessKeyId?: string;
+    s3SecretAccessKey?: string;
+    mealImagesBucket: string;
+  };
 };
 
 export const config: ApiConfig = {
@@ -38,5 +45,12 @@ export const config: ApiConfig = {
     model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
     endpoint: process.env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
     timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 25_000),
+  },
+  storage: {
+    s3Endpoint: process.env.STORAGE_S3_ENDPOINT,
+    s3Region: process.env.STORAGE_S3_REGION,
+    s3AccessKeyId: process.env.STORAGE_S3_ACCESS_KEY_ID,
+    s3SecretAccessKey: process.env.STORAGE_S3_SECRET_ACCESS_KEY,
+    mealImagesBucket: process.env.STORAGE_BUCKET_MEAL_IMAGES ?? "meal-images",
   },
 };

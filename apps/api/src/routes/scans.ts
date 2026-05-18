@@ -4,11 +4,13 @@ import { decideScanQuota } from "@dfit/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";
+import type { MealImageStorage } from "../services/meal-image-storage.js";
 import { toApiMeal } from "./journal-presenter.js";
 
 export const registerScanRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
+  mealImageStorage: MealImageStorage,
   aiProvider: AiProvider = new MockAiProvider(),
 ): Promise<void> => {
   app.get("/v1/quota", async () => repository.getQuota());
@@ -109,7 +111,13 @@ export const registerScanRoutes = async (
       });
     }
 
-    const meal = await repository.createMeal({
+    const image = parsed.data.image;
+    const imageBytes = image ? Buffer.from(image.base64, "base64") : undefined;
+    if (image && imageBytes?.byteLength !== image.byteSize) {
+      return reply.status(400).send({ error: "scan_image_size_mismatch" });
+    }
+
+    let meal = await repository.createMeal({
       profileId: scan.profileId,
       mealType: parsed.data.mealType,
       title: parsed.data.title,
@@ -126,12 +134,29 @@ export const registerScanRoutes = async (
       })),
     });
 
+    if (image && imageBytes && mealImageStorage.enabled) {
+      try {
+        const storedImage = await mealImageStorage.uploadMealImage({
+          profileId: scan.profileId,
+          mealId: meal.mealId,
+          bytes: imageBytes,
+          mimeType: image.mimeType,
+        });
+        meal = (await repository.attachMealImage(meal.mealId, storedImage)) ?? meal;
+      } catch (error) {
+        request.log.error(
+          { err: error, mealId: meal.mealId, scanId: scan.id },
+          "meal image upload failed",
+        );
+      }
+    }
+
     await repository.updateScan({ ...scan, status: "confirmed" });
 
     return reply.status(201).send({
       mealId: meal.mealId,
       totals: meal.totals,
-      meal: toApiMeal(scan.profileId, meal),
+      meal: await toApiMeal(scan.profileId, meal, mealImageStorage),
     });
   });
 };

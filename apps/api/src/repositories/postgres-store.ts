@@ -19,11 +19,13 @@ import { currentRequestIdentity } from "../request-context.js";
 import type {
   AccountSession,
   AppRepository,
+  AttachMealImageInput,
   CreateMealInput,
   IdempotencyRecord,
   ListMealsInput,
   Profile,
   ScanSession,
+  UpdateMealInput,
 } from "./app-repository.js";
 import { AccountAuthError } from "./app-repository.js";
 
@@ -62,6 +64,17 @@ type MealItemRow = {
   fiber_g: string | null;
   sugar_g: string | null;
   sodium_mg: string | null;
+};
+
+type MealImageRow = {
+  id: string;
+  bucket: string;
+  object_key: string;
+  mime_type: "image/jpeg" | "image/png" | "image/webp";
+  byte_size: number;
+  width: number | null;
+  height: number | null;
+  created_at: string;
 };
 
 type ScanRow = {
@@ -438,6 +451,121 @@ export class PostgresStore implements AppRepository {
     const created = await this.getMeal(meal.id);
     if (!created) throw new Error("Created meal could not be loaded");
     return created;
+  }
+
+  async updateMeal(mealId: string, input: UpdateMealInput) {
+    const profile = await this.getProfile();
+
+    const updated = await this.sql.begin(async (tx) => {
+      const [mealRow] = await tx<MealRow[]>`
+        update meals
+        set
+          meal_type = ${input.mealType},
+          title = ${input.title},
+          updated_at = now()
+        where id = ${mealId}
+          and profile_id = ${profile.id}
+        returning id::text, meal_type, title, logged_at
+      `;
+      if (!mealRow) return undefined;
+
+      await tx`
+        delete from meal_items
+        where meal_id = ${mealId}
+      `;
+
+      for (const item of input.items) {
+        const [itemRow] = await tx<{ id: string }[]>`
+          insert into meal_items (meal_id, food_id, display_name, quantity, unit, grams, user_edited)
+          values (
+            ${mealId},
+            ${item.foodId ?? null},
+            ${item.displayName},
+            ${item.portion.quantity},
+            ${item.portion.unit},
+            ${item.portion.grams},
+            true
+          )
+          returning id::text
+        `;
+
+        await tx`
+          insert into nutrition_results (
+            meal_item_id,
+            meal_id,
+            calories,
+            protein_g,
+            carbs_g,
+            fat_g,
+            fiber_g,
+            sugar_g,
+            sodium_mg
+          )
+          values (
+            ${itemRow.id},
+            ${mealId},
+            ${item.nutrition.calories},
+            ${item.nutrition.proteinG},
+            ${item.nutrition.carbsG},
+            ${item.nutrition.fatG},
+            ${item.nutrition.fiberG ?? null},
+            ${item.nutrition.sugarG ?? null},
+            ${item.nutrition.sodiumMg ?? null}
+          )
+        `;
+      }
+
+      return mealRow;
+    });
+
+    if (!updated) return undefined;
+    return this.mealFromRow(updated);
+  }
+
+  async attachMealImage(mealId: string, input: AttachMealImageInput) {
+    const profile = await this.getProfile();
+    const [meal] = await this.sql<MealRow[]>`
+      select id::text, meal_type, title, logged_at
+      from meals
+      where id = ${mealId}
+        and profile_id = ${profile.id}
+      limit 1
+    `;
+    if (!meal) return undefined;
+
+    await this.sql`
+      insert into meal_images (
+        meal_id,
+        profile_id,
+        bucket,
+        object_key,
+        mime_type,
+        byte_size,
+        width,
+        height
+      )
+      values (
+        ${mealId},
+        ${profile.id},
+        ${input.bucket},
+        ${input.objectKey},
+        ${input.mimeType},
+        ${input.byteSize},
+        ${input.width ?? null},
+        ${input.height ?? null}
+      )
+      on conflict (meal_id) do update
+      set
+        bucket = excluded.bucket,
+        object_key = excluded.object_key,
+        mime_type = excluded.mime_type,
+        byte_size = excluded.byte_size,
+        width = excluded.width,
+        height = excluded.height,
+        updated_at = now()
+    `;
+
+    return this.mealFromRow(meal);
   }
 
   async listMeals(input: ListMealsInput = {}) {
@@ -1142,12 +1270,39 @@ export class PostgresStore implements AppRepository {
       },
     }));
 
+    const [image] = await this.sql<MealImageRow[]>`
+      select
+        id::text,
+        bucket,
+        object_key,
+        mime_type,
+        byte_size,
+        width,
+        height,
+        created_at::text
+      from meal_images
+      where meal_id = ${row.id}
+      limit 1
+    `;
+
     return createMealSummary({
       mealId: row.id,
       mealType: row.meal_type,
       title: row.title,
       loggedAt: new Date(row.logged_at).toISOString(),
       items,
+      image: image
+        ? {
+            imageId: image.id,
+            bucket: image.bucket,
+            objectKey: image.object_key,
+            mimeType: image.mime_type,
+            byteSize: image.byte_size,
+            width: image.width ?? undefined,
+            height: image.height ?? undefined,
+            createdAt: image.created_at,
+          }
+        : undefined,
     });
   }
 }
