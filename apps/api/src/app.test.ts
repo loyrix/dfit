@@ -80,6 +80,97 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("keeps the admin AI cost dashboard disabled until admin credentials are configured", async () => {
+    const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
+    const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;
+    delete process.env.ADMIN_DASHBOARD_USERNAME;
+    delete process.env.ADMIN_DASHBOARD_PASSWORD;
+
+    const app = await testApp();
+    const response = await app.inject({ method: "GET", url: "/admin/ai-cost" });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ error: "admin_dashboard_disabled" });
+
+    if (previousUsername === undefined) {
+      delete process.env.ADMIN_DASHBOARD_USERNAME;
+    } else {
+      process.env.ADMIN_DASHBOARD_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.ADMIN_DASHBOARD_PASSWORD;
+    } else {
+      process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
+    }
+    await app.close();
+  });
+
+  it("requires admin authorization for the AI cost dashboard", async () => {
+    const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
+    const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;
+    process.env.ADMIN_DASHBOARD_USERNAME = "test-admin";
+    process.env.ADMIN_DASHBOARD_PASSWORD = "test-admin-password";
+
+    const app = await testApp();
+    const blocked = await app.inject({ method: "GET", url: "/admin/ai-cost" });
+    const allowed = await app.inject({
+      method: "GET",
+      url: "/admin/ai-cost",
+      headers: {
+        authorization: `Basic ${Buffer.from("test-admin:test-admin-password").toString("base64")}`,
+      },
+    });
+
+    expect(blocked.statusCode).toBe(401);
+    expect(blocked.headers["www-authenticate"]).toContain("LogMyPlate Admin");
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.headers["content-type"]).toContain("text/html");
+    expect(allowed.body).toContain("AI Cost Dashboard");
+
+    if (previousUsername === undefined) {
+      delete process.env.ADMIN_DASHBOARD_USERNAME;
+    } else {
+      process.env.ADMIN_DASHBOARD_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.ADMIN_DASHBOARD_PASSWORD;
+    } else {
+      process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
+    }
+    await app.close();
+  });
+
+  it("requires database access for admin AI cost data", async () => {
+    const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
+    const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;
+    process.env.ADMIN_DASHBOARD_USERNAME = "test-admin";
+    process.env.ADMIN_DASHBOARD_PASSWORD = "test-admin-password";
+
+    const app = await testApp();
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/ai-cost/data",
+      headers: {
+        authorization: `Basic ${Buffer.from("test-admin:test-admin-password").toString("base64")}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ error: "database_unavailable" });
+
+    if (previousUsername === undefined) {
+      delete process.env.ADMIN_DASHBOARD_USERNAME;
+    } else {
+      process.env.ADMIN_DASHBOARD_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.ADMIN_DASHBOARD_PASSWORD;
+    } else {
+      process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
+    }
+    await app.close();
+  });
+
   it("serves launch feature configuration", async () => {
     const app = await testApp();
     const response = await app.inject({ method: "GET", url: "/v1/config" });

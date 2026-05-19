@@ -15,6 +15,7 @@ import { registerFoodRoutes } from "./routes/foods.js";
 import { registerJournalRoutes } from "./routes/journal.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerScanRoutes } from "./routes/scans.js";
+import { registerAdminRoutes } from "./routes/admin.js";
 import { config } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
@@ -67,6 +68,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerBootstrapRoutes(app, repository, mealImageStorage);
   await registerJournalRoutes(app, repository, mealImageStorage);
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
+  await registerAdminRoutes(app, sql);
 
   return app;
 };
