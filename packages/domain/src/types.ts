@@ -37,7 +37,7 @@ export type FoodPortion = {
 };
 
 export type MealItemNutrition = {
-  foodId: string;
+  foodId?: string;
   displayName: string;
   portion: FoodPortion;
   nutrition: MacroTotals;

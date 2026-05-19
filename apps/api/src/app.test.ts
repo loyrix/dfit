@@ -597,6 +597,55 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("treats unknown meal item food IDs as custom foods on update", async () => {
+    const app = await testApp();
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { "idempotency-key": "custom-create" },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(created.statusCode).toBe(201);
+
+    const mealId = created.json().id as string;
+    expect(created.json().items[0]).not.toHaveProperty("foodId");
+
+    const updated = await app.inject({
+      method: "PATCH",
+      url: `/v1/meals/${mealId}`,
+      headers: { "idempotency-key": "custom-update" },
+      payload: {
+        mealType: "lunch",
+        title: "Custom dal rice",
+        items: [
+          {
+            foodId: "4b6c1d6b-cf07-4a7d-9cca-bc870e083d64",
+            displayName: "Custom dal",
+            quantity: 1,
+            unit: "katori",
+            grams: 180,
+            nutrition: {
+              calories: 180,
+              proteinG: 10.8,
+              carbsG: 25.2,
+              fatG: 5.4,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json().items[0]).toMatchObject({
+      displayName: "Custom dal",
+      quantity: 1,
+      grams: 180,
+    });
+    expect(updated.json().items[0]).not.toHaveProperty("foodId");
+
+    await app.close();
+  });
+
   it("returns bootstrap data for the first app paint", async () => {
     const app = await testApp();
     const created = await app.inject({

@@ -12,6 +12,22 @@ import {
   toApiMeal,
 } from "./journal-presenter.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
+import type { CreateMealInput } from "../repositories/app-repository.js";
+
+type MealItemInput = CreateMealInput["items"][number];
+
+const normalizeMealItems = async (
+  repository: AppRepository,
+  items: MealItemInput[],
+): Promise<MealItemInput[]> => {
+  return Promise.all(
+    items.map(async (item) => {
+      if (!item.foodId) return item;
+      const food = await repository.getFood(item.foodId);
+      return food ? item : { ...item, foodId: undefined };
+    }),
+  );
+};
 
 export const registerJournalRoutes = async (
   app: FastifyInstance,
@@ -55,11 +71,9 @@ export const registerJournalRoutes = async (
       });
     }
 
-    const meal = await repository.createMeal({
-      mealType: parsed.data.mealType,
-      title: parsed.data.title,
-      loggedAt: parsed.data.loggedAt,
-      items: parsed.data.items.map((item) => ({
+    const items = await normalizeMealItems(
+      repository,
+      parsed.data.items.map((item) => ({
         foodId: item.foodId,
         displayName: item.displayName,
         portion: {
@@ -69,6 +83,13 @@ export const registerJournalRoutes = async (
         },
         nutrition: item.nutrition,
       })),
+    );
+
+    const meal = await repository.createMeal({
+      mealType: parsed.data.mealType,
+      title: parsed.data.title,
+      loggedAt: parsed.data.loggedAt,
+      items,
     });
 
     const profile = await repository.getProfile();
@@ -93,10 +114,9 @@ export const registerJournalRoutes = async (
       });
     }
 
-    const meal = await repository.updateMeal(params.id, {
-      mealType: parsed.data.mealType,
-      title: parsed.data.title,
-      items: parsed.data.items.map((item) => ({
+    const items = await normalizeMealItems(
+      repository,
+      parsed.data.items.map((item) => ({
         foodId: item.foodId,
         displayName: item.displayName,
         portion: {
@@ -106,6 +126,12 @@ export const registerJournalRoutes = async (
         },
         nutrition: item.nutrition,
       })),
+    );
+
+    const meal = await repository.updateMeal(params.id, {
+      mealType: parsed.data.mealType,
+      title: parsed.data.title,
+      items,
     });
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
 

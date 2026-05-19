@@ -146,7 +146,6 @@ export class InMemoryStore implements AppRepository {
       loggedAt: input.loggedAt ?? new Date().toISOString(),
       items: input.items.map((item) => ({
         ...item,
-        foodId: item.foodId ?? randomUUID(),
       })),
     });
 
@@ -183,7 +182,6 @@ export class InMemoryStore implements AppRepository {
       loggedAt: existing.loggedAt,
       items: input.items.map((item) => ({
         ...item,
-        foodId: item.foodId ?? randomUUID(),
       })),
       image: existing.image,
     });

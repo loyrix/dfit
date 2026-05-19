@@ -1325,7 +1325,7 @@ export class PostgresStore implements AppRepository {
     `;
 
     const items = itemRows.map((item) => ({
-      foodId: item.food_id ?? randomUUID(),
+      foodId: item.food_id ?? undefined,
       displayName: item.display_name,
       portion: {
         quantity: Number(item.quantity),
