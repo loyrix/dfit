@@ -23,7 +23,15 @@ import 'theme/logmyplate_colors.dart';
 import 'theme/logmyplate_theme.dart';
 
 class LogMyPlateApp extends StatefulWidget {
-  const LogMyPlateApp({super.key});
+  const LogMyPlateApp({
+    super.key,
+    AuthController? authController,
+    JournalController? journalController,
+  }) : _authController = authController,
+       _journalController = journalController;
+
+  final AuthController? _authController;
+  final JournalController? _journalController;
 
   @override
   State<LogMyPlateApp> createState() => _LogMyPlateAppState();
@@ -35,8 +43,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
-  late final AuthController _authController = AuthController();
-  late final JournalController _journalController = JournalController();
+  late final AuthController _authController =
+      widget._authController ?? AuthController();
+  late final JournalController _journalController =
+      widget._journalController ?? JournalController();
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
@@ -313,7 +323,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     final session = await _openAccountGate(reason);
     if (session != null) {
       await _journalController.loadToday();
-      await _openAccountProfile(session);
+      _navigatorKey.currentState!.popUntil((route) => route.isFirst);
     }
     return session;
   }

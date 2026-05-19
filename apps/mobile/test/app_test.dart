@@ -17,10 +17,14 @@ import 'package:logmyplate_mobile/src/screens/today_screen.dart';
 import 'package:logmyplate_mobile/src/screens/weekly_journal_screen.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
+import 'package:logmyplate_mobile/src/state/auth_controller.dart';
+import 'package:logmyplate_mobile/src/state/journal_controller.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/primitive_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -812,6 +816,87 @@ void main() {
     expect(submittedEmail, 'friend@test.com');
   });
 
+  testWidgets('email auth from settings returns to the main journal', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+    });
+    final authGateway = _SuccessfulAuthGateway();
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        authController: AuthController(gateway: authGateway),
+        journalController: _testJournalController(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
+
+    await tester.tap(find.text('Save your journal'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(AccountGateScreen), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), 'friend@test.com');
+    await tester.enterText(find.byType(TextField).at(1), 'secret1');
+    await tester.tap(find.text('Create account'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(authGateway.emailAuthCount, 1);
+    expect(find.byType(TodayScreen), findsOneWidget);
+    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.byType(AccountGateScreen), findsNothing);
+    expect(find.byType(AccountProfileScreen), findsNothing);
+  });
+
+  testWidgets('save journal account gate backs out without manual review', (
+    tester,
+  ) async {
+    var manualOpened = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: const Scaffold(body: Text('Main journal')),
+        routes: {
+          '/account': (_) => AccountGateScreen(
+            reason: AccountGateReason.saveJournal,
+            loading: false,
+            onSignIn: (_) async => null,
+            onEmailAuth: (_, _, _) async => null,
+            onManualLog: () {
+              manualOpened = true;
+            },
+          ),
+        },
+      ),
+    );
+
+    final context = tester.element(find.text('Main journal'));
+    unawaited(Navigator.of(context).pushNamed('/account'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(AccountGateScreen), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -520));
+    await tester.pump();
+
+    expect(find.text('Maybe later'), findsOneWidget);
+    expect(find.text('Log manually instead'), findsNothing);
+
+    await tester.tap(find.text('Maybe later'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Main journal'), findsOneWidget);
+    expect(manualOpened, isFalse);
+  });
+
   testWidgets('settings shows profile entry when signed in', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -893,4 +978,97 @@ void main() {
 
     expect(loggedOut, isTrue);
   });
+}
+
+class _SuccessfulAuthGateway implements AccountAuthGateway {
+  int emailAuthCount = 0;
+
+  @override
+  Future<AuthSession> signIn(AuthProvider provider) async {
+    return AuthSession(
+      provider: provider,
+      displayName: provider.label,
+      linkedAt: DateTime(2026, 5, 19),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+  }
+
+  @override
+  Future<AuthSession> signInWithEmail({
+    required EmailAuthMode mode,
+    required String email,
+    required String password,
+  }) async {
+    emailAuthCount += 1;
+    return AuthSession(
+      provider: AuthProvider.email,
+      displayName: email,
+      linkedAt: DateTime(2026, 5, 19),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+  }
+
+  @override
+  Future<void> signOut() async {}
+}
+
+JournalController _testJournalController() {
+  return JournalController(
+    apiClient: LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/v1/app/bootstrap') {
+          return http.Response(jsonEncode(_emptyBootstrapPayload()), 200);
+        }
+        if (request.url.path == '/v1/quota') {
+          return http.Response(
+            jsonEncode({
+              'freeRemaining': 1,
+              'rewardedRemaining': 2,
+              'premiumRemaining': 0,
+            }),
+            200,
+          );
+        }
+        return http.Response(jsonEncode({'error': 'not_found'}), 404);
+      }),
+    ),
+  );
+}
+
+Map<String, dynamic> _emptyBootstrapPayload() {
+  final zeroTotals = {'calories': 0, 'proteinG': 0, 'carbsG': 0, 'fatG': 0};
+
+  return {
+    'serverTime': '2026-05-19T10:00:00.000Z',
+    'profile': {
+      'id': 'profile_test',
+      'authMethod': 'email',
+      'email': 'friend@test.com',
+      'timezone': 'Asia/Kolkata',
+      'linkedAt': '2026-05-19T10:00:00.000Z',
+      'createdAt': '2026-05-19T10:00:00.000Z',
+    },
+    'quota': {
+      'freeRemaining': 1,
+      'rewardedRemaining': 2,
+      'premiumRemaining': 0,
+    },
+    'today': {'totals': zeroTotals, 'meals': []},
+    'weeklyRange': {
+      'startDate': '2026-05-13',
+      'endDate': '2026-05-19',
+      'days': [],
+      'summary': {
+        'windowDays': 7,
+        'activeDays': 0,
+        'mealCount': 0,
+        'totals': zeroTotals,
+        'trackedDayAverage': zeroTotals,
+        'calendarDayAverage': zeroTotals,
+      },
+    },
+  };
 }

@@ -105,8 +105,16 @@ class AccountGateScreen extends StatelessWidget {
               const SizedBox(height: 8),
             ],
             TextButton(
-              onPressed: loading ? null : onManualLog,
-              child: const Text('Log manually instead'),
+              onPressed: loading
+                  ? null
+                  : reason == AccountGateReason.quotaExhausted
+                  ? onManualLog
+                  : () => Navigator.of(context).pop(),
+              child: Text(
+                reason == AccountGateReason.quotaExhausted
+                    ? 'Log manually instead'
+                    : 'Maybe later',
+              ),
             ),
             const SizedBox(height: 6),
             Text(
