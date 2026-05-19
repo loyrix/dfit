@@ -10,16 +10,16 @@ The first implementation pass prioritizes architecture seams:
 - Fastify API with route boundaries.
 - Pure domain package for quota and nutrition math.
 - Zod contracts package for request/response schemas.
-- SQL migration that stores structured data but not food images.
+- SQL migration that stores structured journal data and private meal image metadata.
 
 ## Important Decisions Applied
 
 1. No bottom navigation in MVP.
 2. Today is the home screen and journal.
 3. No login wall.
-4. Account linking is opt-in and deferred.
-5. Food images are not stored.
-6. AI is mocked until the scan/review/confirm loop is stable.
+4. Account linking is opt-in after the free scan path.
+5. Food images are used for analysis and saved with meal logs.
+6. Gemini powers production scans; mock AI is development/test only.
 7. Quota decrement belongs in analyze, not prepare.
 8. Every mutating endpoint requires `Idempotency-Key`.
 9. Supabase Edge Functions are avoided.

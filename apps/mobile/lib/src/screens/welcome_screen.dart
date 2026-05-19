@@ -76,7 +76,7 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 14),
               Center(
                 child: Text(
-                  'Photo is analyzed, not stored',
+                  'Photo is analyzed and saved with your meal log',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),

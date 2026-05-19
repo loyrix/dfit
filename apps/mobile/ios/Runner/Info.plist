@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>DFit uses the camera to analyze your meal photo and does not store the image.</string>
+	<string>DFit uses the camera to analyze your meal photo and save it with your meal log.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>DFit lets you choose a meal photo from your library for analysis and does not store the image.</string>
+	<string>DFit lets you choose a meal photo for analysis and save it with your meal log.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

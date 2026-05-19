@@ -35,22 +35,52 @@ export type ApiConfig = {
   };
 };
 
-export const config: ApiConfig = {
-  nodeEnv: process.env.NODE_ENV ?? "development",
-  host: process.env.API_HOST ?? "127.0.0.1",
-  port: Number(process.env.PORT ?? 4000),
-  aiProvider: (process.env.AI_PROVIDER as ApiConfig["aiProvider"] | undefined) ?? "mock",
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
-    model: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
-    endpoint: process.env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
-    timeoutMs: Number(process.env.GEMINI_TIMEOUT_MS ?? 25_000),
-  },
-  storage: {
-    s3Endpoint: process.env.STORAGE_S3_ENDPOINT,
-    s3Region: process.env.STORAGE_S3_REGION,
-    s3AccessKeyId: process.env.STORAGE_S3_ACCESS_KEY_ID,
-    s3SecretAccessKey: process.env.STORAGE_S3_SECRET_ACCESS_KEY,
-    mealImagesBucket: process.env.STORAGE_BUCKET_MEAL_IMAGES ?? "meal-images",
-  },
+type ConfigEnv = Record<string, string | undefined>;
+
+const aiProviders = ["mock", "openai", "gemini"] as const;
+
+export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
+  const builtConfig: ApiConfig = {
+    nodeEnv: env.NODE_ENV ?? "development",
+    host: env.API_HOST ?? "127.0.0.1",
+    port: Number(env.PORT ?? 4000),
+    aiProvider: parseAiProvider(env.AI_PROVIDER),
+    gemini: {
+      apiKey: env.GEMINI_API_KEY,
+      model: env.GEMINI_MODEL ?? "gemini-2.5-flash",
+      endpoint: env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
+      timeoutMs: Number(env.GEMINI_TIMEOUT_MS ?? 25_000),
+    },
+    storage: {
+      s3Endpoint: env.STORAGE_S3_ENDPOINT,
+      s3Region: env.STORAGE_S3_REGION,
+      s3AccessKeyId: env.STORAGE_S3_ACCESS_KEY_ID,
+      s3SecretAccessKey: env.STORAGE_S3_SECRET_ACCESS_KEY,
+      mealImagesBucket: env.STORAGE_BUCKET_MEAL_IMAGES ?? "meal-images",
+    },
+  };
+
+  validateApiConfig(builtConfig);
+  return builtConfig;
 };
+
+export const validateApiConfig = (candidate: ApiConfig): void => {
+  if (candidate.nodeEnv === "production" && candidate.aiProvider === "mock") {
+    throw new Error("AI_PROVIDER=mock is not allowed when NODE_ENV=production.");
+  }
+
+  if (candidate.aiProvider === "gemini" && !candidate.gemini.apiKey?.trim()) {
+    throw new Error("GEMINI_API_KEY is required when AI_PROVIDER=gemini.");
+  }
+};
+
+const parseAiProvider = (value: string | undefined): ApiConfig["aiProvider"] => {
+  const provider = value?.trim() || "mock";
+  if (aiProviders.includes(provider as ApiConfig["aiProvider"])) {
+    return provider as ApiConfig["aiProvider"];
+  }
+
+  throw new Error(`Unsupported AI_PROVIDER "${provider}". Use mock, openai, or gemini.`);
+};
+
+export const config = buildApiConfig();

@@ -110,7 +110,7 @@ class AccountGateScreen extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Your photos are analyzed, not stored.',
+              'Your photos are analyzed and saved with your meal logs.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: colors.textTertiary,

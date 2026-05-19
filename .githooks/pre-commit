@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+echo "DFit pre-commit: running full local quality gate"
+
+pnpm format:check
+pnpm build
+pnpm test
+pnpm typecheck
+pnpm mobile:analyze
+pnpm mobile:test
+pnpm db:validate

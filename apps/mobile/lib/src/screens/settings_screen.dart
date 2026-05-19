@@ -67,7 +67,7 @@ class SettingsScreen extends StatelessWidget {
             _SettingsSection(
               title: 'Privacy',
               children: const [
-                _StaticRow(label: 'Food photos are analyzed, not stored'),
+                _StaticRow(label: 'Food photos are saved with meal logs'),
                 _StaticRow(label: 'Nutrition estimates are approximate'),
                 _StaticRow(label: 'Anonymous journal on this device'),
               ],

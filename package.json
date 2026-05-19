@@ -19,6 +19,7 @@
     "db:validate": "node scripts/db/migrate.cjs validate",
     "data:ifct:index": "node scripts/ops/extract-ifct-food-index.cjs",
     "dev": "turbo run dev --parallel",
+    "hooks:install": "git config core.hooksPath .githooks",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

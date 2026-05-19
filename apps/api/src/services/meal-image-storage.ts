@@ -122,10 +122,6 @@ export const createMealImageStorage = (config: ApiConfig): MealImageStorage => {
 
 const mealImageObjectKey = (input: UploadMealImageInput): string => {
   const extension =
-    input.mimeType === "image/png"
-      ? "png"
-      : input.mimeType === "image/webp"
-        ? "webp"
-        : "jpg";
+    input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
   return `profiles/${input.profileId}/meals/${input.mealId}/original.${extension}`;
 };

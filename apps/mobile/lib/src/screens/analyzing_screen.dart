@@ -244,7 +244,7 @@ class _AnalysisFailure {
           title: 'Retake photo',
           subtitle: 'The image needs one more try',
           message:
-              'Keep the full plate visible in a clear, well-lit photo. DFit does not store the food photo.',
+              'Keep the full plate visible in a clear, well-lit photo. Photos are saved with meal logs.',
         );
       }
       if (error.retryable || error.statusCode >= 500) {

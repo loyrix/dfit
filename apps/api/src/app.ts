@@ -19,10 +19,7 @@ import { config } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
 import { registerBootstrapRoutes } from "./routes/bootstrap.js";
-import {
-  createMealImageStorage,
-  type MealImageStorage,
-} from "./services/meal-image-storage.js";
+import { createMealImageStorage, type MealImageStorage } from "./services/meal-image-storage.js";
 
 export type BuildAppOptions = {
   repository?: AppRepository;

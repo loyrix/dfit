@@ -774,11 +774,13 @@ components:
               type: integer
         features:
           type: object
-          required: [aiProvider, noImageStorage, accountLink, premium]
+          required: [aiProvider, imageStorage, noImageStorage, accountLink, premium]
           properties:
             aiProvider:
               type: string
               enum: [mock, openai, gemini]
+            imageStorage:
+              type: boolean
             noImageStorage:
               type: boolean
             accountLink:

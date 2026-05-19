@@ -28,18 +28,17 @@ export const scanImageSchema = z.object({
   byteSize: z.number().int().positive().max(6_000_000),
 });
 
-export const analyzeScanRequestSchema = z
-  .object({
-    hint: z
-      .string()
-      .trim()
-      .min(1)
-      .max(280)
-      .refine((value) => value.split(/\s+/).filter(Boolean).length <= 50, {
-        message: "Plate hint must be 50 words or fewer.",
-      }),
-    image: scanImageSchema.optional(),
-  });
+export const analyzeScanRequestSchema = z.object({
+  hint: z
+    .string()
+    .trim()
+    .min(1)
+    .max(280)
+    .refine((value) => value.split(/\s+/).filter(Boolean).length <= 50, {
+      message: "Plate hint must be 50 words or fewer.",
+    }),
+  image: scanImageSchema.optional(),
+});
 
 export const analyzedMealItemSchema = z.object({
   id: idSchema,

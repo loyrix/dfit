@@ -63,7 +63,13 @@ export const createAiProvider = (config: ApiConfig): AiProvider => {
         false,
       );
     case "mock":
-    default:
       return new MockAiProvider();
+    default:
+      throw new AiProviderError(
+        "ai_provider_not_supported",
+        "Configured AI provider is not supported.",
+        500,
+        false,
+      );
   }
 };

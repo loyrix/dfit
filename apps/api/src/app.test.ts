@@ -80,6 +80,27 @@ describe("DFit API", () => {
     await app.close();
   });
 
+  it("serves launch feature configuration", async () => {
+    const app = await testApp();
+    const response = await app.inject({ method: "GET", url: "/v1/config" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      appName: "DFit",
+      scanLimits: {
+        freePerDay: 1,
+        rewardedCapPerDay: 2,
+        launchTotalCapPerDay: 3,
+      },
+      features: {
+        accountLink: true,
+        premium: false,
+      },
+    });
+    expect(response.json().features.imageStorage).toBe(!response.json().features.noImageStorage);
+    await app.close();
+  });
+
   it("requires idempotency for mutating endpoints", async () => {
     const app = await testApp();
     const response = await app.inject({ method: "POST", url: "/v1/scans/prepare" });
