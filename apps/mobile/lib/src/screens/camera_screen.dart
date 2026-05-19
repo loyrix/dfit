@@ -195,7 +195,7 @@ class _CameraScreenState extends State<CameraScreen>
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final compact = constraints.maxHeight < 720;
-                        final previewSize = compact ? 238.0 : 292.0;
+                        final previewSize = compact ? 208.0 : 292.0;
                         final hasPhoto = preparedCapture != null;
 
                         return Column(
@@ -270,6 +270,7 @@ class _CameraScreenState extends State<CameraScreen>
                             SizedBox(height: compact ? 12 : 18),
                             _CaptureComposerPanel(
                               controller: _hintController,
+                              compact: compact,
                               progress: _controller.value,
                               activeSource: activeSource,
                               prepared: hasPhoto,
@@ -565,9 +566,14 @@ class _PreviewChip extends StatelessWidget {
 }
 
 class _PlateHintField extends StatelessWidget {
-  const _PlateHintField({required this.controller, required this.onChanged});
+  const _PlateHintField({
+    required this.controller,
+    required this.compact,
+    required this.onChanged,
+  });
 
   final TextEditingController controller;
+  final bool compact;
   final VoidCallback onChanged;
 
   @override
@@ -604,7 +610,7 @@ class _PlateHintField extends StatelessWidget {
                     child: TextField(
                       controller: controller,
                       maxLength: 280,
-                      minLines: 4,
+                      minLines: compact ? 3 : 4,
                       maxLines: null,
                       onChanged: (_) => onChanged(),
                       textInputAction: TextInputAction.newline,
@@ -674,6 +680,7 @@ class _PlateHintField extends StatelessWidget {
 class _CaptureComposerPanel extends StatelessWidget {
   const _CaptureComposerPanel({
     required this.controller,
+    required this.compact,
     required this.progress,
     required this.activeSource,
     required this.prepared,
@@ -686,6 +693,7 @@ class _CaptureComposerPanel extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final bool compact;
   final double progress;
   final _CaptureSource? activeSource;
   final bool prepared;
@@ -711,7 +719,11 @@ class _CaptureComposerPanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _PlateHintField(controller: controller, onChanged: onChanged),
+          _PlateHintField(
+            controller: controller,
+            compact: compact,
+            onChanged: onChanged,
+          ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: notice == null
@@ -726,6 +738,7 @@ class _CaptureComposerPanel extends StatelessWidget {
             activeSource: activeSource,
             prepared: prepared,
             canAnalyze: canAnalyze,
+            compact: compact,
             onCamera: onCamera,
             onGallery: onGallery,
             onAnalyze: onAnalyze,
@@ -769,6 +782,7 @@ class _CaptureActionBar extends StatelessWidget {
     required this.activeSource,
     required this.prepared,
     required this.canAnalyze,
+    required this.compact,
     required this.onCamera,
     required this.onGallery,
     required this.onAnalyze,
@@ -778,6 +792,7 @@ class _CaptureActionBar extends StatelessWidget {
   final _CaptureSource? activeSource;
   final bool prepared;
   final bool canAnalyze;
+  final bool compact;
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback onAnalyze;
@@ -805,9 +820,10 @@ class _CaptureActionBar extends StatelessWidget {
                   progress: progress,
                   loading: false,
                   disabled: disabled || !canAnalyze,
+                  height: compact ? 52 : 58,
                   onTap: onAnalyze,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: compact ? 6 : 8),
                 Row(
                   children: [
                     Expanded(
@@ -823,7 +839,7 @@ class _CaptureActionBar extends StatelessWidget {
                         loading: activeSource == _CaptureSource.camera,
                         disabled:
                             disabled && activeSource != _CaptureSource.camera,
-                        height: 44,
+                        height: compact ? 42 : 44,
                         onTap: onCamera,
                       ),
                     ),
@@ -841,7 +857,7 @@ class _CaptureActionBar extends StatelessWidget {
                         loading: activeSource == _CaptureSource.gallery,
                         disabled:
                             disabled && activeSource != _CaptureSource.gallery,
-                        height: 44,
+                        height: compact ? 42 : 44,
                         onTap: onGallery,
                       ),
                     ),

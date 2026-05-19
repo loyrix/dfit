@@ -163,7 +163,7 @@ class _AccountCard extends StatelessWidget {
               ),
               child: const Center(
                 child: Text(
-                  'D',
+                  'L',
                   style: TextStyle(color: LogMyPlateColors.accentDeep),
                 ),
               ),
@@ -175,6 +175,7 @@ class _AccountCard extends StatelessWidget {
                 children: [
                   Text(
                     signedIn ? 'Profile' : 'Save your journal',
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(
                       context,
                     ).textTheme.titleMedium?.copyWith(color: colors.accentText),
@@ -184,6 +185,7 @@ class _AccountCard extends StatelessWidget {
                     signedIn
                         ? '${session!.displayName} - ${session!.provider.label}'
                         : 'Link with Apple, Google or email',
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.accentText.withValues(alpha: 0.72),
                     ),

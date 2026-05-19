@@ -396,7 +396,12 @@ class _MealDetailItemRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  item.name,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${_formatQuantity(item.quantity)} ${item.unit} - ${item.grams}g',
@@ -408,7 +413,13 @@ class _MealDetailItemRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Text('${item.nutrition.calories} kCal'),
+          Flexible(
+            flex: 0,
+            child: Text(
+              '${item.nutrition.calories} kCal',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

@@ -613,11 +613,15 @@ class _ReviewItemRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                '${item.nutrition.calories} kCal',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: _reviewPrimaryText(context),
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                flex: 0,
+                child: Text(
+                  '${item.nutrition.calories} kCal',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _reviewPrimaryText(context),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
