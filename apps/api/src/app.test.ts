@@ -100,6 +100,15 @@ describe("DFit API", () => {
     await app.close();
   });
 
+  it("does not return empty journal weeks", async () => {
+    const app = await testApp();
+    const response = await app.inject({ method: "GET", url: "/v1/journal/weeks" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ weeks: [] });
+    await app.close();
+  });
+
   it("searches seeded Indian foods by Hinglish aliases", async () => {
     const app = await testApp();
     const response = await app.inject({ method: "GET", url: "/v1/foods?q=chawal" });

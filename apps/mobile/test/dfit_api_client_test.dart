@@ -456,6 +456,12 @@ void main() {
                 'activeDays': 1,
               },
               {
+                'weekOffset': 1,
+                'startDate': '2026-04-29',
+                'endDate': '2026-05-05',
+                'activeDays': 0,
+              },
+              {
                 'weekOffset': 2,
                 'startDate': '2026-04-22',
                 'endDate': '2026-04-28',

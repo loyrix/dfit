@@ -417,6 +417,7 @@ void main() {
     );
 
     expect(find.text('7 Day Journal'), findsOneWidget);
+    expect(find.text('SUN 10 MAY'), findsNothing);
     expect(find.text('MON 11 MAY'), findsOneWidget);
 
     await tester.tap(find.text('MON 11 MAY'));
@@ -474,14 +475,14 @@ void main() {
     );
 
     expect(find.text('Could not refresh journal.'), findsOneWidget);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -320));
-    await tester.pump(const Duration(milliseconds: 250));
-    expect(find.text('No journal days yet'), findsOneWidget);
-
     await tester.tap(find.text('Retry'));
     await tester.pump();
 
     expect(retried, isTrue);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -320));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('No journal days yet'), findsOneWidget);
   });
 
   testWidgets('day detail rows delete by swipe and refresh totals locally', (

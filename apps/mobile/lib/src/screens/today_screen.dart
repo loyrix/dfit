@@ -105,7 +105,8 @@ class TodayScreen extends StatelessWidget {
                     EnergyHeroCard(totals: totals, mealCount: meals.length),
                     const SizedBox(height: 12),
                     MacroBarGroup(totals: totals),
-                    if (weeklyRange != null) ...[
+                    if (weeklyRange != null &&
+                        weeklyRange!.summary.activeDays > 0) ...[
                       const SizedBox(height: 12),
                       _WeeklySummaryCard(
                         range: weeklyRange!,

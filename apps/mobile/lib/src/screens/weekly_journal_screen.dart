@@ -41,14 +41,7 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
   bool _loadingWeek = false;
   bool _loadingAvailableWeeks = true;
   String? _weekLoadError;
-  late List<JournalWeekOption> _availableWeeks = [
-    JournalWeekOption(
-      weekOffset: 0,
-      startDate: widget.range.startDate,
-      endDate: widget.range.endDate,
-      activeDays: widget.range.summary.activeDays,
-    ),
-  ];
+  late List<JournalWeekOption> _availableWeeks = _initialAvailableWeeks();
 
   @override
   void initState() {
@@ -58,7 +51,9 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final days = _range.days.reversed.toList();
+    final days = _range.days.reversed
+        .where((day) => day.mealCount > 0)
+        .toList(growable: false);
 
     return Scaffold(
       body: SafeArea(
@@ -71,11 +66,12 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
               subtitle: _rangeLabel(_range),
             ),
             const SizedBox(height: 12),
-            _WeekSelector(
-              range: _range,
-              loading: _loadingWeek || _loadingAvailableWeeks,
-              onTap: _openWeekPicker,
-            ),
+            if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
+              _WeekSelector(
+                range: _range,
+                loading: _loadingWeek || _loadingAvailableWeeks,
+                onTap: _openWeekPicker,
+              ),
             if (widget.isSyncing ||
                 widget.syncMessage != null ||
                 _loadingWeek ||
@@ -116,14 +112,17 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
           day: day,
           onOpenMeal: widget.onOpenMeal,
           onDeleteMeal: widget.onDeleteMeal,
-          onMealDeleted: () => _loadWeek(_weekOffset),
+          onMealDeleted: () async {
+            await _loadWeek(_weekOffset);
+            await _loadAvailableWeeks();
+          },
         ),
       ),
     );
   }
 
   Future<void> _openWeekPicker() async {
-    if (_loadingAvailableWeeks) return;
+    if (_loadingAvailableWeeks || _availableWeeks.isEmpty) return;
     final selected = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -140,9 +139,12 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
   Future<void> _loadAvailableWeeks() async {
     try {
       final weeks = await widget.onLoadWeeks();
+      final visibleWeeks = weeks
+          .where((week) => week.activeDays > 0)
+          .toList(growable: false);
       if (!mounted) return;
       setState(() {
-        _availableWeeks = weeks.isEmpty ? _availableWeeks : weeks;
+        _availableWeeks = visibleWeeks;
       });
     } catch (_) {
       if (!mounted) return;
@@ -152,6 +154,18 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
     } finally {
       if (mounted) setState(() => _loadingAvailableWeeks = false);
     }
+  }
+
+  List<JournalWeekOption> _initialAvailableWeeks() {
+    if (widget.range.summary.activeDays <= 0) return const [];
+    return [
+      JournalWeekOption(
+        weekOffset: 0,
+        startDate: widget.range.startDate,
+        endDate: widget.range.endDate,
+        activeDays: widget.range.summary.activeDays,
+      ),
+    ];
   }
 
   Future<void> _loadWeek(int selected) async {

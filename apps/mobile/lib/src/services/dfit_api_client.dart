@@ -76,6 +76,7 @@ class DFitApiClient {
     final payload = jsonDecode(response.body) as Map<String, dynamic>;
     return (payload['weeks'] as List<dynamic>)
         .map((week) => JournalWeekOption.fromJson(week as Map<String, dynamic>))
+        .where((week) => week.activeDays > 0)
         .toList();
   }
 

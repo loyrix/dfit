@@ -10,9 +10,7 @@ export const toApiMeal = async (
   meal: RouteMeal,
   mealImageStorage: MealImageStorage,
 ) => {
-  const imageUrl = meal.image
-    ? await mealImageStorage.createSignedReadUrl(meal.image)
-    : undefined;
+  const imageUrl = meal.image ? await mealImageStorage.createSignedReadUrl(meal.image) : undefined;
 
   return {
     id: meal.mealId,
@@ -90,9 +88,7 @@ export const buildTodayJournal = async (
     date: today,
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
-    meals: await Promise.all(
-      meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage)),
-    ),
+    meals: await Promise.all(meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage))),
   };
 };
 
@@ -116,17 +112,19 @@ export const buildJournalRange = async (
     mealsByDate.set(day, [...(mealsByDate.get(day) ?? []), meal]);
   }
 
-  const days = await Promise.all(dates.map(async (date) => {
-    const dayMeals = mealsByDate.get(date) ?? [];
-    return {
-      date,
-      mealCount: dayMeals.length,
-      totals: sumTotals(dayMeals.map((meal) => meal.totals)),
-      meals: await Promise.all(
-        dayMeals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage)),
-      ),
-    };
-  }));
+  const days = await Promise.all(
+    dates.map(async (date) => {
+      const dayMeals = mealsByDate.get(date) ?? [];
+      return {
+        date,
+        mealCount: dayMeals.length,
+        totals: sumTotals(dayMeals.map((meal) => meal.totals)),
+        meals: await Promise.all(
+          dayMeals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage)),
+        ),
+      };
+    }),
+  );
   const totals = sumTotals(days.map((day) => day.totals));
   const activeDays = days.filter((day) => day.mealCount > 0).length;
 
@@ -146,21 +144,16 @@ export const buildJournalRange = async (
   };
 };
 
-export const buildJournalWeeks = async (
-  repository: AppRepository,
-  daysCount = 7,
-) => {
+export const buildJournalWeeks = async (repository: AppRepository, daysCount = 7) => {
   const today = dateOnly(new Date());
   const mealDates = await repository.listMealDates();
   const mealDateSet = new Set(mealDates);
-  const offsets = new Set<number>([0]);
+  const offsets = new Set<number>();
 
   for (const mealDate of mealDates) {
     const parsed = new Date(`${mealDate}T00:00:00.000Z`);
     if (Number.isNaN(parsed.getTime()) || parsed > today) continue;
-    const daysAgo = Math.floor(
-      (today.getTime() - parsed.getTime()) / (24 * 60 * 60 * 1000),
-    );
+    const daysAgo = Math.floor((today.getTime() - parsed.getTime()) / (24 * 60 * 60 * 1000));
     offsets.add(Math.floor(daysAgo / daysCount));
   }
 
@@ -175,7 +168,8 @@ export const buildJournalWeeks = async (
         endDate: dates[dates.length - 1],
         activeDays: dates.filter((date) => mealDateSet.has(date)).length,
       };
-    });
+    })
+    .filter((week) => week.activeDays > 0);
 
   return { weeks };
 };
