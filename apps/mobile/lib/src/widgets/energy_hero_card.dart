@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
+import '../theme/logmyplate_colors.dart';
 
 class EnergyHeroCard extends StatelessWidget {
   const EnergyHeroCard({
@@ -20,7 +20,7 @@ class EnergyHeroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: DFitColors.surfaceHero,
+        color: LogMyPlateColors.surfaceHero,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Stack(
@@ -75,7 +75,7 @@ class EnergyHeroCard extends StatelessWidget {
                     : '$mealCount ${mealCount == 1 ? 'meal' : 'meals'} logged',
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: DFitColors.accent),
+                ).textTheme.bodySmall?.copyWith(color: LogMyPlateColors.accent),
               ),
             ],
           ),
@@ -102,7 +102,9 @@ class _HeroRings extends StatelessWidget {
             height: size,
             decoration: BoxDecoration(
               border: Border.all(
-                color: DFitColors.accent.withValues(alpha: 0.08 + index * 0.04),
+                color: LogMyPlateColors.accent.withValues(
+                  alpha: 0.08 + index * 0.04,
+                ),
               ),
               shape: BoxShape.circle,
             ),

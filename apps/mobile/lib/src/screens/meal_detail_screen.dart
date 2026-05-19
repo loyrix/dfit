@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_profile_card.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -52,7 +52,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final totals = _draftMeal.totals;
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final canEdit = widget.onUpdateMeal != null;
     final canDelete = widget.onDeleteMeal != null;
 
@@ -87,7 +87,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                           children: [
                             Icon(
                               Icons.delete_outline_rounded,
-                              color: DFitColors.destructive,
+                              color: LogMyPlateColors.destructive,
                               size: 19,
                             ),
                             const SizedBox(width: 10),
@@ -280,7 +280,7 @@ class _MealHeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     return AspectRatio(
       aspectRatio: 1.55,
       child: ClipRRect(
@@ -332,7 +332,7 @@ class _MealHeroPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     return DecoratedBox(
       decoration: BoxDecoration(color: colors.surfaceCard),
       child: Center(
@@ -367,7 +367,7 @@ class _MealDetailItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final row = Container(
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
       decoration: BoxDecoration(
@@ -423,13 +423,15 @@ class _UnsavedChangesPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
-        color: DFitColors.accent.withValues(alpha: 0.14),
+        color: LogMyPlateColors.accent.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: DFitColors.accent.withValues(alpha: 0.24)),
+        border: Border.all(
+          color: LogMyPlateColors.accent.withValues(alpha: 0.24),
+        ),
       ),
       child: Text(
         'Unsaved changes',

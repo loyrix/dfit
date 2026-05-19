@@ -1,4 +1,4 @@
-package com.dfit.dfit_mobile
+package com.logmyplate.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 class AccountGateScreen extends StatelessWidget {
@@ -30,7 +30,7 @@ class AccountGateScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final copy = _AccountGateCopy.forReason(reason);
 
     return Scaffold(
@@ -98,7 +98,7 @@ class AccountGateScreen extends StatelessWidget {
                 error!,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: DFitColors.accent,
+                  color: LogMyPlateColors.accent,
                   height: 1.25,
                 ),
               ),
@@ -137,15 +137,15 @@ class _GatePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: DFitColors.accent.withValues(alpha: 0.14),
+        color: LogMyPlateColors.accent.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(99),
         border: Border.all(
-          color: DFitColors.accent.withValues(alpha: 0.24),
+          color: LogMyPlateColors.accent.withValues(alpha: 0.24),
           width: 0.6,
         ),
       ),
@@ -190,7 +190,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final isSignUp = _mode == EmailAuthMode.signUp;
 
     return Container(
@@ -247,7 +247,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             Text(
               _validation!,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: DFitColors.accent,
+                color: LogMyPlateColors.accent,
                 height: 1.25,
               ),
             ),
@@ -258,8 +258,8 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             child: FilledButton(
               onPressed: widget.loading ? null : _submit,
               style: FilledButton.styleFrom(
-                backgroundColor: DFitColors.accent,
-                foregroundColor: DFitColors.accentDeep,
+                backgroundColor: LogMyPlateColors.accent,
+                foregroundColor: LogMyPlateColors.accentDeep,
                 disabledBackgroundColor: colors.mutedFill,
                 disabledForegroundColor: colors.textSecondary,
                 shape: RoundedRectangleBorder(
@@ -309,7 +309,7 @@ class _ModeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Expanded(
       child: InkWell(
@@ -353,7 +353,7 @@ class _AuthTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return TextField(
       controller: controller,
@@ -384,7 +384,10 @@ class _AuthTextField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: DFitColors.accent, width: 0.8),
+          borderSide: const BorderSide(
+            color: LogMyPlateColors.accent,
+            width: 0.8,
+          ),
         ),
       ),
     );
@@ -446,7 +449,7 @@ class _AccountMarkState extends State<_AccountMark>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -469,7 +472,7 @@ class _AccountMarkState extends State<_AccountMark>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: DFitColors.accent.withValues(
+                        color: LogMyPlateColors.accent.withValues(
                           alpha: 0.22 - index * 0.04,
                         ),
                       ),
@@ -485,7 +488,7 @@ class _AccountMarkState extends State<_AccountMark>
                   border: Border.all(color: colors.border, width: 0.7),
                   boxShadow: [
                     BoxShadow(
-                      color: DFitColors.accent.withValues(alpha: 0.08),
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.08),
                       blurRadius: 24,
                       spreadRadius: 1,
                     ),
@@ -498,13 +501,13 @@ class _AccountMarkState extends State<_AccountMark>
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: DFitColors.accent,
+                            color: LogMyPlateColors.accent,
                           ),
                         )
                       : Text(
                           'D',
                           style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(color: DFitColors.accent),
+                              ?.copyWith(color: LogMyPlateColors.accent),
                         ),
                 ),
               ),
@@ -531,7 +534,7 @@ class _ProviderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final isApple = provider == AuthProvider.apple;
 
     return SizedBox(

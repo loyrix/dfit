@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
-import '../widgets/dfit_fab.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
+import '../widgets/logmyplate_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
@@ -46,14 +46,14 @@ class TodayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEmpty = meals.isEmpty && !initialLoading;
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Scaffold(
       body: SafeArea(
         child: Stack(
           children: [
             RefreshIndicator(
-              color: DFitColors.accent,
+              color: LogMyPlateColors.accent,
               onRefresh: onRefresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -90,7 +90,7 @@ class TodayScreen extends StatelessWidget {
                   if (loading && !initialLoading) ...[
                     LinearProgressIndicator(
                       minHeight: 2,
-                      color: DFitColors.accent,
+                      color: LogMyPlateColors.accent,
                       backgroundColor: colors.border,
                     ),
                     const SizedBox(height: 10),
@@ -137,8 +137,10 @@ class TodayScreen extends StatelessWidget {
                 child: IgnorePointer(
                   child: LinearProgressIndicator(
                     minHeight: 2,
-                    color: DFitColors.accent,
-                    backgroundColor: DFitColors.accent.withValues(alpha: 0.08),
+                    color: LogMyPlateColors.accent,
+                    backgroundColor: LogMyPlateColors.accent.withValues(
+                      alpha: 0.08,
+                    ),
                   ),
                 ),
               ),
@@ -148,7 +150,7 @@ class TodayScreen extends StatelessWidget {
                 right: 0,
                 bottom: 24,
                 child: Center(
-                  child: DFitFab(onPressed: onScan, pulsing: isEmpty),
+                  child: LogMyPlateFab(onPressed: onScan, pulsing: isEmpty),
                 ),
               ),
           ],
@@ -192,7 +194,7 @@ class _WeeklySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final summary = range.summary;
     final trackedText =
         '${summary.activeDays} ${summary.activeDays == 1 ? 'day' : 'days'} tracked';
@@ -235,7 +237,7 @@ class _WeeklySummaryCard extends StatelessWidget {
                               _SyncDot(
                                 color: hasSyncIssue
                                     ? colors.accentText
-                                    : DFitColors.accent,
+                                    : LogMyPlateColors.accent,
                               ),
                             ],
                           ],
@@ -303,7 +305,7 @@ class _WeeklySummaryCard extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 12),
                         child: LinearProgressIndicator(
                           minHeight: 2,
-                          color: DFitColors.accent,
+                          color: LogMyPlateColors.accent,
                           backgroundColor: colors.mutedFill,
                         ),
                       )
@@ -325,7 +327,7 @@ class _WeeklyProgressStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final visibleDays = totalDays <= 0 ? 7 : totalDays.clamp(1, 7);
     final filledDays = (progress * visibleDays).round();
 
@@ -338,7 +340,7 @@ class _WeeklyProgressStrip extends StatelessWidget {
               height: 5,
               decoration: BoxDecoration(
                 color: index < filledDays
-                    ? DFitColors.accent
+                    ? LogMyPlateColors.accent
                     : colors.mutedFill,
                 borderRadius: BorderRadius.circular(99),
               ),
@@ -388,7 +390,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -577,7 +579,7 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -608,12 +610,12 @@ class _SkeletonBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final base = darkSurface
         ? Colors.white.withValues(alpha: 0.07)
         : colors.mutedFill;
     final highlight = darkSurface
-        ? DFitColors.accent.withValues(alpha: 0.18)
+        ? LogMyPlateColors.accent.withValues(alpha: 0.18)
         : colors.textPrimary.withValues(alpha: 0.08);
     final start = -1.6 + shimmer * 3.2;
 
@@ -641,15 +643,15 @@ class _SyncBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: DFitColors.accent.withValues(alpha: 0.12),
+        color: LogMyPlateColors.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: DFitColors.accent.withValues(alpha: 0.3),
+          color: LogMyPlateColors.accent.withValues(alpha: 0.3),
           width: 0.5,
         ),
       ),
@@ -687,7 +689,7 @@ class _QuotaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final remaining = quota.totalRemaining;
     final label = remaining > 0 ? '$remaining scans' : 'ad unlock';
     final background = remaining > 0 ? colors.textPrimary : colors.accent;
@@ -732,7 +734,7 @@ class _MealsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,7 +772,7 @@ class _MealsList extends StatelessWidget {
           SnackBar(
             content: const Text('Could not delete this meal. Try again.'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: context.dfit.surfaceHero,
+            backgroundColor: context.logmyplate.surfaceHero,
           ),
         );
       return false;
@@ -785,7 +787,7 @@ class _EmptyTodayBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 58),
@@ -809,7 +811,7 @@ class _EmptyTodayBody extends StatelessWidget {
                         margin: const EdgeInsets.only(top: 3),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: DFitColors.textTertiaryLight,
+                            color: LogMyPlateColors.textTertiaryLight,
                             width: 1.4,
                           ),
                           borderRadius: BorderRadius.circular(99),
@@ -865,7 +867,10 @@ class _GhostVessel extends StatelessWidget {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          border: Border.all(color: DFitColors.textTertiaryLight, width: 1.4),
+          border: Border.all(
+            color: LogMyPlateColors.textTertiaryLight,
+            width: 1.4,
+          ),
           borderRadius: const BorderRadius.vertical(
             bottom: Radius.circular(20),
           ),

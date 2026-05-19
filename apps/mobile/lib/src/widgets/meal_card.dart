@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import 'meal_delete_controls.dart';
 
 class MealCard extends StatelessWidget {
@@ -19,7 +19,7 @@ class MealCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final totals = meal.totals;
     final names = meal.items.map((item) => item.name).join(', ');
 
@@ -67,7 +67,7 @@ class MealCard extends StatelessWidget {
                             width: 7,
                             height: 7,
                             decoration: const BoxDecoration(
-                              color: DFitColors.accentLow,
+                              color: LogMyPlateColors.accentLow,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -123,12 +123,21 @@ class _MealTimeDisk extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = switch (type) {
       MealType.breakfast => (
-        DFitColors.mealBreakfastBg,
-        DFitColors.mealBreakfastFg,
+        LogMyPlateColors.mealBreakfastBg,
+        LogMyPlateColors.mealBreakfastFg,
       ),
-      MealType.lunch => (DFitColors.mealLunchBg, DFitColors.mealLunchFg),
-      MealType.snack => (DFitColors.mealSnackBg, DFitColors.mealSnackFg),
-      MealType.dinner => (DFitColors.mealDinnerBg, DFitColors.mealDinnerFg),
+      MealType.lunch => (
+        LogMyPlateColors.mealLunchBg,
+        LogMyPlateColors.mealLunchFg,
+      ),
+      MealType.snack => (
+        LogMyPlateColors.mealSnackBg,
+        LogMyPlateColors.mealSnackFg,
+      ),
+      MealType.dinner => (
+        LogMyPlateColors.mealDinnerBg,
+        LogMyPlateColors.mealDinnerFg,
+      ),
     };
 
     return Container(

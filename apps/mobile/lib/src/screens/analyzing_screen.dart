@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
-import '../services/dfit_api_client.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../services/logmyplate_api_client.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
@@ -96,7 +96,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
   Widget build(BuildContext context) {
     final failure = _failure;
     final plateHint = widget.photo.userHint?.trim();
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -228,7 +228,7 @@ class _AnalysisFailure {
   final String message;
 
   factory _AnalysisFailure.from(Object error) {
-    if (error is DFitApiException) {
+    if (error is LogMyPlateApiException) {
       if (error.isScanCreditRequired) {
         return const _AnalysisFailure(
           kind: _AnalysisFailureKind.quota,
@@ -254,7 +254,7 @@ class _AnalysisFailure {
           subtitle: 'The AI took too long',
           message:
               error.message ??
-              'DFit API is taking longer than expected. Retry in a moment.',
+              'LogMyPlate is taking longer than expected. Retry in a moment.',
         );
       }
       return _AnalysisFailure(
@@ -270,7 +270,7 @@ class _AnalysisFailure {
     return const _AnalysisFailure(
       kind: _AnalysisFailureKind.offline,
       title: 'Connection paused',
-      subtitle: 'Could not reach DFit',
+      subtitle: 'Could not reach LogMyPlate',
       message: 'Check the API connection and try again.',
     );
   }
@@ -299,8 +299,8 @@ class _FailureActions extends StatelessWidget {
         FilledButton(
           onPressed: isQuota ? _handleQuotaAction : onRetry,
           style: FilledButton.styleFrom(
-            backgroundColor: DFitColors.accent,
-            foregroundColor: DFitColors.accentDeep,
+            backgroundColor: LogMyPlateColors.accent,
+            foregroundColor: LogMyPlateColors.accentDeep,
           ),
           child: Text(isQuota ? 'Open account' : 'Retry scan'),
         ),
@@ -334,15 +334,17 @@ class _HintPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 280),
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
-        color: DFitColors.accent.withValues(alpha: 0.12),
+        color: LogMyPlateColors.accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: DFitColors.accent.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: LogMyPlateColors.accent.withValues(alpha: 0.22),
+        ),
       ),
       child: Text(
         label,
@@ -365,7 +367,7 @@ class _AnalyzingMealPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return AnimatedBuilder(
       animation: animation,
@@ -428,7 +430,7 @@ class _AnalyzingMealPreview extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
-                      color: DFitColors.accent.withValues(alpha: 0.22),
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.22),
                     ),
                   ),
                 ),
@@ -440,11 +442,11 @@ class _AnalyzingMealPreview extends StatelessWidget {
                 child: Container(
                   height: 2.5,
                   decoration: BoxDecoration(
-                    color: DFitColors.accent,
+                    color: LogMyPlateColors.accent,
                     borderRadius: BorderRadius.circular(99),
                     boxShadow: [
                       BoxShadow(
-                        color: DFitColors.accent.withValues(alpha: 0.45),
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.45),
                         blurRadius: 18,
                         spreadRadius: 1,
                       ),
@@ -489,7 +491,7 @@ class _AnalyzingMealPreview extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.auto_awesome_rounded,
-                    color: DFitColors.accent,
+                    color: LogMyPlateColors.accent,
                     size: 18,
                   ),
                 ),
@@ -507,7 +509,7 @@ class _AnalyzingMealFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     return DecoratedBox(
       decoration: BoxDecoration(color: colors.surfaceCard),
       child: Center(
@@ -530,7 +532,7 @@ class _StepRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -540,9 +542,9 @@ class _StepRow extends StatelessWidget {
             width: 18,
             height: 18,
             decoration: BoxDecoration(
-              color: done ? DFitColors.accent : Colors.transparent,
+              color: done ? LogMyPlateColors.accent : Colors.transparent,
               border: Border.all(
-                color: done || active ? DFitColors.accent : colors.border,
+                color: done || active ? LogMyPlateColors.accent : colors.border,
                 width: 1.5,
               ),
               shape: BoxShape.circle,

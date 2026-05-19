@@ -1,8 +1,8 @@
 import tokens from "../tokens.json" with { type: "json" };
 
-export type DFitTokens = typeof tokens;
+export type LogMyPlateTokens = typeof tokens;
 
-export const dfitTokens = tokens;
+export const logmyplateTokens = tokens;
 
 export const colors = tokens.color;
 export const spacing = tokens.space;

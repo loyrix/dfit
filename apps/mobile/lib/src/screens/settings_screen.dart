@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
 import '../services/app_diagnostics.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -106,7 +106,7 @@ class _DiagnosticRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return ListTile(
       title: Text(entry.scope, style: Theme.of(context).textTheme.bodyMedium),
@@ -136,7 +136,7 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final signedIn = session != null;
 
     return InkWell(
@@ -145,10 +145,10 @@ class _AccountCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: DFitColors.accent.withValues(alpha: 0.12),
+          color: LogMyPlateColors.accent.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: DFitColors.accent.withValues(alpha: 0.35),
+            color: LogMyPlateColors.accent.withValues(alpha: 0.35),
             width: 0.5,
           ),
         ),
@@ -158,13 +158,13 @@ class _AccountCard extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: const BoxDecoration(
-                color: DFitColors.accent,
+                color: LogMyPlateColors.accent,
                 shape: BoxShape.circle,
               ),
               child: const Center(
                 child: Text(
                   'D',
-                  style: TextStyle(color: DFitColors.accentDeep),
+                  style: TextStyle(color: LogMyPlateColors.accentDeep),
                 ),
               ),
             ),
@@ -206,7 +206,7 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +246,7 @@ class _ThemeOption extends StatelessWidget {
               width: 10,
               height: 10,
               decoration: const BoxDecoration(
-                color: DFitColors.accent,
+                color: LogMyPlateColors.accent,
                 shape: BoxShape.circle,
               ),
             )

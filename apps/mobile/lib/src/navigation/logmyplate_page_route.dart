@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-enum DFitPageTransition { fadeRise, drillDown }
+enum LogMyPlatePageTransition { fadeRise, drillDown }
 
-PageRoute<T> dfitPageRoute<T>({
+PageRoute<T> logmyplatePageRoute<T>({
   required WidgetBuilder builder,
-  DFitPageTransition transition = DFitPageTransition.fadeRise,
+  LogMyPlatePageTransition transition = LogMyPlatePageTransition.fadeRise,
 }) {
   return PageRouteBuilder<T>(
     pageBuilder: (context, animation, secondaryAnimation) => builder(context),
@@ -23,12 +23,12 @@ PageRoute<T> dfitPageRoute<T>({
       );
 
       final beginOffset = switch (transition) {
-        DFitPageTransition.fadeRise => const Offset(0, 0.12),
-        DFitPageTransition.drillDown => const Offset(0.20, 0),
+        LogMyPlatePageTransition.fadeRise => const Offset(0, 0.12),
+        LogMyPlatePageTransition.drillDown => const Offset(0.20, 0),
       };
       final beginScale = switch (transition) {
-        DFitPageTransition.fadeRise => 0.94,
-        DFitPageTransition.drillDown => 0.98,
+        LogMyPlatePageTransition.fadeRise => 0.94,
+        LogMyPlatePageTransition.drillDown => 0.98,
       };
 
       return FadeTransition(

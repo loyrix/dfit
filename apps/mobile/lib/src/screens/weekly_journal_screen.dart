@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../navigation/dfit_page_route.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../navigation/logmyplate_page_route.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -106,8 +106,8 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
 
   Future<void> _openDay(BuildContext context, JournalDayData day) async {
     await Navigator.of(context).push<void>(
-      dfitPageRoute<void>(
-        transition: DFitPageTransition.drillDown,
+      logmyplatePageRoute<void>(
+        transition: LogMyPlatePageTransition.drillDown,
         builder: (_) => DayJournalDetailScreen(
           day: day,
           onOpenMeal: widget.onOpenMeal,
@@ -283,7 +283,7 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
           SnackBar(
             content: const Text('Could not delete this meal. Try again.'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: context.dfit.surfaceHero,
+            backgroundColor: context.logmyplate.surfaceHero,
           ),
         );
       return false;
@@ -319,7 +319,7 @@ class _DayMealRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final totals = meal.totals;
     final itemNames = meal.items.map((item) => item.name).join(', ');
 
@@ -402,12 +402,21 @@ class _MealBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = switch (type) {
       MealType.breakfast => (
-        DFitColors.mealBreakfastBg,
-        DFitColors.mealBreakfastFg,
+        LogMyPlateColors.mealBreakfastBg,
+        LogMyPlateColors.mealBreakfastFg,
       ),
-      MealType.lunch => (DFitColors.mealLunchBg, DFitColors.mealLunchFg),
-      MealType.snack => (DFitColors.mealSnackBg, DFitColors.mealSnackFg),
-      MealType.dinner => (DFitColors.mealDinnerBg, DFitColors.mealDinnerFg),
+      MealType.lunch => (
+        LogMyPlateColors.mealLunchBg,
+        LogMyPlateColors.mealLunchFg,
+      ),
+      MealType.snack => (
+        LogMyPlateColors.mealSnackBg,
+        LogMyPlateColors.mealSnackFg,
+      ),
+      MealType.dinner => (
+        LogMyPlateColors.mealDinnerBg,
+        LogMyPlateColors.mealDinnerFg,
+      ),
     };
 
     return Container(
@@ -438,7 +447,7 @@ class _JournalHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -489,19 +498,19 @@ class _JournalSyncStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final hasError = message != null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: hasError
-            ? DFitColors.accent.withValues(alpha: 0.12)
+            ? LogMyPlateColors.accent.withValues(alpha: 0.12)
             : colors.mutedFill,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: hasError
-              ? DFitColors.accent.withValues(alpha: 0.24)
+              ? LogMyPlateColors.accent.withValues(alpha: 0.24)
               : colors.border,
           width: 0.5,
         ),
@@ -514,7 +523,7 @@ class _JournalSyncStrip extends StatelessWidget {
                 width: 7,
                 height: 7,
                 decoration: BoxDecoration(
-                  color: hasError ? colors.accentText : DFitColors.accent,
+                  color: hasError ? colors.accentText : LogMyPlateColors.accent,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -552,7 +561,7 @@ class _JournalSyncStrip extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 9),
                     child: LinearProgressIndicator(
                       minHeight: 2,
-                      color: DFitColors.accent,
+                      color: LogMyPlateColors.accent,
                       backgroundColor: colors.border,
                     ),
                   )
@@ -577,7 +586,7 @@ class _WeekSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Material(
       color: colors.surfaceCard,
@@ -645,7 +654,7 @@ class _WeekPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return SafeArea(
       child: Container(
@@ -701,7 +710,7 @@ class _WeeklyJournalHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: DFitColors.surfaceHero,
+        color: LogMyPlateColors.surfaceHero,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -785,7 +794,7 @@ class _SegmentedProgress extends StatelessWidget {
             margin: EdgeInsets.only(right: index == 6 ? 0 : 5),
             decoration: BoxDecoration(
               color: active
-                  ? DFitColors.accent
+                  ? LogMyPlateColors.accent
                   : Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(99),
             ),
@@ -847,7 +856,7 @@ class _EmptyWeekCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -909,7 +918,7 @@ class _JournalDayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final hasMeals = day.mealCount > 0;
     final date = _parseDate(day.date);
 
@@ -991,13 +1000,13 @@ class _DateBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final value = date;
     final badgeColor = active
-        ? DFitColors.accent.withValues(alpha: 0.16)
+        ? LogMyPlateColors.accent.withValues(alpha: 0.16)
         : colors.mutedFill;
     final borderColor = active
-        ? DFitColors.accent.withValues(alpha: 0.55)
+        ? LogMyPlateColors.accent.withValues(alpha: 0.55)
         : colors.border;
 
     return Container(
@@ -1073,7 +1082,7 @@ class _MacroPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Expanded(
       child: Container(
@@ -1107,7 +1116,7 @@ class _DayCompositionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final itemCount = day.meals.fold<int>(
       0,
       (count, meal) => count + meal.items.length,
@@ -1154,7 +1163,7 @@ class _EmptyDayOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1199,7 +1208,7 @@ class _CompositionMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Column(
       children: [
@@ -1227,7 +1236,7 @@ class _EmptyDayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1256,7 +1265,7 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: context.dfit.textSecondary,
+        color: context.logmyplate.textSecondary,
         letterSpacing: 1.4,
       ),
     );

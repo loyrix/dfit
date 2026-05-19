@@ -21,12 +21,12 @@ export const registerRequestContext = async (app: FastifyInstance): Promise<void
 export const currentRequestIdentity = (): RequestIdentity => identityStorage.getStore() ?? {};
 
 const readIdentity = (request: FastifyRequest): RequestIdentity => ({
-  installId: cleanHeader(request.headers["x-dfit-install-id"], 128),
+  installId: cleanHeader(request.headers["x-logmyplate-install-id"], 128),
   sessionToken: cleanBearerToken(request.headers.authorization),
-  platform: cleanPlatform(request.headers["x-dfit-platform"]),
-  locale: cleanHeader(request.headers["x-dfit-locale"], 32),
-  region: cleanHeader(request.headers["x-dfit-region"], 16),
-  timezone: cleanHeader(request.headers["x-dfit-timezone"], 64),
+  platform: cleanPlatform(request.headers["x-logmyplate-platform"]),
+  locale: cleanHeader(request.headers["x-logmyplate-locale"], 32),
+  region: cleanHeader(request.headers["x-logmyplate-region"], 16),
+  timezone: cleanHeader(request.headers["x-logmyplate-timezone"], 64),
 });
 
 const cleanHeader = (value: unknown, maxLength: number): string | undefined => {

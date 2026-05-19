@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/primitive_icons.dart';
 
@@ -55,7 +55,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     final primaryText = _reviewPrimaryText(context);
     final secondaryText = _reviewSecondaryText(context);
     final borderColor = _reviewBorder(context);
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Scaffold(
       body: SafeArea(
@@ -304,7 +304,7 @@ class _ReviewMealPhotoSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -344,10 +344,9 @@ class _ReviewMealPhotoSummary extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$itemCount ${itemCount == 1 ? 'item' : 'items'} detected',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: colors.textSecondary),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),
@@ -389,7 +388,7 @@ class _AddItemSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return SafeArea(
       child: Container(
@@ -498,7 +497,7 @@ class _MacroChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final background = dark ? colors.mutedFill : colors.accent;
     final foreground = dark ? colors.textPrimary : colors.accentOn;
     final borderColor = dark ? colors.border : Colors.transparent;
@@ -538,7 +537,7 @@ class _ReviewItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final lowConfidence = item.confidence < 0.7;
     final borderColor = _reviewBorder(context);
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Dismissible(
       key: rowKey,
@@ -547,7 +546,7 @@ class _ReviewItemRow extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 18),
-        color: DFitColors.accentLow.withValues(alpha: 0.2),
+        color: LogMyPlateColors.accentLow.withValues(alpha: 0.2),
         child: Text(
           'Delete',
           style: Theme.of(
@@ -561,7 +560,7 @@ class _ReviewItemRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 4),
           decoration: BoxDecoration(
             color: lowConfidence
-                ? DFitColors.accent.withValues(alpha: 0.08)
+                ? LogMyPlateColors.accent.withValues(alpha: 0.08)
                 : null,
             border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
           ),
@@ -601,7 +600,7 @@ class _ReviewItemRow extends StatelessWidget {
                             width: 6,
                             height: 6,
                             decoration: const BoxDecoration(
-                              color: DFitColors.accentLow,
+                              color: LogMyPlateColors.accentLow,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -655,21 +654,21 @@ class _UnitChip extends StatelessWidget {
 }
 
 Color _reviewPrimaryText(BuildContext context) {
-  return context.dfit.textPrimary;
+  return context.logmyplate.textPrimary;
 }
 
 Color _reviewSecondaryText(BuildContext context) {
-  return context.dfit.textSecondary;
+  return context.logmyplate.textSecondary;
 }
 
 Color _reviewBorder(BuildContext context) {
-  return context.dfit.border;
+  return context.logmyplate.border;
 }
 
 Color _reviewMutedFill(BuildContext context) {
-  return context.dfit.mutedFill;
+  return context.logmyplate.mutedFill;
 }
 
 Color _reviewAccentText(BuildContext context) {
-  return context.dfit.accentText;
+  return context.logmyplate.accentText;
 }

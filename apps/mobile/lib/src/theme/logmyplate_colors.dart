@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class DFitColors {
-  const DFitColors._();
+class LogMyPlateColors {
+  const LogMyPlateColors._();
 
   static const bgCream = Color(0xFFFAFAF7);
   static const bgInk = Color(0xFF0E1110);

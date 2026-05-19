@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 
 Future<bool> confirmMealDeletion(BuildContext context) async {
   final confirmed = await showModalBottomSheet<bool>(
@@ -49,10 +49,10 @@ class MealDeleteSwipeBackground extends StatelessWidget {
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.only(right: 18),
       decoration: BoxDecoration(
-        color: DFitColors.destructive.withValues(alpha: 0.16),
+        color: LogMyPlateColors.destructive.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: DFitColors.destructive.withValues(alpha: 0.28),
+          color: LogMyPlateColors.destructive.withValues(alpha: 0.28),
         ),
       ),
       child: Row(
@@ -60,14 +60,14 @@ class MealDeleteSwipeBackground extends StatelessWidget {
         children: [
           Icon(
             Icons.delete_outline_rounded,
-            color: DFitColors.destructive,
+            color: LogMyPlateColors.destructive,
             size: 19,
           ),
           const SizedBox(width: 8),
           Text(
             'Delete',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: DFitColors.destructive,
+              color: LogMyPlateColors.destructive,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -82,7 +82,7 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return SafeArea(
       child: Container(
@@ -113,12 +113,12 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: DFitColors.destructive,
+                backgroundColor: LogMyPlateColors.destructive,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(color: DFitColors.destructiveDeep),
+                  side: BorderSide(color: LogMyPlateColors.destructiveDeep),
                 ),
               ),
               child: const Text('Delete meal'),

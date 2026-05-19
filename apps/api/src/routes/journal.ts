@@ -3,7 +3,7 @@ import {
   createMealRequestSchema,
   journalRangeQuerySchema,
   updateMealRequestSchema,
-} from "@dfit/contracts";
+} from "@logmyplate/contracts";
 import type { AppRepository } from "../repositories/app-repository.js";
 import {
   buildJournalRange,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key, required this.onStart});
@@ -10,7 +10,7 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Scaffold(
       body: SafeArea(
@@ -34,7 +34,7 @@ class WelcomeScreen extends StatelessWidget {
                         width: 54,
                         height: 54,
                         decoration: const BoxDecoration(
-                          color: DFitColors.accent,
+                          color: LogMyPlateColors.accent,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -44,7 +44,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                'DFit',
+                'LogMyPlate',
                 style: Theme.of(
                   context,
                 ).textTheme.displayLarge?.copyWith(fontSize: 46),
@@ -103,7 +103,9 @@ class _Ring extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        border: Border.all(color: DFitColors.accent.withValues(alpha: opacity)),
+        border: Border.all(
+          color: LogMyPlateColors.accent.withValues(alpha: opacity),
+        ),
         shape: BoxShape.circle,
       ),
     );

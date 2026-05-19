@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 
-class DFitStartupErrorApp extends StatelessWidget {
-  const DFitStartupErrorApp({super.key, required this.message});
+class LogMyPlateStartupErrorApp extends StatelessWidget {
+  const LogMyPlateStartupErrorApp({super.key, required this.message});
 
   final String message;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DFit',
+      title: 'LogMyPlate',
       debugShowCheckedModeBanner: false,
-      theme: DFitTheme.dark(),
-      home: DFitStartupErrorSurface(message: message),
+      theme: LogMyPlateTheme.dark(),
+      home: LogMyPlateStartupErrorSurface(message: message),
     );
   }
 }
 
-class DFitStartupErrorSurface extends StatelessWidget {
-  const DFitStartupErrorSurface({super.key, required this.message});
+class LogMyPlateStartupErrorSurface extends StatelessWidget {
+  const LogMyPlateStartupErrorSurface({super.key, required this.message});
 
   final String message;
 
@@ -29,7 +29,7 @@ class DFitStartupErrorSurface extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Material(
-        color: DFitColors.bgInk,
+        color: LogMyPlateColors.bgInk,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(28),
@@ -42,17 +42,17 @@ class DFitStartupErrorSurface extends StatelessWidget {
                     width: 58,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: DFitColors.accent.withValues(alpha: 0.12),
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: DFitColors.accent.withValues(alpha: 0.35),
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.35),
                       ),
                     ),
                     alignment: Alignment.center,
                     child: const Text(
                       'D',
                       style: TextStyle(
-                        color: DFitColors.accent,
+                        color: LogMyPlateColors.accent,
                         fontSize: 24,
                         fontWeight: FontWeight.w600,
                       ),
@@ -60,7 +60,7 @@ class DFitStartupErrorSurface extends StatelessWidget {
                   ),
                   const SizedBox(height: 22),
                   const Text(
-                    'DFit paused',
+                    'LogMyPlate paused',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,

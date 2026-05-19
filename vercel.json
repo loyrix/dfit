@@ -3,7 +3,7 @@
   "installCommand": "pnpm install",
   "buildCommand": "pnpm build",
   "outputDirectory": "public",
-  "ignoreCommand": "npx turbo-ignore @dfit/api",
+  "ignoreCommand": "npx turbo-ignore @logmyplate/api",
   "rewrites": [
     {
       "source": "/(.*)",

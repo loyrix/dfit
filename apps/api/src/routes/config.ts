@@ -4,13 +4,13 @@ import { config } from "../config.js";
 export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> => {
   app.get("/", async () => ({
     ok: true,
-    service: "dfit-api",
+    service: "logmyplate-api",
     version: "0.0.0",
   }));
 
   app.get("/health", async () => ({
     ok: true,
-    service: "dfit-api",
+    service: "logmyplate-api",
     version: "0.0.0",
   }));
 
@@ -18,7 +18,7 @@ export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> 
     const imageStorage = isMealImageStorageConfigured();
 
     return {
-      appName: "DFit",
+      appName: "LogMyPlate",
       scanLimits: {
         freePerDay: 1,
         rewardedCapPerDay: 2,

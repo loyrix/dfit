@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
-import { analyzeScanRequestSchema, confirmScanRequestSchema } from "@dfit/contracts";
-import { decideScanQuota } from "@dfit/domain";
+import { analyzeScanRequestSchema, confirmScanRequestSchema } from "@logmyplate/contracts";
+import { decideScanQuota } from "@logmyplate/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";

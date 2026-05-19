@@ -5,7 +5,7 @@ import 'models/auth_session.dart';
 import 'models/captured_meal_photo.dart';
 import 'models/meal.dart';
 import 'models/meal_type_resolver.dart';
-import 'navigation/dfit_page_route.dart';
+import 'navigation/logmyplate_page_route.dart';
 import 'screens/account_gate_screen.dart';
 import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
@@ -19,19 +19,19 @@ import 'screens/welcome_screen.dart';
 import 'services/app_diagnostics.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
-import 'theme/dfit_colors.dart';
-import 'theme/dfit_theme.dart';
+import 'theme/logmyplate_colors.dart';
+import 'theme/logmyplate_theme.dart';
 
-class DFitApp extends StatefulWidget {
-  const DFitApp({super.key});
+class LogMyPlateApp extends StatefulWidget {
+  const LogMyPlateApp({super.key});
 
   @override
-  State<DFitApp> createState() => _DFitAppState();
+  State<LogMyPlateApp> createState() => _LogMyPlateAppState();
 }
 
-class _DFitAppState extends State<DFitApp> {
-  static const _hasSeenWelcomeKey = 'dfit.has_seen_welcome';
-  static const _themeModeKey = 'dfit.theme_mode';
+class _LogMyPlateAppState extends State<LogMyPlateApp> {
+  static const _hasSeenWelcomeKey = 'logmyplate.has_seen_welcome';
+  static const _themeModeKey = 'logmyplate.theme_mode';
 
   final _navigatorKey = GlobalKey<NavigatorState>();
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -59,10 +59,10 @@ class _DFitAppState extends State<DFitApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DFit',
+      title: 'LogMyPlate',
       debugShowCheckedModeBanner: false,
-      theme: DFitTheme.light(),
-      darkTheme: DFitTheme.dark(),
+      theme: LogMyPlateTheme.light(),
+      darkTheme: LogMyPlateTheme.dark(),
       themeMode: _themeMode,
       navigatorKey: _navigatorKey,
       scaffoldMessengerKey: _messengerKey,
@@ -153,11 +153,11 @@ class _DFitAppState extends State<DFitApp> {
     if (!await _ensureScanAllowed()) return;
 
     await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(
+      logmyplatePageRoute<void>(
         builder: (_) => CameraScreen(
           onCaptured: (photo) {
             _navigatorKey.currentState!.pushReplacement<void, void>(
-              dfitPageRoute<void>(
+              logmyplatePageRoute<void>(
                 builder: (_) => AnalyzingScreen(
                   photo: photo,
                   onAnalyze: _journalController.analyzeCapturedMeal,
@@ -168,7 +168,7 @@ class _DFitAppState extends State<DFitApp> {
                   onAddManually: _openManualReview,
                   onAnalyzed: (analysis) {
                     _navigatorKey.currentState!.pushReplacement<void, void>(
-                      dfitPageRoute<void>(
+                      logmyplatePageRoute<void>(
                         builder: (_) => ReviewMealScreen(
                           initialItems: analysis.items,
                           initialMealType: mealTypeForReview(
@@ -201,7 +201,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openManualReview() async {
     await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(
+      logmyplatePageRoute<void>(
         builder: (_) => ReviewMealScreen(
           initialItems: sampleDetectedItems().take(2).toList(),
           initialMealType: mealTypeForLocalTime(DateTime.now()),
@@ -273,7 +273,7 @@ class _DFitAppState extends State<DFitApp> {
         SnackBar(
           content: Text(message),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: DFitColors.surfaceHero,
+          backgroundColor: LogMyPlateColors.surfaceHero,
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -285,7 +285,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openSettings() async {
     await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(
+      logmyplatePageRoute<void>(
         builder: (_) => AnimatedBuilder(
           animation: _authController,
           builder: (context, _) {
@@ -320,7 +320,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<AuthSession?> _openAccountGate(AccountGateReason reason) async {
     final result = await _navigatorKey.currentState!.push<AuthSession>(
-      dfitPageRoute<AuthSession>(
+      logmyplatePageRoute<AuthSession>(
         builder: (_) => AnimatedBuilder(
           animation: _authController,
           builder: (context, _) {
@@ -351,7 +351,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<void> _openAccountProfile(AuthSession session) async {
     await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(
+      logmyplatePageRoute<void>(
         builder: (_) => AnimatedBuilder(
           animation: _authController,
           builder: (context, _) {
@@ -371,7 +371,7 @@ class _DFitAppState extends State<DFitApp> {
 
   Future<bool> _openMealDetail(MealLog meal) async {
     final deleted = await _navigatorKey.currentState!.push<bool>(
-      dfitPageRoute<bool>(
+      logmyplatePageRoute<bool>(
         builder: (_) => MealDetailScreen(
           meal: meal,
           onUpdateMeal: _journalController.updateMeal,
@@ -392,7 +392,7 @@ class _DFitAppState extends State<DFitApp> {
     if (range == null) return;
 
     await _navigatorKey.currentState!.push<void>(
-      dfitPageRoute<void>(
+      logmyplatePageRoute<void>(
         builder: (_) => WeeklyJournalScreen(
           range: range,
           isSyncing: _journalController.loading,
@@ -414,13 +414,13 @@ class _LaunchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: DFitColors.bgInk,
+      backgroundColor: LogMyPlateColors.bgInk,
       body: SafeArea(
         child: Center(
           child: Text(
-            'DFit',
+            'LogMyPlate',
             style: TextStyle(
-              color: DFitColors.accent,
+              color: LogMyPlateColors.accent,
               fontSize: 24,
               fontWeight: FontWeight.w600,
             ),
@@ -438,7 +438,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return SafeArea(
       child: Container(

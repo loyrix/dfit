@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_theme.dart';
 
 class MealItemEditResult {
   const MealItemEditResult.update(this.item) : delete = false;
@@ -70,7 +70,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return SafeArea(
@@ -367,7 +367,7 @@ class _EditTextField extends StatelessWidget {
 }
 
 InputDecoration _fieldDecoration(BuildContext context, String label) {
-  final colors = context.dfit;
+  final colors = context.logmyplate;
 
   return InputDecoration(
     labelText: label,

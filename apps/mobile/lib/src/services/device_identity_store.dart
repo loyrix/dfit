@@ -19,16 +19,16 @@ class DeviceIdentity {
   final String timezone;
 
   Map<String, String> toHeaders() => {
-    'x-dfit-install-id': installId,
-    'x-dfit-platform': platform,
-    if (locale.isNotEmpty) 'x-dfit-locale': locale,
-    if (region.isNotEmpty) 'x-dfit-region': region,
-    if (timezone.isNotEmpty) 'x-dfit-timezone': timezone,
+    'x-logmyplate-install-id': installId,
+    'x-logmyplate-platform': platform,
+    if (locale.isNotEmpty) 'x-logmyplate-locale': locale,
+    if (region.isNotEmpty) 'x-logmyplate-region': region,
+    if (timezone.isNotEmpty) 'x-logmyplate-timezone': timezone,
   };
 }
 
 class DeviceIdentityStore {
-  static const _installIdKey = 'dfit.install_id';
+  static const _installIdKey = 'logmyplate.install_id';
   static String? _memoryInstallId;
 
   Future<DeviceIdentity> load() async {

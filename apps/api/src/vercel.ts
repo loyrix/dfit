@@ -28,7 +28,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       return;
     }
 
-    req.destroy(error instanceof Error ? error : new Error("DFit API failed"));
+    req.destroy(error instanceof Error ? error : new Error("LogMyPlate API failed"));
   }
 }
 

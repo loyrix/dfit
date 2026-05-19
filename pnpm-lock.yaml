@@ -38,10 +38,10 @@ importers:
       "@aws-sdk/s3-request-presigner":
         specifier: ^3.1048.0
         version: 3.1048.0
-      "@dfit/contracts":
+      "@logmyplate/contracts":
         specifier: workspace:*
         version: link:../../packages/contracts
-      "@dfit/domain":
+      "@logmyplate/domain":
         specifier: workspace:*
         version: link:../../packages/domain
       "@fastify/cors":
@@ -109,7 +109,7 @@ importers:
 
   packages/sdk:
     dependencies:
-      "@dfit/contracts":
+      "@logmyplate/contracts":
         specifier: workspace:*
         version: link:../contracts
     devDependencies:

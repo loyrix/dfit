@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 
-Color dfitPrimitiveIconColor(BuildContext context, Color? color) {
+Color logmyplatePrimitiveIconColor(BuildContext context, Color? color) {
   if (color != null) return color;
-  return IconTheme.of(context).color ?? context.dfit.icon;
+  return IconTheme.of(context).color ?? context.logmyplate.icon;
 }
 
 class PrimitiveCameraIcon extends StatelessWidget {
   const PrimitiveCameraIcon({
     super.key,
-    this.color = DFitColors.accent,
+    this.color = LogMyPlateColors.accent,
     this.size = 24,
   });
 
@@ -70,7 +70,7 @@ class PrimitiveGearIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor = dfitPrimitiveIconColor(context, color);
+    final resolvedColor = logmyplatePrimitiveIconColor(context, color);
 
     return SizedBox(
       width: 20,
@@ -107,7 +107,7 @@ class BackMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor = dfitPrimitiveIconColor(context, color);
+    final resolvedColor = logmyplatePrimitiveIconColor(context, color);
 
     return Transform.rotate(
       angle: 0.785398,

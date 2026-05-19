@@ -13,7 +13,9 @@ void main() {
       WidgetsFlutterBinding.ensureInitialized();
 
       ErrorWidget.builder = (details) {
-        return DFitStartupErrorSurface(message: details.exceptionAsString());
+        return LogMyPlateStartupErrorSurface(
+          message: details.exceptionAsString(),
+        );
       };
 
       FlutterError.onError = (details) {
@@ -36,14 +38,14 @@ void main() {
           FlutterErrorDetails(
             exception: error,
             stack: stack,
-            library: 'dfit mobile',
+            library: 'logmyplate mobile',
           ),
         );
-        runApp(DFitStartupErrorApp(message: error.toString()));
+        runApp(LogMyPlateStartupErrorApp(message: error.toString()));
         return true;
       };
 
-      runApp(const DFitApp());
+      runApp(const LogMyPlateApp());
     },
     (error, stack) {
       AppDiagnostics.instance.record('zone.error', error, stackTrace: stack);
@@ -51,10 +53,10 @@ void main() {
         FlutterErrorDetails(
           exception: error,
           stack: stack,
-          library: 'dfit mobile',
+          library: 'logmyplate mobile',
         ),
       );
-      runApp(DFitStartupErrorApp(message: error.toString()));
+      runApp(LogMyPlateStartupErrorApp(message: error.toString()));
     },
   );
 }

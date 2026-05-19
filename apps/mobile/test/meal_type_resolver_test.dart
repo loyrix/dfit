@@ -1,5 +1,5 @@
-import 'package:dfit_mobile/src/models/meal.dart';
-import 'package:dfit_mobile/src/models/meal_type_resolver.dart';
+import 'package:logmyplate_mobile/src/models/meal.dart';
+import 'package:logmyplate_mobile/src/models/meal_type_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

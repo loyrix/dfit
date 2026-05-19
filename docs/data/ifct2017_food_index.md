@@ -8,7 +8,7 @@ Status: review artifact only; do not seed production tables from this file until
 - Table 1 contains 528 core food rows across groups A-S.
 - Group T adds 14 edible oils and fats in Table 12, so the extended source index contains 542 rows.
 - The PDF front matter says the publication cannot be electronically stored or reproduced for product creation without prior permission from NIN; treat this file as internal review material until licensing is resolved.
-- Extraction keeps official IFCT labels and codes separate from any future DFit canonical names, aliases, recipes, or portion conversions.
+- Extraction keeps official IFCT labels and codes separate from any future LogMyPlate canonical names, aliases, recipes, or portion conversions.
 
 ## Validation
 

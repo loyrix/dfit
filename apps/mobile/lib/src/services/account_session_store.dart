@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_session.dart';
 
 class AccountSessionStore {
-  static const sessionKey = 'dfit.auth_session';
+  static const sessionKey = 'logmyplate.auth_session';
 
   Future<AuthSession?> load() async {
     try {

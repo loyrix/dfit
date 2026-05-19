@@ -10,15 +10,15 @@ import type {
   PrepareScanResponseContract,
   TodayJournalResponseContract,
   UpdateMealRequestContract,
-} from "@dfit/contracts";
+} from "@logmyplate/contracts";
 
-export type DFitClientOptions = {
+export type LogMyPlateClientOptions = {
   baseUrl: string;
   getAccessToken?: () => Promise<string | undefined> | string | undefined;
 };
 
-export class DFitClient {
-  constructor(private readonly options: DFitClientOptions) {}
+export class LogMyPlateClient {
+  constructor(private readonly options: LogMyPlateClientOptions) {}
 
   async today(): Promise<TodayJournalResponseContract> {
     return this.request<TodayJournalResponseContract>("/v1/journal/today");
@@ -108,7 +108,7 @@ export class DFitClient {
     });
 
     if (!response.ok) {
-      throw new Error(`DFit API request failed: ${response.status} ${await response.text()}`);
+      throw new Error(`LogMyPlate API request failed: ${response.status} ${await response.text()}`);
     }
 
     if (response.status === 204) return undefined as T;

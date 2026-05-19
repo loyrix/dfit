@@ -47,8 +47,8 @@ class AppDiagnostics {
       _entries.removeRange(0, _entries.length - _maxEntries);
     }
 
-    debugPrint('[DFit][$scope] ${entry.message}');
-    if (context.isNotEmpty) debugPrint('[DFit][$scope] context=$context');
+    debugPrint('[LogMyPlate][$scope] ${entry.message}');
+    if (context.isNotEmpty) debugPrint('[LogMyPlate][$scope] context=$context');
     if (stackTrace != null) debugPrintStack(stackTrace: stackTrace);
   }
 

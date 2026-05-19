@@ -12,7 +12,7 @@ const buildProvider = (fetchFn: typeof fetch) =>
   });
 
 describe("GeminiAiProvider", () => {
-  it("maps structured Gemini JSON into the DFit scan contract", async () => {
+  it("maps structured Gemini JSON into the LogMyPlate scan contract", async () => {
     let requestBody: unknown;
     const provider = buildProvider(async (_url, init) => {
       requestBody = JSON.parse(init?.body as string) as unknown;

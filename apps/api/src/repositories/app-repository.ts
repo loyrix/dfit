@@ -5,7 +5,7 @@ import type {
   MealItemNutrition,
   MealSummary,
   ScanCreditState,
-} from "@dfit/domain";
+} from "@logmyplate/domain";
 import type { AiProviderRunMetadata } from "../services/ai-provider.js";
 
 export type Profile = {

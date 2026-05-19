@@ -1,4 +1,4 @@
-import { sumTotals } from "@dfit/domain";
+import { sumTotals } from "@logmyplate/domain";
 import type { AppRepository, Profile } from "../repositories/app-repository.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 

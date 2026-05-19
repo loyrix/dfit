@@ -12,7 +12,7 @@ import {
   type FoodRecord,
   type MealSummary,
   type PortionUnit,
-} from "@dfit/domain";
+} from "@logmyplate/domain";
 import type postgres from "postgres";
 import type { SqlClient } from "../db/client.js";
 import { currentRequestIdentity } from "../request-context.js";
@@ -1203,7 +1203,7 @@ export class PostgresStore implements AppRepository {
       canonicalName: row.canonical_name,
       region: row.region,
       aliases: row.aliases ?? [],
-      source: "dfit_seed",
+      source: "logmyplate_seed",
       nutritionPer100g: {
         calories: Number(row.calories_per_100g),
         proteinG: Number(row.protein_g_per_100g),

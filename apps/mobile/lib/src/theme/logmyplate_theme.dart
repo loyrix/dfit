@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 
-import 'dfit_colors.dart';
+import 'logmyplate_colors.dart';
 
-class DFitTheme {
-  const DFitTheme._();
+class LogMyPlateTheme {
+  const LogMyPlateTheme._();
 
   static ThemeData light() {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: DFitColors.bgCream,
+      scaffoldBackgroundColor: LogMyPlateColors.bgCream,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: DFitColors.accent,
+        seedColor: LogMyPlateColors.accent,
         brightness: Brightness.light,
-        surface: DFitColors.bgCream,
+        surface: LogMyPlateColors.bgCream,
       ),
       fontFamily: 'SF Pro Text',
-      textTheme: _textTheme(DFitColors.textPrimaryLight),
-      iconTheme: const IconThemeData(color: DFitColors.textPrimaryLight),
-      iconButtonTheme: _iconButtonTheme(DFitColors.textPrimaryLight),
-      extensions: <ThemeExtension<dynamic>>[DFitThemeColors.light()],
+      textTheme: _textTheme(LogMyPlateColors.textPrimaryLight),
+      iconTheme: const IconThemeData(color: LogMyPlateColors.textPrimaryLight),
+      iconButtonTheme: _iconButtonTheme(LogMyPlateColors.textPrimaryLight),
+      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.light()],
     );
   }
 
@@ -27,17 +27,17 @@ class DFitTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: DFitColors.bgInk,
+      scaffoldBackgroundColor: LogMyPlateColors.bgInk,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: DFitColors.accent,
+        seedColor: LogMyPlateColors.accent,
         brightness: Brightness.dark,
-        surface: DFitColors.bgInk,
+        surface: LogMyPlateColors.bgInk,
       ),
       fontFamily: 'SF Pro Text',
       textTheme: _textTheme(Colors.white),
       iconTheme: const IconThemeData(color: Colors.white),
       iconButtonTheme: _iconButtonTheme(Colors.white),
-      extensions: <ThemeExtension<dynamic>>[DFitThemeColors.dark()],
+      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.dark()],
     );
   }
 
@@ -95,8 +95,8 @@ class DFitTheme {
 }
 
 @immutable
-class DFitThemeColors extends ThemeExtension<DFitThemeColors> {
-  const DFitThemeColors({
+class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
+  const LogMyPlateThemeColors({
     required this.background,
     required this.surfaceCard,
     required this.surfaceHero,
@@ -128,53 +128,53 @@ class DFitThemeColors extends ThemeExtension<DFitThemeColors> {
   final Color primaryActionText;
   final Color mutedFill;
 
-  static DFitThemeColors light() {
-    return DFitThemeColors(
-      background: DFitColors.bgCream,
-      surfaceCard: DFitColors.surfaceCard,
-      surfaceHero: DFitColors.surfaceHero,
-      border: DFitColors.borderLight,
-      textPrimary: DFitColors.textPrimaryLight,
-      textSecondary: DFitColors.textSecondaryLight,
-      textTertiary: DFitColors.textTertiaryLight,
-      icon: DFitColors.textPrimaryLight,
-      accent: DFitColors.accent,
-      accentOn: DFitColors.accentDeep,
-      accentText: DFitColors.accentWarm,
-      primaryAction: DFitColors.textPrimaryLight,
+  static LogMyPlateThemeColors light() {
+    return LogMyPlateThemeColors(
+      background: LogMyPlateColors.bgCream,
+      surfaceCard: LogMyPlateColors.surfaceCard,
+      surfaceHero: LogMyPlateColors.surfaceHero,
+      border: LogMyPlateColors.borderLight,
+      textPrimary: LogMyPlateColors.textPrimaryLight,
+      textSecondary: LogMyPlateColors.textSecondaryLight,
+      textTertiary: LogMyPlateColors.textTertiaryLight,
+      icon: LogMyPlateColors.textPrimaryLight,
+      accent: LogMyPlateColors.accent,
+      accentOn: LogMyPlateColors.accentDeep,
+      accentText: LogMyPlateColors.accentWarm,
+      primaryAction: LogMyPlateColors.textPrimaryLight,
       primaryActionText: Colors.white,
-      mutedFill: DFitColors.textPrimaryLight.withValues(alpha: 0.06),
+      mutedFill: LogMyPlateColors.textPrimaryLight.withValues(alpha: 0.06),
     );
   }
 
-  static DFitThemeColors dark() {
-    return DFitThemeColors(
-      background: DFitColors.bgInk,
-      surfaceCard: DFitColors.surfaceCardDark,
-      surfaceHero: DFitColors.surfaceHero,
+  static LogMyPlateThemeColors dark() {
+    return LogMyPlateThemeColors(
+      background: LogMyPlateColors.bgInk,
+      surfaceCard: LogMyPlateColors.surfaceCardDark,
+      surfaceHero: LogMyPlateColors.surfaceHero,
       border: Colors.white.withValues(alpha: 0.08),
       textPrimary: Colors.white,
       textSecondary: Colors.white.withValues(alpha: 0.58),
       textTertiary: Colors.white.withValues(alpha: 0.36),
       icon: Colors.white,
-      accent: DFitColors.accent,
-      accentOn: DFitColors.accentDeep,
-      accentText: DFitColors.accent,
-      primaryAction: DFitColors.accent,
-      primaryActionText: DFitColors.accentDeep,
+      accent: LogMyPlateColors.accent,
+      accentOn: LogMyPlateColors.accentDeep,
+      accentText: LogMyPlateColors.accent,
+      primaryAction: LogMyPlateColors.accent,
+      primaryActionText: LogMyPlateColors.accentDeep,
       mutedFill: Colors.white.withValues(alpha: 0.08),
     );
   }
 
-  static DFitThemeColors of(BuildContext context) {
-    return Theme.of(context).extension<DFitThemeColors>() ??
+  static LogMyPlateThemeColors of(BuildContext context) {
+    return Theme.of(context).extension<LogMyPlateThemeColors>() ??
         (Theme.of(context).brightness == Brightness.dark
-            ? DFitThemeColors.dark()
-            : DFitThemeColors.light());
+            ? LogMyPlateThemeColors.dark()
+            : LogMyPlateThemeColors.light());
   }
 
   @override
-  DFitThemeColors copyWith({
+  LogMyPlateThemeColors copyWith({
     Color? background,
     Color? surfaceCard,
     Color? surfaceHero,
@@ -190,7 +190,7 @@ class DFitThemeColors extends ThemeExtension<DFitThemeColors> {
     Color? primaryActionText,
     Color? mutedFill,
   }) {
-    return DFitThemeColors(
+    return LogMyPlateThemeColors(
       background: background ?? this.background,
       surfaceCard: surfaceCard ?? this.surfaceCard,
       surfaceHero: surfaceHero ?? this.surfaceHero,
@@ -209,10 +209,13 @@ class DFitThemeColors extends ThemeExtension<DFitThemeColors> {
   }
 
   @override
-  DFitThemeColors lerp(ThemeExtension<DFitThemeColors>? other, double t) {
-    if (other is! DFitThemeColors) return this;
+  LogMyPlateThemeColors lerp(
+    ThemeExtension<LogMyPlateThemeColors>? other,
+    double t,
+  ) {
+    if (other is! LogMyPlateThemeColors) return this;
 
-    return DFitThemeColors(
+    return LogMyPlateThemeColors(
       background: Color.lerp(background, other.background, t)!,
       surfaceCard: Color.lerp(surfaceCard, other.surfaceCard, t)!,
       surfaceHero: Color.lerp(surfaceHero, other.surfaceHero, t)!,
@@ -235,6 +238,6 @@ class DFitThemeColors extends ThemeExtension<DFitThemeColors> {
   }
 }
 
-extension DFitThemeContext on BuildContext {
-  DFitThemeColors get dfit => DFitThemeColors.of(this);
+extension LogMyPlateThemeContext on BuildContext {
+  LogMyPlateThemeColors get logmyplate => LogMyPlateThemeColors.of(this);
 }

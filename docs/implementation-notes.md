@@ -1,12 +1,12 @@
-# DFit Implementation Notes
+# LogMyPlate Implementation Notes
 
 ## Current Phase
 
-This repo begins at Phase 0 from `DFit_Plan_Revisions_v2.md`.
+This repo begins at Phase 0 from `LogMyPlate_Plan_Revisions_v2.md`.
 
 The first implementation pass prioritizes architecture seams:
 
-- Flutter mobile shell with DFit design language.
+- Flutter mobile shell with LogMyPlate design language.
 - Fastify API with route boundaries.
 - Pure domain package for quota and nutrition math.
 - Zod contracts package for request/response schemas.

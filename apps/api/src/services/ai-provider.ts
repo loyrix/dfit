@@ -1,4 +1,4 @@
-import type { AnalyzeScanResponseContract } from "@dfit/contracts";
+import type { AnalyzeScanResponseContract } from "@logmyplate/contracts";
 import type { ApiConfig } from "../config.js";
 import { GeminiAiProvider } from "./gemini-ai-provider.js";
 import { MockAiProvider } from "./mock-ai-provider.js";

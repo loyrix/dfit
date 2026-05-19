@@ -9,7 +9,7 @@ import type {
   StoredMealImage,
   UploadMealImageInput,
 } from "./services/meal-image-storage.js";
-import type { MealImageSummary } from "@dfit/domain";
+import type { MealImageSummary } from "@logmyplate/domain";
 
 const testApp = () => buildApp({ repository: new InMemoryStore() });
 
@@ -57,12 +57,12 @@ const mealPayload = (loggedAt: string) => ({
   ],
 });
 
-describe("DFit API", () => {
+describe("LogMyPlate API", () => {
   it("serves health", async () => {
     const app = await testApp();
     const response = await app.inject({ method: "GET", url: "/health" });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ ok: true, service: "dfit-api" });
+    expect(response.json()).toMatchObject({ ok: true, service: "logmyplate-api" });
     await app.close();
   });
 
@@ -75,7 +75,7 @@ describe("DFit API", () => {
     expect(docs.headers["content-type"]).toContain("text/html");
     expect(spec.statusCode).toBe(200);
     expect(spec.headers["content-type"]).toContain("application/yaml");
-    expect(spec.body).toContain("title: DFit API");
+    expect(spec.body).toContain("title: LogMyPlate API");
 
     await app.close();
   });
@@ -86,7 +86,7 @@ describe("DFit API", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      appName: "DFit",
+      appName: "LogMyPlate",
       scanLimits: {
         freePerDay: 1,
         rewardedCapPerDay: 2,
@@ -155,9 +155,9 @@ describe("DFit API", () => {
       method: "GET",
       url: "/v1/journal/today",
       headers: {
-        "x-dfit-install-id": "install-test",
-        "x-dfit-platform": "ios",
-        "x-dfit-locale": "en-IN",
+        "x-logmyplate-install-id": "install-test",
+        "x-logmyplate-platform": "ios",
+        "x-logmyplate-locale": "en-IN",
       },
     });
 
@@ -512,8 +512,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/meals",
       headers: {
-        "x-dfit-install-id": "bootstrap-install",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "bootstrap-install",
+        "x-logmyplate-platform": "ios",
         "idempotency-key": "bootstrap-meal",
       },
       payload: mealPayload(new Date().toISOString()),
@@ -524,8 +524,8 @@ describe("DFit API", () => {
       method: "GET",
       url: "/v1/app/bootstrap",
       headers: {
-        "x-dfit-install-id": "bootstrap-install",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "bootstrap-install",
+        "x-logmyplate-platform": "ios",
       },
     });
 
@@ -557,8 +557,8 @@ describe("DFit API", () => {
   it("binds anonymous journal data when an email account is created", async () => {
     const app = await testApp();
     const installHeaders = {
-      "x-dfit-install-id": "install-account-create",
-      "x-dfit-platform": "ios",
+      "x-logmyplate-install-id": "install-account-create",
+      "x-logmyplate-platform": "ios",
     };
 
     const meal = await app.inject({
@@ -589,8 +589,8 @@ describe("DFit API", () => {
       url: "/v1/app/bootstrap",
       headers: {
         authorization: `Bearer ${signup.json().accessToken}`,
-        "x-dfit-install-id": "install-account-create",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-account-create",
+        "x-logmyplate-platform": "ios",
       },
     });
 
@@ -613,8 +613,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/auth/email/signup",
       headers: {
-        "x-dfit-install-id": "install-user-a",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-user-a",
+        "x-logmyplate-platform": "ios",
       },
       payload: { email: "a@example.com", password: "secret1" },
     });
@@ -624,8 +624,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/auth/email/signup",
       headers: {
-        "x-dfit-install-id": "install-user-b",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-user-b",
+        "x-logmyplate-platform": "ios",
       },
       payload: { email: "b@example.com", password: "secret1" },
     });
@@ -636,8 +636,8 @@ describe("DFit API", () => {
       url: "/v1/meals",
       headers: {
         authorization: `Bearer ${firstSignup.json().accessToken}`,
-        "x-dfit-install-id": "install-user-a",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-user-a",
+        "x-logmyplate-platform": "ios",
         "idempotency-key": "user-a-meal",
       },
       payload: mealPayload(new Date().toISOString()),
@@ -649,8 +649,8 @@ describe("DFit API", () => {
       url: "/v1/app/bootstrap",
       headers: {
         authorization: `Bearer ${secondSignup.json().accessToken}`,
-        "x-dfit-install-id": "install-user-b",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-user-b",
+        "x-logmyplate-platform": "ios",
       },
     });
     expect(secondBootstrap.statusCode).toBe(200);
@@ -661,8 +661,8 @@ describe("DFit API", () => {
       url: `/v1/meals/${firstMeal.json().id}`,
       headers: {
         authorization: `Bearer ${secondSignup.json().accessToken}`,
-        "x-dfit-install-id": "install-user-b",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-user-b",
+        "x-logmyplate-platform": "ios",
       },
     });
     expect(secondMealLookup.statusCode).toBe(404);
@@ -672,8 +672,8 @@ describe("DFit API", () => {
       url: "/v1/app/bootstrap",
       headers: {
         authorization: `Bearer ${firstSignup.json().accessToken}`,
-        "x-dfit-install-id": "install-user-a",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-user-a",
+        "x-logmyplate-platform": "ios",
       },
     });
     expect(firstBootstrap.json().today.meals[0]).toMatchObject({
@@ -688,8 +688,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/auth/email/signup",
       headers: {
-        "x-dfit-install-id": "install-existing-account",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-existing-account",
+        "x-logmyplate-platform": "ios",
       },
       payload: { email: "merge@example.com", password: "secret1" },
     });
@@ -699,8 +699,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/meals",
       headers: {
-        "x-dfit-install-id": "install-new-device",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-new-device",
+        "x-logmyplate-platform": "ios",
         "idempotency-key": "anonymous-new-device-meal",
       },
       payload: mealPayload(new Date().toISOString()),
@@ -711,8 +711,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/auth/email/login",
       headers: {
-        "x-dfit-install-id": "install-new-device",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-new-device",
+        "x-logmyplate-platform": "ios",
       },
       payload: { email: "merge@example.com", password: "secret1" },
     });
@@ -723,8 +723,8 @@ describe("DFit API", () => {
       url: "/v1/app/bootstrap",
       headers: {
         authorization: `Bearer ${login.json().accessToken}`,
-        "x-dfit-install-id": "install-new-device",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-new-device",
+        "x-logmyplate-platform": "ios",
       },
     });
 
@@ -742,8 +742,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/auth/email/signup",
       headers: {
-        "x-dfit-install-id": "install-logout",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-logout",
+        "x-logmyplate-platform": "ios",
       },
       payload: { email: "logout@example.com", password: "secret1" },
     });
@@ -754,8 +754,8 @@ describe("DFit API", () => {
       url: "/v1/meals",
       headers: {
         authorization: `Bearer ${signup.json().accessToken}`,
-        "x-dfit-install-id": "install-logout",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-logout",
+        "x-logmyplate-platform": "ios",
         "idempotency-key": "logout-account-meal",
       },
       payload: mealPayload(new Date().toISOString()),
@@ -767,8 +767,8 @@ describe("DFit API", () => {
       url: "/v1/auth/logout",
       headers: {
         authorization: `Bearer ${signup.json().accessToken}`,
-        "x-dfit-install-id": "install-logout",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-logout",
+        "x-logmyplate-platform": "ios",
       },
     });
     expect(logout.statusCode).toBe(204);
@@ -777,8 +777,8 @@ describe("DFit API", () => {
       method: "GET",
       url: "/v1/app/bootstrap",
       headers: {
-        "x-dfit-install-id": "install-logout",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-logout",
+        "x-logmyplate-platform": "ios",
       },
     });
     expect(anonymousBootstrap.statusCode).toBe(200);
@@ -789,8 +789,8 @@ describe("DFit API", () => {
       method: "POST",
       url: "/v1/auth/email/login",
       headers: {
-        "x-dfit-install-id": "install-logout",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-logout",
+        "x-logmyplate-platform": "ios",
       },
       payload: { email: "logout@example.com", password: "secret1" },
     });
@@ -801,8 +801,8 @@ describe("DFit API", () => {
       url: "/v1/app/bootstrap",
       headers: {
         authorization: `Bearer ${login.json().accessToken}`,
-        "x-dfit-install-id": "install-logout",
-        "x-dfit-platform": "ios",
+        "x-logmyplate-install-id": "install-logout",
+        "x-logmyplate-platform": "ios",
       },
     });
     expect(accountBootstrap.json().today.meals[0]).toMatchObject({

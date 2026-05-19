@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_theme.dart';
 
 class MacroBarGroup extends StatelessWidget {
   const MacroBarGroup({super.key, required this.totals});
@@ -10,7 +10,7 @@ class MacroBarGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
@@ -38,7 +38,7 @@ class _MacroMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Expanded(
       child: Padding(

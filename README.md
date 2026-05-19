@@ -1,4 +1,4 @@
-# DFit
+# LogMyPlate
 
 Camera-first nutrition journal for iOS and Android.
 
@@ -19,7 +19,7 @@ apps/
 
 packages/
   contracts/     Zod API contracts
-  design-tokens/ Shared DFit design tokens
+  design-tokens/ Shared LogMyPlate design tokens
   domain/        Pure nutrition/quota/domain logic
   sdk/           TypeScript API client
 
@@ -40,14 +40,14 @@ pnpm mobile:analyze
 pnpm mobile:test
 ```
 
-Mobile builds default to the deployed API at `https://dfit-api.vercel.app`.
+Mobile builds default to the deployed API at `https://logmyplate-api.vercel.app`.
 This keeps Xcode and device launches working even when no `--dart-define` is
 passed.
 
 To test against the local API, run the API first:
 
 ```sh
-pnpm --filter @dfit/api dev
+pnpm --filter @logmyplate/api dev
 ```
 
 API documentation is available from the running server:
@@ -60,20 +60,20 @@ OpenAPI YAML: http://127.0.0.1:4000/openapi.yaml
 iOS simulator local API:
 
 ```sh
-flutter run --dart-define=DFIT_API_BASE_URL=http://127.0.0.1:4000
+flutter run --dart-define=LOGMYPLATE_API_BASE_URL=http://127.0.0.1:4000
 ```
 
 Android emulator local API:
 
 ```sh
-flutter run --dart-define=DFIT_API_BASE_URL=http://10.0.2.2:4000
+flutter run --dart-define=LOGMYPLATE_API_BASE_URL=http://10.0.2.2:4000
 ```
 
 For a physical phone against your local Mac, pass your Mac's LAN address:
 
 ```sh
-API_HOST=0.0.0.0 pnpm --filter @dfit/api dev
-flutter run --dart-define=DFIT_API_BASE_URL=http://YOUR_MAC_IP:4000
+API_HOST=0.0.0.0 pnpm --filter @logmyplate/api dev
+flutter run --dart-define=LOGMYPLATE_API_BASE_URL=http://YOUR_MAC_IP:4000
 ```
 
 ## Vercel API Deployment

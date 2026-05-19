@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dfit_mobile/src/models/captured_meal_photo.dart';
-import 'package:dfit_mobile/src/models/auth_session.dart';
-import 'package:dfit_mobile/src/models/meal.dart';
-import 'package:dfit_mobile/src/services/device_identity_store.dart';
-import 'package:dfit_mobile/src/services/dfit_api_client.dart';
+import 'package:logmyplate_mobile/src/models/captured_meal_photo.dart';
+import 'package:logmyplate_mobile/src/models/auth_session.dart';
+import 'package:logmyplate_mobile/src/models/meal.dart';
+import 'package:logmyplate_mobile/src/services/device_identity_store.dart';
+import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -19,24 +19,26 @@ void main() {
     timezone: 'Asia/Kolkata',
   );
 
-  group('DFitApiConfig', () {
+  group('LogMyPlateApiConfig', () {
     test('uses explicit dart define value first', () {
       expect(
-        DFitApiConfig.resolveBaseUrl(configured: ' https://example.test/api/ '),
+        LogMyPlateApiConfig.resolveBaseUrl(
+          configured: ' https://example.test/api/ ',
+        ),
         'https://example.test/api',
       );
     });
 
     test('uses production API by default', () {
       expect(
-        DFitApiConfig.resolveBaseUrl(configured: ''),
-        'https://dfit-api.vercel.app',
+        LogMyPlateApiConfig.resolveBaseUrl(configured: ''),
+        'https://logmyplate-api.vercel.app',
       );
     });
   });
 
   test('classifies scan credit required API errors', () {
-    final error = DFitApiException(
+    final error = LogMyPlateApiException(
       402,
       jsonEncode({'error': 'scan_credit_required'}),
     );
@@ -46,7 +48,7 @@ void main() {
   });
 
   test('reads API error messages and retry hints', () {
-    final error = DFitApiException(
+    final error = LogMyPlateApiException(
       504,
       jsonEncode({
         'error': 'ai_provider_timeout',
@@ -62,12 +64,12 @@ void main() {
 
   test('prepares and analyzes a scan', () async {
     final requests = <http.Request>[];
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
         requests.add(request);
-        expect(request.headers['x-dfit-install-id'], 'test-install');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
         if (request.url.path == '/v1/scans/prepare') {
           return http.Response(
             jsonEncode({
@@ -147,12 +149,12 @@ void main() {
   });
 
   test('fetches quota with device identity headers', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/quota');
-        expect(request.headers['x-dfit-install-id'], 'test-install');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
         return http.Response(
           jsonEncode({
             'freeRemaining': 2,
@@ -172,12 +174,12 @@ void main() {
   });
 
   test('fetches app bootstrap data in one request', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/app/bootstrap');
-        expect(request.headers['x-dfit-install-id'], 'test-install');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
         return http.Response(
           jsonEncode({
             'serverTime': '2026-05-12T10:00:00.000Z',
@@ -268,7 +270,7 @@ void main() {
   });
 
   test('parses legacy journal summary payloads during API rollout', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
@@ -333,7 +335,7 @@ void main() {
   });
 
   test('sends account token and parses email signup sessions', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       loadAuthSession: () async => AuthSession(
@@ -379,7 +381,7 @@ void main() {
   });
 
   test('fetches seven day journal range', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
@@ -441,7 +443,7 @@ void main() {
   });
 
   test('fetches only available journal weeks', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {
@@ -482,7 +484,7 @@ void main() {
   });
 
   test('confirms a scan meal', () async {
-    final client = DFitApiClient(
+    final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
       httpClient: MockClient((request) async {

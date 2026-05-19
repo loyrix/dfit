@@ -169,7 +169,7 @@ create table portion_conversions (
   food_id uuid references foods(id) on delete cascade,
   unit portion_unit not null,
   grams numeric(8,2) not null check (grams >= 0),
-  source text not null default 'dfit_seed',
+  source text not null default 'logmyplate_seed',
   confidence numeric(4,3) not null default 0.7 check (confidence >= 0 and confidence <= 1),
   created_at timestamptz not null default now()
 );

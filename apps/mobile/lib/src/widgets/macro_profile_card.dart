@@ -3,21 +3,21 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 
 class MacroProfileCard extends StatelessWidget {
   const MacroProfileCard({super.key, required this.meal});
 
   final MealLog meal;
 
-  static const _proteinColor = DFitColors.accent;
+  static const _proteinColor = LogMyPlateColors.accent;
   static const _carbsColor = Color(0xFF7DC7A7);
   static const _fatColor = Color(0xFFE98764);
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final profile = _MealMacroProfile.fromMeal(meal);
 
     return Container(
@@ -180,7 +180,7 @@ class _MacroGauge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return SizedBox(
       width: 104,
@@ -221,7 +221,7 @@ class _MacroRingPainter extends CustomPainter {
   const _MacroRingPainter({required this.profile, required this.colors});
 
   final _MealMacroProfile profile;
-  final DFitThemeColors colors;
+  final LogMyPlateThemeColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -269,7 +269,7 @@ class _MacroSplitBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final shares = [
       (
         label: 'P',
@@ -336,7 +336,7 @@ class _ItemContributionList extends StatelessWidget {
         Text(
           'Item Contribution',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.dfit.textSecondary,
+            color: context.logmyplate.textSecondary,
             letterSpacing: 1.2,
           ),
         ),
@@ -359,7 +359,7 @@ class _ItemContributionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final percent = (item.nutrition.calories / totalCalories).clamp(0.0, 1.0);
 
     return Padding(
@@ -393,7 +393,7 @@ class _ItemContributionRow extends StatelessWidget {
             child: LinearProgressIndicator(
               minHeight: 5,
               value: percent,
-              color: DFitColors.accent,
+              color: LogMyPlateColors.accent,
               backgroundColor: colors.mutedFill,
             ),
           ),
@@ -416,7 +416,7 @@ class _ProfileMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Row(
       children: [
@@ -459,12 +459,12 @@ class _ProfileBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: DFitColors.accent.withValues(alpha: 0.16),
+        color: LogMyPlateColors.accent.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(

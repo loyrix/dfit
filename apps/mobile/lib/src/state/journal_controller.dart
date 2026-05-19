@@ -5,15 +5,17 @@ import 'package:flutter/foundation.dart';
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../services/app_diagnostics.dart';
-import '../services/dfit_api_client.dart';
+import '../services/logmyplate_api_client.dart';
 import '../services/journal_cache_store.dart';
 
 class JournalController extends ChangeNotifier {
-  JournalController({DFitApiClient? apiClient, JournalCacheStore? cacheStore})
-    : _apiClient = apiClient ?? DFitApiClient(),
-      _cacheStore = cacheStore ?? JournalCacheStore();
+  JournalController({
+    LogMyPlateApiClient? apiClient,
+    JournalCacheStore? cacheStore,
+  }) : _apiClient = apiClient ?? LogMyPlateApiClient(),
+       _cacheStore = cacheStore ?? JournalCacheStore();
 
-  final DFitApiClient _apiClient;
+  final LogMyPlateApiClient _apiClient;
   final JournalCacheStore _cacheStore;
 
   bool _loading = false;
@@ -216,7 +218,7 @@ class JournalController extends ChangeNotifier {
   }
 
   String _journalErrorMessage(Object error) {
-    if (error is DFitApiException) {
+    if (error is LogMyPlateApiException) {
       return 'Could not refresh journal (${error.statusCode}). Pull to retry.';
     }
     return 'Could not refresh journal. Pull to retry.';

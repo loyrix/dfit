@@ -1,6 +1,10 @@
 import type { NutritionPer100g, PortionUnit } from "./types.js";
 
-export type FoodSource = "dfit_seed" | "ifct_pending" | "usda_pending" | "open_food_facts_pending";
+export type FoodSource =
+  | "logmyplate_seed"
+  | "ifct_pending"
+  | "usda_pending"
+  | "open_food_facts_pending";
 
 export type PortionConversion = {
   unit: PortionUnit;
@@ -24,7 +28,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Dal",
     region: "IN",
     aliases: ["lentil curry", "dal tadka", "daal"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 100,
       proteinG: 6,
@@ -44,7 +48,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Cooked rice",
     region: "GLOBAL",
     aliases: ["rice", "chawal", "steamed rice", "white rice"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 140,
       proteinG: 2.8,
@@ -64,7 +68,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Roti",
     region: "IN",
     aliases: ["chapati", "phulka", "fulka"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 267,
       proteinG: 8.7,
@@ -83,7 +87,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Mixed vegetable sabzi",
     region: "IN",
     aliases: ["sabzi", "subzi", "vegetable curry", "mixed vegetables"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 98,
       proteinG: 2.6,
@@ -103,7 +107,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Curd",
     region: "IN",
     aliases: ["dahi", "yogurt", "plain yogurt"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 61,
       proteinG: 3.5,
@@ -122,7 +126,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Paneer",
     region: "IN",
     aliases: ["cottage cheese", "paneer cubes"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 265,
       proteinG: 18.3,
@@ -141,7 +145,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Idli",
     region: "IN",
     aliases: ["idly", "rice cake"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 146,
       proteinG: 4.5,
@@ -160,7 +164,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Dosa",
     region: "IN",
     aliases: ["plain dosa", "dosai"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 168,
       proteinG: 3.9,
@@ -179,7 +183,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Poha",
     region: "IN",
     aliases: ["flattened rice poha", "kanda poha"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 130,
       proteinG: 2.6,
@@ -198,7 +202,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Chicken breast, cooked",
     region: "GLOBAL",
     aliases: ["chicken breast", "grilled chicken", "cooked chicken"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 165,
       proteinG: 31,
@@ -217,7 +221,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Egg",
     region: "GLOBAL",
     aliases: ["boiled egg", "whole egg", "anda"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 143,
       proteinG: 12.6,
@@ -236,7 +240,7 @@ export const seedFoods: readonly FoodRecord[] = [
     canonicalName: "Banana",
     region: "GLOBAL",
     aliases: ["kela"],
-    source: "dfit_seed",
+    source: "logmyplate_seed",
     nutritionPer100g: {
       calories: 89,
       proteinG: 1.1,

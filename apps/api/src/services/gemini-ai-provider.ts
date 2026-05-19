@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { analyzeScanResponseSchema, mealTypeSchema, portionUnitSchema } from "@dfit/contracts";
-import { sumTotals } from "@dfit/domain";
+import {
+  analyzeScanResponseSchema,
+  mealTypeSchema,
+  portionUnitSchema,
+} from "@logmyplate/contracts";
+import { sumTotals } from "@logmyplate/domain";
 import { z } from "zod";
 import {
   AiProviderError,
@@ -232,7 +236,7 @@ export class GeminiAiProvider implements AiProvider {
       if (error instanceof z.ZodError) {
         throw new AiProviderError(
           "ai_provider_invalid_response",
-          "Gemini returned food analysis that did not match the DFit schema.",
+          "Gemini returned food analysis that did not match the LogMyPlate schema.",
           502,
           true,
         );
@@ -277,7 +281,7 @@ const buildFoodPhotoPrompt = (userHint?: string) => {
   const normalizedHint = userHint?.replace(/\s+/g, " ").trim();
 
   return `
-You are DFit's advanced Indian food recognition and nutrition analysis AI. Analyze the attached
+You are LogMyPlate's advanced Indian food recognition and nutrition analysis AI. Analyze the attached
 meal photo for an editable food journal. Be Indian-first and global-ready: recognize Indian
 home-cooked foods, common English food names, Hinglish terms, regional Indian names, and
 global foods when they are actually visible.

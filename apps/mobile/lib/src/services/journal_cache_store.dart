@@ -6,7 +6,7 @@ import '../models/meal.dart';
 import 'account_session_store.dart';
 
 class JournalCacheStore {
-  static const _bootstrapKey = 'dfit.journal_bootstrap_cache';
+  static const _bootstrapKey = 'logmyplate.journal_bootstrap_cache';
 
   JournalCacheStore({AccountSessionStore? sessionStore})
     : _sessionStore = sessionStore ?? AccountSessionStore();

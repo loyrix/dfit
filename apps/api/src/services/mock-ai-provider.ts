@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { AnalyzeScanResponseContract } from "@dfit/contracts";
-import { sumTotals } from "@dfit/domain";
+import type { AnalyzeScanResponseContract } from "@logmyplate/contracts";
+import { sumTotals } from "@logmyplate/domain";
 import type { AiProvider, AnalyzeMealImageInput, AnalyzeMealImageResult } from "./ai-provider.js";
 
 const items: AnalyzeScanResponseContract["items"] = [

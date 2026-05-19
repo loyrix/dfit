@@ -5,7 +5,7 @@ import {
   searchFoods,
   type MealSummary,
   type ScanCreditState,
-} from "@dfit/domain";
+} from "@logmyplate/domain";
 import type {
   AccountSession,
   AccountAuthError,

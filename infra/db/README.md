@@ -1,4 +1,4 @@
-# DFit Database Migrations
+# LogMyPlate Database Migrations
 
 Migrations are repo-level and deployment-owned.
 

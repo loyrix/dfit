@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import 'primitive_icons.dart';
 
-class DFitFab extends StatelessWidget {
-  const DFitFab({super.key, required this.onPressed, this.pulsing = false});
+class LogMyPlateFab extends StatelessWidget {
+  const LogMyPlateFab({
+    super.key,
+    required this.onPressed,
+    this.pulsing = false,
+  });
 
   final VoidCallback onPressed;
   final bool pulsing;
@@ -24,7 +28,7 @@ class DFitFab extends StatelessWidget {
               height: 92,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: DFitColors.accent.withValues(alpha: 0.25),
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.25),
                 ),
                 shape: BoxShape.circle,
               ),
@@ -35,7 +39,7 @@ class DFitFab extends StatelessWidget {
               height: 80,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: DFitColors.accent.withValues(alpha: 0.5),
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.5),
                 ),
                 shape: BoxShape.circle,
               ),
@@ -45,7 +49,7 @@ class DFitFab extends StatelessWidget {
             height: 64,
             child: FloatingActionButton(
               elevation: 10,
-              backgroundColor: context.dfit.textPrimary,
+              backgroundColor: context.logmyplate.textPrimary,
               shape: const CircleBorder(),
               onPressed: onPressed,
               child: const PrimitiveCameraIcon(),

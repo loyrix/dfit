@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
-  title: DFit API
+  title: LogMyPlate API
   version: 0.0.0
   description: |
-    Public HTTP API for DFit, a camera-first nutrition journal.
+    Public HTTP API for LogMyPlate, a camera-first nutrition journal.
 
-    DFit is anonymous-first. Most user-scoped endpoints resolve identity in this order:
+    LogMyPlate is anonymous-first. Most user-scoped endpoints resolve identity in this order:
     1. `Authorization: Bearer <token>` for a signed-in session
-    2. `x-dfit-install-id` for an anonymous device profile
+    2. `x-logmyplate-install-id` for an anonymous device profile
     3. a fallback demo profile when neither is present
 
     The current backend reads authentication context but does not yet enforce a hard
@@ -16,7 +16,7 @@ info:
 
     Every mutating endpoint except `/v1/auth/*` requires an `Idempotency-Key` header.
 servers:
-  - url: https://dfit-api.vercel.app
+  - url: https://logmyplate-api.vercel.app
     description: Production
   - url: http://127.0.0.1:4000
     description: Local development
@@ -48,7 +48,7 @@ paths:
                 default:
                   value:
                     ok: true
-                    service: dfit-api
+                    service: logmyplate-api
                     version: 0.0.0
 
   /health:
@@ -174,7 +174,7 @@ paths:
       summary: Start anonymous session
       description: |
         Returns the current anonymous profile and a development anonymous access token.
-        The device can be associated through `x-dfit-install-id`.
+        The device can be associated through `x-logmyplate-install-id`.
       security:
         - installId: []
         - {}
@@ -643,7 +643,7 @@ components:
     installId:
       type: apiKey
       in: header
-      name: x-dfit-install-id
+      name: x-logmyplate-install-id
       description: Optional anonymous device identifier used to resolve or create a device profile.
 
   parameters:
@@ -678,28 +678,28 @@ components:
         minLength: 1
       example: 5f8b5b42-1844-4d12-bf3e-0f4208652f0b
     PlatformHeader:
-      name: x-dfit-platform
+      name: x-logmyplate-platform
       in: header
       required: false
       schema:
         type: string
         enum: [ios, android]
     LocaleHeader:
-      name: x-dfit-locale
+      name: x-logmyplate-locale
       in: header
       required: false
       schema:
         type: string
       example: en-IN
     RegionHeader:
-      name: x-dfit-region
+      name: x-logmyplate-region
       in: header
       required: false
       schema:
         type: string
       example: IN
     TimezoneHeader:
-      name: x-dfit-timezone
+      name: x-logmyplate-timezone
       in: header
       required: false
       schema:

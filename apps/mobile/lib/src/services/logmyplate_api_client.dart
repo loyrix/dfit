@@ -9,8 +9,8 @@ import '../models/meal.dart';
 import 'account_session_store.dart';
 import 'device_identity_store.dart';
 
-class DFitApiClient {
-  DFitApiClient({
+class LogMyPlateApiClient {
+  LogMyPlateApiClient({
     http.Client? httpClient,
     String? baseUrl,
     Future<DeviceIdentity> Function()? loadDeviceIdentity,
@@ -18,8 +18,8 @@ class DFitApiClient {
   }) : _httpClient = httpClient ?? http.Client(),
        _loadDeviceIdentity = loadDeviceIdentity ?? DeviceIdentityStore().load,
        _loadAuthSession = loadAuthSession ?? AccountSessionStore().load,
-       baseUrl = DFitApiConfig.normalizeBaseUrl(
-         baseUrl ?? DFitApiConfig.defaultBaseUrl,
+       baseUrl = LogMyPlateApiConfig.normalizeBaseUrl(
+         baseUrl ?? LogMyPlateApiConfig.defaultBaseUrl,
        );
 
   final http.Client _httpClient;
@@ -285,7 +285,7 @@ class DFitApiClient {
 
   void _throwIfBad(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw DFitApiException(response.statusCode, response.body);
+      throw LogMyPlateApiException(response.statusCode, response.body);
     }
   }
 
@@ -324,11 +324,11 @@ class DFitApiClient {
   }
 }
 
-class DFitApiConfig {
-  static const productionBaseUrl = 'https://dfit-api.vercel.app';
+class LogMyPlateApiConfig {
+  static const productionBaseUrl = 'https://logmyplate-api.vercel.app';
 
   static String get defaultBaseUrl {
-    const configured = String.fromEnvironment('DFIT_API_BASE_URL');
+    const configured = String.fromEnvironment('LOGMYPLATE_API_BASE_URL');
     return resolveBaseUrl(configured: configured);
   }
 
@@ -347,8 +347,8 @@ class DFitApiConfig {
   }
 }
 
-class DFitApiException implements Exception {
-  DFitApiException(this.statusCode, this.body);
+class LogMyPlateApiException implements Exception {
+  LogMyPlateApiException(this.statusCode, this.body);
 
   final int statusCode;
   final String body;
@@ -388,5 +388,5 @@ class DFitApiException implements Exception {
   }
 
   @override
-  String toString() => 'DFitApiException($statusCode): $body';
+  String toString() => 'LogMyPlateApiException($statusCode): $body';
 }

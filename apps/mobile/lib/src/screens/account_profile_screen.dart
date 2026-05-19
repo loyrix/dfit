@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 class AccountProfileScreen extends StatelessWidget {
@@ -17,7 +17,7 @@ class AccountProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Scaffold(
       body: SafeArea(
@@ -37,17 +37,17 @@ class AccountProfileScreen extends StatelessWidget {
                 width: 104,
                 height: 104,
                 decoration: BoxDecoration(
-                  color: DFitColors.accent.withValues(alpha: 0.14),
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: DFitColors.accent.withValues(alpha: 0.34),
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.34),
                   ),
                 ),
                 child: Center(
                   child: Text(
                     _initial(session),
                     style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: DFitColors.accent,
+                      color: LogMyPlateColors.accent,
                     ),
                   ),
                 ),
@@ -138,7 +138,7 @@ class _ProfileSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +166,7 @@ class _ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return ListTile(
       title: Text(label, style: Theme.of(context).textTheme.bodyMedium),

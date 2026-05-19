@@ -2,23 +2,23 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:dfit_mobile/src/app.dart';
-import 'package:dfit_mobile/src/models/auth_session.dart';
-import 'package:dfit_mobile/src/models/captured_meal_photo.dart';
-import 'package:dfit_mobile/src/models/meal.dart';
-import 'package:dfit_mobile/src/screens/account_gate_screen.dart';
-import 'package:dfit_mobile/src/screens/account_profile_screen.dart';
-import 'package:dfit_mobile/src/screens/analyzing_screen.dart';
-import 'package:dfit_mobile/src/screens/meal_detail_screen.dart';
-import 'package:dfit_mobile/src/screens/review_meal_screen.dart';
-import 'package:dfit_mobile/src/screens/settings_screen.dart';
-import 'package:dfit_mobile/src/screens/startup_error_screen.dart';
-import 'package:dfit_mobile/src/screens/today_screen.dart';
-import 'package:dfit_mobile/src/screens/weekly_journal_screen.dart';
-import 'package:dfit_mobile/src/services/app_diagnostics.dart';
-import 'package:dfit_mobile/src/services/dfit_api_client.dart';
-import 'package:dfit_mobile/src/theme/dfit_theme.dart';
-import 'package:dfit_mobile/src/widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/app.dart';
+import 'package:logmyplate_mobile/src/models/auth_session.dart';
+import 'package:logmyplate_mobile/src/models/captured_meal_photo.dart';
+import 'package:logmyplate_mobile/src/models/meal.dart';
+import 'package:logmyplate_mobile/src/screens/account_gate_screen.dart';
+import 'package:logmyplate_mobile/src/screens/account_profile_screen.dart';
+import 'package:logmyplate_mobile/src/screens/analyzing_screen.dart';
+import 'package:logmyplate_mobile/src/screens/meal_detail_screen.dart';
+import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
+import 'package:logmyplate_mobile/src/screens/settings_screen.dart';
+import 'package:logmyplate_mobile/src/screens/startup_error_screen.dart';
+import 'package:logmyplate_mobile/src/screens/today_screen.dart';
+import 'package:logmyplate_mobile/src/screens/weekly_journal_screen.dart';
+import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
+import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
+import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
+import 'package:logmyplate_mobile/src/widgets/primitive_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,11 +29,11 @@ void main() {
     AppDiagnostics.instance.clear();
   });
 
-  testWidgets('renders DFit welcome screen', (tester) async {
-    await tester.pumpWidget(const DFitApp());
+  testWidgets('renders LogMyPlate welcome screen', (tester) async {
+    await tester.pumpWidget(const LogMyPlateApp());
     await tester.pump();
 
-    expect(find.text('DFit'), findsOneWidget);
+    expect(find.text('LogMyPlate'), findsOneWidget);
     expect(
       find.text('AI-powered food tracking, without the hassle.'),
       findsOneWidget,
@@ -42,7 +42,7 @@ void main() {
   });
 
   testWidgets('enters camera flow from welcome', (tester) async {
-    await tester.pumpWidget(const DFitApp());
+    await tester.pumpWidget(const LogMyPlateApp());
     await tester.pump();
 
     await tester.tap(find.text('Start first scan'));
@@ -57,9 +57,11 @@ void main() {
   });
 
   testWidgets('skips welcome after onboarding is seen', (tester) async {
-    SharedPreferences.setMockInitialValues({'dfit.has_seen_welcome': true});
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+    });
 
-    await tester.pumpWidget(const DFitApp());
+    await tester.pumpWidget(const LogMyPlateApp());
     await tester.pump();
 
     expect(find.text('Start first scan'), findsNothing);
@@ -68,10 +70,10 @@ void main() {
 
   testWidgets('renders controlled startup error screen', (tester) async {
     await tester.pumpWidget(
-      const DFitStartupErrorApp(message: 'Missing configuration'),
+      const LogMyPlateStartupErrorApp(message: 'Missing configuration'),
     );
 
-    expect(find.text('DFit paused'), findsOneWidget);
+    expect(find.text('LogMyPlate paused'), findsOneWidget);
     expect(find.text('Missing configuration'), findsOneWidget);
   });
 
@@ -106,7 +108,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().take(1).toList(),
           photo: photo,
@@ -126,7 +128,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().take(1).toList(),
           lockInitialItems: true,
@@ -183,10 +185,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: Builder(
           builder: (context) {
-            resolvedColor = dfitPrimitiveIconColor(context, null);
+            resolvedColor = logmyplatePrimitiveIconColor(context, null);
             return const Scaffold(
               body: Row(children: [BackMark(), PrimitiveGearIcon()]),
             );
@@ -214,7 +216,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: TodayScreen(
           meals: [meal],
           totals: const MacroTotals(
@@ -252,7 +254,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: TodayScreen(
           meals: const [],
           totals: MacroTotals.zero,
@@ -301,7 +303,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: StatefulBuilder(
           builder: (context, setState) {
             return TodayScreen(
@@ -355,7 +357,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: WeeklyJournalScreen(
           range: JournalRangeData(
             startDate: '2026-05-06',
@@ -439,7 +441,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.light(),
+        theme: LogMyPlateTheme.light(),
         home: WeeklyJournalScreen(
           range: const JournalRangeData(
             startDate: '2026-05-06',
@@ -500,7 +502,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: DayJournalDetailScreen(
           day: JournalDayData(
             date: '2026-05-11',
@@ -544,7 +546,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: MealDetailScreen(meal: meal),
       ),
     );
@@ -569,7 +571,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: MealDetailScreen(
           meal: meal,
           onUpdateMeal: (_, items) async {
@@ -628,7 +630,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: Builder(
           builder: (context) {
             return Scaffold(
@@ -674,7 +676,7 @@ void main() {
   testWidgets('initial journal loading shows premium skeleton', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: TodayScreen(
           meals: const [],
           totals: MacroTotals.zero,
@@ -704,7 +706,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.light(),
+        theme: LogMyPlateTheme.light(),
         home: AnalyzingScreen(
           photo: CapturedMealPhoto(
             bytes: Uint8List(0),
@@ -719,7 +721,7 @@ void main() {
     );
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    expect(scaffold.backgroundColor, DFitThemeColors.light().background);
+    expect(scaffold.backgroundColor, LogMyPlateThemeColors.light().background);
   });
 
   testWidgets('analysis quota failure offers account handoff', (tester) async {
@@ -727,7 +729,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: AnalyzingScreen(
           photo: CapturedMealPhoto(
             bytes: Uint8List.fromList([1, 2, 3]),
@@ -736,7 +738,7 @@ void main() {
             userHint: 'dal rice',
           ),
           onAnalyze: (_) async {
-            throw DFitApiException(
+            throw LogMyPlateApiException(
               402,
               jsonEncode({'error': 'scan_credit_required'}),
             );
@@ -772,7 +774,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: AccountGateScreen(
           reason: AccountGateReason.quotaExhausted,
           loading: false,
@@ -813,7 +815,7 @@ void main() {
   testWidgets('settings shows profile entry when signed in', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: SettingsScreen(
           themeMode: ThemeMode.dark,
           session: AuthSession(
@@ -838,7 +840,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: SettingsScreen(
           themeMode: ThemeMode.dark,
           session: null,
@@ -864,7 +866,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: DFitTheme.dark(),
+        theme: LogMyPlateTheme.dark(),
         home: AccountProfileScreen(
           session: AuthSession(
             provider: AuthProvider.google,

@@ -3,11 +3,11 @@ import 'package:flutter/foundation.dart';
 import '../models/auth_session.dart';
 import '../services/account_session_store.dart';
 import '../services/app_diagnostics.dart';
-import '../services/dfit_api_client.dart';
+import '../services/logmyplate_api_client.dart';
 
 class AuthController extends ChangeNotifier {
   AuthController({AccountAuthGateway? gateway, AccountSessionStore? store})
-    : _gateway = gateway ?? DFitAccountAuthGateway(),
+    : _gateway = gateway ?? LogMyPlateAccountAuthGateway(),
       _store = store ?? AccountSessionStore();
 
   final AccountAuthGateway _gateway;
@@ -106,11 +106,11 @@ abstract class AccountAuthGateway {
   Future<void> signOut();
 }
 
-class DFitAccountAuthGateway implements AccountAuthGateway {
-  DFitAccountAuthGateway({DFitApiClient? apiClient})
-    : _apiClient = apiClient ?? DFitApiClient();
+class LogMyPlateAccountAuthGateway implements AccountAuthGateway {
+  LogMyPlateAccountAuthGateway({LogMyPlateApiClient? apiClient})
+    : _apiClient = apiClient ?? LogMyPlateApiClient();
 
-  final DFitApiClient _apiClient;
+  final LogMyPlateApiClient _apiClient;
 
   @override
   Future<AuthSession> signIn(AuthProvider provider) async {

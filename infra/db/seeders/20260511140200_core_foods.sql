@@ -1,15 +1,15 @@
 insert into food_sources (name, source_kind, license_note, url)
 select
-  'DFit seed',
+  'LogMyPlate seed',
   'internal',
   'Initial hand-curated MVP seed values for development only.',
-  'https://dfit.local'
+  'https://logmyplate.local'
 where not exists (
-  select 1 from food_sources where name = 'DFit seed'
+  select 1 from food_sources where name = 'LogMyPlate seed'
 );
 
 with source as (
-  select id from food_sources where name = 'DFit seed' limit 1
+  select id from food_sources where name = 'LogMyPlate seed' limit 1
 )
 insert into foods (
   canonical_name,
@@ -72,7 +72,7 @@ where not exists (
 );
 
 insert into portion_conversions (food_id, unit, grams, source, confidence)
-select foods.id, portion_seed.unit::portion_unit, portion_seed.grams, 'dfit_seed', portion_seed.confidence
+select foods.id, portion_seed.unit::portion_unit, portion_seed.grams, 'logmyplate_seed', portion_seed.confidence
 from (
   values
     ('Dal', 'IN', 'katori', 180, 0.7),

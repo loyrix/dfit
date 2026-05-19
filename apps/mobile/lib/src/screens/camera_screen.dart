@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/captured_meal_photo.dart';
-import '../theme/dfit_colors.dart';
-import '../theme/dfit_theme.dart';
+import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 enum _CaptureSource {
@@ -158,7 +158,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final activeSource = _activeSource;
     final preparedCapture = _preparedCapture;
     final hintWordCount = _wordCount(_hintController.text);
@@ -321,7 +321,7 @@ class _EmptyCaptureState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final compact = size < 180;
 
     return Container(
@@ -340,12 +340,12 @@ class _EmptyCaptureState extends StatelessWidget {
             width: compact ? 44 : 52,
             height: compact ? 44 : 52,
             decoration: BoxDecoration(
-              color: DFitColors.accent.withValues(alpha: 0.18),
+              color: LogMyPlateColors.accent.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.restaurant_rounded,
-              color: DFitColors.accent,
+              color: LogMyPlateColors.accent,
               size: compact ? 21 : 24,
             ),
           ),
@@ -386,7 +386,7 @@ class _PreparedMealPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final scanY =
         30 + (math.sin(progress * math.pi * 2) + 1) * (frameSize * 0.32);
 
@@ -444,11 +444,11 @@ class _PreparedMealPreview extends StatelessWidget {
             child: Container(
               height: 2,
               decoration: BoxDecoration(
-                color: DFitColors.accent,
+                color: LogMyPlateColors.accent,
                 borderRadius: BorderRadius.circular(99),
                 boxShadow: [
                   BoxShadow(
-                    color: DFitColors.accent.withValues(alpha: 0.35),
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.35),
                     blurRadius: 16,
                   ),
                 ],
@@ -479,14 +479,14 @@ class _PreparedMealPreview extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: DFitColors.accent,
+                    color: LogMyPlateColors.accent,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     capture.source == _CaptureSource.camera
                         ? Icons.photo_camera_rounded
                         : Icons.photo_library_rounded,
-                    color: DFitColors.accentDeep,
+                    color: LogMyPlateColors.accentDeep,
                     size: 18,
                   ),
                 ),
@@ -572,7 +572,7 @@ class _PlateHintField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       width: double.infinity,
@@ -698,7 +698,7 @@ class _CaptureComposerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       constraints: const BoxConstraints(maxWidth: 360),
@@ -741,7 +741,7 @@ class _VoiceHintButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     return Tooltip(
       message: 'Voice input coming soon',
       child: Semantics(
@@ -784,7 +784,7 @@ class _CaptureActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final disabled = activeSource != null;
 
     return AnimatedSize(
@@ -798,7 +798,7 @@ class _CaptureActionBar extends StatelessWidget {
                   label: 'Analyze plate',
                   icon: const Icon(
                     Icons.auto_awesome_rounded,
-                    color: DFitColors.accentDeep,
+                    color: LogMyPlateColors.accentDeep,
                     size: 20,
                   ),
                   primary: true,
@@ -855,7 +855,7 @@ class _CaptureActionBar extends StatelessWidget {
                   child: _CaptureButton(
                     label: 'Take photo',
                     icon: const PrimitiveCameraIcon(
-                      color: DFitColors.accentDeep,
+                      color: LogMyPlateColors.accentDeep,
                       size: 22,
                     ),
                     primary: true,
@@ -911,14 +911,16 @@ class _CaptureButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
     final pulse = primary
         ? 0.02 + math.sin(progress * math.pi * 2) * 0.018
         : 0.0;
     final background = primary
-        ? DFitColors.accent
+        ? LogMyPlateColors.accent
         : colors.textPrimary.withValues(alpha: 0.06);
-    final foreground = primary ? DFitColors.accentDeep : colors.textPrimary;
+    final foreground = primary
+        ? LogMyPlateColors.accentDeep
+        : colors.textPrimary;
 
     return Opacity(
       opacity: disabled ? 0.46 : 1,
@@ -937,14 +939,14 @@ class _CaptureButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
                 color: primary
-                    ? DFitColors.accent.withValues(alpha: 0.66)
+                    ? LogMyPlateColors.accent.withValues(alpha: 0.66)
                     : colors.border,
                 width: 0.7,
               ),
               boxShadow: primary
                   ? [
                       BoxShadow(
-                        color: DFitColors.accent.withValues(alpha: 0.16),
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),
@@ -996,7 +998,7 @@ class _CaptureNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.dfit;
+    final colors = context.logmyplate;
 
     return Container(
       key: ValueKey(message),
@@ -1034,7 +1036,7 @@ class _CameraBackdropPainter extends CustomPainter {
   const _CameraBackdropPainter({required this.progress, required this.colors});
 
   final double progress;
-  final DFitThemeColors colors;
+  final LogMyPlateThemeColors colors;
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -1,13 +1,13 @@
-# DFit Product And Architecture Plan
+# LogMyPlate Product And Architecture Plan
 
 Status: Draft for review  
-Working name: DFit, expected to change  
+Working name: LogMyPlate, expected to change  
 Date: 2026-05-08  
 Audience: Founder, engineering team, product/design reviewer, second-opinion LLM
 
 ## 1. Executive Summary
 
-DFit should start as a camera-first nutrition journal for iOS and Android. The app should be global, but Indian-first in food understanding. The first product wedge is not a full calorie-tracking ecosystem. It is a premium, low-friction flow:
+LogMyPlate should start as a camera-first nutrition journal for iOS and Android. The app should be global, but Indian-first in food understanding. The first product wedge is not a full calorie-tracking ecosystem. It is a premium, low-friction flow:
 
 ```txt
 Open app
@@ -27,7 +27,7 @@ No user login should be required at launch. However, the backend should still cr
 
 ### Core Positioning
 
-DFit is a premium AI food journal that understands Indian and global meals, with special care for Indian/home-cooked food.
+LogMyPlate is a premium AI food journal that understands Indian and global meals, with special care for Indian/home-cooked food.
 
 ### Target User
 
@@ -42,7 +42,7 @@ Initial users:
 
 Take a photo. Correct quickly. Know what you ate.
 
-### What DFit Should Not Feel Like
+### What LogMyPlate Should Not Feel Like
 
 - Not a medical app.
 - Not a shame-based calorie app.
@@ -156,7 +156,7 @@ Purpose: establish premium identity and get the user into the first scan.
 Content should be short:
 
 ```txt
-DFit
+LogMyPlate
 Food tracking, without the typing.
 [Start scan]
 ```
@@ -329,7 +329,7 @@ Mobile captures image
 -> API receives temporary image payload
 -> API sends image to selected AI provider
 -> AI returns structured detected foods and portions
--> API maps detected items to DFit food database
+-> API maps detected items to LogMyPlate food database
 -> Nutrition engine calculates calories and macros
 -> User reviews/corrects
 -> API saves final meal and correction data
@@ -403,8 +403,8 @@ Store every match with confidence and source.
 
 Use a layered food data approach:
 
-- DFit canonical food database.
-- DFit Indian dish templates.
+- LogMyPlate canonical food database.
+- LogMyPlate Indian dish templates.
 - Indian Food Composition Tables 2017 for Indian base foods.
 - USDA FoodData Central for global/base foods.
 - Open Food Facts for packaged foods later.
@@ -597,7 +597,7 @@ Do not store:
 
 ### Nutrition Disclaimer
 
-DFit should include a clear disclaimer:
+LogMyPlate should include a clear disclaimer:
 
 ```txt
 Nutrition estimates are approximate and not medical advice.
@@ -619,7 +619,7 @@ Use paid production tiers where submitted content is not used for provider train
 
 ```txt
 Flutter mobile app
--> DFit API service
+-> LogMyPlate API service
 -> Supabase Auth for anonymous identity
 -> Supabase Postgres
 -> AI provider adapter
@@ -628,7 +628,7 @@ Flutter mobile app
 -> Subscription provider
 ```
 
-Mobile should not directly access Supabase tables for core product behavior. It should call the DFit API. This keeps business logic portable when moving from Supabase to AWS.
+Mobile should not directly access Supabase tables for core product behavior. It should call the LogMyPlate API. This keeps business logic portable when moving from Supabase to AWS.
 
 ### Why Not Supabase Edge Functions
 
@@ -655,7 +655,7 @@ Supabase Postgres
 Supabase Auth anonymous users
 -> Cognito/custom auth or retained Supabase Auth
 
-DFit API unchanged from mobile perspective
+LogMyPlate API unchanged from mobile perspective
 ```
 
 ## 13. Monorepo Plan
@@ -663,7 +663,7 @@ DFit API unchanged from mobile perspective
 Use Turborepo with pnpm at the root.
 
 ```txt
-dfit/
+logmyplate/
   apps/
     mobile/
       Flutter iOS + Android app
@@ -898,7 +898,7 @@ POST /scans/:id/confirm
 - OpenAPI generated from source schemas.
 - Dart client generated from OpenAPI.
 - No raw provider JSON exposed directly to mobile.
-- Provider-specific fields stored for debugging, but API returns stable DFit contract.
+- Provider-specific fields stored for debugging, but API returns stable LogMyPlate contract.
 
 ## 16. Testing And TDD Plan
 
@@ -1090,7 +1090,7 @@ CostEstimator
 
 ### No Lock-In Rule
 
-The mobile app should depend on DFit contracts, not Supabase, Gemini, OpenAI, or AdMob directly except for necessary client SDKs like ads and camera.
+The mobile app should depend on LogMyPlate contracts, not Supabase, Gemini, OpenAI, or AdMob directly except for necessary client SDKs like ads and camera.
 
 ### Cost Observability
 
@@ -1115,7 +1115,7 @@ My recommended defaults:
 2. Start implementation with a mocked AI provider and fixed food fixtures.
 3. Use real AI only after the scan/review/confirm loop is working.
 4. Benchmark gpt-5-nano, gpt-5.4-nano, and gemini-3.1-flash-lite later with real food photos.
-5. Use Supabase Postgres/Auth, but keep all business logic in DFit API.
+5. Use Supabase Postgres/Auth, but keep all business logic in LogMyPlate API.
 6. Do not use Supabase Edge Functions.
 7. Do not store food images.
 8. Use one focused Today screen with floating camera action, no bottom nav for MVP.
@@ -1148,7 +1148,7 @@ Current references used while drafting this plan:
 Use this prompt when sharing with another LLM:
 
 ```txt
-Review this DFit product and architecture plan as a senior product engineer and startup technical advisor.
+Review this LogMyPlate product and architecture plan as a senior product engineer and startup technical advisor.
 
 Focus on:
 1. MVP scope risk.
