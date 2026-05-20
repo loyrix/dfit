@@ -14,13 +14,13 @@ enum _CaptureSource {
     ImageSource.camera,
     'camera',
     'Opening camera',
-    'Keep the plate steady',
+    'Hold steady. Keep the full plate in frame.',
   ),
   gallery(
     ImageSource.gallery,
     'library',
-    'Opening library',
-    'Choose a clear meal photo',
+    'Opening photos',
+    'Choose one clear plate photo.',
   );
 
   const _CaptureSource(
@@ -139,7 +139,7 @@ class _CameraScreenState extends State<CameraScreen>
     if (hint.isEmpty || hintWordCount > 50) {
       setState(() {
         _captureNotice = hint.isEmpty
-            ? 'Add a short food note before scanning.'
+            ? 'Add a food note for better accuracy.'
             : 'Keep the food note within 50 words.';
       });
       return;
@@ -203,7 +203,7 @@ class _CameraScreenState extends State<CameraScreen>
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                'Meal Scan',
+                                'AI Meal Scan',
                                 style: Theme.of(context).textTheme.labelSmall
                                     ?.copyWith(
                                       color: colors.textTertiary,
@@ -213,7 +213,10 @@ class _CameraScreenState extends State<CameraScreen>
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              activeSource?.title ?? 'Add your meal photo',
+                              activeSource?.title ??
+                                  (hasPhoto
+                                      ? 'Ready to analyze'
+                                      : 'Clear photo. Better macros.'),
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(color: colors.textPrimary),
@@ -223,7 +226,9 @@ class _CameraScreenState extends State<CameraScreen>
                               duration: const Duration(milliseconds: 180),
                               child: Text(
                                 activeSource?.subtitle ??
-                                    'Use one clear image with the full plate visible.',
+                                    (hasPhoto
+                                        ? 'Review the note before AI scans.'
+                                        : 'Add a plate photo and one short food note.'),
                                 key: ValueKey(
                                   '$activeSource-${preparedCapture != null}',
                                 ),
@@ -353,12 +358,12 @@ class _EmptyCaptureState extends StatelessWidget {
           if (!compact) ...[
             const SizedBox(height: 16),
             Text(
-              'Add a meal photo',
+              'No photo yet',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              'Take or upload one clear image.',
+              'Use one clear plate image.',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
@@ -461,8 +466,8 @@ class _PreparedMealPreview extends StatelessWidget {
             left: 16,
             child: _PreviewChip(
               label: capture.source == _CaptureSource.camera
-                  ? 'Photo Ready'
-                  : 'Upload Ready',
+                  ? 'Photo ready'
+                  : 'Upload ready',
             ),
           ),
           Positioned(
@@ -494,7 +499,7 @@ class _PreparedMealPreview extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Review hint before scan',
+                    'Review note before scan',
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.white,
@@ -621,7 +626,7 @@ class _PlateHintField extends StatelessWidget {
                       decoration: InputDecoration(
                         counterText: '',
                         hintText:
-                            'Example: 2 rotis, dal, jeera rice and mixed veg sabzi',
+                            'Example: 2 rotis with dal and mixed veg sabzi',
                         labelText: 'Food note',
                         labelStyle: Theme.of(context).textTheme.labelSmall
                             ?.copyWith(
@@ -649,7 +654,7 @@ class _PlateHintField extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Required',
+                      'Required for accuracy',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: overLimit
                             ? colors.accentText
@@ -884,7 +889,7 @@ class _CaptureActionBar extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _CaptureButton(
-                    label: 'Upload',
+                    label: 'Gallery',
                     icon: Icon(
                       Icons.photo_library_rounded,
                       color: colors.textPrimary,

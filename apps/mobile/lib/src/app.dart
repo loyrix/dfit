@@ -16,12 +16,12 @@ import 'screens/settings_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
-import 'services/app_diagnostics.dart';
 import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'theme/logmyplate_colors.dart';
 import 'theme/logmyplate_theme.dart';
+import 'widgets/logmyplate_notice.dart';
 
 class LogMyPlateApp extends StatefulWidget {
   const LogMyPlateApp({
@@ -46,7 +46,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   static const _themeModeKey = 'logmyplate.theme_mode';
 
   final _navigatorKey = GlobalKey<NavigatorState>();
-  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   late final AuthController _authController =
       widget._authController ?? AuthController();
   late final JournalController _journalController =
@@ -84,7 +83,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       darkTheme: LogMyPlateTheme.dark(),
       themeMode: _themeMode,
       navigatorKey: _navigatorKey,
-      scaffoldMessengerKey: _messengerKey,
       home: !_welcomeStateLoaded
           ? const _LaunchScreen()
           : _hasSeenWelcome
@@ -275,7 +273,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   Future<void> _saveMeal(MealType type, List<MealItem> items) async {
     await _journalController.saveMeal(type, items);
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
-    _showJournalMessage('Meal saved');
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.success,
+      title: 'Meal saved',
+      message: 'Your journal is up to date.',
+    );
   }
 
   Future<void> _confirmAnalyzedMeal({
@@ -293,7 +295,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       photo: photo,
     );
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
-    _showJournalMessage('Scan saved');
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.success,
+      title: 'Scan saved',
+      message: 'Your meal log is ready.',
+    );
   }
 
   Future<bool> _ensureScanAllowed() async {
@@ -303,7 +309,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     if (!_authController.isSignedIn) {
       final session = await _openAccountHome(AccountGateReason.quotaExhausted);
       if (session != null) {
-        _showJournalMessage('Account linked. Ad unlocks come next.');
+        _showJournalNotice(
+          tone: LogMyPlateNoticeTone.info,
+          title: 'Account linked',
+          message: 'Ad unlocks are available when scans run out.',
+        );
       }
       return false;
     }
@@ -329,11 +339,19 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<bool> _watchRewardedAdForScan() async {
-    _showJournalMessage('Loading rewarded ad...');
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.info,
+      title: 'Preparing ad',
+      message: 'Your scan unlock continues after the ad.',
+    );
 
     final outcome = await _rewardedAds.showScanUnlockAd();
     if (!outcome.earnedReward) {
-      _showJournalMessage(outcome.errorMessage ?? 'Ad was not completed');
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.warning,
+        title: 'Ad not completed',
+        message: outcome.errorMessage ?? 'Watch a full ad to earn progress.',
+      );
       return false;
     }
 
@@ -346,39 +364,46 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       );
 
       if (reward.grantedScan) {
-        _showJournalMessage('Scan unlocked');
+        _showJournalNotice(
+          tone: LogMyPlateNoticeTone.success,
+          title: 'Scan unlocked',
+          message: 'You can scan one more meal now.',
+        );
         return reward.quota.totalRemaining > 0;
       }
 
       final next = reward.adsNeededForNextScan;
-      _showJournalMessage(
-        next == 1
-            ? 'Watch 1 more ad to unlock a scan'
-            : '$next ads left to unlock a scan',
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.warning,
+        title: 'Almost there',
+        message: next == 1
+            ? 'Watch 1 more rewarded ad to unlock a scan.'
+            : 'Watch $next more rewarded ads to unlock a scan.',
       );
       return false;
     } catch (_) {
-      _showJournalMessage('Ad watched, but unlock sync failed. Try again.');
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.error,
+        title: 'Unlock sync failed',
+        message: 'Ad was watched, but the scan could not be credited.',
+      );
       return false;
     }
   }
 
-  void _showJournalMessage(String message) {
-    final messenger = _messengerKey.currentState;
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: LogMyPlateColors.surfaceHero,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  void _showJournalNotice({
+    required LogMyPlateNoticeTone tone,
+    required String title,
+    String? message,
+  }) {
+    final overlay = _navigatorKey.currentState?.overlay;
+    if (overlay == null) return;
+    LogMyPlateNotice.showInOverlay(
+      overlay,
+      tone: tone,
+      title: title,
+      message: message,
+    );
   }
 
   Future<void> _openSettings() async {
@@ -390,7 +415,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
             return SettingsScreen(
               themeMode: _themeMode,
               session: _authController.session,
-              diagnosticsEntries: AppDiagnostics.instance.entries,
               onOpenAccount: () =>
                   _openAccountHome(AccountGateReason.saveJournal),
               onThemeChanged: _setThemeMode,
@@ -436,6 +460,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                   password: password,
                 );
               },
+              onClearError: _authController.clearError,
               onManualLog: () {
                 _navigatorKey.currentState!.pop();
                 _openManualReview();
@@ -488,7 +513,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _deleteMeal(MealLog meal) async {
     await _journalController.deleteMeal(meal);
-    _showJournalMessage('Meal deleted');
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.success,
+      title: 'Meal deleted',
+      message: 'Today\'s totals were updated.',
+    );
   }
 
   Future<void> _openWeeklyJournal() async {

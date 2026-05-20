@@ -51,7 +51,6 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totals = _draftMeal.totals;
     final colors = context.logmyplate;
     final canEdit = widget.onUpdateMeal != null;
     final canDelete = widget.onDeleteMeal != null;
@@ -106,29 +105,22 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             ],
             const SizedBox(height: 18),
             Text(
-              _meal.type.label,
+              _meal.title,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 1.6,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: colors.textPrimary,
+                height: 1.08,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              '${totals.calories}',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.displayLarge?.copyWith(fontSize: 54),
-            ),
-            Text(
-              'kCal - ${_draftItems.length} items',
+              _mealSubtitle(_meal, _draftItems.length),
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
             MacroProfileCard(meal: _draftMeal),
             const SizedBox(height: 22),
             Text('Items', style: Theme.of(context).textTheme.labelSmall),
@@ -456,6 +448,13 @@ class _UnsavedChangesPill extends StatelessWidget {
 
 String _formatQuantity(double value) {
   return value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
+}
+
+String _mealSubtitle(MealLog meal, int itemCount) {
+  final itemCopy = '$itemCount ${itemCount == 1 ? 'item' : 'items'}';
+  return meal.title.trim().toLowerCase() == meal.type.label.toLowerCase()
+      ? itemCopy
+      : '${meal.type.label} - $itemCopy';
 }
 
 bool _sameItem(MealItem first, MealItem second) {

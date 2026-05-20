@@ -1,0 +1,105 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:logmyplate_mobile/src/models/auth_session.dart';
+import 'package:logmyplate_mobile/src/services/account_session_store.dart';
+import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
+import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
+import 'package:logmyplate_mobile/src/state/auth_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    AppDiagnostics.instance.clear();
+  });
+
+  test('shows a specific duplicate email signup message', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(
+        error: LogMyPlateApiException(
+          409,
+          jsonEncode({
+            'error': 'email_already_registered',
+            'message': 'Email already registered.',
+          }),
+        ),
+      ),
+      store: AccountSessionStore(),
+    );
+
+    final session = await controller.signInWithEmail(
+      mode: EmailAuthMode.signUp,
+      email: 'friend@test.com',
+      password: 'secret1',
+    );
+
+    expect(session, isNull);
+    expect(
+      controller.error,
+      'This email is already registered. Log in instead.',
+    );
+  });
+
+  test('shows a specific invalid login message', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(
+        error: LogMyPlateApiException(
+          401,
+          jsonEncode({
+            'error': 'invalid_credentials',
+            'message': 'Invalid email or password.',
+          }),
+        ),
+      ),
+      store: AccountSessionStore(),
+    );
+
+    final session = await controller.signInWithEmail(
+      mode: EmailAuthMode.logIn,
+      email: 'friend@test.com',
+      password: 'secret1',
+    );
+
+    expect(session, isNull);
+    expect(controller.error, 'Email or password is incorrect.');
+  });
+
+  test('shows provider-specific coming soon copy', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(error: UnsupportedError('not wired')),
+      store: AccountSessionStore(),
+    );
+
+    final session = await controller.signIn(AuthProvider.google);
+
+    expect(session, isNull);
+    expect(
+      controller.error,
+      'Google sign-in is coming soon. Use email for this build.',
+    );
+  });
+}
+
+class _FailingAuthGateway implements AccountAuthGateway {
+  const _FailingAuthGateway({required this.error});
+
+  final Object error;
+
+  @override
+  Future<AuthSession> signIn(AuthProvider provider) async {
+    throw error;
+  }
+
+  @override
+  Future<AuthSession> signInWithEmail({
+    required EmailAuthMode mode,
+    required String email,
+    required String password,
+  }) async {
+    throw error;
+  }
+
+  @override
+  Future<void> signOut() async {}
+}

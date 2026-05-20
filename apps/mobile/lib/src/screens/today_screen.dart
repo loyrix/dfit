@@ -5,6 +5,7 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/logmyplate_fab.dart';
 import '../widgets/energy_hero_card.dart';
+import '../widgets/logmyplate_notice.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -766,15 +767,12 @@ class _MealsList extends StatelessWidget {
       return true;
     } catch (_) {
       if (!context.mounted) return false;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: const Text('Could not delete this meal. Try again.'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: context.logmyplate.surfaceHero,
-          ),
-        );
+      LogMyPlateNotice.show(
+        context,
+        tone: LogMyPlateNoticeTone.error,
+        title: 'Could not delete meal',
+        message: 'Check your connection and try again.',
+      );
       return false;
     }
   }

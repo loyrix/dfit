@@ -14,6 +14,7 @@ class AccountGateScreen extends StatelessWidget {
     required this.onSignIn,
     required this.onEmailAuth,
     required this.onManualLog,
+    this.onClearError,
   });
 
   final AccountGateReason reason;
@@ -27,6 +28,7 @@ class AccountGateScreen extends StatelessWidget {
   )
   onEmailAuth;
   final VoidCallback onManualLog;
+  final VoidCallback? onClearError;
 
   @override
   Widget build(BuildContext context) {
@@ -91,17 +93,14 @@ class AccountGateScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            _EmailAuthPanel(loading: loading, onEmailAuth: onEmailAuth),
+            _EmailAuthPanel(
+              loading: loading,
+              onEmailAuth: onEmailAuth,
+              onClearError: onClearError,
+            ),
             const SizedBox(height: 12),
             if (error != null) ...[
-              Text(
-                error!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: LogMyPlateColors.accent,
-                  height: 1.25,
-                ),
-              ),
+              _InlineAuthError(message: error!),
               const SizedBox(height: 8),
             ],
             TextButton(
@@ -169,7 +168,11 @@ class _GatePill extends StatelessWidget {
 }
 
 class _EmailAuthPanel extends StatefulWidget {
-  const _EmailAuthPanel({required this.loading, required this.onEmailAuth});
+  const _EmailAuthPanel({
+    required this.loading,
+    required this.onEmailAuth,
+    this.onClearError,
+  });
 
   final bool loading;
   final Future<AuthSession?> Function(
@@ -178,6 +181,7 @@ class _EmailAuthPanel extends StatefulWidget {
     String password,
   )
   onEmailAuth;
+  final VoidCallback? onClearError;
 
   @override
   State<_EmailAuthPanel> createState() => _EmailAuthPanelState();
@@ -224,14 +228,22 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                   selected: isSignUp,
                   onTap: widget.loading
                       ? null
-                      : () => setState(() => _mode = EmailAuthMode.signUp),
+                      : () => setState(() {
+                          _mode = EmailAuthMode.signUp;
+                          _validation = null;
+                          widget.onClearError?.call();
+                        }),
                 ),
                 _ModeTab(
                   label: 'Log in',
                   selected: !isSignUp,
                   onTap: widget.loading
                       ? null
-                      : () => setState(() => _mode = EmailAuthMode.logIn),
+                      : () => setState(() {
+                          _mode = EmailAuthMode.logIn;
+                          _validation = null;
+                          widget.onClearError?.call();
+                        }),
                 ),
               ],
             ),
@@ -242,6 +254,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             hint: 'Email',
             keyboardType: TextInputType.emailAddress,
             enabled: !widget.loading,
+            onChanged: _clearValidation,
           ),
           const SizedBox(height: 8),
           _AuthTextField(
@@ -249,16 +262,11 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             hint: 'Password',
             obscureText: true,
             enabled: !widget.loading,
+            onChanged: _clearValidation,
           ),
           if (_validation != null) ...[
             const SizedBox(height: 6),
-            Text(
-              _validation!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: LogMyPlateColors.accent,
-                height: 1.25,
-              ),
-            ),
+            _InlineAuthError(message: _validation!),
           ],
           const SizedBox(height: 10),
           SizedBox(
@@ -298,13 +306,72 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
   }
 
   String? _validate(String email, String password) {
-    if (!email.contains('@') || !email.contains('.')) {
+    if (email.isEmpty) {
+      return 'Enter your email address.';
+    }
+    if (!_emailPattern.hasMatch(email)) {
       return 'Enter a valid email address.';
     }
+    if (password.isEmpty) {
+      return _mode == EmailAuthMode.signUp
+          ? 'Create a password with at least 6 characters.'
+          : 'Enter your password.';
+    }
     if (password.length < 6) {
-      return 'Password must be at least 6 characters.';
+      return 'Password must have at least 6 characters.';
     }
     return null;
+  }
+
+  void _clearValidation(String _) {
+    if (_validation != null) setState(() => _validation = null);
+    widget.onClearError?.call();
+  }
+}
+
+final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
+class _InlineAuthError extends StatelessWidget {
+  const _InlineAuthError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: LogMyPlateColors.destructive.withValues(alpha: 0.22),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 16,
+            color: LogMyPlateColors.destructive,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFFFA3A3)
+                    : LogMyPlateColors.destructiveDeep,
+                height: 1.25,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -351,6 +418,7 @@ class _AuthTextField extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.enabled = true,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -358,6 +426,7 @@ class _AuthTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final bool enabled;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -368,6 +437,7 @@ class _AuthTextField extends StatelessWidget {
       enabled: enabled,
       keyboardType: keyboardType,
       obscureText: obscureText,
+      onChanged: onChanged,
       textInputAction: obscureText
           ? TextInputAction.done
           : TextInputAction.next,
@@ -419,7 +489,7 @@ class _AccountGateCopy {
     switch (reason) {
       case AccountGateReason.quotaExhausted:
         return const _AccountGateCopy(
-          eyebrow: '3 scans used',
+          eyebrow: 'No scans left',
           title: 'Create account to keep scanning',
           subtitle: 'Save this journal and unlock extra scans with ads.',
         );

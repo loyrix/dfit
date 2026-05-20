@@ -57,12 +57,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Meal Scan'), findsOneWidget);
+    expect(find.text('AI Meal Scan'), findsOneWidget);
     expect(find.byType(TodayScreen, skipOffstage: false), findsNothing);
     expect(find.text('Start first scan', skipOffstage: false), findsOneWidget);
-    expect(find.text('Add your meal photo'), findsOneWidget);
+    expect(find.text('Clear photo. Better macros.'), findsOneWidget);
     expect(find.text('Food note'), findsOneWidget);
-    expect(find.text('Upload'), findsOneWidget);
+    expect(find.text('Gallery'), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
 
@@ -807,7 +807,7 @@ void main() {
       ),
     );
 
-    expect(find.text('3 scans used'), findsOneWidget);
+    expect(find.text('No scans left'), findsOneWidget);
     expect(find.text('Create account to keep scanning'), findsOneWidget);
     expect(find.text('Apple'), findsOneWidget);
     expect(find.text('Google'), findsOneWidget);
@@ -815,11 +815,44 @@ void main() {
 
     await tester.enterText(find.byType(TextField).at(0), 'friend@test.com');
     await tester.enterText(find.byType(TextField).at(1), 'secret1');
+    await tester.drag(find.byType(ListView), const Offset(0, -420));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Create account'));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(submittedMode, EmailAuthMode.signUp);
     expect(submittedEmail, 'friend@test.com');
+  });
+
+  testWidgets('account gate shows focused email validation messages', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: AccountGateScreen(
+          reason: AccountGateReason.quotaExhausted,
+          loading: false,
+          onSignIn: (_) async => null,
+          onEmailAuth: (_, _, _) async => null,
+          onManualLog: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Create account'));
+    await tester.pump();
+    expect(find.text('Enter your email address.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), 'friend@test.com');
+    await tester.drag(find.byType(ListView), const Offset(0, -420));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Create account'));
+    await tester.pump();
+    expect(
+      find.text('Create a password with at least 6 characters.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('email auth from settings returns to the main journal', (
@@ -996,7 +1029,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(adGateway.showCount, 1);
-    expect(find.text('Meal Scan'), findsOneWidget);
+    expect(find.text('AI Meal Scan'), findsOneWidget);
   });
 
   testWidgets('save journal account gate backs out without manual review', (
@@ -1062,33 +1095,6 @@ void main() {
     expect(find.text('Profile'), findsOneWidget);
     expect(find.text('friend@test.com - Email'), findsOneWidget);
     expect(find.text('Save your journal'), findsNothing);
-  });
-
-  testWidgets('settings shows recent diagnostics', (tester) async {
-    AppDiagnostics.instance.clear();
-    AppDiagnostics.instance.record('journal.load_today', Exception('timeout'));
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: LogMyPlateTheme.dark(),
-        home: SettingsScreen(
-          themeMode: ThemeMode.dark,
-          session: null,
-          diagnosticsEntries: AppDiagnostics.instance.entries,
-          onThemeChanged: (_) {},
-          onOpenAccount: () {},
-        ),
-      ),
-    );
-
-    await tester.drag(find.byType(ListView), const Offset(0, -720));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Diagnostics'), findsOneWidget);
-    expect(find.text('journal.load_today'), findsOneWidget);
-    expect(find.textContaining('timeout'), findsOneWidget);
-
-    AppDiagnostics.instance.clear();
   });
 
   testWidgets('profile page exposes logout action', (tester) async {

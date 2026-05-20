@@ -257,7 +257,9 @@ class JournalController extends ChangeNotifier {
 
   String _journalErrorMessage(Object error) {
     if (error is LogMyPlateApiException) {
-      return 'Could not refresh journal (${error.statusCode}). Pull to retry.';
+      return error.retryable
+          ? 'Journal sync is taking longer than expected. Pull to retry.'
+          : 'Could not refresh journal. Pull to retry.';
     }
     return 'Could not refresh journal. Pull to retry.';
   }

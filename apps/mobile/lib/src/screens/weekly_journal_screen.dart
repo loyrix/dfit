@@ -5,6 +5,7 @@ import '../navigation/logmyplate_page_route.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/energy_hero_card.dart';
+import '../widgets/logmyplate_notice.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
@@ -276,15 +277,12 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
       return true;
     } catch (_) {
       if (!context.mounted) return false;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: const Text('Could not delete this meal. Try again.'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: context.logmyplate.surfaceHero,
-          ),
-        );
+      LogMyPlateNotice.show(
+        context,
+        tone: LogMyPlateNoticeTone.error,
+        title: 'Could not delete meal',
+        message: 'Check your connection and try again.',
+      );
       return false;
     }
   }

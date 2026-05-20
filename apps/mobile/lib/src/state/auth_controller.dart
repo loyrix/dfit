@@ -21,6 +21,12 @@ class AuthController extends ChangeNotifier {
   bool get loading => _loading;
   String? get error => _error;
 
+  void clearError() {
+    if (_error == null) return;
+    _error = null;
+    notifyListeners();
+  }
+
   Future<void> load() async {
     _session = await _store.load();
     notifyListeners();
@@ -44,7 +50,8 @@ class AuthController extends ChangeNotifier {
         stackTrace: stackTrace,
         context: {'provider': provider.name},
       );
-      _error = 'Use email login for this test build.';
+      _error =
+          '${provider.label} sign-in is coming soon. Use email for this build.';
       return null;
     } finally {
       _loading = false;
@@ -78,9 +85,7 @@ class AuthController extends ChangeNotifier {
         stackTrace: stackTrace,
         context: {'mode': mode.name},
       );
-      _error = mode == EmailAuthMode.signUp
-          ? 'Could not create this account right now.'
-          : 'Could not log in with those details.';
+      _error = _emailAuthErrorMessage(error, mode);
       return null;
     } finally {
       _loading = false;
@@ -94,6 +99,32 @@ class AuthController extends ChangeNotifier {
     _session = null;
     notifyListeners();
   }
+}
+
+String _emailAuthErrorMessage(Object error, EmailAuthMode mode) {
+  if (error is LogMyPlateApiException) {
+    switch (error.errorCode) {
+      case 'email_already_registered':
+        return 'This email is already registered. Log in instead.';
+      case 'invalid_credentials':
+        return 'Email or password is incorrect.';
+      case 'invalid_email_auth':
+        return mode == EmailAuthMode.signUp
+            ? 'Enter a valid email and a password with 6 or more characters.'
+            : 'Enter your email and password to log in.';
+    }
+
+    if (error.statusCode >= 500 || error.retryable) {
+      return 'LogMyPlate is taking longer than expected. Try again.';
+    }
+
+    final message = error.message;
+    if (message != null && message.trim().isNotEmpty) return message.trim();
+  }
+
+  return mode == EmailAuthMode.signUp
+      ? 'Could not create this account. Please try again.'
+      : 'Could not log in. Please try again.';
 }
 
 abstract class AccountAuthGateway {

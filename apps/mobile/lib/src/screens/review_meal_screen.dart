@@ -76,11 +76,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
             ),
             const SizedBox(height: 12),
             if (widget.photo != null) ...[
-              _ReviewMealPhotoSummary(
-                photo: widget.photo!,
-                calories: totals.calories,
-                itemCount: _items.length,
-              ),
+              _ReviewMealPhotoSummary(photo: widget.photo!),
               const SizedBox(height: 18),
             ],
             Text(
@@ -292,15 +288,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
 }
 
 class _ReviewMealPhotoSummary extends StatelessWidget {
-  const _ReviewMealPhotoSummary({
-    required this.photo,
-    required this.calories,
-    required this.itemCount,
-  });
+  const _ReviewMealPhotoSummary({required this.photo});
 
   final CapturedMealPhoto photo;
-  final int calories;
-  final int itemCount;
 
   @override
   Widget build(BuildContext context) {
@@ -338,12 +328,12 @@ class _ReviewMealPhotoSummary extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$calories kCal',
+                  'Photo attached',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$itemCount ${itemCount == 1 ? 'item' : 'items'} detected',
+                  'Used for AI review and saved with this log.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
