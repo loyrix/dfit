@@ -11,6 +11,7 @@ import type { AppRepository } from "./repositories/app-repository.js";
 import { InMemoryStore } from "./repositories/in-memory-store.js";
 import { PostgresStore } from "./repositories/postgres-store.js";
 import { registerConfigRoutes } from "./routes/config.js";
+import { registerAdRoutes } from "./routes/ads.js";
 import { registerFoodRoutes } from "./routes/foods.js";
 import { registerJournalRoutes } from "./routes/journal.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
@@ -63,6 +64,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerRequestContext(app);
   await registerIdempotency(app, repository);
   await registerConfigRoutes(app);
+  await registerAdRoutes(app, repository);
   await registerFoodRoutes(app, repository);
   await registerProfileRoutes(app, repository);
   await registerBootstrapRoutes(app, repository, mealImageStorage);

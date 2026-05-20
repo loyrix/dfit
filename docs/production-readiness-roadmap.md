@@ -183,19 +183,24 @@ Current quota source of truth:
 - Launch free allowance is 3 lifetime scan credits, not 3 scans per day.
 - Install-aware quota uses `install_scan_credits` when the app sends an install ID.
 - Profile fallback quota uses `scan_credits` with the sentinel date `1970-01-01`.
-- Current `/v1/config` reports `freeLifetime: 3`, `rewardedCap: 0`, and `launchTotalCap: 3`.
+- Current `/v1/config` reports `freeLifetime: 3`, `rewardedCap: 5`, `rewardedAdsPerScan: 2`, and `launchTotalCap: 8`.
 - Anonymous users who exhaust free lifetime credits are routed to account linking before more scan unlock options.
+- Signed-in users can unlock rewarded scan credits after quota exhaustion.
+
+Current rewarded ad rule:
+
+- 2 completed rewarded ads = 1 rewarded scan credit.
+- Rewarded scan credits are capped at 5 scans per local day.
+- Rewarded ad completions and grants are tracked server-side; mobile uses AdMob test ad units until production IDs are supplied.
+- app-ads.txt should be hosted at the root of the developer website listed for each app. The current AdMob publisher line is `google.com, pub-6936425975956435, DIRECT, f08c47fec0942fa0`.
 
 Discussion needed:
 
-- Rewarded ad credit rules after lifetime free credits are exhausted.
-- Whether rewarded ad credits reset daily, weekly, or remain capped per account/install.
-- Max rewarded scans per user period after signup.
 - Premium scan limits.
 - Premium features: ad-free, macro insights, micronutrient profile, weekly reports, advanced analytics.
 - App Store / Play Store subscription products.
 - Server-side entitlement validation.
-- Abuse prevention for rewarded ads.
+- Full AdMob server-side verification before enabling live ad unit IDs.
 
 Recommendation:
 

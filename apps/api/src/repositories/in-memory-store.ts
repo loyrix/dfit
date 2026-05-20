@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import {
+  calculateRewardedAdState,
   createMealSummary,
   findFoodById,
+  rewardedAdsPerScan,
+  rewardedDailyScanLimit,
   searchFoods,
   type MealSummary,
   type ScanCreditState,
@@ -16,6 +19,8 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   Profile,
+  RewardedAdCompletionInput,
+  RewardedAdCreditResult,
   ScanSession,
   UpdateMealInput,
 } from "./app-repository.js";
@@ -42,6 +47,10 @@ export class InMemoryStore implements AppRepository {
   private readonly scans = new Map<string, ScanSession>();
   private readonly idempotency = new Map<string, IdempotencyRecord>();
   private readonly quotas = new Map<string, ScanCreditState>();
+  private readonly rewardedAdProgress = new Map<
+    string,
+    { completedAds: number; grantedScans: number }
+  >();
 
   async getProfile(): Promise<Profile> {
     const identity = currentRequestIdentity();
@@ -136,6 +145,37 @@ export class InMemoryStore implements AppRepository {
     else throw new Error(`No ${reason} scan credit remaining`);
 
     return this.getQuota();
+  }
+
+  async completeRewardedAd(_input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
+    const profile = await this.getProfile();
+    const quota = this.quotaFor(profile.id);
+    const today = new Date().toISOString().slice(0, 10);
+    const progressKey = `${this.quotaKey(profile.id)}:${today}`;
+    const progress = this.rewardedAdProgress.get(progressKey) ?? {
+      completedAds: 0,
+      grantedScans: 0,
+    };
+
+    progress.completedAds += 1;
+    const state = calculateRewardedAdState(progress);
+    const grantableScans = Math.min(state.grantableScans, 1);
+    if (grantableScans > 0) {
+      progress.grantedScans += grantableScans;
+      quota.rewardedRemaining += grantableScans;
+    }
+
+    this.rewardedAdProgress.set(progressKey, progress);
+
+    return {
+      grantedScan: grantableScans > 0,
+      adsWatchedToday: progress.completedAds,
+      adsNeededForNextScan: calculateRewardedAdState(progress).adsNeededForNextScan,
+      scansGrantedToday: progress.grantedScans,
+      dailyScanLimit: rewardedDailyScanLimit,
+      adsPerScan: rewardedAdsPerScan,
+      quota: { ...quota },
+    };
   }
 
   async createMeal(input: CreateMealInput) {

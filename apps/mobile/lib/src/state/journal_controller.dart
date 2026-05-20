@@ -164,6 +164,33 @@ class JournalController extends ChangeNotifier {
 
   Future<void> refreshQuota() => _refreshQuota();
 
+  Future<RewardedAdCredit> completeRewardedAd({
+    required String adUnitId,
+    required String idempotencyKey,
+    String? rewardType,
+    int? rewardAmount,
+  }) async {
+    try {
+      final reward = await _apiClient.completeRewardedAd(
+        adUnitId: adUnitId,
+        idempotencyKey: idempotencyKey,
+        rewardType: rewardType,
+        rewardAmount: rewardAmount,
+      );
+      _quota = reward.quota;
+      _error = null;
+      notifyListeners();
+      return reward;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'ads.rewarded.complete',
+        error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+
   Future<JournalRangeData> loadWeeklyRange(int weekOffset) {
     return _apiClient.fetchJournalRange(weekOffset: weekOffset);
   }

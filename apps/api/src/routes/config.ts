@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { rewardedAdsPerScan, rewardedDailyScanLimit } from "@logmyplate/domain";
 import { config } from "../config.js";
 
 export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> => {
@@ -21,8 +22,10 @@ export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> 
       appName: "LogMyPlate",
       scanLimits: {
         freeLifetime: 3,
-        rewardedCap: 0,
-        launchTotalCap: 3,
+        rewardedCap: rewardedDailyScanLimit,
+        launchTotalCap: 3 + rewardedDailyScanLimit,
+        rewardedAdsPerScan,
+        rewardedPeriod: "day",
       },
       features: {
         aiProvider: config.aiProvider,

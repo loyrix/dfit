@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'src/app.dart';
 import 'src/screens/startup_error_screen.dart';
 import 'src/services/app_diagnostics.dart';
 
 void main() {
-  runZonedGuarded(
-    () {
+  runZonedGuarded<Future<void>>(
+    () async {
       WidgetsFlutterBinding.ensureInitialized();
 
       ErrorWidget.builder = (details) {
@@ -44,6 +45,8 @@ void main() {
         runApp(LogMyPlateStartupErrorApp(message: error.toString()));
         return true;
       };
+
+      await MobileAds.instance.initialize();
 
       runApp(const LogMyPlateApp());
     },

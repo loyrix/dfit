@@ -180,8 +180,10 @@ describe("LogMyPlate API", () => {
       appName: "LogMyPlate",
       scanLimits: {
         freeLifetime: 3,
-        rewardedCap: 0,
-        launchTotalCap: 3,
+        rewardedCap: 5,
+        launchTotalCap: 8,
+        rewardedAdsPerScan: 2,
+        rewardedPeriod: "day",
       },
       features: {
         accountLink: true,
@@ -1057,6 +1059,126 @@ describe("LogMyPlate API", () => {
         rewardedRemaining: 0,
         premiumRemaining: 0,
       },
+    });
+    await app.close();
+  });
+
+  it("requires an account before rewarded ad scan unlocks", async () => {
+    const app = await testApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: {
+        "x-logmyplate-install-id": "install-anonymous-ad",
+        "x-logmyplate-platform": "ios",
+        "idempotency-key": "anonymous-ad-complete",
+      },
+      payload: { provider: "admob", placement: "scan_unlock" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: "account_required" });
+    await app.close();
+  });
+
+  it("grants one rewarded scan after two completed ads", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-ad",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    const first = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...headers, "idempotency-key": "rewarded-ad-one" },
+      payload: {
+        provider: "admob",
+        placement: "scan_unlock",
+        adUnitId: "ca-app-pub-3940256099942544/1712485313",
+      },
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({
+      grantedScan: false,
+      adsWatchedToday: 1,
+      adsNeededForNextScan: 1,
+      scansGrantedToday: 0,
+      dailyScanLimit: 5,
+      adsPerScan: 2,
+      quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
+    });
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...headers, "idempotency-key": "rewarded-ad-two" },
+      payload: {
+        provider: "admob",
+        placement: "scan_unlock",
+        adUnitId: "ca-app-pub-3940256099942544/1712485313",
+      },
+    });
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toMatchObject({
+      grantedScan: true,
+      adsWatchedToday: 2,
+      adsNeededForNextScan: 2,
+      scansGrantedToday: 1,
+      dailyScanLimit: 5,
+      adsPerScan: 2,
+      quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
+    });
+    await app.close();
+  });
+
+  it("caps rewarded ad scan grants at five per day", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-cap",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads-cap@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    let lastPayload: Record<string, unknown> = {};
+    for (let index = 1; index <= 11; index += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/ads/rewarded/complete",
+        headers: { ...headers, "idempotency-key": `rewarded-cap-${index}` },
+        payload: { provider: "admob", placement: "scan_unlock" },
+      });
+      expect(response.statusCode).toBe(200);
+      lastPayload = response.json();
+    }
+
+    expect(lastPayload).toMatchObject({
+      grantedScan: false,
+      adsWatchedToday: 11,
+      adsNeededForNextScan: 0,
+      scansGrantedToday: 5,
+      quota: { freeRemaining: 3, rewardedRemaining: 5, premiumRemaining: 0 },
     });
     await app.close();
   });

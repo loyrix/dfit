@@ -76,6 +76,25 @@ export type MealDeletionPlan = {
   scanSessionId?: string;
 };
 
+export type RewardedAdCompletionInput = {
+  provider: "admob";
+  placement: "scan_unlock";
+  adUnitId?: string;
+  transactionId?: string;
+  rewardType?: string;
+  rewardAmount?: number;
+};
+
+export type RewardedAdCreditResult = {
+  grantedScan: boolean;
+  adsWatchedToday: number;
+  adsNeededForNextScan: number;
+  scansGrantedToday: number;
+  dailyScanLimit: number;
+  adsPerScan: number;
+  quota: ScanCreditState;
+};
+
 export type ListMealsInput = {
   fromDate?: string;
   toDate?: string;
@@ -91,6 +110,7 @@ export interface AppRepository {
   getFood(foodId: string): Promise<FoodRecord | undefined>;
   getQuota(): Promise<ScanCreditState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
+  completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
   updateMeal(mealId: string, input: UpdateMealInput): Promise<MealSummary | undefined>;

@@ -91,6 +91,34 @@ class LogMyPlateApiClient {
     );
   }
 
+  Future<RewardedAdCredit> completeRewardedAd({
+    required String adUnitId,
+    required String idempotencyKey,
+    String? rewardType,
+    int? rewardAmount,
+  }) async {
+    final payload = <String, dynamic>{
+      'provider': 'admob',
+      'placement': 'scan_unlock',
+      if (adUnitId.isNotEmpty) 'adUnitId': adUnitId,
+    };
+    if (rewardType != null) payload['rewardType'] = rewardType;
+    if (rewardAmount != null) payload['rewardAmount'] = rewardAmount;
+
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/ads/rewarded/complete'),
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
+      body: jsonEncode(payload),
+    );
+    _throwIfBad(response);
+    return RewardedAdCredit.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<AuthSession> signUpWithEmail({
     required String email,
     required String password,

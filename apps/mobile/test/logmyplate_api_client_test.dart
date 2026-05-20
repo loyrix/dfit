@@ -173,6 +173,54 @@ void main() {
     expect(quota.totalRemaining, 3);
   });
 
+  test('records rewarded ad completion with idempotency headers', () async {
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/ads/rewarded/complete');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
+        expect(request.headers['idempotency-key'], 'ad-reward-key');
+        expect(jsonDecode(request.body), {
+          'provider': 'admob',
+          'placement': 'scan_unlock',
+          'adUnitId': 'ca-app-pub-3940256099942544/1712485313',
+          'rewardType': 'coin',
+          'rewardAmount': 1,
+        });
+        return http.Response(
+          jsonEncode({
+            'grantedScan': true,
+            'adsWatchedToday': 2,
+            'adsNeededForNextScan': 2,
+            'scansGrantedToday': 1,
+            'dailyScanLimit': 5,
+            'adsPerScan': 2,
+            'quota': {
+              'freeRemaining': 0,
+              'rewardedRemaining': 1,
+              'premiumRemaining': 0,
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final reward = await client.completeRewardedAd(
+      adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+      idempotencyKey: 'ad-reward-key',
+      rewardType: 'coin',
+      rewardAmount: 1,
+    );
+
+    expect(reward.grantedScan, isTrue);
+    expect(reward.adsWatchedToday, 2);
+    expect(reward.adsPerScan, 2);
+    expect(reward.dailyScanLimit, 5);
+    expect(reward.quota.rewardedRemaining, 1);
+  });
+
   test('fetches app bootstrap data in one request', () async {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',

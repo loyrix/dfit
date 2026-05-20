@@ -7,8 +7,11 @@ import {
 } from "node:crypto";
 import { promisify } from "node:util";
 import {
+  calculateRewardedAdState,
   createMealSummary,
   sumTotals,
+  rewardedAdsPerScan,
+  rewardedDailyScanLimit,
   type FoodRecord,
   type MealSummary,
   type PortionUnit,
@@ -26,6 +29,8 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   Profile,
+  RewardedAdCompletionInput,
+  RewardedAdCreditResult,
   ScanSession,
   UpdateMealInput,
 } from "./app-repository.js";
@@ -103,6 +108,11 @@ type QuotaRow = {
   free_remaining: number;
   rewarded_remaining: number;
   premium_remaining: number;
+};
+
+type RewardedAdProgressRow = {
+  completed_ads: number;
+  granted_scans: number;
 };
 
 const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
@@ -431,6 +441,165 @@ export class PostgresStore implements AppRepository {
     `;
 
     return quotaFromRow(rows[0]);
+  }
+
+  async completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
+    const profile = await this.getProfile();
+    const identity = currentRequestIdentity();
+    const today = localDate();
+    const ownerKey = this.quotaOwnerKey(profile.id);
+    await this.getOrCreateQuota(profile.id);
+
+    return this.sql.begin(async (tx) => {
+      const eventRows = await tx<{ id: string }[]>`
+        insert into rewarded_ad_events (
+          profile_id,
+          install_id,
+          quota_owner_key,
+          local_date,
+          provider,
+          placement,
+          ad_unit_id,
+          transaction_id,
+          raw_payload
+        )
+        values (
+          ${profile.id},
+          ${identity.installId ?? null},
+          ${ownerKey},
+          ${today},
+          ${input.provider},
+          ${input.placement},
+          ${input.adUnitId ?? null},
+          ${input.transactionId ?? null},
+          ${tx.json({
+            rewardType: input.rewardType ?? null,
+            rewardAmount: input.rewardAmount ?? null,
+          })}
+        )
+        on conflict (provider, transaction_id) do nothing
+        returning id::text
+      `;
+
+      let [progress] = eventRows[0]
+        ? await tx<RewardedAdProgressRow[]>`
+            insert into rewarded_ad_progress (
+              quota_owner_key,
+              profile_id,
+              install_id,
+              local_date,
+              completed_ads,
+              granted_scans
+            )
+            values (${ownerKey}, ${profile.id}, ${identity.installId ?? null}, ${today}, 1, 0)
+            on conflict (quota_owner_key, local_date) do update
+            set
+              profile_id = excluded.profile_id,
+              install_id = excluded.install_id,
+              completed_ads = rewarded_ad_progress.completed_ads + 1,
+              updated_at = now()
+            returning completed_ads, granted_scans
+          `
+        : await tx<RewardedAdProgressRow[]>`
+            select completed_ads, granted_scans
+            from rewarded_ad_progress
+            where quota_owner_key = ${ownerKey}
+              and local_date = ${today}
+            limit 1
+          `;
+
+      if (!progress) {
+        [progress] = await tx<RewardedAdProgressRow[]>`
+          insert into rewarded_ad_progress (
+            quota_owner_key,
+            profile_id,
+            install_id,
+            local_date,
+            completed_ads,
+            granted_scans
+          )
+          values (${ownerKey}, ${profile.id}, ${identity.installId ?? null}, ${today}, 0, 0)
+          returning completed_ads, granted_scans
+        `;
+      }
+
+      const currentRewardState = calculateRewardedAdState({
+        completedAds: progress.completed_ads,
+        grantedScans: progress.granted_scans,
+      });
+      const scanGrant = Math.min(currentRewardState.grantableScans, 1);
+
+      let quotaRow: QuotaRow;
+      if (scanGrant > 0) {
+        [progress] = await tx<RewardedAdProgressRow[]>`
+          update rewarded_ad_progress
+          set
+            granted_scans = granted_scans + ${scanGrant},
+            updated_at = now()
+          where quota_owner_key = ${ownerKey}
+            and local_date = ${today}
+          returning completed_ads, granted_scans
+        `;
+
+        const quotaRows = identity.installId
+          ? await tx<QuotaRow[]>`
+              update install_scan_credits
+              set
+                profile_id = ${profile.id},
+                rewarded_remaining = rewarded_remaining + ${scanGrant},
+                last_seen_at = now(),
+                updated_at = now()
+              where install_id = ${identity.installId}
+              returning free_remaining, rewarded_remaining, premium_remaining
+            `
+          : await tx<QuotaRow[]>`
+              update scan_credits
+              set
+                rewarded_remaining = rewarded_remaining + ${scanGrant},
+                updated_at = now()
+              where profile_id = ${profile.id}
+                and local_date = ${lifetimeQuotaDate}
+              returning free_remaining, rewarded_remaining, premium_remaining
+            `;
+        quotaRow = quotaRows[0];
+
+        await tx`
+          insert into quota_events (profile_id, event_type, reason, delta, local_date, install_id)
+          values (${profile.id}, 'grant', 'rewarded', ${scanGrant}, ${today}, ${identity.installId ?? null})
+        `;
+      } else {
+        const quotaRows = identity.installId
+          ? await tx<QuotaRow[]>`
+              select free_remaining, rewarded_remaining, premium_remaining
+              from install_scan_credits
+              where install_id = ${identity.installId}
+              limit 1
+            `
+          : await tx<QuotaRow[]>`
+              select free_remaining, rewarded_remaining, premium_remaining
+              from scan_credits
+              where profile_id = ${profile.id}
+                and local_date = ${lifetimeQuotaDate}
+              limit 1
+            `;
+        quotaRow = quotaRows[0];
+      }
+
+      const rewardState = calculateRewardedAdState({
+        completedAds: progress.completed_ads,
+        grantedScans: progress.granted_scans,
+      });
+
+      return {
+        grantedScan: scanGrant > 0,
+        adsWatchedToday: progress.completed_ads,
+        adsNeededForNextScan: rewardState.adsNeededForNextScan,
+        scansGrantedToday: progress.granted_scans,
+        dailyScanLimit: rewardedDailyScanLimit,
+        adsPerScan: rewardedAdsPerScan,
+        quota: quotaFromRow(quotaRow),
+      };
+    });
   }
 
   async createMeal(input: CreateMealInput) {
@@ -1046,6 +1215,11 @@ export class PostgresStore implements AppRepository {
     return profile;
   }
 
+  private quotaOwnerKey(profileId: string): string {
+    const installId = currentRequestIdentity().installId;
+    return installId ? `install:${installId}` : `profile:${profileId}`;
+  }
+
   private async attachInstallToProfile(profileId: string): Promise<void> {
     const identity = currentRequestIdentity();
     if (!identity.installId) return;
@@ -1175,6 +1349,55 @@ export class PostgresStore implements AppRepository {
       await tx`
         update quota_events
         set profile_id = ${targetProfileId}, scan_credit_id = null
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        insert into rewarded_ad_progress (
+          quota_owner_key,
+          profile_id,
+          install_id,
+          local_date,
+          completed_ads,
+          granted_scans,
+          created_at,
+          updated_at
+        )
+        select
+          case
+            when quota_owner_key = ${`profile:${sourceProfileId}`} then ${`profile:${targetProfileId}`}
+            else quota_owner_key
+          end,
+          ${targetProfileId},
+          install_id,
+          local_date,
+          completed_ads,
+          granted_scans,
+          created_at,
+          now()
+        from rewarded_ad_progress
+        where profile_id = ${sourceProfileId}
+        on conflict (quota_owner_key, local_date) do update
+        set
+          profile_id = excluded.profile_id,
+          completed_ads = greatest(rewarded_ad_progress.completed_ads, excluded.completed_ads),
+          granted_scans = greatest(rewarded_ad_progress.granted_scans, excluded.granted_scans),
+          updated_at = now()
+      `;
+
+      await tx`
+        delete from rewarded_ad_progress
+        where profile_id = ${sourceProfileId}
+      `;
+
+      await tx`
+        update rewarded_ad_events
+        set
+          profile_id = ${targetProfileId},
+          quota_owner_key = case
+            when quota_owner_key = ${`profile:${sourceProfileId}`} then ${`profile:${targetProfileId}`}
+            else quota_owner_key
+          end
         where profile_id = ${sourceProfileId}
       `;
 

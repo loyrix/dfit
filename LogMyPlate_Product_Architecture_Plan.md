@@ -137,12 +137,13 @@ Current launch model:
 ```txt
 First 3 scans: lifetime free allowance per install/profile, no ad
 After lifetime allowance is exhausted: account linking is required before more unlock options
-Rewarded ads: not enabled yet
-Launch cap before ads/subscriptions: 3 lifetime scans total
+Rewarded ads: 2 completed rewarded ads unlock 1 scan
+Rewarded cap: 5 rewarded scans per day
+Launch cap before subscriptions: 3 lifetime scans + up to 5 rewarded scans/day
 Premium: configurable higher limit and no ads
 ```
 
-The scan limit must stay remote-configured, not hardcoded. The current API config reports `freeLifetime: 3`, `rewardedCap: 0`, and `launchTotalCap: 3`. If real ad revenue is healthy, add rewarded scan credits after the lifetime free allowance is used.
+The scan limit must stay remote-configured, not hardcoded. The current API config reports `freeLifetime: 3`, `rewardedCap: 5`, `rewardedAdsPerScan: 2`, and `launchTotalCap: 8`. Live AdMob unit IDs should replace test IDs only after server-side verification and abuse monitoring are ready.
 
 ### Why Ads Before AI Analysis
 
@@ -536,7 +537,8 @@ This is why the scan cap should be remote-configured.
 Recommended launch:
 
 - 3 lifetime free scans per install/profile without ads.
-- Rewarded ad scan credits are not enabled at launch and should be added only after the ad reward rules and abuse controls are finalized.
+- Rewarded ad scan credits are enabled after account linking: 2 completed rewarded ads grant 1 scan, capped at 5 rewarded scans per day.
+- Use Google test rewarded ad units until production AdMob IDs and app-ads.txt crawl status are verified.
 - Journal browsing remains free.
 - Daily totals remain free.
 

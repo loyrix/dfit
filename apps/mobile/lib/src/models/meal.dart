@@ -586,6 +586,38 @@ class ScanQuota {
   }
 }
 
+class RewardedAdCredit {
+  const RewardedAdCredit({
+    required this.grantedScan,
+    required this.adsWatchedToday,
+    required this.adsNeededForNextScan,
+    required this.scansGrantedToday,
+    required this.dailyScanLimit,
+    required this.adsPerScan,
+    required this.quota,
+  });
+
+  final bool grantedScan;
+  final int adsWatchedToday;
+  final int adsNeededForNextScan;
+  final int scansGrantedToday;
+  final int dailyScanLimit;
+  final int adsPerScan;
+  final ScanQuota quota;
+
+  factory RewardedAdCredit.fromJson(Map<String, dynamic> json) {
+    return RewardedAdCredit(
+      grantedScan: json['grantedScan'] == true,
+      adsWatchedToday: json['adsWatchedToday'] as int,
+      adsNeededForNextScan: json['adsNeededForNextScan'] as int,
+      scansGrantedToday: json['scansGrantedToday'] as int,
+      dailyScanLimit: json['dailyScanLimit'] as int,
+      adsPerScan: json['adsPerScan'] as int,
+      quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
+    );
+  }
+}
+
 class ScanAnalysis {
   const ScanAnalysis({
     required this.scanId,

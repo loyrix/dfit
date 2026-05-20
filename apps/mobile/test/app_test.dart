@@ -18,6 +18,7 @@ import 'package:logmyplate_mobile/src/screens/weekly_journal_screen.dart';
 import 'package:logmyplate_mobile/src/services/account_session_store.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
+import 'package:logmyplate_mobile/src/services/rewarded_ad_service.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
 import 'package:logmyplate_mobile/src/state/journal_controller.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
@@ -935,6 +936,68 @@ void main() {
     },
   );
 
+  testWidgets('signed-in users can unlock scanning with rewarded ads', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+    final adGateway = _FakeRewardedAdGateway(
+      outcome: const RewardedAdOutcome(
+        earnedReward: true,
+        adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+        rewardType: 'coin',
+        rewardAmount: 1,
+      ),
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        rewardedAdGateway: adGateway,
+        journalController: _testJournalController(
+          quota: const {
+            'freeRemaining': 0,
+            'rewardedRemaining': 0,
+            'premiumRemaining': 0,
+          },
+          rewardedAdResponse: const {
+            'grantedScan': true,
+            'adsWatchedToday': 2,
+            'adsNeededForNextScan': 2,
+            'scansGrantedToday': 1,
+            'dailyScanLimit': 5,
+            'adsPerScan': 2,
+            'quota': {
+              'freeRemaining': 0,
+              'rewardedRemaining': 1,
+              'premiumRemaining': 0,
+            },
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Watch ad'), findsOneWidget);
+
+    await tester.tap(find.text('Watch ad'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(adGateway.showCount, 1);
+    expect(find.text('Meal Scan'), findsOneWidget);
+  });
+
   testWidgets('save journal account gate backs out without manual review', (
     tester,
   ) async {
@@ -1062,6 +1125,22 @@ void main() {
   });
 }
 
+class _FakeRewardedAdGateway implements RewardedAdGateway {
+  _FakeRewardedAdGateway({required this.outcome});
+
+  final RewardedAdOutcome outcome;
+  int showCount = 0;
+
+  @override
+  Future<RewardedAdOutcome> showScanUnlockAd() async {
+    showCount += 1;
+    return outcome;
+  }
+
+  @override
+  void dispose() {}
+}
+
 class _SuccessfulAuthGateway implements AccountAuthGateway {
   int emailAuthCount = 0;
 
@@ -1096,7 +1175,10 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
   Future<void> signOut() async {}
 }
 
-JournalController _testJournalController({Map<String, int>? quota}) {
+JournalController _testJournalController({
+  Map<String, int>? quota,
+  Map<String, dynamic>? rewardedAdResponse,
+}) {
   final quotaPayload =
       quota ??
       const {'freeRemaining': 3, 'rewardedRemaining': 0, 'premiumRemaining': 0};
@@ -1113,6 +1195,10 @@ JournalController _testJournalController({Map<String, int>? quota}) {
         }
         if (request.url.path == '/v1/quota') {
           return http.Response(jsonEncode(quotaPayload), 200);
+        }
+        if (request.url.path == '/v1/ads/rewarded/complete' &&
+            rewardedAdResponse != null) {
+          return http.Response(jsonEncode(rewardedAdResponse), 200);
         }
         return http.Response(jsonEncode({'error': 'not_found'}), 404);
       }),

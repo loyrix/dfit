@@ -83,8 +83,29 @@ export const confirmScanResponseSchema = z.object({
   meal: mealSchema.optional(),
 });
 
+export const completeRewardedAdRequestSchema = z.object({
+  provider: z.literal("admob").default("admob"),
+  placement: z.literal("scan_unlock").default("scan_unlock"),
+  adUnitId: z.string().trim().min(1).max(160).optional(),
+  transactionId: z.string().trim().min(1).max(256).optional(),
+  rewardType: z.string().trim().max(64).optional(),
+  rewardAmount: z.number().int().nonnegative().optional(),
+});
+
+export const rewardedAdCreditResponseSchema = z.object({
+  grantedScan: z.boolean(),
+  adsWatchedToday: z.number().int().nonnegative(),
+  adsNeededForNextScan: z.number().int().nonnegative(),
+  scansGrantedToday: z.number().int().nonnegative(),
+  dailyScanLimit: z.number().int().positive(),
+  adsPerScan: z.number().int().positive(),
+  quota: prepareScanResponseSchema.shape.quota,
+});
+
 export type PrepareScanResponseContract = z.infer<typeof prepareScanResponseSchema>;
 export type AnalyzeScanRequestContract = z.infer<typeof analyzeScanRequestSchema>;
 export type AnalyzeScanResponseContract = z.infer<typeof analyzeScanResponseSchema>;
 export type ConfirmScanRequestContract = z.infer<typeof confirmScanRequestSchema>;
 export type ConfirmScanResponseContract = z.infer<typeof confirmScanResponseSchema>;
+export type CompleteRewardedAdRequestContract = z.infer<typeof completeRewardedAdRequestSchema>;
+export type RewardedAdCreditResponseContract = z.infer<typeof rewardedAdCreditResponseSchema>;

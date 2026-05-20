@@ -17,6 +17,7 @@ import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/app_diagnostics.dart';
+import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'theme/logmyplate_colors.dart';
@@ -27,11 +28,14 @@ class LogMyPlateApp extends StatefulWidget {
     super.key,
     AuthController? authController,
     JournalController? journalController,
+    RewardedAdGateway? rewardedAdGateway,
   }) : _authController = authController,
-       _journalController = journalController;
+       _journalController = journalController,
+       _rewardedAdGateway = rewardedAdGateway;
 
   final AuthController? _authController;
   final JournalController? _journalController;
+  final RewardedAdGateway? _rewardedAdGateway;
 
   @override
   State<LogMyPlateApp> createState() => _LogMyPlateAppState();
@@ -47,6 +51,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._authController ?? AuthController();
   late final JournalController _journalController =
       widget._journalController ?? JournalController();
+  late final RewardedAdGateway _rewardedAds =
+      widget._rewardedAdGateway ?? GoogleRewardedAdService();
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
@@ -64,6 +70,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   void dispose() {
     _authController.removeListener(_handleAccessStateChanged);
     _journalController.removeListener(_handleAccessStateChanged);
+    _rewardedAds.dispose();
     _authController.dispose();
     _journalController.dispose();
     super.dispose();
@@ -325,13 +332,50 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       builder: (_) => const _NoScanCreditsSheet(),
     );
 
-    if (action == _NoScanCreditsAction.addManually) {
+    if (action == _NoScanCreditsAction.watchAd) {
+      return _watchRewardedAdForScan();
+    } else if (action == _NoScanCreditsAction.addManually) {
       await _openManualReview();
     } else if (action == _NoScanCreditsAction.refresh) {
       await _journalController.loadToday();
     }
 
     return false;
+  }
+
+  Future<bool> _watchRewardedAdForScan() async {
+    _showJournalMessage('Loading rewarded ad...');
+
+    final outcome = await _rewardedAds.showScanUnlockAd();
+    if (!outcome.earnedReward) {
+      _showJournalMessage(outcome.errorMessage ?? 'Ad was not completed');
+      return false;
+    }
+
+    try {
+      final reward = await _journalController.completeRewardedAd(
+        adUnitId: outcome.adUnitId,
+        idempotencyKey: 'rewarded-ad-${DateTime.now().microsecondsSinceEpoch}',
+        rewardType: outcome.rewardType,
+        rewardAmount: outcome.rewardAmount,
+      );
+
+      if (reward.grantedScan) {
+        _showJournalMessage('Scan unlocked');
+        return reward.quota.totalRemaining > 0;
+      }
+
+      final next = reward.adsNeededForNextScan;
+      _showJournalMessage(
+        next == 1
+            ? 'Watch 1 more ad to unlock a scan'
+            : '$next ads left to unlock a scan',
+      );
+      return false;
+    } catch (_) {
+      _showJournalMessage('Ad watched, but unlock sync failed. Try again.');
+      return false;
+    }
   }
 
   void _showJournalMessage(String message) {
@@ -503,7 +547,7 @@ class _LaunchScreen extends StatelessWidget {
   }
 }
 
-enum _NoScanCreditsAction { addManually, refresh }
+enum _NoScanCreditsAction { watchAd, addManually, refresh }
 
 class _NoScanCreditsSheet extends StatelessWidget {
   const _NoScanCreditsSheet();
@@ -531,7 +575,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Log manually for now. Ad unlocks and premium scan packs come next.',
+              'Watch 2 rewarded ads to unlock 1 scan. You can unlock up to 5 scans per day.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: colors.textSecondary,
                 height: 1.35,
@@ -540,10 +584,24 @@ class _NoScanCreditsSheet extends StatelessWidget {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () =>
-                  Navigator.of(context).pop(_NoScanCreditsAction.addManually),
+                  Navigator.of(context).pop(_NoScanCreditsAction.watchAd),
               style: FilledButton.styleFrom(
                 backgroundColor: colors.primaryAction,
                 foregroundColor: colors.primaryActionText,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Watch ad'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(_NoScanCreditsAction.addManually),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.textPrimary,
+                side: BorderSide(color: colors.border),
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
