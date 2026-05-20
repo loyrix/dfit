@@ -20,9 +20,9 @@ export const registerConfigRoutes = async (app: FastifyInstance): Promise<void> 
     return {
       appName: "LogMyPlate",
       scanLimits: {
-        freePerDay: 1,
-        rewardedCapPerDay: 2,
-        launchTotalCapPerDay: 3,
+        freeLifetime: 3,
+        rewardedCap: 0,
+        launchTotalCap: 3,
       },
       features: {
         aiProvider: config.aiProvider,

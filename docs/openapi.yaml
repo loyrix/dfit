@@ -764,13 +764,13 @@ components:
           type: string
         scanLimits:
           type: object
-          required: [freePerDay, rewardedCapPerDay, launchTotalCapPerDay]
+          required: [freeLifetime, rewardedCap, launchTotalCap]
           properties:
-            freePerDay:
+            freeLifetime:
               type: integer
-            rewardedCapPerDay:
+            rewardedCap:
               type: integer
-            launchTotalCapPerDay:
+            launchTotalCap:
               type: integer
         features:
           type: object

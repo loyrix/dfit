@@ -275,15 +275,25 @@ export class InMemoryStore implements AppRepository {
   }
 
   private quotaFor(profileId: string): ScanCreditState {
-    const existing = this.quotas.get(profileId);
+    const key = this.quotaKey(profileId);
+    const existing = this.quotas.get(key);
     if (existing) return existing;
     const created = {
-      freeRemaining: 1,
-      rewardedRemaining: 2,
+      freeRemaining: 3,
+      rewardedRemaining: 0,
       premiumRemaining: 0,
     };
-    this.quotas.set(profileId, created);
+    this.quotas.set(key, created);
     return created;
+  }
+
+  private quotaKey(profileId: string): string {
+    const installId = currentRequestIdentity().installId;
+    return installId ? `install:${installId}` : `profile:${profileId}`;
+  }
+
+  private profileQuotaKey(profileId: string): string {
+    return `profile:${profileId}`;
   }
 
   private createAnonymousProfile(): Profile {
@@ -332,11 +342,11 @@ export class InMemoryStore implements AppRepository {
     for (const scan of this.scans.values()) {
       if (scan.profileId === sourceProfileId) scan.profileId = targetProfileId;
     }
-    const sourceQuota = this.quotas.get(sourceProfileId);
+    const sourceQuota = this.quotas.get(this.profileQuotaKey(sourceProfileId));
     if (sourceQuota) {
       const targetQuota = this.quotaFor(targetProfileId);
-      targetQuota.freeRemaining = Math.max(targetQuota.freeRemaining, sourceQuota.freeRemaining);
-      targetQuota.rewardedRemaining = Math.max(
+      targetQuota.freeRemaining = Math.min(targetQuota.freeRemaining, sourceQuota.freeRemaining);
+      targetQuota.rewardedRemaining = Math.min(
         targetQuota.rewardedRemaining,
         sourceQuota.rewardedRemaining,
       );

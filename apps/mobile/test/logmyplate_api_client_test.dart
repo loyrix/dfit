@@ -76,8 +76,8 @@ void main() {
               'scanId': 'scan_1',
               'status': 'prepared',
               'quota': {
-                'freeRemaining': 1,
-                'rewardedRemaining': 2,
+                'freeRemaining': 3,
+                'rewardedRemaining': 0,
                 'premiumRemaining': 0,
               },
             }),
@@ -135,7 +135,7 @@ void main() {
     );
 
     expect(prepared.scanId, 'scan_1');
-    expect(prepared.quota.freeRemaining, 1);
+    expect(prepared.quota.freeRemaining, 3);
     expect(analysis.mealType, MealType.lunch);
     expect(analysis.items.single.name, 'Dal');
     expect(jsonDecode(requests.last.body) as Map<String, dynamic>, {
@@ -157,8 +157,8 @@ void main() {
         expect(request.headers['x-logmyplate-install-id'], 'test-install');
         return http.Response(
           jsonEncode({
-            'freeRemaining': 2,
-            'rewardedRemaining': 1,
+            'freeRemaining': 3,
+            'rewardedRemaining': 0,
             'premiumRemaining': 0,
           }),
           200,
@@ -168,8 +168,8 @@ void main() {
 
     final quota = await client.fetchQuota();
 
-    expect(quota.freeRemaining, 2);
-    expect(quota.rewardedRemaining, 1);
+    expect(quota.freeRemaining, 3);
+    expect(quota.rewardedRemaining, 0);
     expect(quota.totalRemaining, 3);
   });
 
@@ -190,8 +190,8 @@ void main() {
               'createdAt': '2026-05-12T10:00:00.000Z',
             },
             'quota': {
-              'freeRemaining': 1,
-              'rewardedRemaining': 2,
+              'freeRemaining': 3,
+              'rewardedRemaining': 0,
               'premiumRemaining': 0,
             },
             'today': {

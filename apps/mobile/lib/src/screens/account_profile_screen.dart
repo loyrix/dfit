@@ -13,7 +13,7 @@ class AccountProfileScreen extends StatelessWidget {
   });
 
   final AuthSession session;
-  final Future<void> Function() onSignOut;
+  final Future<bool> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -118,8 +118,8 @@ class AccountProfileScreen extends StatelessWidget {
   }
 
   Future<void> _signOut(BuildContext context) async {
-    await onSignOut();
-    if (!context.mounted) return;
+    final shouldPop = await onSignOut();
+    if (!context.mounted || !shouldPop) return;
     Navigator.of(context).pop();
   }
 

@@ -10,6 +10,9 @@ Welcome -> Camera -> Analyze -> Review -> Confirm -> Today journal
 
 The app is global, Indian-first in food understanding, anonymous-first in identity, and designed to avoid food-image storage.
 
+Coding agents and AI assistants must read [AGENTS.md](AGENTS.md) before editing
+this repository.
+
 ## Workspace
 
 ```txt

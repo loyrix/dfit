@@ -50,17 +50,20 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
+  bool _forcingAnonymousLanding = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLocalPreferences();
-    _authController.load();
-    _journalController.loadToday();
+    _authController.addListener(_handleAccessStateChanged);
+    _journalController.addListener(_handleAccessStateChanged);
+    _initializeApp();
   }
 
   @override
   void dispose() {
+    _authController.removeListener(_handleAccessStateChanged);
+    _journalController.removeListener(_handleAccessStateChanged);
     _authController.dispose();
     _journalController.dispose();
     super.dispose();
@@ -80,13 +83,15 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           ? const _LaunchScreen()
           : _hasSeenWelcome
           ? _todayScreen()
-          : WelcomeScreen(
-              onStart: () {
-                _markWelcomeSeen();
-                _openCamera();
-              },
-            ),
+          : WelcomeScreen(onStart: _startFromWelcome),
     );
+  }
+
+  Future<void> _initializeApp() async {
+    await _loadLocalPreferences();
+    await _authController.load();
+    await _journalController.loadToday();
+    _handleAccessStateChanged();
   }
 
   Widget _todayScreen() {
@@ -150,6 +155,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _markWelcomeSeen() async {
     setState(() => _hasSeenWelcome = true);
+    await _persistWelcomeSeen();
+  }
+
+  Future<void> _persistWelcomeSeen() async {
     try {
       final preferences = await SharedPreferences.getInstance();
       await preferences.setBool(_hasSeenWelcomeKey, true);
@@ -159,9 +168,59 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
   }
 
+  Future<void> _markWelcomeUnseen() async {
+    if (mounted) setState(() => _hasSeenWelcome = false);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool(_hasSeenWelcomeKey, false);
+    } catch (_) {
+      // The in-memory state still routes this session back to the landing page.
+    }
+  }
+
+  Future<void> _startFromWelcome() async {
+    await _journalController.refreshQuota();
+
+    final quota = _journalController.quota;
+    if (!_authController.isSignedIn &&
+        quota != null &&
+        quota.totalRemaining <= 0) {
+      final session = await _openAccountHome(AccountGateReason.quotaExhausted);
+      if (session != null) await _markWelcomeSeen();
+      return;
+    }
+
+    if (!await _ensureScanAllowed()) return;
+    await _persistWelcomeSeen();
+    await _pushCameraFlow();
+    if (mounted) await _markWelcomeSeen();
+  }
+
+  void _handleAccessStateChanged() {
+    final quota = _journalController.quota;
+    if (!_welcomeStateLoaded ||
+        !_hasSeenWelcome ||
+        _authController.isSignedIn ||
+        quota == null ||
+        quota.totalRemaining > 0 ||
+        _forcingAnonymousLanding) {
+      return;
+    }
+
+    _forcingAnonymousLanding = true;
+    Future<void>(() async {
+      await _markWelcomeUnseen();
+      _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      _forcingAnonymousLanding = false;
+    });
+  }
+
   Future<void> _openCamera() async {
     if (!await _ensureScanAllowed()) return;
+    await _pushCameraFlow();
+  }
 
+  Future<void> _pushCameraFlow() async {
     await _navigatorKey.currentState!.push<void>(
       logmyplatePageRoute<void>(
         builder: (_) => CameraScreen(
@@ -322,8 +381,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
     final session = await _openAccountGate(reason);
     if (session != null) {
-      await _journalController.loadToday();
       _navigatorKey.currentState!.popUntil((route) => route.isFirst);
+      await _journalController.loadToday();
     }
     return session;
   }
@@ -370,7 +429,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
               session: currentSession,
               onSignOut: () async {
                 await _authController.signOut();
+                await _markWelcomeUnseen();
+                _navigatorKey.currentState?.popUntil((route) => route.isFirst);
                 await _journalController.loadToday();
+                return false;
               },
             );
           },

@@ -15,6 +15,7 @@ import 'package:logmyplate_mobile/src/screens/settings_screen.dart';
 import 'package:logmyplate_mobile/src/screens/startup_error_screen.dart';
 import 'package:logmyplate_mobile/src/screens/today_screen.dart';
 import 'package:logmyplate_mobile/src/screens/weekly_journal_screen.dart';
+import 'package:logmyplate_mobile/src/services/account_session_store.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
@@ -46,7 +47,9 @@ void main() {
   });
 
   testWidgets('enters camera flow from welcome', (tester) async {
-    await tester.pumpWidget(const LogMyPlateApp());
+    await tester.pumpWidget(
+      LogMyPlateApp(journalController: _testJournalController()),
+    );
     await tester.pump();
 
     await tester.tap(find.text('Start first scan'));
@@ -54,6 +57,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Meal Scan'), findsOneWidget);
+    expect(find.byType(TodayScreen, skipOffstage: false), findsNothing);
+    expect(find.text('Start first scan', skipOffstage: false), findsOneWidget);
     expect(find.text('Add your meal photo'), findsOneWidget);
     expect(find.text('Food note'), findsOneWidget);
     expect(find.text('Upload'), findsOneWidget);
@@ -854,6 +859,82 @@ void main() {
     expect(find.byType(AccountProfileScreen), findsNothing);
   });
 
+  testWidgets('logout returns the user to the landing screen', (tester) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+    final authGateway = _SuccessfulAuthGateway();
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        authController: AuthController(gateway: authGateway),
+        journalController: _testJournalController(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TodayScreen), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -360));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Log out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start first scan'), findsOneWidget);
+    expect(find.byType(TodayScreen), findsNothing);
+    expect(find.byType(SettingsScreen), findsNothing);
+    expect(find.byType(AccountProfileScreen), findsNothing);
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getBool('logmyplate.has_seen_welcome'), isFalse);
+    expect(preferences.getString(AccountSessionStore.sessionKey), isNull);
+  });
+
+  testWidgets(
+    'exhausted anonymous users return to landing before account gate',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'logmyplate.has_seen_welcome': true,
+      });
+
+      await tester.pumpWidget(
+        LogMyPlateApp(
+          journalController: _testJournalController(
+            quota: const {
+              'freeRemaining': 0,
+              'rewardedRemaining': 0,
+              'premiumRemaining': 0,
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start first scan'), findsOneWidget);
+      expect(find.byType(TodayScreen), findsNothing);
+
+      await tester.tap(find.text('Start first scan'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(find.byType(AccountGateScreen), findsOneWidget);
+      expect(find.text('Create account to keep scanning'), findsOneWidget);
+    },
+  );
+
   testWidgets('save journal account gate backs out without manual review', (
     tester,
   ) async {
@@ -960,6 +1041,7 @@ void main() {
           ),
           onSignOut: () async {
             loggedOut = true;
+            return true;
           },
         ),
       ),
@@ -1014,23 +1096,23 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
   Future<void> signOut() async {}
 }
 
-JournalController _testJournalController() {
+JournalController _testJournalController({Map<String, int>? quota}) {
+  final quotaPayload =
+      quota ??
+      const {'freeRemaining': 3, 'rewardedRemaining': 0, 'premiumRemaining': 0};
+
   return JournalController(
     apiClient: LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       httpClient: MockClient((request) async {
         if (request.url.path == '/v1/app/bootstrap') {
-          return http.Response(jsonEncode(_emptyBootstrapPayload()), 200);
-        }
-        if (request.url.path == '/v1/quota') {
           return http.Response(
-            jsonEncode({
-              'freeRemaining': 1,
-              'rewardedRemaining': 2,
-              'premiumRemaining': 0,
-            }),
+            jsonEncode(_emptyBootstrapPayload(quota: quotaPayload)),
             200,
           );
+        }
+        if (request.url.path == '/v1/quota') {
+          return http.Response(jsonEncode(quotaPayload), 200);
         }
         return http.Response(jsonEncode({'error': 'not_found'}), 404);
       }),
@@ -1038,8 +1120,11 @@ JournalController _testJournalController() {
   );
 }
 
-Map<String, dynamic> _emptyBootstrapPayload() {
+Map<String, dynamic> _emptyBootstrapPayload({Map<String, int>? quota}) {
   final zeroTotals = {'calories': 0, 'proteinG': 0, 'carbsG': 0, 'fatG': 0};
+  final quotaPayload =
+      quota ??
+      const {'freeRemaining': 3, 'rewardedRemaining': 0, 'premiumRemaining': 0};
 
   return {
     'serverTime': '2026-05-19T10:00:00.000Z',
@@ -1051,11 +1136,7 @@ Map<String, dynamic> _emptyBootstrapPayload() {
       'linkedAt': '2026-05-19T10:00:00.000Z',
       'createdAt': '2026-05-19T10:00:00.000Z',
     },
-    'quota': {
-      'freeRemaining': 1,
-      'rewardedRemaining': 2,
-      'premiumRemaining': 0,
-    },
+    'quota': quotaPayload,
     'today': {'totals': zeroTotals, 'meals': []},
     'weeklyRange': {
       'startDate': '2026-05-13',

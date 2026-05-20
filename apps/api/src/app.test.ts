@@ -179,9 +179,9 @@ describe("LogMyPlate API", () => {
     expect(response.json()).toMatchObject({
       appName: "LogMyPlate",
       scanLimits: {
-        freePerDay: 1,
-        rewardedCapPerDay: 2,
-        launchTotalCapPerDay: 3,
+        freeLifetime: 3,
+        rewardedCap: 0,
+        launchTotalCap: 3,
       },
       features: {
         accountLink: true,
@@ -673,8 +673,8 @@ describe("LogMyPlate API", () => {
     expect(bootstrap.json()).toMatchObject({
       profile: { authMethod: "anonymous" },
       quota: {
-        freeRemaining: 1,
-        rewardedRemaining: 2,
+        freeRemaining: 3,
+        rewardedRemaining: 0,
         premiumRemaining: 0,
       },
       today: { totals: { calories: 180 } },
@@ -947,6 +947,116 @@ describe("LogMyPlate API", () => {
     });
     expect(accountBootstrap.json().today.meals[0]).toMatchObject({
       id: meal.json().id,
+    });
+    await app.close();
+  });
+
+  it("does not refresh the lifetime install scan quota after logout", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-lifetime-quota",
+      "x-logmyplate-platform": "ios",
+    };
+    const analyzeScan = async (key: string) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...installHeaders, "idempotency-key": `quota-prepare-${key}` },
+      });
+      expect(prepared.statusCode).toBe(201);
+
+      const analyzed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${prepared.json().scanId}/analyze`,
+        headers: { ...installHeaders, "idempotency-key": `quota-analyze-${key}` },
+        payload: {
+          hint: "dal rice",
+          image: {
+            mimeType: "image/jpeg",
+            base64: "AQID",
+            byteSize: 3,
+          },
+        },
+      });
+      expect(analyzed.statusCode).toBe(200);
+    };
+
+    await analyzeScan("one");
+    await analyzeScan("two");
+    await analyzeScan("three");
+
+    const exhaustedQuota = await app.inject({
+      method: "GET",
+      url: "/v1/quota",
+      headers: installHeaders,
+    });
+    expect(exhaustedQuota.json()).toMatchObject({
+      freeRemaining: 0,
+      rewardedRemaining: 0,
+      premiumRemaining: 0,
+    });
+
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "quota-logout@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const logout = await app.inject({
+      method: "POST",
+      url: "/v1/auth/logout",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+      },
+    });
+    expect(logout.statusCode).toBe(204);
+
+    const anonymousBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: installHeaders,
+    });
+    expect(anonymousBootstrap.statusCode).toBe(200);
+    expect(anonymousBootstrap.json()).toMatchObject({
+      profile: { authMethod: "anonymous" },
+      quota: {
+        freeRemaining: 0,
+        rewardedRemaining: 0,
+        premiumRemaining: 0,
+      },
+    });
+
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { ...installHeaders, "idempotency-key": "quota-prepare-blocked" },
+    });
+    const blocked = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${prepared.json().scanId}/analyze`,
+      headers: { ...installHeaders, "idempotency-key": "quota-analyze-blocked" },
+      payload: {
+        hint: "dal rice",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+
+    expect(blocked.statusCode).toBe(402);
+    expect(blocked.json()).toMatchObject({
+      error: "scan_credit_required",
+      reason: "needs_rewarded_ad",
+      quota: {
+        freeRemaining: 0,
+        rewardedRemaining: 0,
+        premiumRemaining: 0,
+      },
     });
     await app.close();
   });

@@ -12,6 +12,7 @@ import {
   type FoodRecord,
   type MealSummary,
   type PortionUnit,
+  type ScanCreditState,
 } from "@logmyplate/domain";
 import type postgres from "postgres";
 import type { SqlClient } from "../db/client.js";
@@ -95,6 +96,20 @@ const toJsonValue = (value: unknown): postgres.JSONValue =>
 
 const scrypt = promisify(scryptCallback);
 const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
+const lifetimeFreeScanAllowance = 3;
+const lifetimeQuotaDate = "1970-01-01";
+
+type QuotaRow = {
+  free_remaining: number;
+  rewarded_remaining: number;
+  premium_remaining: number;
+};
+
+const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
+  freeRemaining: row.free_remaining,
+  rewardedRemaining: row.rewarded_remaining,
+  premiumRemaining: row.premium_remaining,
+});
 
 export class PostgresStore implements AppRepository {
   constructor(private readonly sql: SqlClient) {}
@@ -330,61 +345,92 @@ export class PostgresStore implements AppRepository {
     return this.foodFromRow(row);
   }
 
-  async getQuota() {
-    const profile = await this.getProfile();
-    const today = localDate();
-    const [row] = await this.sql<
-      { free_remaining: number; rewarded_remaining: number; premium_remaining: number }[]
-    >`
-      insert into scan_credits (profile_id, local_date, free_remaining, rewarded_remaining, premium_remaining)
-      values (${profile.id}, ${today}, 1, 2, 0)
+  private async getOrCreateQuota(profileId: string): Promise<QuotaRow> {
+    const installId = currentRequestIdentity().installId;
+    if (installId) {
+      const [row] = await this.sql<QuotaRow[]>`
+        insert into install_scan_credits (
+          install_id,
+          profile_id,
+          free_remaining,
+          rewarded_remaining,
+          premium_remaining
+        )
+        values (${installId}, ${profileId}, ${lifetimeFreeScanAllowance}, 0, 0)
+        on conflict (install_id) do update
+        set
+          profile_id = excluded.profile_id,
+          last_seen_at = now(),
+          updated_at = now()
+        returning free_remaining, rewarded_remaining, premium_remaining
+      `;
+      return row;
+    }
+
+    const [row] = await this.sql<QuotaRow[]>`
+      insert into scan_credits (
+        profile_id,
+        local_date,
+        free_remaining,
+        rewarded_remaining,
+        premium_remaining
+      )
+      values (${profileId}, ${lifetimeQuotaDate}, ${lifetimeFreeScanAllowance}, 0, 0)
       on conflict (profile_id, local_date) do update
         set updated_at = scan_credits.updated_at
       returning free_remaining, rewarded_remaining, premium_remaining
     `;
+    return row;
+  }
 
-    return {
-      freeRemaining: row.free_remaining,
-      rewardedRemaining: row.rewarded_remaining,
-      premiumRemaining: row.premium_remaining,
-    };
+  async getQuota() {
+    const profile = await this.getProfile();
+    return quotaFromRow(await this.getOrCreateQuota(profile.id));
   }
 
   async consumeCredit(reason: "free" | "rewarded" | "premium") {
     const profile = await this.getProfile();
-    const today = localDate();
     const column =
       reason === "free"
         ? "free_remaining"
         : reason === "rewarded"
           ? "rewarded_remaining"
           : "premium_remaining";
+    const identity = currentRequestIdentity();
+    const today = localDate();
+    await this.getOrCreateQuota(profile.id);
 
-    const rows = await this.sql<
-      { free_remaining: number; rewarded_remaining: number; premium_remaining: number }[]
-    >`
-      update scan_credits
-      set
-        ${this.sql(column)} = ${this.sql(column)} - 1,
-        updated_at = now()
-      where profile_id = ${profile.id}
-        and local_date = ${today}
-        and ${this.sql(column)} > 0
-      returning free_remaining, rewarded_remaining, premium_remaining
-    `;
+    const rows = identity.installId
+      ? await this.sql<QuotaRow[]>`
+          update install_scan_credits
+          set
+            profile_id = ${profile.id},
+            ${this.sql(column)} = ${this.sql(column)} - 1,
+            last_seen_at = now(),
+            updated_at = now()
+          where install_id = ${identity.installId}
+            and ${this.sql(column)} > 0
+          returning free_remaining, rewarded_remaining, premium_remaining
+        `
+      : await this.sql<QuotaRow[]>`
+          update scan_credits
+          set
+            ${this.sql(column)} = ${this.sql(column)} - 1,
+            updated_at = now()
+          where profile_id = ${profile.id}
+            and local_date = ${lifetimeQuotaDate}
+            and ${this.sql(column)} > 0
+          returning free_remaining, rewarded_remaining, premium_remaining
+        `;
 
     if (!rows[0]) throw new Error(`No ${reason} scan credit remaining`);
 
     await this.sql`
-      insert into quota_events (profile_id, event_type, reason, delta, local_date)
-      values (${profile.id}, 'consume', ${reason}, -1, ${today})
+      insert into quota_events (profile_id, event_type, reason, delta, local_date, install_id)
+      values (${profile.id}, 'consume', ${reason}, -1, ${today}, ${identity.installId ?? null})
     `;
 
-    return {
-      freeRemaining: rows[0].free_remaining,
-      rewardedRemaining: rows[0].rewarded_remaining,
-      premiumRemaining: rows[0].premium_remaining,
-    };
+    return quotaFromRow(rows[0]);
   }
 
   async createMeal(input: CreateMealInput) {
@@ -1114,10 +1160,16 @@ export class PostgresStore implements AppRepository {
         where profile_id = ${sourceProfileId}
         on conflict (profile_id, local_date) do update
         set
-          free_remaining = greatest(scan_credits.free_remaining, excluded.free_remaining),
-          rewarded_remaining = greatest(scan_credits.rewarded_remaining, excluded.rewarded_remaining),
+          free_remaining = least(scan_credits.free_remaining, excluded.free_remaining),
+          rewarded_remaining = least(scan_credits.rewarded_remaining, excluded.rewarded_remaining),
           premium_remaining = greatest(scan_credits.premium_remaining, excluded.premium_remaining),
           updated_at = now()
+      `;
+
+      await tx`
+        update install_scan_credits
+        set profile_id = ${targetProfileId}, updated_at = now()
+        where profile_id = ${sourceProfileId}
       `;
 
       await tx`

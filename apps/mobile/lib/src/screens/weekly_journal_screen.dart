@@ -107,7 +107,6 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
   Future<void> _openDay(BuildContext context, JournalDayData day) async {
     await Navigator.of(context).push<void>(
       logmyplatePageRoute<void>(
-        transition: LogMyPlatePageTransition.drillDown,
         builder: (_) => DayJournalDetailScreen(
           day: day,
           onOpenMeal: widget.onOpenMeal,
