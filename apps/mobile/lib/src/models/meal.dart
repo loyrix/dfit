@@ -406,9 +406,20 @@ class JournalRangeData {
     return JournalRangeData(
       startDate: json['startDate'] as String,
       endDate: json['endDate'] as String,
-      days: (json['days'] as List<dynamic>)
+      days: ((json['days'] as List<dynamic>?) ?? const [])
           .map((day) => JournalDayData.fromJson(day as Map<String, dynamic>))
           .toList(),
+      summary: JournalRangeSummary.fromJson(
+        json['summary'] as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  factory JournalRangeData.fromSummaryJson(Map<String, dynamic> json) {
+    return JournalRangeData(
+      startDate: json['startDate'] as String,
+      endDate: json['endDate'] as String,
+      days: const [],
       summary: JournalRangeSummary.fromJson(
         json['summary'] as Map<String, dynamic>,
       ),
@@ -518,9 +529,13 @@ class AppBootstrapData {
       profile: AppProfile.fromJson(json['profile'] as Map<String, dynamic>),
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
       today: TodayJournalData.fromJson(json['today'] as Map<String, dynamic>),
-      weeklyRange: JournalRangeData.fromJson(
-        json['weeklyRange'] as Map<String, dynamic>,
-      ),
+      weeklyRange: json['weeklySummary'] == null
+          ? JournalRangeData.fromJson(
+              json['weeklyRange'] as Map<String, dynamic>,
+            )
+          : JournalRangeData.fromSummaryJson(
+              json['weeklySummary'] as Map<String, dynamic>,
+            ),
     );
   }
 
@@ -530,7 +545,11 @@ class AppBootstrapData {
       'profile': profile.toJson(),
       'quota': quota.toJson(),
       'today': today.toJson(),
-      'weeklyRange': weeklyRange.toJson(),
+      'weeklySummary': {
+        'startDate': weeklyRange.startDate,
+        'endDate': weeklyRange.endDate,
+        'summary': weeklyRange.summary.toJson(),
+      },
     };
   }
 }
@@ -625,6 +644,7 @@ class ScanAnalysis {
     required this.mealName,
     required this.detectedLanguage,
     required this.items,
+    this.imageStored = false,
   });
 
   final String scanId;
@@ -632,6 +652,7 @@ class ScanAnalysis {
   final String mealName;
   final String detectedLanguage;
   final List<MealItem> items;
+  final bool imageStored;
 
   factory ScanAnalysis.fromJson(Map<String, dynamic> json) {
     return ScanAnalysis(
@@ -639,6 +660,7 @@ class ScanAnalysis {
       mealType: MealType.values.byName(json['mealType'] as String),
       mealName: json['mealName'] as String,
       detectedLanguage: json['detectedLanguage'] as String? ?? 'en',
+      imageStored: json['imageStored'] == true,
       items: (json['items'] as List<dynamic>)
           .map(
             (item) => MealItem.fromAnalysisJson(item as Map<String, dynamic>),

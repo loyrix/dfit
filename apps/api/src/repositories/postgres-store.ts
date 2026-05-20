@@ -84,6 +84,18 @@ type MealImageRow = {
   created_at: string;
 };
 
+type DailyMealAggregateRow = {
+  local_date: string;
+  meal_count: number;
+  calories: string | null;
+  protein_g: string | null;
+  carbs_g: string | null;
+  fat_g: string | null;
+  fiber_g: string | null;
+  sugar_g: string | null;
+  sodium_mg: string | null;
+};
+
 type ScanRow = {
   id: string;
   profile_id: string;
@@ -92,6 +104,8 @@ type ScanRow = {
   user_hint: string | null;
   image_mime_type: string | null;
   image_byte_size: number | null;
+  image_bucket: string | null;
+  image_object_key: string | null;
   created_at: string;
   analyzed_response: unknown | null;
 };
@@ -834,6 +848,45 @@ export class PostgresStore implements AppRepository {
     return meals;
   }
 
+  async summarizeMealsByDate(input: ListMealsInput = {}) {
+    const profile = await this.getProfile();
+    const fromDate = input.fromDate ?? null;
+    const toDate = input.toDate ?? null;
+    const rows = await this.sql<DailyMealAggregateRow[]>`
+      select
+        meals.local_date::text,
+        count(distinct meals.id)::int as meal_count,
+        coalesce(sum(nutrition_results.calories), 0)::text as calories,
+        coalesce(sum(nutrition_results.protein_g), 0)::text as protein_g,
+        coalesce(sum(nutrition_results.carbs_g), 0)::text as carbs_g,
+        coalesce(sum(nutrition_results.fat_g), 0)::text as fat_g,
+        coalesce(sum(nutrition_results.fiber_g), 0)::text as fiber_g,
+        coalesce(sum(nutrition_results.sugar_g), 0)::text as sugar_g,
+        coalesce(sum(nutrition_results.sodium_mg), 0)::text as sodium_mg
+      from meals
+      left join nutrition_results on nutrition_results.meal_id = meals.id
+      where meals.profile_id = ${profile.id}
+        and (${fromDate}::date is null or meals.local_date >= ${fromDate})
+        and (${toDate}::date is null or meals.local_date <= ${toDate})
+      group by meals.local_date
+      order by meals.local_date asc
+    `;
+
+    return rows.map((row) => ({
+      date: row.local_date,
+      mealCount: row.meal_count,
+      totals: {
+        calories: Math.round(Number(row.calories ?? 0)),
+        proteinG: Number(row.protein_g ?? 0),
+        carbsG: Number(row.carbs_g ?? 0),
+        fatG: Number(row.fat_g ?? 0),
+        fiberG: Number(row.fiber_g ?? 0),
+        sugarG: Number(row.sugar_g ?? 0),
+        sodiumMg: Math.round(Number(row.sodium_mg ?? 0)),
+      },
+    }));
+  }
+
   async listMealDates() {
     const profile = await this.getProfile();
     const rows = await this.sql<{ date: string }[]>`
@@ -967,6 +1020,8 @@ export class PostgresStore implements AppRepository {
         scan_sessions.user_hint,
         scan_sessions.image_mime_type,
         scan_sessions.image_byte_size,
+        scan_sessions.image_bucket,
+        scan_sessions.image_object_key,
         scan_sessions.created_at::text,
         case
           when ai_predictions.raw_ai_json ? 'analysis'
@@ -998,6 +1053,8 @@ export class PostgresStore implements AppRepository {
           user_hint = coalesce(${scan.userHint ?? null}, user_hint),
           image_mime_type = coalesce(${scan.imageMimeType ?? null}, image_mime_type),
           image_byte_size = coalesce(${scan.imageByteSize ?? null}, image_byte_size),
+          image_bucket = coalesce(${scan.imageBucket ?? null}, image_bucket),
+          image_object_key = coalesce(${scan.imageObjectKey ?? null}, image_object_key),
           updated_at = now()
         where id = ${scan.id}
       `;
@@ -1708,6 +1765,8 @@ export class PostgresStore implements AppRepository {
       userHint: row.user_hint ?? undefined,
       imageMimeType: row.image_mime_type ?? undefined,
       imageByteSize: row.image_byte_size ?? undefined,
+      imageBucket: row.image_bucket ?? undefined,
+      imageObjectKey: row.image_object_key ?? undefined,
       createdAt: row.created_at,
     };
   }

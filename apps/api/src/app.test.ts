@@ -8,14 +8,20 @@ import type {
   MealImageStorage,
   StoredMealImage,
   UploadMealImageInput,
+  UploadScanImageInput,
 } from "./services/meal-image-storage.js";
+import { DisabledMealImageStorage as DisabledStorage } from "./services/meal-image-storage.js";
 import type { MealImageSummary } from "@logmyplate/domain";
 
-const testApp = () => buildApp({ repository: new InMemoryStore() });
+const testApp = () =>
+  buildApp({
+    repository: new InMemoryStore(),
+    mealImageStorage: new DisabledStorage(),
+  });
 
 class TestMealImageStorage implements MealImageStorage {
   readonly enabled = true;
-  readonly uploads: UploadMealImageInput[] = [];
+  readonly uploads: Array<UploadMealImageInput | UploadScanImageInput> = [];
   readonly deletes: MealImageSummary[] = [];
 
   async uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage> {
@@ -23,6 +29,16 @@ class TestMealImageStorage implements MealImageStorage {
     return {
       bucket: "meal-images",
       objectKey: `profiles/${input.profileId}/meals/${input.mealId}/original.jpg`,
+      mimeType: input.mimeType,
+      byteSize: input.bytes.byteLength,
+    };
+  }
+
+  async uploadScanImage(input: UploadScanImageInput): Promise<StoredMealImage> {
+    this.uploads.push(input);
+    return {
+      bucket: "meal-images",
+      objectKey: `profiles/${input.profileId}/scans/${input.scanId}/original.jpg`,
       mimeType: input.mimeType,
       byteSize: input.bytes.byteLength,
     };
@@ -286,7 +302,11 @@ describe("LogMyPlate API", () => {
       },
     });
     expect(analyzed.statusCode).toBe(200);
-    expect(analyzed.json()).toMatchObject({ status: "ready_for_review", mealType: "lunch" });
+    expect(analyzed.json()).toMatchObject({
+      status: "ready_for_review",
+      mealType: "lunch",
+      imageStored: false,
+    });
 
     const analysis = analyzed.json();
     const confirmed = await app.inject({
@@ -356,6 +376,7 @@ describe("LogMyPlate API", () => {
       },
     });
     expect(analyzed.statusCode).toBe(200);
+    expect(analyzed.json()).toMatchObject({ imageStored: true });
 
     const analysis = analyzed.json();
     const confirmed = await app.inject({
@@ -365,11 +386,6 @@ describe("LogMyPlate API", () => {
       payload: {
         mealType: analysis.mealType,
         title: analysis.mealName,
-        image: {
-          mimeType: "image/jpeg",
-          base64: "AQID",
-          byteSize: 3,
-        },
         items: analysis.items.map(
           (item: {
             name: string;
@@ -390,6 +406,7 @@ describe("LogMyPlate API", () => {
 
     expect(confirmed.statusCode).toBe(201);
     expect(mealImageStorage.uploads).toHaveLength(1);
+    expect("scanId" in mealImageStorage.uploads[0]).toBe(true);
     expect(confirmed.json().meal.image).toMatchObject({
       url: expect.stringContaining("https://images.test/profiles/"),
       mimeType: "image/jpeg",
@@ -680,7 +697,7 @@ describe("LogMyPlate API", () => {
         premiumRemaining: 0,
       },
       today: { totals: { calories: 180 } },
-      weeklyRange: {
+      weeklySummary: {
         summary: {
           windowDays: 7,
           activeDays: 1,
@@ -693,6 +710,8 @@ describe("LogMyPlate API", () => {
       id: created.json().id,
       title: "Dal rice",
     });
+    expect(bootstrap.json().weeklyRange).toBeUndefined();
+    expect(bootstrap.json().weeklySummary.days).toBeUndefined();
     await app.close();
   });
 
@@ -1288,7 +1307,11 @@ describe("LogMyPlate API", () => {
       },
     };
     const repository = new InMemoryStore();
-    const app = await buildApp({ repository, aiProvider });
+    const app = await buildApp({
+      repository,
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
     const prepared = await app.inject({
       method: "POST",
       url: "/v1/scans/prepare",

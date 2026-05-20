@@ -15,11 +15,19 @@ export type UploadMealImageInput = {
   mimeType: MealImageSummary["mimeType"];
 };
 
+export type UploadScanImageInput = {
+  profileId: string;
+  scanId: string;
+  bytes: Buffer;
+  mimeType: MealImageSummary["mimeType"];
+};
+
 export type StoredMealImage = Omit<MealImageSummary, "imageId" | "createdAt">;
 
 export interface MealImageStorage {
   readonly enabled: boolean;
   uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage>;
+  uploadScanImage(input: UploadScanImageInput): Promise<StoredMealImage>;
   createSignedReadUrl(image: MealImageSummary): Promise<string | undefined>;
   deleteMealImage(image: MealImageSummary): Promise<void>;
 }
@@ -28,6 +36,10 @@ export class DisabledMealImageStorage implements MealImageStorage {
   readonly enabled = false;
 
   async uploadMealImage(): Promise<StoredMealImage> {
+    throw new Error("Meal image storage is not configured.");
+  }
+
+  async uploadScanImage(): Promise<StoredMealImage> {
     throw new Error("Meal image storage is not configured.");
   }
 
@@ -66,15 +78,19 @@ export class S3MealImageStorage implements MealImageStorage {
 
   async uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage> {
     const objectKey = mealImageObjectKey(input);
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: objectKey,
-        Body: input.bytes,
-        ContentType: input.mimeType,
-        CacheControl: "private, max-age=31536000, immutable",
-      }),
-    );
+    await this.uploadImageObject(objectKey, input.bytes, input.mimeType);
+
+    return {
+      bucket: this.bucket,
+      objectKey,
+      mimeType: input.mimeType,
+      byteSize: input.bytes.byteLength,
+    };
+  }
+
+  async uploadScanImage(input: UploadScanImageInput): Promise<StoredMealImage> {
+    const objectKey = scanImageObjectKey(input);
+    await this.uploadImageObject(objectKey, input.bytes, input.mimeType);
 
     return {
       bucket: this.bucket,
@@ -103,6 +119,22 @@ export class S3MealImageStorage implements MealImageStorage {
       }),
     );
   }
+
+  private async uploadImageObject(
+    objectKey: string,
+    bytes: Buffer,
+    mimeType: MealImageSummary["mimeType"],
+  ): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+        Body: bytes,
+        ContentType: mimeType,
+        CacheControl: "private, max-age=31536000, immutable",
+      }),
+    );
+  }
 }
 
 export const createMealImageStorage = (config: ApiConfig): MealImageStorage => {
@@ -124,4 +156,10 @@ const mealImageObjectKey = (input: UploadMealImageInput): string => {
   const extension =
     input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
   return `profiles/${input.profileId}/meals/${input.mealId}/original.${extension}`;
+};
+
+const scanImageObjectKey = (input: UploadScanImageInput): string => {
+  const extension =
+    input.mimeType === "image/png" ? "png" : input.mimeType === "image/webp" ? "webp" : "jpg";
+  return `profiles/${input.profileId}/scans/${input.scanId}/original.${extension}`;
 };

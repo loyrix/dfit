@@ -6,6 +6,7 @@ import {
   rewardedAdsPerScan,
   rewardedDailyScanLimit,
   searchFoods,
+  sumTotals,
   type MealSummary,
   type ScanCreditState,
 } from "@logmyplate/domain";
@@ -247,6 +248,23 @@ export class InMemoryStore implements AppRepository {
       })
       .sort((a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime())
       .slice(0, input.limit ?? 100);
+  }
+
+  async summarizeMealsByDate(input: ListMealsInput = {}) {
+    const meals = await this.listMeals(input);
+    const mealsByDate = new Map<string, MealSummary[]>();
+    for (const meal of meals) {
+      const date = meal.loggedAt.slice(0, 10);
+      mealsByDate.set(date, [...(mealsByDate.get(date) ?? []), meal]);
+    }
+
+    return [...mealsByDate.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([date, dayMeals]) => ({
+        date,
+        mealCount: dayMeals.length,
+        totals: sumTotals(dayMeals.map((meal) => meal.totals)),
+      }));
   }
 
   async listMealDates() {

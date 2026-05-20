@@ -11,6 +11,7 @@ import {
   buildTodayJournal,
   toApiMeal,
 } from "./journal-presenter.js";
+import { createRouteTimer } from "./route-timing.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 import type { CreateMealInput } from "../repositories/app-repository.js";
 
@@ -63,6 +64,7 @@ export const registerJournalRoutes = async (
   });
 
   app.post("/v1/meals", async (request, reply) => {
+    const timer = createRouteTimer();
     const parsed = createMealRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({
@@ -71,29 +73,45 @@ export const registerJournalRoutes = async (
       });
     }
 
-    const items = await normalizeMealItems(
-      repository,
-      parsed.data.items.map((item) => ({
-        foodId: item.foodId,
-        displayName: item.displayName,
-        portion: {
-          quantity: item.quantity,
-          unit: item.unit,
-          grams: item.grams,
-        },
-        nutrition: item.nutrition,
-      })),
+    const items = await timer.measure("normalizeItems", () =>
+      normalizeMealItems(
+        repository,
+        parsed.data.items.map((item) => ({
+          foodId: item.foodId,
+          displayName: item.displayName,
+          portion: {
+            quantity: item.quantity,
+            unit: item.unit,
+            grams: item.grams,
+          },
+          nutrition: item.nutrition,
+        })),
+      ),
     );
 
-    const meal = await repository.createMeal({
-      mealType: parsed.data.mealType,
-      title: parsed.data.title,
-      loggedAt: parsed.data.loggedAt,
-      items,
-    });
+    const meal = await timer.measure("dbCreateMeal", () =>
+      repository.createMeal({
+        mealType: parsed.data.mealType,
+        title: parsed.data.title,
+        loggedAt: parsed.data.loggedAt,
+        items,
+      }),
+    );
 
-    const profile = await repository.getProfile();
-    return reply.status(201).send(await toApiMeal(profile.id, meal, mealImageStorage));
+    const profile = await timer.measure("profile", () => repository.getProfile());
+    const response = await timer.measure("hydrateMeal", () =>
+      toApiMeal(profile.id, meal, mealImageStorage),
+    );
+    request.log.info(
+      {
+        route: "/v1/meals",
+        mealId: meal.mealId,
+        itemCount: items.length,
+        timings: timer.snapshot(),
+      },
+      "meal create timings",
+    );
+    return reply.status(201).send(response);
   });
 
   app.get("/v1/meals/:id", async (request, reply) => {
@@ -105,6 +123,7 @@ export const registerJournalRoutes = async (
   });
 
   app.patch("/v1/meals/:id", async (request, reply) => {
+    const timer = createRouteTimer();
     const params = request.params as { id: string };
     const parsed = updateMealRequestSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -114,29 +133,45 @@ export const registerJournalRoutes = async (
       });
     }
 
-    const items = await normalizeMealItems(
-      repository,
-      parsed.data.items.map((item) => ({
-        foodId: item.foodId,
-        displayName: item.displayName,
-        portion: {
-          quantity: item.quantity,
-          unit: item.unit,
-          grams: item.grams,
-        },
-        nutrition: item.nutrition,
-      })),
+    const items = await timer.measure("normalizeItems", () =>
+      normalizeMealItems(
+        repository,
+        parsed.data.items.map((item) => ({
+          foodId: item.foodId,
+          displayName: item.displayName,
+          portion: {
+            quantity: item.quantity,
+            unit: item.unit,
+            grams: item.grams,
+          },
+          nutrition: item.nutrition,
+        })),
+      ),
     );
 
-    const meal = await repository.updateMeal(params.id, {
-      mealType: parsed.data.mealType,
-      title: parsed.data.title,
-      items,
-    });
+    const meal = await timer.measure("dbUpdateMeal", () =>
+      repository.updateMeal(params.id, {
+        mealType: parsed.data.mealType,
+        title: parsed.data.title,
+        items,
+      }),
+    );
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
 
-    const profile = await repository.getProfile();
-    return toApiMeal(profile.id, meal, mealImageStorage);
+    const profile = await timer.measure("profile", () => repository.getProfile());
+    const response = await timer.measure("hydrateMeal", () =>
+      toApiMeal(profile.id, meal, mealImageStorage),
+    );
+    request.log.info(
+      {
+        route: "/v1/meals/:id",
+        mealId: meal.mealId,
+        itemCount: items.length,
+        timings: timer.snapshot(),
+      },
+      "meal update timings",
+    );
+    return response;
   });
 
   app.delete("/v1/meals/:id", async (request, reply) => {

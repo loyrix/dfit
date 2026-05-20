@@ -1,6 +1,7 @@
 import type {
   FoodRecord,
   FoodSearchResult,
+  MacroTotals,
   MealImageSummary,
   MealItemNutrition,
   MealSummary,
@@ -44,6 +45,8 @@ export type ScanSession = {
   userHint?: string;
   imageMimeType?: string;
   imageByteSize?: number;
+  imageBucket?: string;
+  imageObjectKey?: string;
   createdAt: string;
 };
 
@@ -101,6 +104,12 @@ export type ListMealsInput = {
   limit?: number;
 };
 
+export type DailyMealAggregate = {
+  date: string;
+  mealCount: number;
+  totals: MacroTotals;
+};
+
 export interface AppRepository {
   getProfile(): Promise<Profile>;
   signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
@@ -115,6 +124,7 @@ export interface AppRepository {
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
   updateMeal(mealId: string, input: UpdateMealInput): Promise<MealSummary | undefined>;
   listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
+  summarizeMealsByDate(input?: ListMealsInput): Promise<DailyMealAggregate[]>;
   listMealDates(): Promise<string[]>;
   getMeal(mealId: string): Promise<MealSummary | undefined>;
   getMealDeletionPlan(mealId: string): Promise<MealDeletionPlan | undefined>;

@@ -92,6 +92,7 @@ void main() {
             'mealType': 'lunch',
             'mealName': 'Dal rice',
             'detectedLanguage': 'en-IN',
+            'imageStored': true,
             'totals': {
               'calories': 390,
               'proteinG': 15,
@@ -137,6 +138,7 @@ void main() {
     expect(prepared.scanId, 'scan_1');
     expect(prepared.quota.freeRemaining, 3);
     expect(analysis.mealType, MealType.lunch);
+    expect(analysis.imageStored, isTrue);
     expect(analysis.items.single.name, 'Dal');
     expect(jsonDecode(requests.last.body) as Map<String, dynamic>, {
       'hint': 'dal rice roti',
@@ -274,11 +276,10 @@ void main() {
                 },
               ],
             },
-            'weeklyRange': {
+            'weeklySummary': {
               'startDate': '2026-05-06',
               'endDate': '2026-05-12',
               'timezone': 'Asia/Kolkata',
-              'days': [],
               'summary': {
                 'windowDays': 7,
                 'activeDays': 1,
@@ -542,6 +543,7 @@ void main() {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['mealType'], 'lunch');
         expect((body['items'] as List<dynamic>).single['estimatedGrams'], 180);
+        expect(body.containsKey('image'), isFalse);
 
         return http.Response(
           jsonEncode({

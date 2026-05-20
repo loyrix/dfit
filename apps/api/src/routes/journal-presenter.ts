@@ -144,6 +144,46 @@ export const buildJournalRange = async (
   };
 };
 
+export const buildJournalSummary = async (
+  repository: AppRepository,
+  profile: Profile,
+  daysCount: number,
+  weekOffset = 0,
+) => {
+  const endDate = addDays(new Date(), -(weekOffset * 7));
+  const dates = dateWindow(daysCount, endDate);
+  const aggregates = await repository.summarizeMealsByDate({
+    fromDate: dates[0],
+    toDate: dates[dates.length - 1],
+  });
+  const aggregatesByDate = new Map(aggregates.map((day) => [day.date, day]));
+
+  const dayTotals = dates.map((date) => {
+    const aggregate = aggregatesByDate.get(date);
+    return {
+      date,
+      mealCount: aggregate?.mealCount ?? 0,
+      totals: aggregate?.totals ?? sumTotals([]),
+    };
+  });
+  const totals = sumTotals(dayTotals.map((day) => day.totals));
+  const activeDays = dayTotals.filter((day) => day.mealCount > 0).length;
+
+  return {
+    startDate: dates[0],
+    endDate: dates[dates.length - 1],
+    timezone: profile.timezone,
+    summary: {
+      windowDays: daysCount,
+      activeDays,
+      mealCount: aggregates.reduce((total, day) => total + day.mealCount, 0),
+      totals,
+      trackedDayAverage: dailyAverage(totals, activeDays || 1),
+      calendarDayAverage: dailyAverage(totals, daysCount),
+    },
+  };
+};
+
 export const buildJournalWeeks = async (repository: AppRepository, daysCount = 7) => {
   const today = dateOnly(new Date());
   const mealDates = await repository.listMealDates();

@@ -242,7 +242,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                               title: analysis.mealName,
                               type: type,
                               items: items,
-                              photo: photo,
+                              photo: analysis.imageStored ? null : photo,
                             );
                           },
                         ),
@@ -521,8 +521,20 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _openWeeklyJournal() async {
-    final range = _journalController.weeklyRange;
-    if (range == null) return;
+    final summary = _journalController.weeklyRange;
+    if (summary == null) return;
+
+    late final JournalRangeData range;
+    try {
+      range = await _journalController.loadWeeklyRange(0);
+    } catch (_) {
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.error,
+        title: 'Journal unavailable',
+        message: 'Could not load the weekly journal. Pull to retry.',
+      );
+      return;
+    }
 
     await _navigatorKey.currentState!.push<void>(
       logmyplatePageRoute<void>(

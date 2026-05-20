@@ -58,6 +58,7 @@ export const analyzeScanResponseSchema = z.object({
   mealType: mealTypeSchema,
   mealName: z.string().min(1),
   detectedLanguage: z.string().default("en"),
+  imageStored: z.boolean().optional(),
   items: z.array(analyzedMealItemSchema),
   totals: macroTotalsSchema,
 });

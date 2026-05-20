@@ -4,8 +4,32 @@ import { decideScanQuota } from "@logmyplate/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";
-import type { MealImageStorage } from "../services/meal-image-storage.js";
+import type { MealImageStorage, StoredMealImage } from "../services/meal-image-storage.js";
 import { toApiMeal } from "./journal-presenter.js";
+import { createRouteTimer } from "./route-timing.js";
+
+const isStoredImageMimeType = (value: string | undefined): value is StoredMealImage["mimeType"] =>
+  value === "image/jpeg" || value === "image/png" || value === "image/webp";
+
+const imageFromScan = (
+  scan: Awaited<ReturnType<AppRepository["getScan"]>>,
+): StoredMealImage | undefined => {
+  if (
+    !scan?.imageBucket ||
+    !scan.imageObjectKey ||
+    !isStoredImageMimeType(scan.imageMimeType) ||
+    !scan.imageByteSize
+  ) {
+    return undefined;
+  }
+
+  return {
+    bucket: scan.imageBucket,
+    objectKey: scan.imageObjectKey,
+    mimeType: scan.imageMimeType,
+    byteSize: scan.imageByteSize,
+  };
+};
 
 export const registerScanRoutes = async (
   app: FastifyInstance,
@@ -25,10 +49,25 @@ export const registerScanRoutes = async (
   });
 
   app.post("/v1/scans/:id/analyze", async (request, reply) => {
+    const timer = createRouteTimer();
     const params = request.params as { id: string };
-    const scan = await repository.getScan(params.id);
+    const scan = await timer.measure("getScan", () => repository.getScan(params.id));
     if (!scan) return reply.status(404).send({ error: "scan_not_found" });
-    if (scan.analyzedResponse) return scan.analyzedResponse;
+    if (scan.analyzedResponse) {
+      request.log.info(
+        {
+          route: "/v1/scans/:id/analyze",
+          scanId: scan.id,
+          timings: timer.snapshot(),
+          cached: true,
+        },
+        "scan analyze timings",
+      );
+      return {
+        ...(scan.analyzedResponse as Record<string, unknown>),
+        imageStored: Boolean(imageFromScan(scan)),
+      };
+    }
 
     const parsed = analyzeScanRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
@@ -38,12 +77,21 @@ export const registerScanRoutes = async (
       });
     }
 
-    const decision = decideScanQuota(await repository.getQuota());
+    const image = parsed.data.image;
+    const imageBytes = image
+      ? await timer.measure("decodeImage", async () => Buffer.from(image.base64, "base64"))
+      : undefined;
+    if (image && imageBytes?.byteLength !== image.byteSize) {
+      return reply.status(400).send({ error: "scan_image_size_mismatch" });
+    }
+
+    const quota = await timer.measure("quota", () => repository.getQuota());
+    const decision = decideScanQuota(quota);
     if (!decision.allowed) {
       return reply.status(402).send({
         error: "scan_credit_required",
         reason: decision.reason,
-        quota: await repository.getQuota(),
+        quota,
       });
     }
 
@@ -52,23 +100,27 @@ export const registerScanRoutes = async (
       ...scan,
       status: "analyzing" as const,
       userHint,
-      imageMimeType: parsed.data.image?.mimeType,
-      imageByteSize: parsed.data.image?.byteSize,
+      imageMimeType: image?.mimeType,
+      imageByteSize: image?.byteSize,
     };
-    await repository.updateScan(scanWithRequestContext);
+    await timer.measure("scanMarkAnalyzing", () => repository.updateScan(scanWithRequestContext));
 
     let analyzedResult;
     try {
-      analyzedResult = await aiProvider.analyzeMealImage({
-        scanId: scan.id,
-        userHint,
-        image: parsed.data.image,
-      });
+      analyzedResult = await timer.measure("aiAnalyze", () =>
+        aiProvider.analyzeMealImage({
+          scanId: scan.id,
+          userHint,
+          image,
+        }),
+      );
     } catch (error) {
-      await repository.updateScan({
-        ...scanWithRequestContext,
-        status: "failed",
-      });
+      await timer.measure("scanMarkFailed", () =>
+        repository.updateScan({
+          ...scanWithRequestContext,
+          status: "failed",
+        }),
+      );
 
       if (error instanceof AiProviderError) {
         return reply.status(error.statusCode).send({
@@ -85,22 +137,59 @@ export const registerScanRoutes = async (
       });
     }
 
-    await repository.consumeCredit(decision.reason);
+    await timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason));
 
-    await repository.updateScan({
-      ...scanWithRequestContext,
-      status: "ready_for_review",
-      creditReason: decision.reason,
-      analyzedResponse: analyzedResult.analysis,
-      aiProviderRun: analyzedResult.providerRun,
-    });
+    let storedScanImage: StoredMealImage | undefined;
+    if (image && imageBytes && mealImageStorage.enabled) {
+      try {
+        storedScanImage = await timer.measure("scanImageUpload", () =>
+          mealImageStorage.uploadScanImage({
+            profileId: scan.profileId,
+            scanId: scan.id,
+            bytes: imageBytes,
+            mimeType: image.mimeType,
+          }),
+        );
+      } catch (error) {
+        request.log.error({ err: error, scanId: scan.id }, "scan image upload failed");
+      }
+    }
 
-    return analyzedResult.analysis;
+    await timer.measure("scanMarkReady", () =>
+      repository.updateScan({
+        ...scanWithRequestContext,
+        status: "ready_for_review",
+        creditReason: decision.reason,
+        analyzedResponse: analyzedResult.analysis,
+        aiProviderRun: analyzedResult.providerRun,
+        imageBucket: storedScanImage?.bucket,
+        imageObjectKey: storedScanImage?.objectKey,
+      }),
+    );
+
+    const response = {
+      ...analyzedResult.analysis,
+      imageStored: Boolean(storedScanImage),
+    };
+
+    request.log.info(
+      {
+        route: "/v1/scans/:id/analyze",
+        scanId: scan.id,
+        hasImage: Boolean(image),
+        storedImage: Boolean(storedScanImage),
+        timings: timer.snapshot(),
+      },
+      "scan analyze timings",
+    );
+
+    return response;
   });
 
   app.post("/v1/scans/:id/confirm", async (request, reply) => {
+    const timer = createRouteTimer();
     const params = request.params as { id: string };
-    const scan = await repository.getScan(params.id);
+    const scan = await timer.measure("getScan", () => repository.getScan(params.id));
     if (!scan) return reply.status(404).send({ error: "scan_not_found" });
 
     const parsed = confirmScanRequestSchema.safeParse(request.body);
@@ -112,37 +201,44 @@ export const registerScanRoutes = async (
     }
 
     const image = parsed.data.image;
-    const imageBytes = image ? Buffer.from(image.base64, "base64") : undefined;
-    if (image && imageBytes?.byteLength !== image.byteSize) {
-      return reply.status(400).send({ error: "scan_image_size_mismatch" });
-    }
+    const storedScanImage = imageFromScan(scan);
 
-    let meal = await repository.createMeal({
-      profileId: scan.profileId,
-      mealType: parsed.data.mealType,
-      title: parsed.data.title,
-      source: "ai_scan",
-      scanSessionId: scan.id,
-      items: parsed.data.items.map((item) => ({
-        displayName: item.name,
-        portion: {
-          quantity: item.quantity,
-          unit: item.unit,
-          grams: item.estimatedGrams,
-        },
-        nutrition: item.nutrition,
-      })),
-    });
+    let meal = await timer.measure("dbCreateMeal", () =>
+      repository.createMeal({
+        profileId: scan.profileId,
+        mealType: parsed.data.mealType,
+        title: parsed.data.title,
+        source: "ai_scan",
+        scanSessionId: scan.id,
+        items: parsed.data.items.map((item) => ({
+          displayName: item.name,
+          portion: {
+            quantity: item.quantity,
+            unit: item.unit,
+            grams: item.estimatedGrams,
+          },
+          nutrition: item.nutrition,
+        })),
+      }),
+    );
 
-    if (image && imageBytes && mealImageStorage.enabled) {
+    let imageToAttach = storedScanImage;
+    if (!imageToAttach && image && mealImageStorage.enabled) {
+      const imageBytes = await timer.measure("decodeImage", async () =>
+        Buffer.from(image.base64, "base64"),
+      );
+      if (imageBytes.byteLength !== image.byteSize) {
+        return reply.status(400).send({ error: "scan_image_size_mismatch" });
+      }
       try {
-        const storedImage = await mealImageStorage.uploadMealImage({
-          profileId: scan.profileId,
-          mealId: meal.mealId,
-          bytes: imageBytes,
-          mimeType: image.mimeType,
-        });
-        meal = (await repository.attachMealImage(meal.mealId, storedImage)) ?? meal;
+        imageToAttach = await timer.measure("imageUpload", () =>
+          mealImageStorage.uploadMealImage({
+            profileId: scan.profileId,
+            mealId: meal.mealId,
+            bytes: imageBytes,
+            mimeType: image.mimeType,
+          }),
+        );
       } catch (error) {
         request.log.error(
           { err: error, mealId: meal.mealId, scanId: scan.id },
@@ -151,12 +247,37 @@ export const registerScanRoutes = async (
       }
     }
 
-    await repository.updateScan({ ...scan, status: "confirmed" });
+    if (imageToAttach) {
+      meal =
+        (await timer.measure("imageAttach", () =>
+          repository.attachMealImage(meal.mealId, imageToAttach),
+        )) ?? meal;
+    }
+
+    await timer.measure("scanMarkConfirmed", () =>
+      repository.updateScan({ ...scan, status: "confirmed" }),
+    );
+
+    const responseMeal = await timer.measure("hydrateMeal", () =>
+      toApiMeal(scan.profileId, meal, mealImageStorage),
+    );
+
+    request.log.info(
+      {
+        route: "/v1/scans/:id/confirm",
+        scanId: scan.id,
+        mealId: meal.mealId,
+        attachedStoredScanImage: Boolean(storedScanImage),
+        attachedImage: Boolean(imageToAttach),
+        timings: timer.snapshot(),
+      },
+      "scan confirm timings",
+    );
 
     return reply.status(201).send({
       mealId: meal.mealId,
       totals: meal.totals,
-      meal: await toApiMeal(scan.profileId, meal, mealImageStorage),
+      meal: responseMeal,
     });
   });
 };
