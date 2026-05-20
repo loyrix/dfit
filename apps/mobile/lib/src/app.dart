@@ -56,7 +56,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
-  bool _forcingAnonymousLanding = false;
 
   @override
   void initState() {
@@ -97,6 +96,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   Future<void> _initializeApp() async {
     await _loadLocalPreferences();
     await _authController.load();
+    if (_authController.isSignedIn && !_hasSeenWelcome) {
+      await _markWelcomeSeen();
+    }
     await _journalController.loadToday();
     _handleAccessStateChanged();
   }
@@ -175,16 +177,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
   }
 
-  Future<void> _markWelcomeUnseen() async {
-    if (mounted) setState(() => _hasSeenWelcome = false);
-    try {
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setBool(_hasSeenWelcomeKey, false);
-    } catch (_) {
-      // The in-memory state still routes this session back to the landing page.
-    }
-  }
-
   Future<void> _startFromWelcome() async {
     await _journalController.refreshQuota();
 
@@ -204,21 +196,14 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   void _handleAccessStateChanged() {
-    final quota = _journalController.quota;
     if (!_welcomeStateLoaded ||
-        !_hasSeenWelcome ||
-        _authController.isSignedIn ||
-        quota == null ||
-        quota.totalRemaining > 0 ||
-        _forcingAnonymousLanding) {
+        !_authController.isSignedIn ||
+        _hasSeenWelcome) {
       return;
     }
 
-    _forcingAnonymousLanding = true;
     Future<void>(() async {
-      await _markWelcomeUnseen();
-      _navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      _forcingAnonymousLanding = false;
+      await _markWelcomeSeen();
     });
   }
 
@@ -425,6 +410,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
     final session = await _openAccountGate(reason);
     if (session != null) {
+      await _markWelcomeSeen();
+      _journalController.resetForAccountChange();
       _navigatorKey.currentState!.popUntil((route) => route.isFirst);
       await _journalController.loadToday();
     }
@@ -473,7 +460,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
               session: currentSession,
               onSignOut: () async {
                 await _authController.signOut();
-                await _markWelcomeUnseen();
+                await _markWelcomeSeen();
+                _journalController.resetForAccountChange();
                 _navigatorKey.currentState?.popUntil((route) => route.isFirst);
                 await _journalController.loadToday();
                 return false;

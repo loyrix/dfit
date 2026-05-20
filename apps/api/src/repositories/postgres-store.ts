@@ -246,6 +246,7 @@ export class PostgresStore implements AppRepository {
     });
 
     await this.attachInstallToProfile(profile.id);
+    await this.transferCurrentInstallQuotaToProfile(profile.id);
     return this.createSession(profile.id);
   }
 
@@ -275,6 +276,7 @@ export class PostgresStore implements AppRepository {
     }
 
     await this.attachInstallToProfile(credential.profile_id);
+    await this.transferCurrentInstallQuotaToProfile(credential.profile_id);
     return this.createSession(credential.profile_id);
   }
 
@@ -355,9 +357,10 @@ export class PostgresStore implements AppRepository {
     return this.foodFromRow(row);
   }
 
-  private async getOrCreateQuota(profileId: string): Promise<QuotaRow> {
+  private async getOrCreateQuota(profile: Profile): Promise<QuotaRow> {
     const installId = currentRequestIdentity().installId;
-    if (installId) {
+    if (this.usesInstallQuota(profile)) {
+      if (!installId) throw new Error("install quota requires an install id");
       const [row] = await this.sql<QuotaRow[]>`
         insert into install_scan_credits (
           install_id,
@@ -366,7 +369,7 @@ export class PostgresStore implements AppRepository {
           rewarded_remaining,
           premium_remaining
         )
-        values (${installId}, ${profileId}, ${lifetimeFreeScanAllowance}, 0, 0)
+        values (${installId}, ${profile.id}, ${lifetimeFreeScanAllowance}, 0, 0)
         on conflict (install_id) do update
         set
           profile_id = excluded.profile_id,
@@ -385,7 +388,21 @@ export class PostgresStore implements AppRepository {
         rewarded_remaining,
         premium_remaining
       )
-      values (${profileId}, ${lifetimeQuotaDate}, ${lifetimeFreeScanAllowance}, 0, 0)
+      select
+        ${profile.id},
+        ${lifetimeQuotaDate},
+        greatest(
+          0,
+          ${lifetimeFreeScanAllowance} - count(quota_events.id) filter (
+            where quota_events.event_type = 'consume'
+              and quota_events.reason = 'free'
+          )::integer
+        ),
+        0,
+        0
+      from profiles
+      left join quota_events on quota_events.profile_id = profiles.id
+      where profiles.id = ${profile.id}
       on conflict (profile_id, local_date) do update
         set updated_at = scan_credits.updated_at
       returning free_remaining, rewarded_remaining, premium_remaining
@@ -395,7 +412,7 @@ export class PostgresStore implements AppRepository {
 
   async getQuota() {
     const profile = await this.getProfile();
-    return quotaFromRow(await this.getOrCreateQuota(profile.id));
+    return quotaFromRow(await this.getOrCreateQuota(profile));
   }
 
   async consumeCredit(reason: "free" | "rewarded" | "premium") {
@@ -408,10 +425,13 @@ export class PostgresStore implements AppRepository {
           : "premium_remaining";
     const identity = currentRequestIdentity();
     const today = localDate();
-    await this.getOrCreateQuota(profile.id);
+    const useInstallQuota = this.usesInstallQuota(profile);
+    await this.getOrCreateQuota(profile);
 
-    const rows = identity.installId
-      ? await this.sql<QuotaRow[]>`
+    let rows: QuotaRow[];
+    if (useInstallQuota) {
+      if (!identity.installId) throw new Error("install quota requires an install id");
+      rows = await this.sql<QuotaRow[]>`
           update install_scan_credits
           set
             profile_id = ${profile.id},
@@ -421,8 +441,9 @@ export class PostgresStore implements AppRepository {
           where install_id = ${identity.installId}
             and ${this.sql(column)} > 0
           returning free_remaining, rewarded_remaining, premium_remaining
-        `
-      : await this.sql<QuotaRow[]>`
+        `;
+    } else {
+      rows = await this.sql<QuotaRow[]>`
           update scan_credits
           set
             ${this.sql(column)} = ${this.sql(column)} - 1,
@@ -432,6 +453,7 @@ export class PostgresStore implements AppRepository {
             and ${this.sql(column)} > 0
           returning free_remaining, rewarded_remaining, premium_remaining
         `;
+    }
 
     if (!rows[0]) throw new Error(`No ${reason} scan credit remaining`);
 
@@ -447,8 +469,9 @@ export class PostgresStore implements AppRepository {
     const profile = await this.getProfile();
     const identity = currentRequestIdentity();
     const today = localDate();
-    const ownerKey = this.quotaOwnerKey(profile.id);
-    await this.getOrCreateQuota(profile.id);
+    const ownerKey = this.quotaOwnerKey(profile);
+    const useInstallQuota = this.usesInstallQuota(profile);
+    await this.getOrCreateQuota(profile);
 
     return this.sql.begin(async (tx) => {
       const eventRows = await tx<{ id: string }[]>`
@@ -541,8 +564,10 @@ export class PostgresStore implements AppRepository {
           returning completed_ads, granted_scans
         `;
 
-        const quotaRows = identity.installId
-          ? await tx<QuotaRow[]>`
+        let quotaRows: QuotaRow[];
+        if (useInstallQuota) {
+          if (!identity.installId) throw new Error("install quota requires an install id");
+          quotaRows = await tx<QuotaRow[]>`
               update install_scan_credits
               set
                 profile_id = ${profile.id},
@@ -551,8 +576,9 @@ export class PostgresStore implements AppRepository {
                 updated_at = now()
               where install_id = ${identity.installId}
               returning free_remaining, rewarded_remaining, premium_remaining
-            `
-          : await tx<QuotaRow[]>`
+            `;
+        } else {
+          quotaRows = await tx<QuotaRow[]>`
               update scan_credits
               set
                 rewarded_remaining = rewarded_remaining + ${scanGrant},
@@ -561,6 +587,7 @@ export class PostgresStore implements AppRepository {
                 and local_date = ${lifetimeQuotaDate}
               returning free_remaining, rewarded_remaining, premium_remaining
             `;
+        }
         quotaRow = quotaRows[0];
 
         await tx`
@@ -568,20 +595,24 @@ export class PostgresStore implements AppRepository {
           values (${profile.id}, 'grant', 'rewarded', ${scanGrant}, ${today}, ${identity.installId ?? null})
         `;
       } else {
-        const quotaRows = identity.installId
-          ? await tx<QuotaRow[]>`
+        let quotaRows: QuotaRow[];
+        if (useInstallQuota) {
+          if (!identity.installId) throw new Error("install quota requires an install id");
+          quotaRows = await tx<QuotaRow[]>`
               select free_remaining, rewarded_remaining, premium_remaining
               from install_scan_credits
               where install_id = ${identity.installId}
               limit 1
-            `
-          : await tx<QuotaRow[]>`
+            `;
+        } else {
+          quotaRows = await tx<QuotaRow[]>`
               select free_remaining, rewarded_remaining, premium_remaining
               from scan_credits
               where profile_id = ${profile.id}
                 and local_date = ${lifetimeQuotaDate}
               limit 1
             `;
+        }
         quotaRow = quotaRows[0];
       }
 
@@ -1215,9 +1246,13 @@ export class PostgresStore implements AppRepository {
     return profile;
   }
 
-  private quotaOwnerKey(profileId: string): string {
+  private usesInstallQuota(profile: Profile): boolean {
+    return profile.authMethod === "anonymous" && Boolean(currentRequestIdentity().installId);
+  }
+
+  private quotaOwnerKey(profile: Profile): string {
     const installId = currentRequestIdentity().installId;
-    return installId ? `install:${installId}` : `profile:${profileId}`;
+    return this.usesInstallQuota(profile) ? `install:${installId}` : `profile:${profile.id}`;
   }
 
   private async attachInstallToProfile(profileId: string): Promise<void> {
@@ -1298,6 +1333,87 @@ export class PostgresStore implements AppRepository {
           region = excluded.region,
           timezone = excluded.timezone,
           last_seen_at = now()
+      `;
+
+      await tx`
+        insert into install_scan_credits (
+          install_id,
+          profile_id,
+          free_remaining,
+          rewarded_remaining,
+          premium_remaining
+        )
+        values (${installId}, ${profile.id}, ${lifetimeFreeScanAllowance}, 0, 0)
+        on conflict (install_id) do update
+        set
+          profile_id = excluded.profile_id,
+          rewarded_remaining = 0,
+          premium_remaining = 0,
+          last_seen_at = now(),
+          updated_at = now()
+      `;
+    });
+  }
+
+  private async transferCurrentInstallQuotaToProfile(profileId: string): Promise<void> {
+    const installId = currentRequestIdentity().installId;
+    if (!installId) return;
+
+    await this.sql.begin(async (tx) => {
+      const [installQuota] = await tx<QuotaRow[]>`
+        select free_remaining, rewarded_remaining, premium_remaining
+        from install_scan_credits
+        where install_id = ${installId}
+        for update
+      `;
+
+      if (installQuota) {
+        await tx`
+          insert into scan_credits (
+            profile_id,
+            local_date,
+            free_remaining,
+            rewarded_remaining,
+            premium_remaining
+          )
+          values (
+            ${profileId},
+            ${lifetimeQuotaDate},
+            ${installQuota.free_remaining},
+            ${installQuota.rewarded_remaining},
+            ${installQuota.premium_remaining}
+          )
+          on conflict (profile_id, local_date) do update
+          set
+            free_remaining = least(scan_credits.free_remaining, excluded.free_remaining),
+            rewarded_remaining = scan_credits.rewarded_remaining + excluded.rewarded_remaining,
+            premium_remaining = greatest(scan_credits.premium_remaining, excluded.premium_remaining),
+            updated_at = now()
+        `;
+
+        await tx`
+          update install_scan_credits
+          set
+            profile_id = null,
+            free_remaining = 0,
+            rewarded_remaining = 0,
+            premium_remaining = 0,
+            updated_at = now()
+          where install_id = ${installId}
+        `;
+        return;
+      }
+
+      await tx`
+        insert into scan_credits (
+          profile_id,
+          local_date,
+          free_remaining,
+          rewarded_remaining,
+          premium_remaining
+        )
+        values (${profileId}, ${lifetimeQuotaDate}, ${lifetimeFreeScanAllowance}, 0, 0)
+        on conflict (profile_id, local_date) do nothing
       `;
     });
   }
@@ -1510,6 +1626,7 @@ export class PostgresStore implements AppRepository {
       from devices
       inner join profiles on profiles.id = devices.profile_id
       where devices.install_id = ${installId}
+        and profiles.auth_method = 'anonymous'
       limit 1
     `;
 
@@ -1557,6 +1674,24 @@ export class PostgresStore implements AppRepository {
           ${identity.region ?? null},
           ${identity.timezone ?? null}
         )
+      `;
+
+      await tx`
+        insert into install_scan_credits (
+          install_id,
+          profile_id,
+          free_remaining,
+          rewarded_remaining,
+          premium_remaining
+        )
+        values (${installId}, ${profile.id}, ${lifetimeFreeScanAllowance}, 0, 0)
+        on conflict (install_id) do update
+        set
+          profile_id = excluded.profile_id,
+          rewarded_remaining = 0,
+          premium_remaining = 0,
+          last_seen_at = now(),
+          updated_at = now()
       `;
 
       return profile;

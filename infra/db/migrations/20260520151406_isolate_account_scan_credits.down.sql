@@ -1,0 +1,3 @@
+-- 20260520151406_isolate_account_scan_credits.down.sql
+-- Data-only isolation fix. The original install-attached account credits cannot
+-- be reconstructed safely after they have been merged into profile quotas.

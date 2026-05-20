@@ -860,7 +860,9 @@ void main() {
     expect(find.byType(AccountProfileScreen), findsNothing);
   });
 
-  testWidgets('logout returns the user to the landing screen', (tester) async {
+  testWidgets('logout returns the user to the anonymous dashboard', (
+    tester,
+  ) async {
     final session = AuthSession(
       provider: AuthProvider.email,
       displayName: 'friend@test.com',
@@ -894,18 +896,17 @@ void main() {
     await tester.tap(find.text('Log out'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Start first scan'), findsOneWidget);
-    expect(find.byType(TodayScreen), findsNothing);
+    expect(find.byType(TodayScreen), findsOneWidget);
     expect(find.byType(SettingsScreen), findsNothing);
     expect(find.byType(AccountProfileScreen), findsNothing);
 
     final preferences = await SharedPreferences.getInstance();
-    expect(preferences.getBool('logmyplate.has_seen_welcome'), isFalse);
+    expect(preferences.getBool('logmyplate.has_seen_welcome'), isTrue);
     expect(preferences.getString(AccountSessionStore.sessionKey), isNull);
   });
 
   testWidgets(
-    'exhausted anonymous users return to landing before account gate',
+    'exhausted anonymous users stay on dashboard before account gate',
     (tester) async {
       SharedPreferences.setMockInitialValues({
         'logmyplate.has_seen_welcome': true,
@@ -924,10 +925,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Start first scan'), findsOneWidget);
-      expect(find.byType(TodayScreen), findsNothing);
+      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(find.text('Start first scan'), findsNothing);
 
-      await tester.tap(find.text('Start first scan'));
+      await tester.tap(find.byType(FloatingActionButton));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 

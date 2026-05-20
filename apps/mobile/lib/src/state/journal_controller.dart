@@ -36,6 +36,17 @@ class JournalController extends ChangeNotifier {
   bool get initialLoading =>
       _loading && _lastLoadedAt == null && _meals.isEmpty;
 
+  void resetForAccountChange() {
+    _loading = false;
+    _error = null;
+    _meals = [];
+    _totals = MacroTotals.zero;
+    _quota = null;
+    _weeklyRange = null;
+    _lastLoadedAt = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _apiClient.close();

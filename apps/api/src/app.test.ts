@@ -1183,6 +1183,93 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("keeps signed-in rewarded scans off the anonymous install after logout", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-logout",
+      "x-logmyplate-platform": "ios",
+    };
+
+    for (let index = 1; index <= 3; index += 1) {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...installHeaders, "idempotency-key": `logout-prepare-${index}` },
+      });
+      expect(prepared.statusCode).toBe(201);
+
+      const analyzed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${prepared.json().scanId}/analyze`,
+        headers: { ...installHeaders, "idempotency-key": `logout-analyze-${index}` },
+        payload: {
+          hint: "dal rice",
+          image: {
+            mimeType: "image/jpeg",
+            base64: "AQID",
+            byteSize: 3,
+          },
+        },
+      });
+      expect(analyzed.statusCode).toBe(200);
+    }
+
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "logout-reward@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    for (let index = 1; index <= 2; index += 1) {
+      const rewarded = await app.inject({
+        method: "POST",
+        url: "/v1/ads/rewarded/complete",
+        headers: { ...accountHeaders, "idempotency-key": `logout-rewarded-${index}` },
+        payload: { provider: "admob", placement: "scan_unlock" },
+      });
+      expect(rewarded.statusCode).toBe(200);
+    }
+
+    const accountBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: accountHeaders,
+    });
+    expect(accountBootstrap.statusCode).toBe(200);
+    expect(accountBootstrap.json().quota).toMatchObject({
+      freeRemaining: 0,
+      rewardedRemaining: 1,
+      premiumRemaining: 0,
+    });
+
+    const logout = await app.inject({
+      method: "POST",
+      url: "/v1/auth/logout",
+      headers: accountHeaders,
+    });
+    expect(logout.statusCode).toBe(204);
+
+    const anonymousBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: installHeaders,
+    });
+    expect(anonymousBootstrap.statusCode).toBe(200);
+    expect(anonymousBootstrap.json().profile).toMatchObject({ authMethod: "anonymous" });
+    expect(anonymousBootstrap.json().quota).toMatchObject({
+      freeRemaining: 0,
+      rewardedRemaining: 0,
+      premiumRemaining: 0,
+    });
+    await app.close();
+  });
+
   it("passes plate notes into AI analysis", async () => {
     let seenInput: AnalyzeMealImageInput | undefined;
     const aiProvider: AiProvider = {

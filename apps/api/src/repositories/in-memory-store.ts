@@ -65,11 +65,13 @@ export class InMemoryStore implements AppRepository {
 
     if (identity.installId) {
       const profileId = this.installProfiles.get(identity.installId);
-      if (profileId) return this.profiles.get(profileId) ?? this.defaultProfile;
+      const profile = profileId ? this.profiles.get(profileId) : undefined;
+      if (profile?.authMethod === "anonymous") return profile;
 
-      const profile = this.createAnonymousProfile();
-      this.installProfiles.set(identity.installId, profile.id);
-      return profile;
+      const anonymousProfile = this.createAnonymousProfile();
+      this.installProfiles.set(identity.installId, anonymousProfile.id);
+      this.resetInstallQuotaForAnonymous(identity.installId);
+      return anonymousProfile;
     }
 
     return this.defaultProfile;
@@ -94,6 +96,7 @@ export class InMemoryStore implements AppRepository {
 
     this.profiles.set(linkedProfile.id, linkedProfile);
     this.credentials.set(email, { profileId: linkedProfile.id, password: input.password });
+    this.transferCurrentInstallQuotaToProfile(linkedProfile.id);
     return this.createSession(linkedProfile);
   }
 
@@ -113,6 +116,7 @@ export class InMemoryStore implements AppRepository {
     }
 
     this.bindInstall(currentRequestIdentity().installId, accountProfile.id);
+    this.transferCurrentInstallQuotaToProfile(accountProfile.id);
     return this.createSession(accountProfile);
   }
 
@@ -122,6 +126,7 @@ export class InMemoryStore implements AppRepository {
     if (installId) {
       const profile = this.createAnonymousProfile();
       this.installProfiles.set(installId, profile.id);
+      this.resetInstallQuotaForAnonymous(installId);
     }
   }
 
@@ -134,11 +139,11 @@ export class InMemoryStore implements AppRepository {
   }
 
   async getQuota() {
-    return { ...this.quotaFor((await this.getProfile()).id) };
+    return { ...this.quotaFor(await this.getProfile()) };
   }
 
   async consumeCredit(reason: "free" | "rewarded" | "premium") {
-    const quota = this.quotaFor((await this.getProfile()).id);
+    const quota = this.quotaFor(await this.getProfile());
     if (reason === "free" && quota.freeRemaining > 0) quota.freeRemaining -= 1;
     else if (reason === "rewarded" && quota.rewardedRemaining > 0) quota.rewardedRemaining -= 1;
     else if (reason === "premium" && quota.premiumRemaining > 0) quota.premiumRemaining -= 1;
@@ -149,9 +154,9 @@ export class InMemoryStore implements AppRepository {
 
   async completeRewardedAd(_input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
     const profile = await this.getProfile();
-    const quota = this.quotaFor(profile.id);
+    const quota = this.quotaFor(profile);
     const today = new Date().toISOString().slice(0, 10);
-    const progressKey = `${this.quotaKey(profile.id)}:${today}`;
+    const progressKey = `${this.quotaKey(profile)}:${today}`;
     const progress = this.rewardedAdProgress.get(progressKey) ?? {
       completedAds: 0,
       grantedScans: 0,
@@ -314,8 +319,8 @@ export class InMemoryStore implements AppRepository {
     });
   }
 
-  private quotaFor(profileId: string): ScanCreditState {
-    const key = this.quotaKey(profileId);
+  private quotaFor(profile: Profile): ScanCreditState {
+    const key = this.quotaKey(profile);
     const existing = this.quotas.get(key);
     if (existing) return existing;
     const created = {
@@ -327,9 +332,15 @@ export class InMemoryStore implements AppRepository {
     return created;
   }
 
-  private quotaKey(profileId: string): string {
+  private quotaKey(profile: Profile): string {
     const installId = currentRequestIdentity().installId;
-    return installId ? `install:${installId}` : `profile:${profileId}`;
+    return profile.authMethod === "anonymous" && installId
+      ? this.installQuotaKey(installId)
+      : this.profileQuotaKey(profile.id);
+  }
+
+  private installQuotaKey(installId: string): string {
+    return `install:${installId}`;
   }
 
   private profileQuotaKey(profileId: string): string {
@@ -384,7 +395,9 @@ export class InMemoryStore implements AppRepository {
     }
     const sourceQuota = this.quotas.get(this.profileQuotaKey(sourceProfileId));
     if (sourceQuota) {
-      const targetQuota = this.quotaFor(targetProfileId);
+      const targetProfile = this.profiles.get(targetProfileId);
+      if (!targetProfile) return;
+      const targetQuota = this.quotaFor(targetProfile);
       targetQuota.freeRemaining = Math.min(targetQuota.freeRemaining, sourceQuota.freeRemaining);
       targetQuota.rewardedRemaining = Math.min(
         targetQuota.rewardedRemaining,
@@ -398,6 +411,52 @@ export class InMemoryStore implements AppRepository {
     for (const [installId, profileId] of this.installProfiles) {
       if (profileId === sourceProfileId) this.installProfiles.set(installId, targetProfileId);
     }
+  }
+
+  private transferCurrentInstallQuotaToProfile(profileId: string): void {
+    const installId = currentRequestIdentity().installId;
+    if (!installId) return;
+
+    const installKey = this.installQuotaKey(installId);
+    const installQuota = this.quotas.get(installKey);
+    if (!installQuota) {
+      if (!this.quotas.has(this.profileQuotaKey(profileId))) {
+        this.quotas.set(this.profileQuotaKey(profileId), {
+          freeRemaining: 3,
+          rewardedRemaining: 0,
+          premiumRemaining: 0,
+        });
+      }
+      return;
+    }
+
+    const profile = this.profiles.get(profileId);
+    if (!profile) return;
+    const profileQuota = this.quotaFor(profile);
+    profileQuota.freeRemaining = Math.min(profileQuota.freeRemaining, installQuota.freeRemaining);
+    profileQuota.rewardedRemaining += installQuota.rewardedRemaining;
+    profileQuota.premiumRemaining = Math.max(
+      profileQuota.premiumRemaining,
+      installQuota.premiumRemaining,
+    );
+
+    installQuota.freeRemaining = 0;
+    installQuota.rewardedRemaining = 0;
+    installQuota.premiumRemaining = 0;
+  }
+
+  private resetInstallQuotaForAnonymous(installId: string): void {
+    const key = this.installQuotaKey(installId);
+    const quota =
+      this.quotas.get(key) ??
+      ({
+        freeRemaining: 3,
+        rewardedRemaining: 0,
+        premiumRemaining: 0,
+      } satisfies ScanCreditState);
+    quota.rewardedRemaining = 0;
+    quota.premiumRemaining = 0;
+    this.quotas.set(key, quota);
   }
 }
 
