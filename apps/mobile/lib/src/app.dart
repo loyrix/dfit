@@ -55,6 +55,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
+  bool _openingWeeklyJournal = false;
 
   @override
   void initState() {
@@ -112,6 +113,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           weeklyRange: _journalController.weeklyRange,
           loading: _journalController.loading,
           initialLoading: _journalController.initialLoading,
+          weeklyJournalOpening: _openingWeeklyJournal,
           syncMessage: _journalController.error,
           onRefresh: _journalController.loadToday,
           onScan: _openCamera,
@@ -522,34 +524,38 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _openWeeklyJournal() async {
     final summary = _journalController.weeklyRange;
-    if (summary == null) return;
+    if (summary == null || _openingWeeklyJournal) return;
 
-    late final JournalRangeData range;
+    setState(() => _openingWeeklyJournal = true);
+
     try {
-      range = await _journalController.loadWeeklyRange(0);
+      final range = await _journalController.loadWeeklyRange(0);
+
+      await _navigatorKey.currentState!.push<void>(
+        logmyplatePageRoute<void>(
+          builder: (_) => WeeklyJournalScreen(
+            range: range,
+            isSyncing: _journalController.loading,
+            syncMessage: _journalController.error,
+            onRefresh: _journalController.loadToday,
+            onLoadWeek: _journalController.loadWeeklyRange,
+            onLoadWeeks: _journalController.loadAvailableWeeks,
+            onOpenMeal: _openMealDetail,
+            onDeleteMeal: _deleteMeal,
+          ),
+        ),
+      );
     } catch (_) {
       _showJournalNotice(
         tone: LogMyPlateNoticeTone.error,
         title: 'Journal unavailable',
         message: 'Could not load the weekly journal. Pull to retry.',
       );
-      return;
+    } finally {
+      if (mounted) {
+        setState(() => _openingWeeklyJournal = false);
+      }
     }
-
-    await _navigatorKey.currentState!.push<void>(
-      logmyplatePageRoute<void>(
-        builder: (_) => WeeklyJournalScreen(
-          range: range,
-          isSyncing: _journalController.loading,
-          syncMessage: _journalController.error,
-          onRefresh: _journalController.loadToday,
-          onLoadWeek: _journalController.loadWeeklyRange,
-          onLoadWeeks: _journalController.loadAvailableWeeks,
-          onOpenMeal: _openMealDetail,
-          onDeleteMeal: _deleteMeal,
-        ),
-      ),
-    );
   }
 }
 

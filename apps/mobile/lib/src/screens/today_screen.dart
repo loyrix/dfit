@@ -19,6 +19,7 @@ class TodayScreen extends StatelessWidget {
     this.weeklyRange,
     this.loading = false,
     this.initialLoading = false,
+    this.weeklyJournalOpening = false,
     this.syncMessage,
     required this.onRefresh,
     required this.onScan,
@@ -35,6 +36,7 @@ class TodayScreen extends StatelessWidget {
   final JournalRangeData? weeklyRange;
   final bool loading;
   final bool initialLoading;
+  final bool weeklyJournalOpening;
   final String? syncMessage;
   final Future<void> Function() onRefresh;
   final VoidCallback onScan;
@@ -112,7 +114,8 @@ class TodayScreen extends StatelessWidget {
                       _WeeklySummaryCard(
                         range: weeklyRange!,
                         onTap: onOpenWeeklyJournal,
-                        syncing: loading,
+                        syncing: loading || weeklyJournalOpening,
+                        opening: weeklyJournalOpening,
                         hasSyncIssue: syncMessage != null,
                       ),
                     ],
@@ -185,12 +188,14 @@ class _WeeklySummaryCard extends StatelessWidget {
     required this.range,
     required this.onTap,
     required this.syncing,
+    required this.opening,
     required this.hasSyncIssue,
   });
 
   final JournalRangeData range;
   final VoidCallback onTap;
   final bool syncing;
+  final bool opening;
   final bool hasSyncIssue;
 
   @override
@@ -207,7 +212,7 @@ class _WeeklySummaryCard extends StatelessWidget {
       color: colors.surfaceCard,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        onTap: onTap,
+        onTap: opening ? null : onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -252,6 +257,8 @@ class _WeeklySummaryCard extends StatelessWidget {
                         Text(
                           hasSyncIssue
                               ? 'Showing saved journal'
+                              : opening
+                              ? 'Opening weekly journal'
                               : syncing
                               ? '${summary.mealCount} meals logged - syncing'
                               : '${summary.mealCount} meals logged',
@@ -285,16 +292,31 @@ class _WeeklySummaryCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Open weekly journal',
+                    opening ? 'Loading weekly journal' : 'Open weekly journal',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.textSecondary,
                     ),
                   ),
                   const Spacer(),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: colors.textSecondary,
-                    size: 18,
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: opening
+                        ? SizedBox(
+                            key: const ValueKey('weekly-opening-spinner'),
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: LogMyPlateColors.accent,
+                              backgroundColor: colors.mutedFill,
+                            ),
+                          )
+                        : Icon(
+                            key: const ValueKey('weekly-open-chevron'),
+                            Icons.chevron_right_rounded,
+                            color: colors.textSecondary,
+                            size: 18,
+                          ),
                   ),
                 ],
               ),

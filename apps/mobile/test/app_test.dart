@@ -298,6 +298,51 @@ void main() {
     expect(openedWeeklyJournal, isTrue);
   });
 
+  testWidgets('weekly summary blocks repeat taps while opening', (
+    tester,
+  ) async {
+    var openedWeeklyJournal = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: TodayScreen(
+          meals: const [],
+          totals: MacroTotals.zero,
+          weeklyRange: const JournalRangeData(
+            startDate: '2026-05-06',
+            endDate: '2026-05-12',
+            days: [],
+            summary: JournalRangeSummary(
+              windowDays: 7,
+              activeDays: 1,
+              mealCount: 1,
+              totals: MacroTotals.zero,
+              trackedDayAverage: MacroTotals.zero,
+              calendarDayAverage: MacroTotals.zero,
+            ),
+          ),
+          weeklyJournalOpening: true,
+          onRefresh: () async {},
+          onScan: () {},
+          onAddManually: () {},
+          onOpenSettings: () {},
+          onOpenMeal: (_) {},
+          onDeleteMeal: (_) async {},
+          onOpenWeeklyJournal: () => openedWeeklyJournal = true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('7 Day Summary'));
+    await tester.pump();
+
+    expect(openedWeeklyJournal, isFalse);
+    expect(find.text('Opening weekly journal'), findsOneWidget);
+    expect(find.text('Loading weekly journal'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
   testWidgets('today meal rows delete by swipe after confirmation', (
     tester,
   ) async {
