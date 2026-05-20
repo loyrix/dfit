@@ -132,16 +132,17 @@ App opens to Today
 
 ### Quota And Ads Flow
 
-Recommended initial model:
+Current launch model:
 
 ```txt
-Scan 1 per day: free, no ad
-Scan 2 and 3 per day: rewarded ad before AI analysis
-Launch cap: 3 scans/day total
+First 3 scans: lifetime free allowance per install/profile, no ad
+After lifetime allowance is exhausted: account linking is required before more unlock options
+Rewarded ads: not enabled yet
+Launch cap before ads/subscriptions: 3 lifetime scans total
 Premium: configurable higher limit and no ads
 ```
 
-The scan limit must be remote-configured, not hardcoded. If real ad revenue is healthy, increase ad-supported scans to 5 or 10 later.
+The scan limit must stay remote-configured, not hardcoded. The current API config reports `freeLifetime: 3`, `rewardedCap: 0`, and `launchTotalCap: 3`. If real ad revenue is healthy, add rewarded scan credits after the lifetime free allowance is used.
 
 ### Why Ads Before AI Analysis
 
@@ -486,12 +487,12 @@ Output tokens: 350 to 700
 
 ### Cost Interpretation
 
-At 3 scans/day, approximate AI cost per fully active free user:
+At the current launch allowance of 3 lifetime free scans, approximate one-time AI cost per free install/profile:
 
 ```txt
-gpt-5-nano:          INR 0.07 to 0.13 per day
-gpt-5.4-nano:        INR 0.24 to 0.37 per day
-gemini-3.1-flash-lite: INR 0.27 to 0.45 per day
+gpt-5-nano:             INR 0.07 to 0.13 total
+gpt-5.4-nano:           INR 0.24 to 0.37 total
+gemini-3.1-flash-lite:  INR 0.27 to 0.45 total
 ```
 
 This excludes API hosting, database, observability, payment fees, ad SDK overhead, retries, and failed scans.
@@ -534,8 +535,8 @@ This is why the scan cap should be remote-configured.
 
 Recommended launch:
 
-- 1 free scan/day without ads.
-- Up to 2 additional scans/day through rewarded ads.
+- 3 lifetime free scans per install/profile without ads.
+- Rewarded ad scan credits are not enabled at launch and should be added only after the ad reward rules and abuse controls are finalized.
 - Journal browsing remains free.
 - Daily totals remain free.
 
@@ -912,7 +913,7 @@ Must cover:
 
 - Quota calculation.
 - Rewarded ad credit granting.
-- Daily scan reset by timezone.
+- Lifetime install/profile scan allowance and account-link continuity.
 - Portion unit conversion.
 - Nutrition math.
 - Food matching.
@@ -1121,7 +1122,7 @@ My recommended defaults:
 8. Use one focused Today screen with floating camera action, no bottom nav for MVP.
 9. Use premium meal cards grouped by day.
 10. Make targets optional after first meal.
-11. Launch with 1 free scan/day plus rewarded-ad scan credits up to 3/day.
+11. Launch with 3 lifetime free scans per install/profile; rewarded-ad scan credits are a follow-up monetization phase.
 12. Make scan caps remote-configurable.
 
 ## 21. Source References
