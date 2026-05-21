@@ -222,7 +222,11 @@ class _WeeklySummaryCard extends StatelessWidget {
         : '${summary.activeDays} active ${summary.activeDays == 1 ? 'day' : 'days'}';
     final targetCalories = range.target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
-    final averageCalories = summary.trackedDayAverage.calories;
+    final averageCalories = summary.trackedDayAverage.calories > 0
+        ? summary.trackedDayAverage.calories
+        : summary.activeDays > 0
+        ? (summary.totals.calories / summary.activeDays).round()
+        : 0;
 
     return Material(
       color: colors.surfaceCard,
@@ -451,21 +455,14 @@ class _WeeklyCoveragePanel extends StatelessWidget {
                 totalDays: visibleDays,
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _WeeklyInfoPill(
-                    label: 'Avg/day',
-                    value: '$averageCalories kCal',
-                  ),
-                  if (targetCalories != null)
-                    _WeeklyInfoPill(
-                      label: 'Target',
-                      value: '$targetCalories kCal',
-                    ),
-                ],
-              ),
+              _WeeklyInfoPill(label: 'Avg/day', value: '$averageCalories kCal'),
+              if (targetCalories != null) ...[
+                const SizedBox(height: 8),
+                _WeeklyInfoPill(
+                  label: 'Target/day',
+                  value: '$targetCalories kCal',
+                ),
+              ],
             ],
           ),
         ),

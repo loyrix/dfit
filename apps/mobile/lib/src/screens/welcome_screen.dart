@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/app_brand_mark.dart';
+import '../widgets/logmyplate_background.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key, required this.onStart});
@@ -13,60 +15,61 @@ class WelcomeScreen extends StatelessWidget {
     final colors = context.logmyplate;
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: colors.background,
+      body: LogMyPlateAmbientBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 26, 20, 24),
             children: [
-              const Spacer(),
-              Center(
-                child: SizedBox(
-                  width: 190,
-                  height: 190,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      _Ring(size: 188, opacity: 0.16),
-                      _Ring(size: 142, opacity: 0.24),
-                      _Ring(size: 96, opacity: 0.34),
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: const BoxDecoration(
-                          color: LogMyPlateColors.accent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Spacer(),
+              const SizedBox(height: 34),
+              const Center(child: LogMyPlateBrandMark(size: 92)),
+              const SizedBox(height: 26),
               Text(
                 'LogMyPlate',
-                style: Theme.of(
-                  context,
-                ).textTheme.displayLarge?.copyWith(fontSize: 46),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                  color: colors.textPrimary,
+                  fontSize: 46,
+                ),
               ),
               const SizedBox(height: 10),
               Text(
                 'AI-powered food tracking, without the hassle.',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: colors.textSecondary,
-                  height: 1.2,
+                  height: 1.22,
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 22),
+              Row(
+                children: const [
+                  Expanded(child: _WelcomeSignal(label: 'Photo')),
+                  SizedBox(width: 8),
+                  Expanded(child: _WelcomeSignal(label: 'Review')),
+                  SizedBox(width: 8),
+                  Expanded(child: _WelcomeSignal(label: 'Journal')),
+                ],
+              ),
+              const SizedBox(height: 30),
+              Text(
+                'Start with one clear meal photo. Add a short note, review the estimate, and keep your journal moving.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 34),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: colors.primaryAction,
                     foregroundColor: colors.primaryActionText,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 17),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                   ),
                   onPressed: onStart,
@@ -76,13 +79,12 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 14),
               Center(
                 child: Text(
-                  'Photo is analyzed and saved with your meal log',
+                  'Photos are analyzed and saved with meal logs',
                   style: Theme.of(
                     context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                  ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
                 ),
               ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -91,22 +93,30 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-class _Ring extends StatelessWidget {
-  const _Ring({required this.size, required this.opacity});
+class _WelcomeSignal extends StatelessWidget {
+  const _WelcomeSignal({required this.label});
 
-  final double size;
-  final double opacity;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
+    final surface = LogMyPlateHeroSurfaceStyle.of(context);
+
     return Container(
-      width: size,
-      height: size,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
       decoration: BoxDecoration(
-        border: Border.all(
-          color: LogMyPlateColors.accent.withValues(alpha: opacity),
+        color: surface.chipFill,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: surface.chipBorder, width: 0.6),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: surface.accentText,
+          letterSpacing: 0,
         ),
-        shape: BoxShape.circle,
       ),
     );
   }

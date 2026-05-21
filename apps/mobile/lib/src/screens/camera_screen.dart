@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
 
@@ -195,47 +196,20 @@ class _CameraScreenState extends State<CameraScreen>
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final compact = constraints.maxHeight < 720;
-                        final previewSize = compact ? 208.0 : 292.0;
+                        final keyboardOpen =
+                            MediaQuery.viewInsetsOf(context).bottom > 0;
+                        final previewSize = keyboardOpen
+                            ? 148.0
+                            : compact
+                            ? 208.0
+                            : 292.0;
                         final hasPhoto = preparedCapture != null;
 
                         return Column(
                           children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'AI Meal Scan',
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: colors.textTertiary,
-                                      letterSpacing: 2.4,
-                                    ),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              activeSource?.title ??
-                                  (hasPhoto
-                                      ? 'Ready to analyze'
-                                      : 'Clear photo. Better macros.'),
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: colors.textPrimary),
-                            ),
-                            const SizedBox(height: 8),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 180),
-                              child: Text(
-                                activeSource?.subtitle ??
-                                    (hasPhoto
-                                        ? 'Review the note before AI scans.'
-                                        : 'Add a plate photo and one short food note.'),
-                                key: ValueKey(
-                                  '$activeSource-${preparedCapture != null}',
-                                ),
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: colors.textSecondary),
-                              ),
+                            _ScanIntroCard(
+                              activeSource: activeSource,
+                              hasPhoto: hasPhoto,
                             ),
                             SizedBox(height: compact ? 16 : 22),
                             Expanded(
@@ -320,6 +294,56 @@ class _CameraScreenState extends State<CameraScreen>
   }
 }
 
+class _ScanIntroCard extends StatelessWidget {
+  const _ScanIntroCard({required this.activeSource, required this.hasPhoto});
+
+  final _CaptureSource? activeSource;
+  final bool hasPhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = LogMyPlateHeroSurfaceStyle.of(context);
+
+    return Column(
+      children: [
+        Text(
+          'AI Meal Scan',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: surface.textSecondary,
+            letterSpacing: 1.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          activeSource?.title ??
+              (hasPhoto ? 'Ready to analyze' : 'Photo plus food note'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: surface.textPrimary,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 7),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: Text(
+            activeSource?.subtitle ??
+                (hasPhoto
+                    ? 'Check the note before AI reads the plate.'
+                    : 'Use a clear full-plate image, then describe what you know.'),
+            key: ValueKey('$activeSource-$hasPhoto'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: surface.textSecondary,
+              height: 1.28,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _EmptyCaptureState extends StatelessWidget {
   const _EmptyCaptureState({required this.size});
 
@@ -330,49 +354,95 @@ class _EmptyCaptureState extends StatelessWidget {
     final colors = context.logmyplate;
     final compact = size < 180;
 
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 28),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colors.border, width: 0.7),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: compact ? 44 : 52,
-            height: compact ? 44 : 52,
-            decoration: BoxDecoration(
-              color: LogMyPlateColors.accent.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 28),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned.fill(
+              child: CustomPaint(painter: _EmptyPlatePainter(colors)),
             ),
-            child: Icon(
-              Icons.restaurant_rounded,
-              color: LogMyPlateColors.accent,
-              size: compact ? 21 : 24,
-            ),
-          ),
-          if (!compact) ...[
-            const SizedBox(height: 16),
-            Text(
-              'No photo yet',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Use one clear plate image.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: compact ? 44 : 52,
+                  height: compact ? 44 : 52,
+                  decoration: BoxDecoration(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.restaurant_rounded,
+                    color: LogMyPlateColors.accent,
+                    size: compact ? 21 : 24,
+                  ),
+                ),
+                if (!compact) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'No photo yet',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Use one clear plate image.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
-        ],
+        ),
       ),
     );
+  }
+}
+
+class _EmptyPlatePainter extends CustomPainter {
+  const _EmptyPlatePainter(this.colors);
+
+  final LogMyPlateThemeColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final maxRadius = size.shortestSide / 2 - 10;
+    final ringPaint = Paint()
+      ..color = colors.textPrimary.withValues(alpha: 0.07)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    final accentPaint = Paint()
+      ..color = LogMyPlateColors.accent.withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    canvas
+      ..drawCircle(center, maxRadius, accentPaint)
+      ..drawCircle(center, maxRadius * 0.72, ringPaint)
+      ..drawCircle(center, maxRadius * 0.45, ringPaint);
+
+    final guidePaint = Paint()
+      ..color = colors.textPrimary.withValues(alpha: 0.045)
+      ..strokeWidth = 1.1;
+    final left = center.dx - maxRadius * 0.58;
+    final right = center.dx + maxRadius * 0.58;
+    canvas.drawLine(
+      Offset(left, center.dy),
+      Offset(right, center.dy),
+      guidePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _EmptyPlatePainter oldDelegate) {
+    return oldDelegate.colors != colors;
   }
 }
 
@@ -393,6 +463,7 @@ class _PreparedMealPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final compactPreview = frameSize < 190;
     final scanY =
         30 + (math.sin(progress * math.pi * 2) + 1) * (frameSize * 0.32);
 
@@ -461,56 +532,58 @@ class _PreparedMealPreview extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            top: 16,
-            left: 16,
-            child: _PreviewChip(
-              label: capture.source == _CaptureSource.camera
-                  ? 'Photo ready'
-                  : 'Upload ready',
+          if (!compactPreview)
+            Positioned(
+              top: 16,
+              left: 16,
+              child: _PreviewChip(
+                label: capture.source == _CaptureSource.camera
+                    ? 'Photo ready'
+                    : 'Upload ready',
+              ),
             ),
-          ),
           Positioned(
-            top: 14,
-            right: 14,
+            top: compactPreview ? 8 : 14,
+            right: compactPreview ? 8 : 14,
             child: _PreviewClearButton(onTap: onClear),
           ),
-          Positioned(
-            left: 18,
-            right: 18,
-            bottom: 18,
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: LogMyPlateColors.accent,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    capture.source == _CaptureSource.camera
-                        ? Icons.photo_camera_rounded
-                        : Icons.photo_library_rounded,
-                    color: LogMyPlateColors.accentDeep,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Review note before scan',
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0,
+          if (!compactPreview)
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: LogMyPlateColors.accent,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      capture.source == _CaptureSource.camera
+                          ? Icons.photo_camera_rounded
+                          : Icons.photo_library_rounded,
+                      color: LogMyPlateColors.accentDeep,
+                      size: 18,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Review note before scan',
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -717,9 +790,20 @@ class _CaptureComposerPanel extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 360),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.9),
+        color: colors.surfaceCard,
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: colors.border, width: 0.6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.18
+                  : 0.07,
+            ),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

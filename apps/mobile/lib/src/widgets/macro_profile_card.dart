@@ -11,9 +11,9 @@ class MacroProfileCard extends StatelessWidget {
 
   final MealLog meal;
 
-  static const _proteinColor = LogMyPlateColors.accent;
-  static const _carbsColor = Color(0xFF7DC7A7);
-  static const _fatColor = Color(0xFFE98764);
+  static const _proteinColor = LogMyPlateColors.macroProtein;
+  static const _carbsColor = LogMyPlateColors.macroCarbs;
+  static const _fatColor = LogMyPlateColors.macroFat;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class MacroProfileCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: colors.border, width: 0.5),
       ),
       child: Column(
@@ -34,7 +34,7 @@ class MacroProfileCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'Macro Profile',
+                  'Macro profile',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.textSecondary,
                     letterSpacing: 1.4,

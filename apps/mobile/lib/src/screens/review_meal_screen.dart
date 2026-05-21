@@ -4,6 +4,7 @@ import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/logmyplate_background.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/primitive_icons.dart';
 
@@ -58,138 +59,117 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     final colors = context.logmyplate;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  tooltip: 'Back',
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const BackMark(),
-                ),
-                _MealTypePill(type: _mealType, onTap: _cycleMealType),
-                const SizedBox(width: 48),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (widget.photo != null) ...[
-              _ReviewMealPhotoSummary(photo: widget.photo!),
+      backgroundColor: colors.background,
+      body: LogMyPlateAmbientBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const BackMark(),
+                  ),
+                  _MealTypePill(type: _mealType, onTap: _cycleMealType),
+                  const SizedBox(width: 48),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ReviewSummaryCard(
+                photo: widget.photo,
+                mealType: _mealType,
+                totals: totals,
+                itemCount: _items.length,
+              ),
               const SizedBox(height: 18),
-            ],
-            Text(
-              'Estimated',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: secondaryText,
-                letterSpacing: 1.6,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${totals.calories}',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.displayLarge?.copyWith(fontSize: 48),
-            ),
-            Text(
-              'kCal - ${_items.length} items',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: secondaryText),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _MacroChip(
-                  label: 'Protein',
-                  value: totals.proteinG.round(),
-                  dark: true,
-                ),
-                _MacroChip(
-                  label: 'Carbs',
-                  value: totals.carbsG.round(),
-                  dark: true,
-                ),
-                _MacroChip(
-                  label: 'Fat',
-                  value: totals.fatG.round(),
-                  dark: false,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Divider(height: 1, color: borderColor),
-            for (var index = 0; index < _entries.length; index++)
-              _ReviewItemRow(
-                rowKey: ValueKey('${_entries[index].item.name}-$index'),
-                item: _entries[index].item,
-                onEdit: () => _openEditItemSheet(index),
-                onDelete: () {
-                  setState(() => _entries.removeAt(index));
-                },
-              ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: _openAddItemSheet,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: primaryText,
-                side: BorderSide(color: borderColor),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text('Add item'),
-            ),
-            const SizedBox(height: 10),
-            if (_error != null) ...[
               Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: _reviewAccentText(context),
+                'Items to confirm',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: secondaryText,
+                  letterSpacing: 1.2,
                 ),
               ),
               const SizedBox(height: 10),
-            ],
-            FilledButton(
-              onPressed: _items.isEmpty
-                  ? null
-                  : _saving
-                  ? () {}
-                  : _confirm,
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.primaryAction,
-                foregroundColor: colors.primaryActionText,
-                disabledBackgroundColor: _reviewMutedFill(context),
-                disabledForegroundColor: secondaryText,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              Container(
+                decoration: BoxDecoration(
+                  color: colors.surfaceCard,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: borderColor, width: 0.5),
+                ),
+                child: Column(
+                  children: [
+                    for (var index = 0; index < _entries.length; index++)
+                      _ReviewItemRow(
+                        rowKey: ValueKey('${_entries[index].item.name}-$index'),
+                        item: _entries[index].item,
+                        onEdit: () => _openEditItemSheet(index),
+                        onDelete: () {
+                          setState(() => _entries.removeAt(index));
+                        },
+                      ),
+                  ],
                 ),
               ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 160),
-                child: _saving
-                    ? SizedBox(
-                        key: ValueKey('saving'),
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.primaryActionText,
-                        ),
-                      )
-                    : const Text('Confirm meal', key: ValueKey('confirm')),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: _openAddItemSheet,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryText,
+                  side: BorderSide(color: borderColor),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Add item'),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              if (_error != null) ...[
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _reviewAccentText(context),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              FilledButton(
+                onPressed: _items.isEmpty
+                    ? null
+                    : _saving
+                    ? () {}
+                    : _confirm,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.primaryAction,
+                  foregroundColor: colors.primaryActionText,
+                  disabledBackgroundColor: _reviewMutedFill(context),
+                  disabledForegroundColor: secondaryText,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 160),
+                  child: _saving
+                      ? SizedBox(
+                          key: ValueKey('saving'),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.primaryActionText,
+                          ),
+                        )
+                      : const Text('Confirm meal', key: ValueKey('confirm')),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -287,59 +267,114 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
   }
 }
 
-class _ReviewMealPhotoSummary extends StatelessWidget {
-  const _ReviewMealPhotoSummary({required this.photo});
+class _ReviewSummaryCard extends StatelessWidget {
+  const _ReviewSummaryCard({
+    required this.photo,
+    required this.mealType,
+    required this.totals,
+    required this.itemCount,
+  });
 
-  final CapturedMealPhoto photo;
+  final CapturedMealPhoto? photo;
+  final MealType mealType;
+  final MacroTotals totals;
+  final int itemCount;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
+    final photo = this.photo;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Image.memory(
-              photo.bytes,
-              width: 76,
-              height: 76,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Captured meal',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                    letterSpacing: 1.2,
+          Row(
+            children: [
+              if (photo != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.memory(
+                    photo.bytes,
+                    width: 74,
+                    height: 74,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Photo attached',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Used for AI review and saved with this log.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-                ),
+                const SizedBox(width: 14),
               ],
-            ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Review estimate',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${totals.calories}',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                color: colors.textPrimary,
+                                fontSize: 42,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                        ),
+                        const SizedBox(width: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            'kCal',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      '${mealType.label} - $itemCount ${itemCount == 1 ? 'item' : 'items'}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _MacroChip(
+                label: 'Protein',
+                value: totals.proteinG.round(),
+                color: LogMyPlateColors.macroProtein,
+              ),
+              const SizedBox(width: 8),
+              _MacroChip(
+                label: 'Carbs',
+                value: totals.carbsG.round(),
+                color: LogMyPlateColors.macroCarbs,
+              ),
+              const SizedBox(width: 8),
+              _MacroChip(
+                label: 'Fat',
+                value: totals.fatG.round(),
+                color: LogMyPlateColors.macroFat,
+              ),
+            ],
           ),
         ],
       ),
@@ -478,33 +513,34 @@ class _MacroChip extends StatelessWidget {
   const _MacroChip({
     required this.label,
     required this.value,
-    required this.dark,
+    required this.color,
   });
 
   final String label;
   final int value;
-  final bool dark;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final background = dark ? colors.mutedFill : colors.accent;
-    final foreground = dark ? colors.textPrimary : colors.accentOn;
-    final borderColor = dark ? colors.border : Colors.transparent;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor, width: 0.5),
-      ),
-      child: Text(
-        '$label ${value}g',
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: foreground, letterSpacing: 0),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: color.withValues(alpha: 0.20), width: 0.5),
+        ),
+        child: Text(
+          '$label ${value}g',
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textPrimary,
+            letterSpacing: 0,
+          ),
+        ),
       ),
     );
   }
@@ -536,12 +572,12 @@ class _ReviewItemRow extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 18),
-        color: LogMyPlateColors.accentLow.withValues(alpha: 0.2),
+        color: LogMyPlateColors.destructive.withValues(alpha: 0.14),
         child: Text(
           'Delete',
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(color: _reviewAccentText(context)),
+          ).textTheme.bodySmall?.copyWith(color: LogMyPlateColors.destructive),
         ),
       ),
       child: InkWell(

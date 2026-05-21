@@ -7,7 +7,9 @@ import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/logmyplate_background.dart';
 
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
@@ -100,103 +102,102 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _AnalyzingMealPreview(
-                          photo: widget.photo,
-                          animation: _controller,
-                        ),
-                        const SizedBox(height: 28),
-                        Text(
-                          failure == null
-                              ? 'Reading your plate'
-                              : failure.title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: colors.textPrimary),
-                        ),
-                        const SizedBox(height: 7),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          child: Text(
+      body: LogMyPlateAmbientBackground(
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _AnalyzingMealPreview(
+                            photo: widget.photo,
+                            animation: _controller,
+                          ),
+                          const SizedBox(height: 28),
+                          Text(
                             failure == null
-                                ? _progressLabel(_activeStep)
-                                : failure.subtitle,
-                            key: ValueKey(
-                              failure == null ? _activeStep : failure.kind,
+                                ? 'Reading your plate'
+                                : failure.title,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: colors.textPrimary),
+                          ),
+                          const SizedBox(height: 7),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            child: Text(
+                              failure == null
+                                  ? _progressLabel(_activeStep)
+                                  : failure.subtitle,
+                              key: ValueKey(
+                                failure == null ? _activeStep : failure.kind,
+                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: colors.textSecondary,
+                                    letterSpacing: 0.2,
+                                  ),
                             ),
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  color: colors.textSecondary,
-                                  letterSpacing: 0.2,
-                                ),
                           ),
-                        ),
-                        if (plateHint != null && plateHint.isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          _HintPill(label: plateHint),
-                        ],
-                        const SizedBox(height: 18),
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 32),
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: colors.surfaceCard,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: colors.border),
-                          ),
-                          child: Column(
-                            children: [
-                              for (
-                                var index = 0;
-                                index < _steps.length;
-                                index++
-                              )
-                                _StepRow(
-                                  label: _steps[index],
-                                  done: failure == null && index < _activeStep,
-                                  active:
-                                      failure == null && index == _activeStep,
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (failure != null) ...[
+                          if (plateHint != null && plateHint.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            _HintPill(label: plateHint),
+                          ],
                           const SizedBox(height: 18),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Text(
-                              failure.message,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: colors.textSecondary),
+                            child: Column(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < _steps.length;
+                                  index++
+                                )
+                                  _StepRow(
+                                    label: _steps[index],
+                                    done:
+                                        failure == null && index < _activeStep,
+                                    active:
+                                        failure == null && index == _activeStep,
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          _FailureActions(
-                            failure: failure,
-                            onRetry: _runAnalysis,
-                            onScanCreditRequired: widget.onScanCreditRequired,
-                            onAddManually: widget.onAddManually,
-                          ),
+                          if (failure != null) ...[
+                            const SizedBox(height: 18),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                              ),
+                              child: Text(
+                                failure.message,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _FailureActions(
+                              failure: failure,
+                              onRetry: _runAnalysis,
+                              onScanCreditRequired: widget.onScanCreditRequired,
+                              onAddManually: widget.onAddManually,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -367,7 +368,7 @@ class _AnalyzingMealPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
+    final surface = LogMyPlateHeroSurfaceStyle.of(context);
 
     return AnimatedBuilder(
       animation: animation,
@@ -386,7 +387,7 @@ class _AnalyzingMealPreview extends StatelessWidget {
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.22),
+                        color: surface.shadowColor,
                         blurRadius: 26,
                         offset: const Offset(0, 18),
                       ),
@@ -429,9 +430,7 @@ class _AnalyzingMealPreview extends StatelessWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(
-                      color: LogMyPlateColors.accent.withValues(alpha: 0.22),
-                    ),
+                    border: Border.all(color: surface.border),
                   ),
                 ),
               ),
@@ -475,24 +474,6 @@ class _AnalyzingMealPreview extends StatelessWidget {
                       color: Colors.white,
                       letterSpacing: 0.5,
                     ),
-                  ),
-                ),
-              ),
-              Positioned(
-                right: 16,
-                bottom: 16,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: colors.surfaceCard.withValues(alpha: 0.88),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: LogMyPlateColors.accent,
-                    size: 18,
                   ),
                 ),
               ),

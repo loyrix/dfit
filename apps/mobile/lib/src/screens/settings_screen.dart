@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/app_brand_mark.dart';
 import '../widgets/primitive_icons.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -102,20 +103,23 @@ class _AccountCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: LogMyPlateColors.accent,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text(
-                  'L',
-                  style: TextStyle(color: LogMyPlateColors.accentDeep),
-                ),
-              ),
-            ),
+            signedIn
+                ? Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _accountInitial(session!),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(color: colors.accentText),
+                      ),
+                    ),
+                  )
+                : const LogMyPlateBrandMark(size: 38, showHalo: false),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -146,6 +150,12 @@ class _AccountCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _accountInitial(AuthSession session) {
+  final name = session.displayName.trim();
+  if (name.isEmpty) return 'L';
+  return name.characters.first.toUpperCase();
 }
 
 class _SettingsSection extends StatelessWidget {

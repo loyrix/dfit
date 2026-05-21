@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/app_brand_mark.dart';
 import '../widgets/primitive_icons.dart';
 
 class AccountProfileScreen extends StatelessWidget {
@@ -32,27 +33,7 @@ class AccountProfileScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
-            Center(
-              child: Container(
-                width: 104,
-                height: 104,
-                decoration: BoxDecoration(
-                  color: LogMyPlateColors.accent.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: LogMyPlateColors.accent.withValues(alpha: 0.34),
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    _initial(session),
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: LogMyPlateColors.accent,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            Center(child: _AccountAvatar(session: session)),
             const SizedBox(height: 24),
             Text(
               'Profile',
@@ -122,10 +103,44 @@ class AccountProfileScreen extends StatelessWidget {
     if (!context.mounted || !shouldPop) return;
     Navigator.of(context).pop();
   }
+}
+
+class _AccountAvatar extends StatelessWidget {
+  const _AccountAvatar({required this.session});
+
+  final AuthSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = _initial(session);
+    if (initial == 'L') {
+      return const LogMyPlateBrandMark(size: 86);
+    }
+
+    return Container(
+      width: 104,
+      height: 104,
+      decoration: BoxDecoration(
+        color: LogMyPlateColors.accent.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: LogMyPlateColors.accent.withValues(alpha: 0.34),
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: Theme.of(
+            context,
+          ).textTheme.displayLarge?.copyWith(color: LogMyPlateColors.accent),
+        ),
+      ),
+    );
+  }
 
   String _initial(AuthSession session) {
     final name = session.displayName.trim();
-    if (name.isEmpty) return 'D';
+    if (name.isEmpty) return 'L';
     return name.characters.first.toUpperCase();
   }
 }

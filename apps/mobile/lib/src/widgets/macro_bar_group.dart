@@ -88,9 +88,9 @@ class MacroBarGroup extends StatelessWidget {
 class _MacroColors {
   const _MacroColors._();
 
-  static const protein = Color(0xFF77C79D);
-  static const carbs = LogMyPlateColors.accent;
-  static const fat = Color(0xFFFF8A7A);
+  static const protein = LogMyPlateColors.macroProtein;
+  static const carbs = LogMyPlateColors.macroCarbs;
+  static const fat = LogMyPlateColors.macroFat;
 }
 
 class _MacroStackedBar extends StatelessWidget {

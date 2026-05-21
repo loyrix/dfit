@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/auth_session.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/app_brand_mark.dart';
+import '../widgets/logmyplate_background.dart';
 import '../widgets/primitive_icons.dart';
 
 class AccountGateScreen extends StatelessWidget {
@@ -36,109 +38,109 @@ class AccountGateScreen extends StatelessWidget {
     final copy = _AccountGateCopy.forReason(reason);
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: loading ? null : () => Navigator.of(context).pop(),
-                  icon: const BackMark(),
-                ),
-                const Spacer(),
-                _GatePill(label: copy.eyebrow),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Column(
+      backgroundColor: colors.background,
+      body: LogMyPlateAmbientBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            children: [
+              Row(
                 children: [
-                  _AccountMark(loading: loading),
-                  const SizedBox(height: 5),
-                  Text(
-                    'LogMyPlate',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.textSecondary,
-                      letterSpacing: 1.2,
+                  IconButton(
+                    onPressed: loading
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    icon: const BackMark(),
+                  ),
+                  const Spacer(),
+                  _GatePill(label: copy.eyebrow),
+                ],
+              ),
+              const SizedBox(height: 26),
+              Center(child: _AccountMark(loading: loading)),
+              const SizedBox(height: 12),
+              Text(
+                'LogMyPlate',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.textSecondary,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: 9),
+              Text(
+                copy.title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: colors.textPrimary,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                copy.subtitle,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ProviderButton(
+                      label: 'Apple',
+                      provider: AuthProvider.apple,
+                      loading: loading,
+                      onTap: () => _signIn(context, AuthProvider.apple),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ProviderButton(
+                      label: 'Google',
+                      provider: AuthProvider.google,
+                      loading: loading,
+                      onTap: () => _signIn(context, AuthProvider.google),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 9),
-            Text(
-              copy.title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: colors.textPrimary,
-                height: 1.05,
+              const SizedBox(height: 10),
+              _EmailAuthPanel(
+                loading: loading,
+                onEmailAuth: onEmailAuth,
+                onClearError: onClearError,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              copy.subtitle,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colors.textSecondary,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _ProviderButton(
-                    label: 'Apple',
-                    provider: AuthProvider.apple,
-                    loading: loading,
-                    onTap: () => _signIn(context, AuthProvider.apple),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _ProviderButton(
-                    label: 'Google',
-                    provider: AuthProvider.google,
-                    loading: loading,
-                    onTap: () => _signIn(context, AuthProvider.google),
-                  ),
-                ),
+              const SizedBox(height: 12),
+              if (error != null) ...[
+                _InlineAuthError(message: error!),
+                const SizedBox(height: 8),
               ],
-            ),
-            const SizedBox(height: 10),
-            _EmailAuthPanel(
-              loading: loading,
-              onEmailAuth: onEmailAuth,
-              onClearError: onClearError,
-            ),
-            const SizedBox(height: 12),
-            if (error != null) ...[
-              _InlineAuthError(message: error!),
-              const SizedBox(height: 8),
+              TextButton(
+                onPressed: loading
+                    ? null
+                    : reason == AccountGateReason.quotaExhausted
+                    ? onManualLog
+                    : () => Navigator.of(context).pop(),
+                child: Text(
+                  reason == AccountGateReason.quotaExhausted
+                      ? 'Log manually instead'
+                      : 'Maybe later',
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Your photos are analyzed and saved with your meal logs.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.textTertiary,
+                  letterSpacing: 0,
+                ),
+              ),
             ],
-            TextButton(
-              onPressed: loading
-                  ? null
-                  : reason == AccountGateReason.quotaExhausted
-                  ? onManualLog
-                  : () => Navigator.of(context).pop(),
-              child: Text(
-                reason == AccountGateReason.quotaExhausted
-                    ? 'Log manually instead'
-                    : 'Maybe later',
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Your photos are analyzed and saved with your meal logs.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textTertiary,
-                letterSpacing: 0,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -163,12 +165,9 @@ class _GatePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: LogMyPlateColors.accent.withValues(alpha: 0.14),
+        color: colors.mutedFill,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(
-          color: LogMyPlateColors.accent.withValues(alpha: 0.24),
-          width: 0.6,
-        ),
+        border: Border.all(color: colors.border, width: 0.6),
       ),
       child: Text(
         label,
@@ -517,95 +516,37 @@ class _AccountGateCopy {
   }
 }
 
-class _AccountMark extends StatefulWidget {
+class _AccountMark extends StatelessWidget {
   const _AccountMark({required this.loading});
 
   final bool loading;
 
   @override
-  State<_AccountMark> createState() => _AccountMarkState();
-}
-
-class _AccountMarkState extends State<_AccountMark>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return SizedBox(
-          width: 88,
-          height: 88,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              for (var index = 0; index < 3; index++)
-                Transform.scale(
-                  scale:
-                      0.68 +
-                      index * 0.16 +
-                      (_controller.value * 0.04 * (index + 1)),
-                  child: Container(
-                    width: 74,
-                    height: 74,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: LogMyPlateColors.accent.withValues(
-                          alpha: 0.22 - index * 0.04,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: colors.surfaceCard,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.border, width: 0.7),
-                  boxShadow: [
-                    BoxShadow(
-                      color: LogMyPlateColors.accent.withValues(alpha: 0.08),
-                      blurRadius: 24,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: widget.loading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: LogMyPlateColors.accent,
-                          ),
-                        )
-                      : const PrimitiveCameraIcon(
-                          color: LogMyPlateColors.accent,
-                          size: 24,
-                        ),
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        LogMyPlateBrandMark(size: 58, showHalo: false, pulsing: loading),
+        if (loading)
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.24),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: LogMyPlateColors.accent,
                 ),
               ),
-            ],
+            ),
           ),
-        );
-      },
+      ],
     );
   }
 }

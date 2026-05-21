@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/logmyplate_background.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_profile_card.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -56,132 +57,120 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final canDelete = widget.onDeleteMeal != null;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const BackMark(),
-                ),
-                const Spacer(),
-                if (_hasChanges) const _UnsavedChangesPill(),
-                if (canDelete) ...[
-                  const SizedBox(width: 8),
-                  PopupMenuButton<_MealAction>(
-                    tooltip: 'Meal actions',
-                    enabled: !_deleting,
-                    icon: Icon(Icons.more_horiz_rounded, color: colors.icon),
-                    onSelected: (action) {
-                      if (action == _MealAction.delete) {
-                        _requestDeleteMeal();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem<_MealAction>(
-                        value: _MealAction.delete,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete_outline_rounded,
-                              color: LogMyPlateColors.destructive,
-                              size: 19,
-                            ),
-                            const SizedBox(width: 10),
-                            const Text('Delete meal'),
-                          ],
-                        ),
-                      ),
-                    ],
+      backgroundColor: colors.background,
+      body: LogMyPlateAmbientBackground(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const BackMark(),
                   ),
-                ],
-              ],
-            ),
-            if (_meal.image != null) ...[
-              const SizedBox(height: 12),
-              _MealHeroImage(image: _meal.image!),
-            ],
-            const SizedBox(height: 18),
-            Text(
-              _meal.title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: colors.textPrimary,
-                height: 1.08,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _mealSubtitle(_meal, _draftItems.length),
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: 18),
-            MacroProfileCard(meal: _draftMeal),
-            const SizedBox(height: 22),
-            Text('Items', style: Theme.of(context).textTheme.labelSmall),
-            const SizedBox(height: 10),
-            for (var index = 0; index < _draftItems.length; index++)
-              _MealDetailItemRow(
-                item: _draftItems[index],
-                editable: canEdit,
-                onEdit: () => _openEditItemSheet(index),
-              ),
-            if (_error != null) ...[
-              const SizedBox(height: 14),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colors.accentText),
-              ),
-            ],
-            if (canEdit) ...[
-              const SizedBox(height: 18),
-              FilledButton(
-                onPressed: !_hasChanges || _saving || _deleting
-                    ? null
-                    : _saveChanges,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  disabledBackgroundColor: colors.mutedFill,
-                  disabledForegroundColor: colors.textSecondary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: _saving
-                      ? SizedBox(
-                          key: const ValueKey('saving-updated-meal'),
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: colors.primaryActionText,
+                  const Spacer(),
+                  if (_hasChanges) const _UnsavedChangesPill(),
+                  if (canDelete) ...[
+                    const SizedBox(width: 8),
+                    PopupMenuButton<_MealAction>(
+                      tooltip: 'Meal actions',
+                      enabled: !_deleting,
+                      icon: Icon(Icons.more_horiz_rounded, color: colors.icon),
+                      onSelected: (action) {
+                        if (action == _MealAction.delete) {
+                          _requestDeleteMeal();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem<_MealAction>(
+                          value: _MealAction.delete,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline_rounded,
+                                color: LogMyPlateColors.destructive,
+                                size: 19,
+                              ),
+                              const SizedBox(width: 10),
+                              const Text('Delete meal'),
+                            ],
                           ),
-                        )
-                      : const Text(
-                          'Save updated meal',
-                          key: ValueKey('save-updated-meal'),
                         ),
-                ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
-              if (_hasChanges)
-                TextButton(
-                  onPressed: _saving || _deleting ? null : _resetChanges,
-                  child: const Text('Reset changes'),
+              if (_meal.image != null) ...[
+                const SizedBox(height: 12),
+                _MealHeroImage(image: _meal.image!),
+              ],
+              const SizedBox(height: 14),
+              _MealDetailSummaryCard(meal: _draftMeal),
+              const SizedBox(height: 18),
+              MacroProfileCard(meal: _draftMeal),
+              const SizedBox(height: 22),
+              Text('Items', style: Theme.of(context).textTheme.labelSmall),
+              const SizedBox(height: 10),
+              for (var index = 0; index < _draftItems.length; index++)
+                _MealDetailItemRow(
+                  item: _draftItems[index],
+                  editable: canEdit,
+                  onEdit: () => _openEditItemSheet(index),
                 ),
+              if (_error != null) ...[
+                const SizedBox(height: 14),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.accentText),
+                ),
+              ],
+              if (canEdit) ...[
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: !_hasChanges || _saving || _deleting
+                      ? null
+                      : _saveChanges,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.primaryAction,
+                    foregroundColor: colors.primaryActionText,
+                    disabledBackgroundColor: colors.mutedFill,
+                    disabledForegroundColor: colors.textSecondary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: _saving
+                        ? SizedBox(
+                            key: const ValueKey('saving-updated-meal'),
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.primaryActionText,
+                            ),
+                          )
+                        : const Text(
+                            'Save updated meal',
+                            key: ValueKey('save-updated-meal'),
+                          ),
+                  ),
+                ),
+                if (_hasChanges)
+                  TextButton(
+                    onPressed: _saving || _deleting ? null : _resetChanges,
+                    child: const Text('Reset changes'),
+                  ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -264,6 +253,126 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
 }
 
 enum _MealAction { delete }
+
+class _MealDetailSummaryCard extends StatelessWidget {
+  const _MealDetailSummaryCard({required this.meal});
+
+  final MealLog meal;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final totals = meal.totals;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            meal.type.label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: colors.textSecondary,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  meal.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: colors.textPrimary,
+                    height: 1.08,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${totals.calories} kCal',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: colors.textPrimary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              _DetailMacroChip(
+                label: 'Protein',
+                value: totals.proteinG,
+                color: LogMyPlateColors.macroProtein,
+              ),
+              const SizedBox(width: 8),
+              _DetailMacroChip(
+                label: 'Carbs',
+                value: totals.carbsG,
+                color: LogMyPlateColors.macroCarbs,
+              ),
+              const SizedBox(width: 8),
+              _DetailMacroChip(
+                label: 'Fat',
+                value: totals.fatG,
+                color: LogMyPlateColors.macroFat,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _mealSubtitle(meal, meal.items.length),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.textSecondary,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailMacroChip extends StatelessWidget {
+  const _DetailMacroChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.11),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: color.withValues(alpha: 0.24), width: 0.6),
+        ),
+        child: Text(
+          '$label ${value.round()}g',
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textPrimary,
+            letterSpacing: 0,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _MealHeroImage extends StatelessWidget {
   const _MealHeroImage({required this.image});

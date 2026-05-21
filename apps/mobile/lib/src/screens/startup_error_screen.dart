@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/app_brand_mark.dart';
 
 class LogMyPlateStartupErrorApp extends StatelessWidget {
   const LogMyPlateStartupErrorApp({super.key, required this.message});
@@ -38,26 +39,7 @@ class LogMyPlateStartupErrorSurface extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: LogMyPlateColors.accent.withValues(alpha: 0.35),
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'D',
-                      style: TextStyle(
-                        color: LogMyPlateColors.accent,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  const LogMyPlateBrandMark(size: 58),
                   const SizedBox(height: 22),
                   const Text(
                     'LogMyPlate paused',

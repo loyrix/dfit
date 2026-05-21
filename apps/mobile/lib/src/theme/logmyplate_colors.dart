@@ -18,6 +18,9 @@ class LogMyPlateColors {
   static const accentLow = Color(0xFFB8954A);
   static const destructive = Color(0xFFD94B4B);
   static const destructiveDeep = Color(0xFF8E2525);
+  static const macroProtein = Color(0xFF77C79D);
+  static const macroCarbs = accent;
+  static const macroFat = Color(0xFFFF8A7A);
   static const mealBreakfastBg = Color(0xFFF4D9C0);
   static const mealBreakfastFg = Color(0xFFE89B4A);
   static const mealLunchBg = Color(0xFFFAEDC0);

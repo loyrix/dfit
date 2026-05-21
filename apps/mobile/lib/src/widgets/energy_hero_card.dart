@@ -161,7 +161,7 @@ class _TargetRing extends StatelessWidget {
                 ),
               ),
               Text(
-                remaining >= 0 ? 'used' : 'over',
+                remaining >= 0 ? 'Consumed' : 'Over',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: style.textSecondary,
                   letterSpacing: 0,

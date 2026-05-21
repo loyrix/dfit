@@ -848,6 +848,7 @@ export class PostgresStore implements AppRepository {
         await tx`
           insert into nutrition_results (
             meal_item_id,
+            meal_id,
             calories,
             protein_g,
             carbs_g,
@@ -858,6 +859,7 @@ export class PostgresStore implements AppRepository {
           )
           values (
             ${itemRow.id},
+            ${mealRow.id},
             ${item.nutrition.calories},
             ${item.nutrition.proteinG},
             ${item.nutrition.carbsG},
@@ -1027,7 +1029,8 @@ export class PostgresStore implements AppRepository {
         coalesce(sum(nutrition_results.sugar_g), 0)::text as sugar_g,
         coalesce(sum(nutrition_results.sodium_mg), 0)::text as sodium_mg
       from meals
-      left join nutrition_results on nutrition_results.meal_id = meals.id
+      left join meal_items on meal_items.meal_id = meals.id
+      left join nutrition_results on nutrition_results.meal_item_id = meal_items.id
       where meals.profile_id = ${profile.id}
         and (${fromDate}::date is null or meals.local_date >= ${fromDate})
         and (${toDate}::date is null or meals.local_date <= ${toDate})

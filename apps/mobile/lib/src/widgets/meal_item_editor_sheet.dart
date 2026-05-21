@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
+import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 
 class MealItemEditResult {
@@ -80,13 +81,35 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
           constraints: const BoxConstraints(maxHeight: 680),
           decoration: BoxDecoration(
             color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.border),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colors.border, width: 0.6),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 0.30
+                      : 0.10,
+                ),
+                blurRadius: 30,
+                offset: const Offset(0, 18),
+              ),
+            ],
           ),
           child: ListView(
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Text(
@@ -102,7 +125,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                       ).pop(const MealItemEditResult.delete()),
                       icon: Icon(
                         Icons.delete_outline_rounded,
-                        color: colors.textSecondary,
+                        color: LogMyPlateColors.destructive,
                       ),
                     ),
                 ],
@@ -360,35 +383,52 @@ class _EditTextField extends StatelessWidget {
       textInputAction: textInputAction,
       enabled: enabled,
       onChanged: onChanged,
-      decoration: _fieldDecoration(context, label),
-      style: Theme.of(context).textTheme.bodyMedium?.copyWith(letterSpacing: 0),
+      decoration: _fieldDecoration(context, label, enabled: enabled),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: enabled
+            ? context.logmyplate.textPrimary
+            : context.logmyplate.textTertiary,
+        letterSpacing: 0,
+      ),
     );
   }
 }
 
-InputDecoration _fieldDecoration(BuildContext context, String label) {
+InputDecoration _fieldDecoration(
+  BuildContext context,
+  String label, {
+  bool enabled = true,
+}) {
   final colors = context.logmyplate;
+  final enabledFill = colors.surfaceCard;
+  final disabledFill = colors.mutedFill.withValues(alpha: 0.64);
+  final enabledBorder = colors.border;
+  final disabledBorder = colors.border.withValues(alpha: 0.48);
 
   return InputDecoration(
     labelText: label,
     labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: colors.textSecondary,
+      color: enabled ? colors.textSecondary : colors.textTertiary,
       letterSpacing: 0.4,
     ),
     filled: true,
-    fillColor: colors.mutedFill,
+    fillColor: enabled ? enabledFill : disabledFill,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: colors.border),
+      borderSide: BorderSide(color: enabled ? enabledBorder : disabledBorder),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: colors.border),
+      borderSide: BorderSide(color: enabledBorder),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(color: colors.accent),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: disabledBorder),
     ),
   );
 }

@@ -62,7 +62,7 @@ void main() {
     expect(find.text('AI Meal Scan'), findsOneWidget);
     expect(find.byType(TodayScreen, skipOffstage: false), findsNothing);
     expect(find.text('Start first scan', skipOffstage: false), findsOneWidget);
-    expect(find.text('Clear photo. Better macros.'), findsOneWidget);
+    expect(find.text('Photo plus food note'), findsOneWidget);
     expect(find.text('Food note'), findsOneWidget);
     expect(find.text('Gallery'), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
@@ -104,7 +104,7 @@ void main() {
     await tester.tap(find.text('Rice'));
     await tester.pumpAndSettle();
 
-    expect(find.text('kCal - 2 items'), findsOneWidget);
+    expect(find.text('Lunch - 2 items'), findsOneWidget);
   });
 
   testWidgets('shows the captured meal photo during scan review', (
@@ -129,7 +129,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Captured meal'), findsOneWidget);
+    expect(find.text('Review estimate'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
   });
 
@@ -186,9 +186,9 @@ void main() {
     );
 
     expect(find.text('Lunch'), findsOneWidget);
-    expect(find.text('Add item'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -420));
     await tester.pumpAndSettle();
+    expect(find.text('Add item'), findsOneWidget);
     expect(find.text('Confirm meal'), findsOneWidget);
   });
 
@@ -609,7 +609,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Macro Profile'), findsOneWidget);
+    expect(find.text('Macro profile'), findsOneWidget);
     expect(find.text('Item Contribution'), findsOneWidget);
     expect(find.text('Protein density'), findsOneWidget);
     expect(find.text('Dal'), findsWidgets);
@@ -865,6 +865,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), 'secret1');
     await tester.drag(find.byType(ListView), const Offset(0, -420));
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -888,6 +889,7 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump();
     expect(find.text('Enter your email address.'), findsOneWidget);
@@ -895,6 +897,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), 'friend@test.com');
     await tester.drag(find.byType(ListView), const Offset(0, -420));
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump();
     expect(
@@ -930,6 +933,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).at(0), 'friend@test.com');
     await tester.enterText(find.byType(TextField).at(1), 'secret1');
+    await tester.ensureVisible(find.text('Create account'));
     await tester.tap(find.text('Create account'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
