@@ -432,31 +432,54 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       return false;
     }
 
-    final context = _navigatorKey.currentContext;
-    if (context == null) return false;
+    while (mounted) {
+      final context = _navigatorKey.currentContext;
+      if (context == null) return false;
+      if (!context.mounted) return false;
+      final action = await showModalBottomSheet<_NoScanCreditsAction>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _NoScanCreditsSheet(
+          progress: _journalController.rewardedAdProgress,
+        ),
+      );
 
-    final action = await showModalBottomSheet<_NoScanCreditsAction>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _NoScanCreditsSheet(),
-    );
-
-    if (action == _NoScanCreditsAction.watchAd) {
-      return _watchRewardedAdForScan();
-    } else if (action == _NoScanCreditsAction.addManually) {
-      await _openManualReview();
-    } else if (action == _NoScanCreditsAction.refresh) {
-      await _journalController.loadToday();
+      if (action == _NoScanCreditsAction.watchAd) {
+        return _watchConsecutiveRewardedAdsForScan();
+      } else if (action == _NoScanCreditsAction.addManually) {
+        await _openManualReview();
+      } else if (action == _NoScanCreditsAction.refresh) {
+        await _journalController.loadToday();
+        if ((_journalController.quota?.totalRemaining ?? 0) > 0) return true;
+      }
+      break;
     }
 
     return false;
   }
 
-  Future<bool> _watchRewardedAdForScan() async {
+  Future<bool> _watchConsecutiveRewardedAdsForScan() async {
+    while (mounted) {
+      final progress = _journalController.rewardedAdProgress;
+      if (progress.dailyLimitReached) return false;
+
+      final result = await _watchRewardedAdForScan();
+      if (result == _RewardedAdWatchResult.unlocked) return true;
+      if (result == _RewardedAdWatchResult.failed) return false;
+    }
+
+    return false;
+  }
+
+  Future<_RewardedAdWatchResult> _watchRewardedAdForScan() async {
+    final progress = _journalController.rewardedAdProgress;
+    final next = progress.adsNeededForNextScan;
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.info,
-      title: 'Preparing ad',
-      message: 'Your scan unlock continues after the ad.',
+      title: next == 1 ? 'Final ad' : 'Preparing ad',
+      message: next == 1
+          ? 'Finish this ad to unlock your scan.'
+          : 'Keep watching to unlock 1 scan.',
     );
 
     final outcome = await _rewardedAds.showScanUnlockAd();
@@ -466,7 +489,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         title: 'Ad not completed',
         message: outcome.errorMessage ?? 'Watch a full ad to earn progress.',
       );
-      return false;
+      return _RewardedAdWatchResult.failed;
     }
 
     try {
@@ -483,25 +506,27 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           title: 'Scan unlocked',
           message: 'You can scan one more meal now.',
         );
-        return reward.quota.totalRemaining > 0;
+        return reward.quota.totalRemaining > 0
+            ? _RewardedAdWatchResult.unlocked
+            : _RewardedAdWatchResult.failed;
       }
 
       final next = reward.adsNeededForNextScan;
       _showJournalNotice(
-        tone: LogMyPlateNoticeTone.warning,
+        tone: LogMyPlateNoticeTone.info,
         title: 'Almost there',
         message: next == 1
-            ? 'Watch 1 more rewarded ad to unlock a scan.'
-            : 'Watch $next more rewarded ads to unlock a scan.',
+            ? 'Opening 1 more ad to unlock your scan.'
+            : 'Opening $next more ads to unlock your scan.',
       );
-      return false;
+      return _RewardedAdWatchResult.progressed;
     } catch (_) {
       _showJournalNotice(
         tone: LogMyPlateNoticeTone.error,
         title: 'Unlock sync failed',
         message: 'Ad was watched, but the scan could not be credited.',
       );
-      return false;
+      return _RewardedAdWatchResult.failed;
     }
   }
 
@@ -1103,73 +1128,101 @@ class _JournalTabLoadingScreen extends StatelessWidget {
 
 enum _NoScanCreditsAction { watchAd, addManually, refresh }
 
+enum _RewardedAdWatchResult { unlocked, progressed, failed }
+
 class _NoScanCreditsSheet extends StatelessWidget {
-  const _NoScanCreditsSheet();
+  const _NoScanCreditsSheet({required this.progress});
+
+  final RewardedAdProgress progress;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final adsNeeded = progress.adsNeededForNextScan;
+    final completed = progress.dailyLimitReached
+        ? progress.adsPerScan
+        : progress.adsCompletedTowardNextScan;
+    final title = adsNeeded == 1 ? 'Almost there' : 'No scans left';
+    final description = progress.dailyLimitReached
+        ? 'You have reached today\'s ad unlock limit. Add this meal manually or refresh later.'
+        : adsNeeded == 1
+        ? 'Watch 1 more rewarded ad to unlock 1 scan.'
+        : 'Watch $adsNeeded rewarded ads to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.';
+    final buttonLabel = adsNeeded == 1
+        ? 'Watch final ad'
+        : 'Start earning scan';
 
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'No scans left',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Watch 2 rewarded ads to unlock 1 scan. You can unlock up to 5 scans per day.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_NoScanCreditsAction.watchAd),
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.primaryAction,
-                foregroundColor: colors.primaryActionText,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+      child: SingleChildScrollView(
+        child: Container(
+          margin: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          decoration: BoxDecoration(
+            color: colors.surfaceCard,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(
+                description,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
                 ),
               ),
-              child: const Text('Watch ad'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_NoScanCreditsAction.addManually),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colors.textPrimary,
-                side: BorderSide(color: colors.border),
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              if (!progress.dailyLimitReached) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Progress $completed of ${progress.adsPerScan} ads',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
+              ],
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: progress.dailyLimitReached
+                    ? null
+                    : () => Navigator.of(
+                        context,
+                      ).pop(_NoScanCreditsAction.watchAd),
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.primaryAction,
+                  foregroundColor: colors.primaryActionText,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(buttonLabel),
               ),
-              child: const Text('Add manually'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_NoScanCreditsAction.refresh),
-              child: const Text('Refresh quota'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_NoScanCreditsAction.addManually),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.textPrimary,
+                  side: BorderSide(color: colors.border),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('Add manually'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_NoScanCreditsAction.refresh),
+                child: const Text('Refresh quota'),
+              ),
+            ],
+          ),
         ),
       ),
     );

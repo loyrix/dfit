@@ -12,8 +12,9 @@ export const registerBootstrapRoutes = async (
   app.get("/v1/app/bootstrap", async (request) => {
     const timer = createRouteTimer();
     const profile = await timer.measure("profile", () => repository.getProfile());
-    const [quota, healthTarget] = await Promise.all([
+    const [quota, rewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
+      timer.measure("rewardedAdProgress", () => repository.getRewardedAdProgress()),
       timer.measure("healthTarget", () => repository.getHealthTarget(profile.id)),
     ]);
     const [today, weeklySummary] = await Promise.all([
@@ -40,6 +41,7 @@ export const registerBootstrapRoutes = async (
       profile,
       healthTarget,
       quota,
+      rewardedAdProgress,
       today,
       weeklySummary,
     };

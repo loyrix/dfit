@@ -23,6 +23,7 @@ import type {
   ProfileHealthTarget,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
+  RewardedAdProgressState,
   ScanSession,
   UpdateMealInput,
   UpsertProfileHealthTargetInput,
@@ -170,6 +171,25 @@ export class InMemoryStore implements AppRepository {
     return { ...this.quotaFor(await this.getProfile()) };
   }
 
+  async getRewardedAdProgress(): Promise<RewardedAdProgressState> {
+    const profile = await this.getProfile();
+    const today = new Date().toISOString().slice(0, 10);
+    const progressKey = `${this.quotaKey(profile)}:${today}`;
+    const progress = this.rewardedAdProgress.get(progressKey) ?? {
+      completedAds: 0,
+      grantedScans: 0,
+    };
+    const state = calculateRewardedAdState(progress);
+
+    return {
+      adsWatchedToday: progress.completedAds,
+      adsNeededForNextScan: state.adsNeededForNextScan,
+      scansGrantedToday: progress.grantedScans,
+      dailyScanLimit: rewardedDailyScanLimit,
+      adsPerScan: rewardedAdsPerScan,
+    };
+  }
+
   async consumeCredit(reason: "free" | "rewarded" | "premium") {
     const quota = this.quotaFor(await this.getProfile());
     if (reason === "free" && quota.freeRemaining > 0) quota.freeRemaining -= 1;
@@ -202,11 +222,7 @@ export class InMemoryStore implements AppRepository {
 
     return {
       grantedScan: grantableScans > 0,
-      adsWatchedToday: progress.completedAds,
-      adsNeededForNextScan: calculateRewardedAdState(progress).adsNeededForNextScan,
-      scansGrantedToday: progress.grantedScans,
-      dailyScanLimit: rewardedDailyScanLimit,
-      adsPerScan: rewardedAdsPerScan,
+      ...(await this.getRewardedAdProgress()),
       quota: { ...quota },
     };
   }

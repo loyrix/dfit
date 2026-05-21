@@ -193,11 +193,11 @@ void main() {
         return http.Response(
           jsonEncode({
             'grantedScan': true,
-            'adsWatchedToday': 2,
-            'adsNeededForNextScan': 2,
+            'adsWatchedToday': 3,
+            'adsNeededForNextScan': 3,
             'scansGrantedToday': 1,
             'dailyScanLimit': 5,
-            'adsPerScan': 2,
+            'adsPerScan': 3,
             'quota': {
               'freeRemaining': 0,
               'rewardedRemaining': 1,
@@ -217,8 +217,8 @@ void main() {
     );
 
     expect(reward.grantedScan, isTrue);
-    expect(reward.adsWatchedToday, 2);
-    expect(reward.adsPerScan, 2);
+    expect(reward.adsWatchedToday, 3);
+    expect(reward.adsPerScan, 3);
     expect(reward.dailyScanLimit, 5);
     expect(reward.quota.rewardedRemaining, 1);
   });

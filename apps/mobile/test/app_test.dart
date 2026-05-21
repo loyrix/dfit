@@ -1184,12 +1184,122 @@ void main() {
       AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
     });
     final adGateway = _FakeRewardedAdGateway(
-      outcome: const RewardedAdOutcome(
-        earnedReward: true,
-        adUnitId: 'ca-app-pub-3940256099942544/1712485313',
-        rewardType: 'coin',
-        rewardAmount: 1,
+      outcomes: const [
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'coin',
+          rewardAmount: 1,
+        ),
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'coin',
+          rewardAmount: 1,
+        ),
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'coin',
+          rewardAmount: 1,
+        ),
+      ],
+    );
+
+    final rewardResponses = [
+      {
+        'grantedScan': false,
+        'adsWatchedToday': 1,
+        'adsNeededForNextScan': 2,
+        'scansGrantedToday': 0,
+        'dailyScanLimit': 5,
+        'adsPerScan': 3,
+        'quota': {
+          'freeRemaining': 0,
+          'rewardedRemaining': 0,
+          'premiumRemaining': 0,
+        },
+      },
+      {
+        'grantedScan': false,
+        'adsWatchedToday': 2,
+        'adsNeededForNextScan': 1,
+        'scansGrantedToday': 0,
+        'dailyScanLimit': 5,
+        'adsPerScan': 3,
+        'quota': {
+          'freeRemaining': 0,
+          'rewardedRemaining': 0,
+          'premiumRemaining': 0,
+        },
+      },
+      {
+        'grantedScan': true,
+        'adsWatchedToday': 3,
+        'adsNeededForNextScan': 3,
+        'scansGrantedToday': 1,
+        'dailyScanLimit': 5,
+        'adsPerScan': 3,
+        'quota': {
+          'freeRemaining': 0,
+          'rewardedRemaining': 1,
+          'premiumRemaining': 0,
+        },
+      },
+    ];
+
+    final controller = _testJournalController(
+      quota: const {
+        'freeRemaining': 0,
+        'rewardedRemaining': 0,
+        'premiumRemaining': 0,
+      },
+      rewardedAdResponses: rewardResponses,
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        rewardedAdGateway: adGateway,
+        journalController: controller,
       ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
+    await tester.pumpAndSettle();
+    expect(find.text('Start earning scan'), findsOneWidget);
+
+    await tester.tap(find.text('Start earning scan'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(adGateway.showCount, 3);
+    expect(find.text('AI Meal Scan'), findsOneWidget);
+  });
+
+  testWidgets('saved rewarded ad progress resumes with the final ad', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+    final adGateway = _FakeRewardedAdGateway(
+      outcomes: const [
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'coin',
+          rewardAmount: 1,
+        ),
+      ],
     );
 
     await tester.pumpWidget(
@@ -1201,19 +1311,28 @@ void main() {
             'rewardedRemaining': 0,
             'premiumRemaining': 0,
           },
-          rewardedAdResponse: const {
-            'grantedScan': true,
+          rewardedAdProgress: const {
             'adsWatchedToday': 2,
-            'adsNeededForNextScan': 2,
-            'scansGrantedToday': 1,
+            'adsNeededForNextScan': 1,
+            'scansGrantedToday': 0,
             'dailyScanLimit': 5,
-            'adsPerScan': 2,
-            'quota': {
-              'freeRemaining': 0,
-              'rewardedRemaining': 1,
-              'premiumRemaining': 0,
-            },
+            'adsPerScan': 3,
           },
+          rewardedAdResponses: const [
+            {
+              'grantedScan': true,
+              'adsWatchedToday': 3,
+              'adsNeededForNextScan': 3,
+              'scansGrantedToday': 1,
+              'dailyScanLimit': 5,
+              'adsPerScan': 3,
+              'quota': {
+                'freeRemaining': 0,
+                'rewardedRemaining': 1,
+                'premiumRemaining': 0,
+              },
+            },
+          ],
         ),
       ),
     );
@@ -1221,14 +1340,84 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
     await tester.pumpAndSettle();
-    expect(find.text('Watch ad'), findsOneWidget);
+    expect(find.text('Watch final ad'), findsOneWidget);
 
-    await tester.tap(find.text('Watch ad'));
+    await tester.tap(find.text('Watch final ad'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(adGateway.showCount, 1);
     expect(find.text('AI Meal Scan'), findsOneWidget);
+  });
+
+  testWidgets('consecutive rewarded ads stop when user closes an ad', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+    final adGateway = _FakeRewardedAdGateway(
+      outcomes: const [
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'coin',
+          rewardAmount: 1,
+        ),
+        RewardedAdOutcome(
+          earnedReward: false,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          errorMessage: 'Ad was closed before reward.',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        rewardedAdGateway: adGateway,
+        journalController: _testJournalController(
+          quota: const {
+            'freeRemaining': 0,
+            'rewardedRemaining': 0,
+            'premiumRemaining': 0,
+          },
+          rewardedAdResponses: const [
+            {
+              'grantedScan': false,
+              'adsWatchedToday': 1,
+              'adsNeededForNextScan': 2,
+              'scansGrantedToday': 0,
+              'dailyScanLimit': 5,
+              'adsPerScan': 3,
+              'quota': {
+                'freeRemaining': 0,
+                'rewardedRemaining': 0,
+                'premiumRemaining': 0,
+              },
+            },
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Start earning scan'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(adGateway.showCount, 2);
+    expect(find.text('AI Meal Scan'), findsNothing);
   });
 
   testWidgets('save journal account gate backs out without manual review', (
@@ -1332,15 +1521,19 @@ void main() {
 }
 
 class _FakeRewardedAdGateway implements RewardedAdGateway {
-  _FakeRewardedAdGateway({required this.outcome});
+  _FakeRewardedAdGateway({
+    RewardedAdOutcome? outcome,
+    List<RewardedAdOutcome>? outcomes,
+  }) : outcomes = outcomes ?? [outcome!];
 
-  final RewardedAdOutcome outcome;
+  final List<RewardedAdOutcome> outcomes;
   int showCount = 0;
 
   @override
   Future<RewardedAdOutcome> showScanUnlockAd() async {
     showCount += 1;
-    return outcome;
+    final index = showCount - 1;
+    return outcomes[index.clamp(0, outcomes.length - 1)];
   }
 
   @override
@@ -1384,10 +1577,17 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
 JournalController _testJournalController({
   Map<String, int>? quota,
   Map<String, dynamic>? rewardedAdResponse,
+  List<Map<String, dynamic>>? rewardedAdResponses,
+  Map<String, int>? rewardedAdProgress,
 }) {
   final quotaPayload =
       quota ??
       const {'freeRemaining': 3, 'rewardedRemaining': 0, 'premiumRemaining': 0};
+
+  final adResponses =
+      rewardedAdResponses ??
+      (rewardedAdResponse == null ? null : [rewardedAdResponse]);
+  var rewardedAdResponseIndex = 0;
 
   return JournalController(
     apiClient: LogMyPlateApiClient(
@@ -1395,7 +1595,12 @@ JournalController _testJournalController({
       httpClient: MockClient((request) async {
         if (request.url.path == '/v1/app/bootstrap') {
           return http.Response(
-            jsonEncode(_emptyBootstrapPayload(quota: quotaPayload)),
+            jsonEncode(
+              _emptyBootstrapPayload(
+                quota: quotaPayload,
+                rewardedAdProgress: rewardedAdProgress,
+              ),
+            ),
             200,
           );
         }
@@ -1403,8 +1608,15 @@ JournalController _testJournalController({
           return http.Response(jsonEncode(quotaPayload), 200);
         }
         if (request.url.path == '/v1/ads/rewarded/complete' &&
-            rewardedAdResponse != null) {
-          return http.Response(jsonEncode(rewardedAdResponse), 200);
+            adResponses != null &&
+            adResponses.isNotEmpty) {
+          final response =
+              adResponses[rewardedAdResponseIndex.clamp(
+                0,
+                adResponses.length - 1,
+              )];
+          rewardedAdResponseIndex += 1;
+          return http.Response(jsonEncode(response), 200);
         }
         return http.Response(jsonEncode({'error': 'not_found'}), 404);
       }),
@@ -1412,7 +1624,10 @@ JournalController _testJournalController({
   );
 }
 
-Map<String, dynamic> _emptyBootstrapPayload({Map<String, int>? quota}) {
+Map<String, dynamic> _emptyBootstrapPayload({
+  Map<String, int>? quota,
+  Map<String, int>? rewardedAdProgress,
+}) {
   final zeroTotals = {'calories': 0, 'proteinG': 0, 'carbsG': 0, 'fatG': 0};
   final quotaPayload =
       quota ??
@@ -1429,6 +1644,15 @@ Map<String, dynamic> _emptyBootstrapPayload({Map<String, int>? quota}) {
       'createdAt': '2026-05-19T10:00:00.000Z',
     },
     'quota': quotaPayload,
+    'rewardedAdProgress':
+        rewardedAdProgress ??
+        {
+          'adsWatchedToday': 0,
+          'adsNeededForNextScan': 3,
+          'scansGrantedToday': 0,
+          'dailyScanLimit': 5,
+          'adsPerScan': 3,
+        },
     'today': {'totals': zeroTotals, 'meals': []},
     'weeklyRange': {
       'startDate': '2026-05-13',

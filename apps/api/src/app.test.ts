@@ -198,7 +198,7 @@ describe("LogMyPlate API", () => {
         freeLifetime: 3,
         rewardedCap: 5,
         launchTotalCap: 8,
-        rewardedAdsPerScan: 2,
+        rewardedAdsPerScan: 3,
         rewardedPeriod: "day",
       },
       features: {
@@ -1190,7 +1190,7 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
-  it("grants one rewarded scan after two completed ads", async () => {
+  it("grants one rewarded scan after three completed ads", async () => {
     const app = await testApp();
     const installHeaders = {
       "x-logmyplate-install-id": "install-rewarded-ad",
@@ -1222,10 +1222,10 @@ describe("LogMyPlate API", () => {
     expect(first.json()).toMatchObject({
       grantedScan: false,
       adsWatchedToday: 1,
-      adsNeededForNextScan: 1,
+      adsNeededForNextScan: 2,
       scansGrantedToday: 0,
       dailyScanLimit: 5,
-      adsPerScan: 2,
+      adsPerScan: 3,
       quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
     });
 
@@ -1241,12 +1241,33 @@ describe("LogMyPlate API", () => {
     });
     expect(second.statusCode).toBe(200);
     expect(second.json()).toMatchObject({
-      grantedScan: true,
+      grantedScan: false,
       adsWatchedToday: 2,
-      adsNeededForNextScan: 2,
+      adsNeededForNextScan: 1,
+      scansGrantedToday: 0,
+      dailyScanLimit: 5,
+      adsPerScan: 3,
+      quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
+    });
+
+    const third = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...headers, "idempotency-key": "rewarded-ad-three" },
+      payload: {
+        provider: "admob",
+        placement: "scan_unlock",
+        adUnitId: "ca-app-pub-3940256099942544/1712485313",
+      },
+    });
+    expect(third.statusCode).toBe(200);
+    expect(third.json()).toMatchObject({
+      grantedScan: true,
+      adsWatchedToday: 3,
+      adsNeededForNextScan: 3,
       scansGrantedToday: 1,
       dailyScanLimit: 5,
-      adsPerScan: 2,
+      adsPerScan: 3,
       quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
     });
     await app.close();
@@ -1271,7 +1292,7 @@ describe("LogMyPlate API", () => {
     };
 
     let lastPayload: Record<string, unknown> = {};
-    for (let index = 1; index <= 11; index += 1) {
+    for (let index = 1; index <= 16; index += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/v1/ads/rewarded/complete",
@@ -1284,7 +1305,7 @@ describe("LogMyPlate API", () => {
 
     expect(lastPayload).toMatchObject({
       grantedScan: false,
-      adsWatchedToday: 11,
+      adsWatchedToday: 16,
       adsNeededForNextScan: 0,
       scansGrantedToday: 5,
       quota: { freeRemaining: 3, rewardedRemaining: 5, premiumRemaining: 0 },
@@ -1335,7 +1356,7 @@ describe("LogMyPlate API", () => {
       authorization: `Bearer ${signup.json().accessToken}`,
     };
 
-    for (let index = 1; index <= 2; index += 1) {
+    for (let index = 1; index <= 3; index += 1) {
       const rewarded = await app.inject({
         method: "POST",
         url: "/v1/ads/rewarded/complete",

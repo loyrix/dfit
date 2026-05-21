@@ -717,6 +717,7 @@ class AppBootstrapData {
     required this.profile,
     this.healthTarget,
     required this.quota,
+    required this.rewardedAdProgress,
     required this.today,
     required this.weeklyRange,
   });
@@ -725,6 +726,7 @@ class AppBootstrapData {
   final AppProfile profile;
   final HealthTarget? healthTarget;
   final ScanQuota quota;
+  final RewardedAdProgress rewardedAdProgress;
   final TodayJournalData today;
   final JournalRangeData weeklyRange;
 
@@ -736,6 +738,11 @@ class AppBootstrapData {
           ? null
           : HealthTarget.fromJson(json['healthTarget'] as Map<String, dynamic>),
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
+      rewardedAdProgress: json['rewardedAdProgress'] == null
+          ? RewardedAdProgress.initial()
+          : RewardedAdProgress.fromJson(
+              json['rewardedAdProgress'] as Map<String, dynamic>,
+            ),
       today: TodayJournalData.fromJson(json['today'] as Map<String, dynamic>),
       weeklyRange: json['weeklySummary'] == null
           ? JournalRangeData.fromJson(
@@ -768,6 +775,7 @@ class AppBootstrapData {
               'formula': healthTarget!.formula,
             },
       'quota': quota.toJson(),
+      'rewardedAdProgress': rewardedAdProgress.toJson(),
       'today': today.toJson(),
       'weeklySummary': {
         'startDate': weeklyRange.startDate,
@@ -859,6 +867,65 @@ class RewardedAdCredit {
       adsPerScan: json['adsPerScan'] as int,
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
     );
+  }
+
+  RewardedAdProgress get progress => RewardedAdProgress(
+    adsWatchedToday: adsWatchedToday,
+    adsNeededForNextScan: adsNeededForNextScan,
+    scansGrantedToday: scansGrantedToday,
+    dailyScanLimit: dailyScanLimit,
+    adsPerScan: adsPerScan,
+  );
+}
+
+class RewardedAdProgress {
+  const RewardedAdProgress({
+    required this.adsWatchedToday,
+    required this.adsNeededForNextScan,
+    required this.scansGrantedToday,
+    required this.dailyScanLimit,
+    required this.adsPerScan,
+  });
+
+  final int adsWatchedToday;
+  final int adsNeededForNextScan;
+  final int scansGrantedToday;
+  final int dailyScanLimit;
+  final int adsPerScan;
+
+  int get adsCompletedTowardNextScan =>
+      adsPerScan == 0 ? 0 : adsWatchedToday % adsPerScan;
+
+  bool get dailyLimitReached => scansGrantedToday >= dailyScanLimit;
+
+  factory RewardedAdProgress.initial() {
+    return const RewardedAdProgress(
+      adsWatchedToday: 0,
+      adsNeededForNextScan: 3,
+      scansGrantedToday: 0,
+      dailyScanLimit: 5,
+      adsPerScan: 3,
+    );
+  }
+
+  factory RewardedAdProgress.fromJson(Map<String, dynamic> json) {
+    return RewardedAdProgress(
+      adsWatchedToday: json['adsWatchedToday'] as int? ?? 0,
+      adsNeededForNextScan: json['adsNeededForNextScan'] as int? ?? 3,
+      scansGrantedToday: json['scansGrantedToday'] as int? ?? 0,
+      dailyScanLimit: json['dailyScanLimit'] as int? ?? 5,
+      adsPerScan: json['adsPerScan'] as int? ?? 3,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'adsWatchedToday': adsWatchedToday,
+      'adsNeededForNextScan': adsNeededForNextScan,
+      'scansGrantedToday': scansGrantedToday,
+      'dailyScanLimit': dailyScanLimit,
+      'adsPerScan': adsPerScan,
+    };
   }
 }
 

@@ -103,6 +103,11 @@ export const rewardedAdCreditResponseSchema = z.object({
   quota: prepareScanResponseSchema.shape.quota,
 });
 
+export const rewardedAdProgressResponseSchema = rewardedAdCreditResponseSchema.omit({
+  grantedScan: true,
+  quota: true,
+});
+
 export type PrepareScanResponseContract = z.infer<typeof prepareScanResponseSchema>;
 export type AnalyzeScanRequestContract = z.infer<typeof analyzeScanRequestSchema>;
 export type AnalyzeScanResponseContract = z.infer<typeof analyzeScanResponseSchema>;
@@ -110,3 +115,4 @@ export type ConfirmScanRequestContract = z.infer<typeof confirmScanRequestSchema
 export type ConfirmScanResponseContract = z.infer<typeof confirmScanResponseSchema>;
 export type CompleteRewardedAdRequestContract = z.infer<typeof completeRewardedAdRequestSchema>;
 export type RewardedAdCreditResponseContract = z.infer<typeof rewardedAdCreditResponseSchema>;
+export type RewardedAdProgressResponseContract = z.infer<typeof rewardedAdProgressResponseSchema>;

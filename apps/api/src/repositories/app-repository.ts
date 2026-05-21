@@ -104,6 +104,8 @@ export type RewardedAdCreditResult = {
   quota: ScanCreditState;
 };
 
+export type RewardedAdProgressState = Omit<RewardedAdCreditResult, "grantedScan" | "quota">;
+
 export type ListMealsInput = {
   fromDate?: string;
   toDate?: string;
@@ -148,6 +150,7 @@ export interface AppRepository {
   searchFoods(query: string): Promise<FoodSearchResult[]>;
   getFood(foodId: string): Promise<FoodRecord | undefined>;
   getQuota(): Promise<ScanCreditState>;
+  getRewardedAdProgress(): Promise<RewardedAdProgressState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
   completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;

@@ -32,6 +32,7 @@ import type {
   ProfileHealthTarget,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
+  RewardedAdProgressState,
   ScanSession,
   UpdateMealInput,
   UpsertProfileHealthTargetInput,
@@ -562,6 +563,33 @@ export class PostgresStore implements AppRepository {
   async getQuota() {
     const profile = await this.getProfile();
     return quotaFromRow(await this.getOrCreateQuota(profile));
+  }
+
+  async getRewardedAdProgress(): Promise<RewardedAdProgressState> {
+    const profile = await this.getProfile();
+    const today = localDate();
+    const ownerKey = this.quotaOwnerKey(profile);
+    const [progress] = await this.sql<RewardedAdProgressRow[]>`
+      select completed_ads, granted_scans
+      from rewarded_ad_progress
+      where quota_owner_key = ${ownerKey}
+        and local_date = ${today}
+      limit 1
+    `;
+    const completedAds = progress?.completed_ads ?? 0;
+    const grantedScans = progress?.granted_scans ?? 0;
+    const rewardState = calculateRewardedAdState({
+      completedAds,
+      grantedScans,
+    });
+
+    return {
+      adsWatchedToday: completedAds,
+      adsNeededForNextScan: rewardState.adsNeededForNextScan,
+      scansGrantedToday: grantedScans,
+      dailyScanLimit: rewardedDailyScanLimit,
+      adsPerScan: rewardedAdsPerScan,
+    };
   }
 
   async consumeCredit(reason: "free" | "rewarded" | "premium") {

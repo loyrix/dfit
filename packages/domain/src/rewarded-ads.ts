@@ -1,4 +1,4 @@
-export const rewardedAdsPerScan = 2;
+export const rewardedAdsPerScan = 3;
 export const rewardedDailyScanLimit = 5;
 
 export const calculateRewardedAdState = (input: { completedAds: number; grantedScans: number }) => {

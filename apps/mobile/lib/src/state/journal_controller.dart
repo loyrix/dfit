@@ -23,6 +23,7 @@ class JournalController extends ChangeNotifier {
   List<MealLog> _meals = [];
   MacroTotals _totals = MacroTotals.zero;
   ScanQuota? _quota;
+  RewardedAdProgress _rewardedAdProgress = RewardedAdProgress.initial();
   HealthTarget? _healthTarget;
   JournalRangeData? _weeklyRange;
   DateTime? _lastLoadedAt;
@@ -32,6 +33,7 @@ class JournalController extends ChangeNotifier {
   List<MealLog> get meals => List.unmodifiable(_meals);
   MacroTotals get totals => _totals;
   ScanQuota? get quota => _quota;
+  RewardedAdProgress get rewardedAdProgress => _rewardedAdProgress;
   HealthTarget? get healthTarget => _healthTarget;
   MacroTotals? get dailyTarget =>
       _healthTarget?.dailyTargetTotals ?? _weeklyRange?.target;
@@ -46,6 +48,7 @@ class JournalController extends ChangeNotifier {
     _meals = [];
     _totals = MacroTotals.zero;
     _quota = null;
+    _rewardedAdProgress = RewardedAdProgress.initial();
     _healthTarget = null;
     _weeklyRange = null;
     _lastLoadedAt = null;
@@ -216,6 +219,7 @@ class JournalController extends ChangeNotifier {
         rewardAmount: rewardAmount,
       );
       _quota = reward.quota;
+      _rewardedAdProgress = reward.progress;
       _error = null;
       notifyListeners();
       return reward;
@@ -264,6 +268,7 @@ class JournalController extends ChangeNotifier {
     _healthTarget = bootstrap.healthTarget;
     _weeklyRange = bootstrap.weeklyRange;
     _quota = bootstrap.quota;
+    _rewardedAdProgress = bootstrap.rewardedAdProgress;
     _lastLoadedAt =
         DateTime.tryParse(bootstrap.serverTime)?.toLocal() ?? DateTime.now();
   }
