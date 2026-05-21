@@ -4,13 +4,19 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
 
 class HealthTargetScreen extends StatefulWidget {
-  const HealthTargetScreen({super.key, required this.onSave});
+  const HealthTargetScreen({
+    super.key,
+    required this.onSave,
+    this.initialTarget,
+  });
 
   final Future<HealthTarget> Function(HealthTargetInput input) onSave;
+  final HealthTarget? initialTarget;
 
   @override
   State<HealthTargetScreen> createState() => _HealthTargetScreenState();
@@ -27,6 +33,19 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    final target = widget.initialTarget;
+    if (target == null) return;
+    _heightCm = target.heightCm;
+    _weightKg = target.weightKg;
+    _ageYears = target.ageYears;
+    _sex = target.sex;
+    _activityLevel = target.activityLevel;
+    _goal = target.goal;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final preview = _HealthPreview.calculate(
@@ -37,6 +56,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       activityLevel: _activityLevel,
       goal: _goal,
     );
+    final canSave = _canSave;
 
     return Scaffold(
       body: SafeArea(
@@ -52,13 +72,17 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                 const Spacer(),
                 TextButton(
                   onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Set later'),
+                  child: Text(
+                    widget.initialTarget == null ? 'Set later' : 'Close',
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              'Set your daily target',
+              widget.initialTarget == null
+                  ? 'Set your daily target'
+                  : 'Edit daily target',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: colors.textPrimary,
                 height: 1.04,
@@ -66,7 +90,9 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'A quick BMI estimate helps tune calories for your journal.',
+              widget.initialTarget == null
+                  ? 'A quick BMI estimate helps tune calories for your journal.'
+                  : 'Update your details when your body, routine or goal changes.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: colors.textSecondary,
                 height: 1.35,
@@ -161,7 +187,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
           child: SizedBox(
             height: 54,
             child: FilledButton(
-              onPressed: _saving ? null : _save,
+              onPressed: _saving || !canSave ? null : _save,
               style: FilledButton.styleFrom(
                 backgroundColor: LogMyPlateColors.accent,
                 foregroundColor: LogMyPlateColors.accentDeep,
@@ -196,6 +222,8 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
   }
 
   Future<void> _save() async {
+    if (!_canSave) return;
+
     setState(() {
       _saving = true;
       _error = null;
@@ -223,6 +251,18 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  bool get _canSave {
+    final initial = widget.initialTarget;
+    if (initial == null) return true;
+
+    return _heightCm != initial.heightCm ||
+        _weightKg != initial.weightKg ||
+        _ageYears != initial.ageYears ||
+        _sex != initial.sex ||
+        _activityLevel != initial.activityLevel ||
+        _goal != initial.goal;
+  }
 }
 
 class _TargetPreviewCard extends StatelessWidget {
@@ -233,16 +273,14 @@ class _TargetPreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final surface = LogMyPlateHeroSurfaceStyle.of(context);
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: LogMyPlateColors.surfaceHero,
-        borderRadius: BorderRadius.circular(22),
-      ),
+      decoration: surface.decoration(),
       child: Row(
         children: [
-          _BmiOrbit(preview: preview),
+          _BmiOrbit(preview: preview, surface: surface),
           const SizedBox(width: 18),
           Expanded(
             child: Column(
@@ -251,7 +289,7 @@ class _TargetPreviewCard extends StatelessWidget {
                 Text(
                   'Daily target',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.52),
+                    color: surface.textSecondary,
                     letterSpacing: 1.5,
                   ),
                 ),
@@ -259,16 +297,16 @@ class _TargetPreviewCard extends StatelessWidget {
                 Text(
                   '${preview.targetCalories}',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
+                    color: surface.textPrimary,
                     fontSize: 38,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(
                   'kCal per day',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.52),
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
                 ),
                 const SizedBox(height: 14),
                 Container(
@@ -287,7 +325,7 @@ class _TargetPreviewCard extends StatelessWidget {
                   child: Text(
                     preview.categoryLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: LogMyPlateColors.accent,
+                      color: surface.accentText,
                       letterSpacing: 0,
                     ),
                   ),
@@ -302,9 +340,10 @@ class _TargetPreviewCard extends StatelessWidget {
 }
 
 class _BmiOrbit extends StatelessWidget {
-  const _BmiOrbit({required this.preview});
+  const _BmiOrbit({required this.preview, required this.surface});
 
   final _HealthPreview preview;
+  final LogMyPlateHeroSurfaceStyle surface;
 
   @override
   Widget build(BuildContext context) {
@@ -312,7 +351,10 @@ class _BmiOrbit extends StatelessWidget {
       width: 132,
       height: 132,
       child: CustomPaint(
-        painter: _BmiOrbitPainter(score: preview.normalizedBmi),
+        painter: _BmiOrbitPainter(
+          score: preview.normalizedBmi,
+          trackColor: surface.track,
+        ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -320,14 +362,14 @@ class _BmiOrbit extends StatelessWidget {
               Text(
                 preview.bmi.toStringAsFixed(1),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
+                  color: surface.textPrimary,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
               Text(
                 'BMI',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.48),
+                  color: surface.textSecondary,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -340,9 +382,10 @@ class _BmiOrbit extends StatelessWidget {
 }
 
 class _BmiOrbitPainter extends CustomPainter {
-  const _BmiOrbitPainter({required this.score});
+  const _BmiOrbitPainter({required this.score, required this.trackColor});
 
   final double score;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -353,7 +396,7 @@ class _BmiOrbitPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.10);
+      ..color = trackColor;
     final arc = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
@@ -388,7 +431,7 @@ class _BmiOrbitPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BmiOrbitPainter oldDelegate) {
-    return oldDelegate.score != score;
+    return oldDelegate.score != score || oldDelegate.trackColor != trackColor;
   }
 }
 

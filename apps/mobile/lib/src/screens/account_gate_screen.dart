@@ -50,9 +50,23 @@ class AccountGateScreen extends StatelessWidget {
                 _GatePill(label: copy.eyebrow),
               ],
             ),
-            const SizedBox(height: 12),
-            Center(child: _AccountMark(loading: loading)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 6),
+            Center(
+              child: Column(
+                children: [
+                  _AccountMark(loading: loading),
+                  const SizedBox(height: 5),
+                  Text(
+                    'LogMyPlate',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.textSecondary,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 9),
             Text(
               copy.title,
               textAlign: TextAlign.center,
@@ -70,7 +84,7 @@ class AccountGateScreen extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -92,7 +106,7 @@ class AccountGateScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _EmailAuthPanel(
               loading: loading,
               onEmailAuth: onEmailAuth,
@@ -533,8 +547,8 @@ class _AccountMarkState extends State<_AccountMark>
       animation: _controller,
       builder: (context, _) {
         return SizedBox(
-          width: 110,
-          height: 110,
+          width: 88,
+          height: 88,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -545,8 +559,8 @@ class _AccountMarkState extends State<_AccountMark>
                       index * 0.16 +
                       (_controller.value * 0.04 * (index + 1)),
                   child: Container(
-                    width: 92,
-                    height: 92,
+                    width: 74,
+                    height: 74,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
@@ -558,8 +572,8 @@ class _AccountMarkState extends State<_AccountMark>
                   ),
                 ),
               Container(
-                width: 72,
-                height: 72,
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
                   color: colors.surfaceCard,
                   shape: BoxShape.circle,
@@ -575,17 +589,16 @@ class _AccountMarkState extends State<_AccountMark>
                 child: Center(
                   child: widget.loading
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
+                          width: 22,
+                          height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: LogMyPlateColors.accent,
                           ),
                         )
-                      : Text(
-                          'D',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(color: LogMyPlateColors.accent),
+                      : const PrimitiveCameraIcon(
+                          color: LogMyPlateColors.accent,
+                          size: 24,
                         ),
                 ),
               ),

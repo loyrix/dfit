@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../navigation/logmyplate_page_route.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -21,6 +22,8 @@ class WeeklyJournalScreen extends StatefulWidget {
     this.isSyncing = false,
     this.syncMessage,
     this.onRefresh,
+    this.showBackButton = true,
+    this.bottomPadding = 28,
   });
 
   final JournalRangeData range;
@@ -31,6 +34,8 @@ class WeeklyJournalScreen extends StatefulWidget {
   final bool isSyncing;
   final String? syncMessage;
   final Future<void> Function()? onRefresh;
+  final bool showBackButton;
+  final double bottomPadding;
 
   @override
   State<WeeklyJournalScreen> createState() => _WeeklyJournalScreenState();
@@ -59,12 +64,13 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, widget.bottomPadding),
           children: [
             _JournalHeader(
               label: '7 Day Journal',
               title: 'Weekly summary',
               subtitle: _rangeLabel(_range),
+              showBackButton: widget.showBackButton,
             ),
             const SizedBox(height: 12),
             if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
@@ -244,8 +250,6 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
               ),
               const SizedBox(height: 12),
               MacroBarGroup(totals: _day.totals),
-              const SizedBox(height: 18),
-              _DayCompositionCard(day: _day, target: widget.target),
             ] else
               _EmptyDayOverview(day: _day),
             const SizedBox(height: 22),
@@ -444,11 +448,13 @@ class _JournalHeader extends StatelessWidget {
     required this.label,
     required this.title,
     required this.subtitle,
+    this.showBackButton = true,
   });
 
   final String label;
   final String title;
   final String subtitle;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -457,11 +463,13 @@ class _JournalHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const BackMark(),
-        ),
-        const SizedBox(width: 8),
+        if (showBackButton) ...[
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const BackMark(),
+          ),
+          const SizedBox(width: 8),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -707,6 +715,7 @@ class _WeeklyJournalHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = LogMyPlateHeroSurfaceStyle.of(context);
     final summary = range.summary;
     final activePct = summary.windowDays == 0
         ? 0.0
@@ -714,17 +723,14 @@ class _WeeklyJournalHero extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: LogMyPlateColors.surfaceHero,
-        borderRadius: BorderRadius.circular(18),
-      ),
+      decoration: surface.decoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Last 7 Days',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.52),
+              color: surface.textSecondary,
               letterSpacing: 1.8,
             ),
           ),
@@ -735,7 +741,7 @@ class _WeeklyJournalHero extends StatelessWidget {
               Text(
                 '${summary.activeDays}/${summary.windowDays}',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
+                  color: surface.textPrimary,
                   fontSize: 40,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -745,9 +751,9 @@ class _WeeklyJournalHero extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   'days tracked',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.55),
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
                 ),
               ),
             ],
@@ -758,18 +764,27 @@ class _WeeklyJournalHero extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _HeroStat(label: 'Meals', value: '${summary.mealCount}'),
+                child: _HeroStat(
+                  label: 'Meals',
+                  value: '${summary.mealCount}',
+                  primaryText: surface.textPrimary,
+                  secondaryText: surface.textSecondary,
+                ),
               ),
               Expanded(
                 child: _HeroStat(
                   label: 'Avg tracked day',
                   value: '${summary.trackedDayAverage.calories} kCal',
+                  primaryText: surface.textPrimary,
+                  secondaryText: surface.textSecondary,
                 ),
               ),
               Expanded(
                 child: _HeroStat(
                   label: 'Protein',
                   value: '${summary.trackedDayAverage.proteinG.round()}g',
+                  primaryText: surface.textPrimary,
+                  secondaryText: surface.textSecondary,
                 ),
               ),
             ],
@@ -787,6 +802,7 @@ class _SegmentedProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.logmyplate;
     final filledSegments = (value * 7).round();
 
     return Row(
@@ -798,9 +814,7 @@ class _SegmentedProgress extends StatelessWidget {
             height: 5,
             margin: EdgeInsets.only(right: index == 6 ? 0 : 5),
             decoration: BoxDecoration(
-              color: active
-                  ? LogMyPlateColors.accent
-                  : Colors.white.withValues(alpha: 0.12),
+              color: active ? LogMyPlateColors.accent : colors.mutedFill,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -811,10 +825,17 @@ class _SegmentedProgress extends StatelessWidget {
 }
 
 class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.label, required this.value});
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    required this.primaryText,
+    required this.secondaryText,
+  });
 
   final String label;
   final String value;
+  final Color primaryText;
+  final Color secondaryText;
 
   @override
   Widget build(BuildContext context) {
@@ -824,7 +845,7 @@ class _HeroStat extends StatelessWidget {
         Text(
           value,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: Colors.white,
+            color: primaryText,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
@@ -832,7 +853,7 @@ class _HeroStat extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: secondaryText,
             letterSpacing: 0,
           ),
         ),
@@ -1122,16 +1143,23 @@ class _MacroTriplet extends StatelessWidget {
         _MacroPill(
           label: 'P',
           value: '${totals.proteinG.round()}g',
+          color: const Color(0xFF77C79D),
           muted: muted,
         ),
         const SizedBox(width: 6),
         _MacroPill(
           label: 'C',
           value: '${totals.carbsG.round()}g',
+          color: LogMyPlateColors.accent,
           muted: muted,
         ),
         const SizedBox(width: 6),
-        _MacroPill(label: 'F', value: '${totals.fatG.round()}g', muted: muted),
+        _MacroPill(
+          label: 'F',
+          value: '${totals.fatG.round()}g',
+          color: const Color(0xFFFF8A7A),
+          muted: muted,
+        ),
       ],
     );
   }
@@ -1141,11 +1169,13 @@ class _MacroPill extends StatelessWidget {
   const _MacroPill({
     required this.label,
     required this.value,
+    required this.color,
     required this.muted,
   });
 
   final String label;
   final String value;
+  final Color color;
   final bool muted;
 
   @override
@@ -1158,8 +1188,12 @@ class _MacroPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: muted
               ? colors.mutedFill.withValues(alpha: 0.45)
-              : colors.mutedFill,
+              : color.withValues(alpha: 0.11),
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: muted ? colors.border : color.withValues(alpha: 0.18),
+            width: 0.5,
+          ),
         ),
         child: Text(
           '$label $value',
@@ -1167,67 +1201,11 @@ class _MacroPill extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: muted ? colors.textTertiary : colors.textSecondary,
+            color: muted ? colors.textTertiary : colors.textPrimary,
             letterSpacing: 0,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DayCompositionCard extends StatelessWidget {
-  const _DayCompositionCard({required this.day, this.target});
-
-  final JournalDayData day;
-  final MacroTotals? target;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-    final itemCount = day.meals.fold<int>(
-      0,
-      (count, meal) => count + meal.items.length,
-    );
-    final targetCalories = target?.calories;
-    final targetDelta = targetCalories == null
-        ? null
-        : targetCalories - day.totals.calories;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _CompositionMetric(label: 'Items', value: '$itemCount'),
-          ),
-          Container(width: 1, height: 38, color: colors.border),
-          Expanded(
-            child: _CompositionMetric(
-              label: 'Protein',
-              value: '${day.totals.proteinG.round()}g',
-            ),
-          ),
-          Container(width: 1, height: 38, color: colors.border),
-          Expanded(
-            child: _CompositionMetric(
-              label: targetDelta == null ? 'kCal / meal' : 'Target',
-              value: targetDelta == null
-                  ? day.mealCount == 0
-                        ? '0 kCal'
-                        : '${(day.totals.calories / day.mealCount).round()} kCal'
-                  : targetDelta >= 0
-                  ? '$targetDelta kCal left'
-                  : '${targetDelta.abs()} kCal over',
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1273,37 +1251,6 @@ class _EmptyDayOverview extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _CompositionMetric extends StatelessWidget {
-  const _CompositionMetric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Column(
-      children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.textSecondary,
-            letterSpacing: 0,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_surfaces.dart';
 
 class EnergyHeroCard extends StatelessWidget {
   const EnergyHeroCard({
@@ -27,91 +28,98 @@ class EnergyHeroCard extends StatelessWidget {
     final progress = hasTarget
         ? (totals.calories / targetCalories).clamp(0.0, 1.25).toDouble()
         : 0.0;
+    final style = LogMyPlateHeroSurfaceStyle.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: LogMyPlateColors.surfaceHero,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
+      padding: const EdgeInsets.all(18),
+      decoration: style.decoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Positioned(
-            right: hasTarget ? -16 : -52,
-            top: hasTarget ? 6 : -52,
-            child: hasTarget
-                ? _TargetRing(progress: progress, remaining: remaining!)
-                : const _HeroRings(),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  letterSpacing: 1.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${totals.calories}',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: Colors.white,
-                      fontSize: 38,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: style.textSecondary,
+                    letterSpacing: 1.8,
                   ),
-                  const SizedBox(width: 6),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      'kCal',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${totals.calories}',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            color: style.textPrimary,
+                            fontSize: 42,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                    ),
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Text(
+                        'kCal',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: style.textSecondary,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              if (hasTarget) ...[
+                  ],
+                ),
                 const SizedBox(height: 8),
                 Text(
-                  remaining! >= 0
+                  hasTarget && remaining! >= 0
                       ? '$remaining kCal left today'
-                      : '${remaining.abs()} kCal over target',
+                      : hasTarget
+                      ? '${remaining!.abs()} kCal over target'
+                      : mealCount == 0
+                      ? 'No meals logged yet'
+                      : '$mealCount ${mealCount == 1 ? 'meal' : 'meals'} logged',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: remaining >= 0
-                        ? LogMyPlateColors.accent
+                    color: !hasTarget || remaining! >= 0
+                        ? style.accentText
                         : const Color(0xFFFF8A8A),
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-              ],
-              const SizedBox(height: 16),
-              Container(
-                height: 1,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(99),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: style.chipFill,
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: style.chipBorder),
+                  ),
+                  child: Text(
+                    hasTarget
+                        ? 'Target $targetCalories kCal'
+                        : 'Building your rhythm',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: style.accentText,
+                      letterSpacing: 0,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                hasTarget
-                    ? 'Target $targetCalories kCal'
-                    : mealCount == 0
-                    ? 'No meals logged yet'
-                    : '$mealCount ${mealCount == 1 ? 'meal' : 'meals'} logged',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: LogMyPlateColors.accent),
-              ),
-            ],
+              ],
+            ),
           ),
+          const SizedBox(width: 14),
+          hasTarget
+              ? _TargetRing(
+                  progress: progress,
+                  remaining: remaining!,
+                  style: style,
+                )
+              : _HeroRings(style: style),
         ],
       ),
     );
@@ -119,20 +127,28 @@ class EnergyHeroCard extends StatelessWidget {
 }
 
 class _TargetRing extends StatelessWidget {
-  const _TargetRing({required this.progress, required this.remaining});
+  const _TargetRing({
+    required this.progress,
+    required this.remaining,
+    required this.style,
+  });
 
   final double progress;
   final int remaining;
+  final LogMyPlateHeroSurfaceStyle style;
 
   @override
   Widget build(BuildContext context) {
     final displayProgress = (progress * 100).clamp(0, 125).round();
 
     return SizedBox(
-      width: 116,
-      height: 116,
+      width: 112,
+      height: 112,
       child: CustomPaint(
-        painter: _TargetRingPainter(progress: progress),
+        painter: _TargetRingPainter(
+          progress: progress,
+          trackColor: style.track,
+        ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -140,14 +156,14 @@ class _TargetRing extends StatelessWidget {
               Text(
                 '$displayProgress%',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                  color: style.textPrimary,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
               Text(
-                remaining >= 0 ? 'left' : 'over',
+                remaining >= 0 ? 'used' : 'over',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.48),
+                  color: style.textSecondary,
                   letterSpacing: 0,
                 ),
               ),
@@ -160,9 +176,10 @@ class _TargetRing extends StatelessWidget {
 }
 
 class _TargetRingPainter extends CustomPainter {
-  const _TargetRingPainter({required this.progress});
+  const _TargetRingPainter({required this.progress, required this.trackColor});
 
   final double progress;
+  final Color trackColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -173,7 +190,7 @@ class _TargetRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round
-      ..color = Colors.white.withValues(alpha: 0.10);
+      ..color = trackColor;
     final arc = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
@@ -202,12 +219,15 @@ class _TargetRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TargetRingPainter oldDelegate) {
-    return oldDelegate.progress != progress;
+    return oldDelegate.progress != progress ||
+        oldDelegate.trackColor != trackColor;
   }
 }
 
 class _HeroRings extends StatelessWidget {
-  const _HeroRings();
+  const _HeroRings({required this.style});
+
+  final LogMyPlateHeroSurfaceStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +244,9 @@ class _HeroRings extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border.all(
                 color: LogMyPlateColors.accent.withValues(
-                  alpha: 0.08 + index * 0.04,
+                  alpha: style.isDark
+                      ? 0.08 + index * 0.04
+                      : 0.10 + index * 0.035,
                 ),
               ),
               shape: BoxShape.circle,

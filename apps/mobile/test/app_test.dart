@@ -11,6 +11,7 @@ import 'package:logmyplate_mobile/src/screens/account_profile_screen.dart';
 import 'package:logmyplate_mobile/src/screens/analyzing_screen.dart';
 import 'package:logmyplate_mobile/src/screens/health_target_screen.dart';
 import 'package:logmyplate_mobile/src/screens/meal_detail_screen.dart';
+import 'package:logmyplate_mobile/src/screens/profile_screen.dart';
 import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
 import 'package:logmyplate_mobile/src/screens/settings_screen.dart';
 import 'package:logmyplate_mobile/src/screens/startup_error_screen.dart';
@@ -293,7 +294,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('7 Day Summary'));
+    await tester.tap(find.text('Weekly rhythm'));
     await tester.pump();
 
     expect(openedWeeklyJournal, isTrue);
@@ -335,13 +336,12 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('7 Day Summary'));
+    await tester.tap(find.text('Weekly rhythm'));
     await tester.pump();
 
     expect(openedWeeklyJournal, isFalse);
-    expect(find.text('Opening weekly journal'), findsOneWidget);
-    expect(find.text('Loading weekly journal'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Loading details'), findsOneWidget);
+    expect(find.byKey(const ValueKey('weekly-card-spinner')), findsOneWidget);
   });
 
   testWidgets('today meal rows delete by swipe after confirmation', (
@@ -378,6 +378,7 @@ void main() {
                 setState(() => meals = []);
               },
               onOpenWeeklyJournal: () {},
+              showScanAction: false,
             );
           },
         ),
@@ -476,6 +477,7 @@ void main() {
 
     expect(find.text('7 Day Journal'), findsOneWidget);
     expect(find.text('SUN 10 MAY'), findsNothing);
+    await tester.scrollUntilVisible(find.text('MON 11 MAY'), 220);
     expect(find.text('MON 11 MAY'), findsOneWidget);
 
     await tester.tap(find.text('MON 11 MAY'));
@@ -901,7 +903,7 @@ void main() {
     );
   });
 
-  testWidgets('email auth from settings returns to the main journal', (
+  testWidgets('email auth from profile returns to the main journal', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
@@ -917,9 +919,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Settings'));
+    await tester.tap(find.text('Profile').last);
     await tester.pumpAndSettle();
-    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(find.byType(ProfileScreen), findsOneWidget);
 
     await tester.tap(find.text('Save your journal'));
     await tester.pump();
@@ -938,7 +940,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TodayScreen), findsOneWidget);
-    expect(find.byType(SettingsScreen), findsNothing);
     expect(find.byType(AccountGateScreen), findsNothing);
     expect(find.byType(AccountProfileScreen), findsNothing);
   });
@@ -984,6 +985,116 @@ void main() {
     expect(submitted?.weightKg, 70);
   });
 
+  testWidgets('health target edit enables save only after changes', (
+    tester,
+  ) async {
+    var saveCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.light(),
+        home: HealthTargetScreen(
+          initialTarget: const HealthTarget(
+            profileId: 'profile_test',
+            heightCm: 155,
+            weightKg: 66,
+            ageYears: 30,
+            sex: HealthSex.male,
+            activityLevel: ActivityLevel.light,
+            goal: HealthGoal.maintain,
+            bmi: 27.5,
+            bmiCategory: 'overweight',
+            bmrCalories: 1512,
+            dailyCalorieTarget: 2040,
+            formula: 'mifflin_st_jeor_v1',
+          ),
+          onSave: (input) async {
+            saveCount += 1;
+            return HealthTarget(
+              profileId: 'profile_test',
+              heightCm: input.heightCm,
+              weightKg: input.weightKg,
+              ageYears: input.ageYears,
+              sex: input.sex,
+              activityLevel: input.activityLevel,
+              goal: input.goal,
+              bmi: 27.5,
+              bmiCategory: 'overweight',
+              bmrCalories: 1512,
+              dailyCalorieTarget: 2040,
+              formula: 'mifflin_st_jeor_v1',
+            );
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Edit daily target'), findsOneWidget);
+    var saveButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Save target'),
+    );
+    expect(saveButton.onPressed, isNull);
+
+    await tester.tap(find.text('Save target'), warnIfMissed: false);
+    await tester.pump();
+    expect(saveCount, 0);
+
+    await tester.drag(find.byType(Slider).first, const Offset(180, 0));
+    await tester.pump();
+
+    saveButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Save target'),
+    );
+    expect(saveButton.onPressed, isNotNull);
+  });
+
+  testWidgets('profile shows saved BMI target and opens edit flow', (
+    tester,
+  ) async {
+    var openedEdit = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: ProfileScreen(
+          themeMode: ThemeMode.dark,
+          session: AuthSession(
+            provider: AuthProvider.email,
+            displayName: 'friend@test.com',
+            linkedAt: DateTime(2026, 5, 12),
+          ),
+          healthTarget: const HealthTarget(
+            profileId: 'profile_test',
+            heightCm: 170,
+            weightKg: 70,
+            ageYears: 28,
+            sex: HealthSex.notSpecified,
+            activityLevel: ActivityLevel.light,
+            goal: HealthGoal.maintain,
+            bmi: 24.2,
+            bmiCategory: 'healthy',
+            bmrCalories: 1545,
+            dailyCalorieTarget: 2124,
+            formula: 'mifflin_st_jeor_v1',
+          ),
+          onThemeChanged: (_) {},
+          onOpenAccount: () {},
+          onEditHealthTarget: () => openedEdit = true,
+          onSignOut: () async {},
+        ),
+      ),
+    );
+
+    expect(find.text('2124 kCal'), findsOneWidget);
+    expect(find.text('24.2'), findsOneWidget);
+    expect(find.text('Balanced range - Maintain'), findsOneWidget);
+
+    await tester.tap(find.text('2124 kCal'));
+    await tester.pump();
+
+    expect(openedEdit, isTrue);
+  });
+
   testWidgets('logout returns the user to the anonymous dashboard', (
     tester,
   ) async {
@@ -1010,9 +1121,7 @@ void main() {
 
     expect(find.byType(TodayScreen), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Settings'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Profile'));
+    await tester.tap(find.text('Profile').last);
     await tester.pumpAndSettle();
 
     await tester.drag(find.byType(ListView), const Offset(0, -360));
@@ -1021,7 +1130,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(TodayScreen), findsOneWidget);
-    expect(find.byType(SettingsScreen), findsNothing);
     expect(find.byType(AccountProfileScreen), findsNothing);
 
     final preferences = await SharedPreferences.getInstance();
@@ -1052,7 +1160,7 @@ void main() {
       expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Start first scan'), findsNothing);
 
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -1111,7 +1219,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(FloatingActionButton));
+    await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
     await tester.pumpAndSettle();
     expect(find.text('Watch ad'), findsOneWidget);
 

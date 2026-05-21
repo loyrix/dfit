@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,13 +10,12 @@ import 'models/meal.dart';
 import 'models/meal_type_resolver.dart';
 import 'navigation/logmyplate_page_route.dart';
 import 'screens/account_gate_screen.dart';
-import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
+import 'screens/profile_screen.dart';
 import 'screens/review_meal_screen.dart';
-import 'screens/settings_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -23,6 +25,7 @@ import 'state/journal_controller.dart';
 import 'theme/logmyplate_colors.dart';
 import 'theme/logmyplate_theme.dart';
 import 'widgets/logmyplate_notice.dart';
+import 'widgets/primitive_icons.dart';
 
 class LogMyPlateApp extends StatefulWidget {
   const LogMyPlateApp({
@@ -56,8 +59,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
+  int _selectedTab = 0;
   bool _openingWeeklyJournal = false;
   bool _openingHealthTargetSetup = false;
+  bool _loadingJournalTab = false;
+  String? _journalTabError;
+  JournalRangeData? _journalTabRange;
 
   @override
   void initState() {
@@ -89,7 +96,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       home: !_welcomeStateLoaded
           ? const _LaunchScreen()
           : _hasSeenWelcome
-          ? _todayScreen()
+          ? _mainShell()
           : WelcomeScreen(onStart: _startFromWelcome),
     );
   }
@@ -104,7 +111,51 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     _handleAccessStateChanged();
   }
 
-  Widget _todayScreen() {
+  Widget _mainShell() {
+    return AnimatedBuilder(
+      animation: _authController,
+      builder: (context, _) {
+        return AnimatedBuilder(
+          animation: _journalController,
+          builder: (context, _) {
+            return _LogMyPlateShell(
+              selectedIndex: _selectedTab,
+              scanPulsing:
+                  _journalController.meals.isEmpty &&
+                  !_journalController.initialLoading,
+              onSelect: _selectTab,
+              onScan: _openCamera,
+              onTarget: _openHealthTargetEditor,
+              child: _selectedTab == 0
+                  ? _todayScreen(
+                      showScanAction: false,
+                      showSettingsAction: false,
+                      bottomPadding: 144,
+                    )
+                  : _selectedTab == 1
+                  ? _journalTabScreen()
+                  : ProfileScreen(
+                      themeMode: _themeMode,
+                      session: _authController.session,
+                      healthTarget: _journalController.healthTarget,
+                      onThemeChanged: _setThemeMode,
+                      onOpenAccount: () =>
+                          _openAccountHome(AccountGateReason.saveJournal),
+                      onEditHealthTarget: _openHealthTargetEditor,
+                      onSignOut: _signOutFromProfile,
+                    ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _todayScreen({
+    bool showScanAction = true,
+    bool showSettingsAction = true,
+    double bottomPadding = 120,
+  }) {
     return AnimatedBuilder(
       animation: _journalController,
       builder: (context, _) {
@@ -117,17 +168,71 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           loading: _journalController.loading,
           initialLoading: _journalController.initialLoading,
           weeklyJournalOpening: _openingWeeklyJournal,
+          showScanAction: showScanAction,
+          showSettingsAction: showSettingsAction,
+          bottomPadding: bottomPadding,
           syncMessage: _journalController.error,
           onRefresh: _journalController.loadToday,
           onScan: _openCamera,
           onAddManually: _openManualReview,
-          onOpenSettings: _openSettings,
+          onOpenSettings: () => _selectTab(2),
           onOpenMeal: (meal) => _openMealDetail(meal),
           onDeleteMeal: _deleteMeal,
           onOpenWeeklyJournal: _openWeeklyJournal,
         );
       },
     );
+  }
+
+  Widget _journalTabScreen() {
+    final range = _journalTabRange;
+    if (range == null) {
+      return _JournalTabLoadingScreen(
+        loading: _loadingJournalTab,
+        message: _journalTabError,
+        onRetry: () => _loadJournalTab(force: true),
+      );
+    }
+
+    return WeeklyJournalScreen(
+      range: range,
+      showBackButton: false,
+      bottomPadding: 144,
+      isSyncing: _loadingJournalTab,
+      syncMessage: _journalTabError,
+      onRefresh: () => _loadJournalTab(force: true),
+      onLoadWeek: _journalController.loadWeeklyRange,
+      onLoadWeeks: _journalController.loadAvailableWeeks,
+      onOpenMeal: _openMealDetail,
+      onDeleteMeal: _deleteMeal,
+    );
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedTab = index);
+    if (index == 1) unawaited(_loadJournalTab());
+  }
+
+  Future<void> _loadJournalTab({bool force = false}) async {
+    if (_loadingJournalTab || (!force && _journalTabRange != null)) return;
+
+    setState(() {
+      _loadingJournalTab = true;
+      _journalTabError = null;
+    });
+
+    try {
+      final range = await _journalController.loadWeeklyRange(0);
+      if (!mounted) return;
+      setState(() => _journalTabRange = range);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _journalTabError = 'Could not load your journal. Tap to retry.';
+      });
+    } finally {
+      if (mounted) setState(() => _loadingJournalTab = false);
+    }
   }
 
   Future<void> _loadLocalPreferences() async {
@@ -279,6 +384,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _saveMeal(MealType type, List<MealItem> items) async {
     await _journalController.saveMeal(type, items);
+    _journalTabRange = null;
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
@@ -301,6 +407,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       items: items,
       photo: photo,
     );
+    _journalTabRange = null;
     _navigatorKey.currentState!.popUntil((route) => route.isFirst);
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
@@ -413,29 +520,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  Future<void> _openSettings() async {
-    await _navigatorKey.currentState!.push<void>(
-      logmyplatePageRoute<void>(
-        builder: (_) => AnimatedBuilder(
-          animation: _authController,
-          builder: (context, _) {
-            return SettingsScreen(
-              themeMode: _themeMode,
-              session: _authController.session,
-              onOpenAccount: () =>
-                  _openAccountHome(AccountGateReason.saveJournal),
-              onThemeChanged: _setThemeMode,
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   Future<AuthSession?> _openAccountHome(AccountGateReason reason) async {
     final existing = _authController.session;
     if (existing != null) {
-      await _openAccountProfile(existing);
+      setState(() => _selectedTab = 2);
       return existing;
     }
 
@@ -443,6 +531,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     if (session != null) {
       await _markWelcomeSeen();
       _journalController.resetForAccountChange();
+      setState(() {
+        _selectedTab = 0;
+        _journalTabRange = null;
+      });
       _navigatorKey.currentState!.popUntil((route) => route.isFirst);
       await _journalController.loadToday();
       await _promptForHealthTargetIfNeeded();
@@ -460,18 +552,42 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     final navigator = _navigatorKey.currentState;
     if (navigator == null) return;
 
+    await _openHealthTargetSetup();
+  }
+
+  Future<void> _openHealthTargetEditor() async {
+    if (!_authController.isSignedIn) {
+      await _openAccountHome(AccountGateReason.saveJournal);
+      return;
+    }
+    await _openHealthTargetSetup(
+      initialTarget: _journalController.healthTarget,
+    );
+  }
+
+  Future<void> _openHealthTargetSetup({HealthTarget? initialTarget}) async {
+    if (_openingHealthTargetSetup) return;
+
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
     _openingHealthTargetSetup = true;
     try {
       final target = await navigator.push<HealthTarget>(
         logmyplatePageRoute<HealthTarget>(
-          builder: (_) =>
-              HealthTargetScreen(onSave: _journalController.saveHealthTarget),
+          builder: (_) => HealthTargetScreen(
+            initialTarget: initialTarget,
+            onSave: _journalController.saveHealthTarget,
+          ),
         ),
       );
       if (target != null) {
+        setState(() => _journalTabRange = null);
         _showJournalNotice(
           tone: LogMyPlateNoticeTone.success,
-          title: 'Daily target set',
+          title: initialTarget == null
+              ? 'Daily target set'
+              : 'Daily target updated',
           message: '${target.dailyCalorieTarget} kCal will guide your journal.',
         );
       }
@@ -512,28 +628,16 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     return result;
   }
 
-  Future<void> _openAccountProfile(AuthSession session) async {
-    await _navigatorKey.currentState!.push<void>(
-      logmyplatePageRoute<void>(
-        builder: (_) => AnimatedBuilder(
-          animation: _authController,
-          builder: (context, _) {
-            final currentSession = _authController.session ?? session;
-            return AccountProfileScreen(
-              session: currentSession,
-              onSignOut: () async {
-                await _authController.signOut();
-                await _markWelcomeSeen();
-                _journalController.resetForAccountChange();
-                _navigatorKey.currentState?.popUntil((route) => route.isFirst);
-                await _journalController.loadToday();
-                return false;
-              },
-            );
-          },
-        ),
-      ),
-    );
+  Future<void> _signOutFromProfile() async {
+    await _authController.signOut();
+    await _markWelcomeSeen();
+    _journalController.resetForAccountChange();
+    setState(() {
+      _selectedTab = 0;
+      _journalTabRange = null;
+    });
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    await _journalController.loadToday();
   }
 
   Future<bool> _openMealDetail(MealLog meal) async {
@@ -551,6 +655,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _deleteMeal(MealLog meal) async {
     await _journalController.deleteMeal(meal);
+    _journalTabRange = null;
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
       title: 'Meal deleted',
@@ -635,6 +740,360 @@ class _LaunchScreen extends StatelessWidget {
               fontSize: 24,
               fontWeight: FontWeight.w600,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LogMyPlateShell extends StatelessWidget {
+  const _LogMyPlateShell({
+    required this.child,
+    required this.selectedIndex,
+    required this.scanPulsing,
+    required this.onSelect,
+    required this.onScan,
+    required this.onTarget,
+  });
+
+  final Widget child;
+  final int selectedIndex;
+  final bool scanPulsing;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onScan;
+  final VoidCallback onTarget;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              transitionBuilder: (child, animation) {
+                final slide =
+                    Tween<Offset>(
+                      begin: const Offset(0.03, 0),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    );
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<int>(selectedIndex),
+                child: child,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 14,
+            right: 14,
+            bottom: 12,
+            child: SafeArea(
+              top: false,
+              child: _ShellNavBar(
+                selectedIndex: selectedIndex,
+                onSelect: onSelect,
+                onScan: onScan,
+                onTarget: onTarget,
+                scanPulsing: scanPulsing,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShellNavBar extends StatelessWidget {
+  const _ShellNavBar({
+    required this.selectedIndex,
+    required this.onSelect,
+    required this.onScan,
+    required this.onTarget,
+    required this.scanPulsing,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onScan;
+  final VoidCallback onTarget;
+  final bool scanPulsing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          height: 88,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: colors.surfaceCard.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colors.border, width: 0.6),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.14),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Row(
+                children: [
+                  _ShellTabButton(
+                    label: 'Today',
+                    icon: Icons.home_rounded,
+                    selected: selectedIndex == 0,
+                    onTap: () => onSelect(0),
+                  ),
+                  _ShellTabButton(
+                    label: 'Journal',
+                    icon: Icons.calendar_month_rounded,
+                    selected: selectedIndex == 1,
+                    onTap: () => onSelect(1),
+                  ),
+                  const SizedBox(width: 70),
+                  _ShellTabButton(
+                    label: 'Target',
+                    icon: Icons.track_changes_rounded,
+                    selected: false,
+                    onTap: onTarget,
+                  ),
+                  _ShellTabButton(
+                    label: 'Profile',
+                    icon: Icons.person_rounded,
+                    selected: selectedIndex == 2,
+                    onTap: () => onSelect(2),
+                  ),
+                ],
+              ),
+              _ShellScanTab(onTap: onScan, pulsing: scanPulsing),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShellTabButton extends StatelessWidget {
+  const _ShellTabButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(
+            color: selected
+                ? LogMyPlateColors.accent.withValues(alpha: 0.16)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected ? colors.accentText : colors.textSecondary,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: selected ? colors.accentText : colors.textSecondary,
+                  letterSpacing: 0,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShellScanTab extends StatelessWidget {
+  const _ShellScanTab({required this.onTap, required this.pulsing});
+
+  final VoidCallback onTap;
+  final bool pulsing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return SizedBox(
+      width: 70,
+      child: InkWell(
+        key: const ValueKey('shell-scan-action'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                if (pulsing)
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.24),
+                      ),
+                    ),
+                  ),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFFFE3A3), LogMyPlateColors.accent],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.22),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: PrimitiveCameraIcon(
+                      color: colors.accentOn,
+                      size: 21,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Scan',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.accentText,
+                letterSpacing: 0,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalTabLoadingScreen extends StatelessWidget {
+  const _JournalTabLoadingScreen({
+    required this.loading,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final bool loading;
+  final String? message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 126),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Journal', style: Theme.of(context).textTheme.displayLarge),
+              const SizedBox(height: 6),
+              Text(
+                'Weekly trends and day-wise meal history.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: colors.textSecondary),
+              ),
+              const Spacer(),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (loading)
+                      CircularProgressIndicator(
+                        color: LogMyPlateColors.accent,
+                        backgroundColor: colors.mutedFill,
+                      )
+                    else
+                      Icon(
+                        Icons.calendar_month_rounded,
+                        color: colors.textSecondary,
+                        size: 44,
+                      ),
+                    const SizedBox(height: 16),
+                    Text(
+                      message ?? 'Loading weekly journal',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (message != null) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: onRetry,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Spacer(),
+            ],
           ),
         ),
       ),
