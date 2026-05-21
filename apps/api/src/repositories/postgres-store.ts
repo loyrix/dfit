@@ -29,10 +29,12 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   Profile,
+  ProfileHealthTarget,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   ScanSession,
   UpdateMealInput,
+  UpsertProfileHealthTargetInput,
 } from "./app-repository.js";
 import { AccountAuthError } from "./app-repository.js";
 
@@ -129,10 +131,44 @@ type RewardedAdProgressRow = {
   granted_scans: number;
 };
 
+type HealthTargetRow = {
+  profile_id: string;
+  height_cm: string;
+  weight_kg: string;
+  age_years: number;
+  sex: ProfileHealthTarget["sex"];
+  activity_level: ProfileHealthTarget["activityLevel"];
+  goal: ProfileHealthTarget["goal"];
+  bmi: string;
+  bmi_category: ProfileHealthTarget["bmiCategory"];
+  bmr_calories: number;
+  daily_calorie_target: number;
+  formula: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
   freeRemaining: row.free_remaining,
   rewardedRemaining: row.rewarded_remaining,
   premiumRemaining: row.premium_remaining,
+});
+
+const healthTargetFromRow = (row: HealthTargetRow): ProfileHealthTarget => ({
+  profileId: row.profile_id,
+  heightCm: Number(row.height_cm),
+  weightKg: Number(row.weight_kg),
+  ageYears: row.age_years,
+  sex: row.sex,
+  activityLevel: row.activity_level,
+  goal: row.goal,
+  bmi: Number(row.bmi),
+  bmiCategory: row.bmi_category,
+  bmrCalories: row.bmr_calories,
+  dailyCalorieTarget: row.daily_calorie_target,
+  formula: row.formula,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
 });
 
 export class PostgresStore implements AppRepository {
@@ -179,6 +215,105 @@ export class PostgresStore implements AppRepository {
     `;
 
     return profile;
+  }
+
+  async getHealthTarget(profileId?: string): Promise<ProfileHealthTarget | undefined> {
+    const owner = profileId ?? (await this.getProfile()).id;
+    const [target] = await this.sql<HealthTargetRow[]>`
+      select
+        profile_id::text,
+        height_cm,
+        weight_kg,
+        age_years,
+        sex,
+        activity_level,
+        goal,
+        bmi,
+        bmi_category,
+        bmr_calories,
+        daily_calorie_target,
+        formula,
+        created_at::text,
+        updated_at::text
+      from profile_health_targets
+      where profile_id = ${owner}
+      limit 1
+    `;
+
+    return target ? healthTargetFromRow(target) : undefined;
+  }
+
+  async upsertHealthTarget(input: UpsertProfileHealthTargetInput): Promise<ProfileHealthTarget> {
+    const profile = await this.getProfile();
+    if (profile.authMethod === "anonymous") {
+      throw new AccountAuthError(
+        "account_required",
+        "Create an account to save a daily target.",
+        401,
+      );
+    }
+
+    const [target] = await this.sql<HealthTargetRow[]>`
+      insert into profile_health_targets (
+        profile_id,
+        height_cm,
+        weight_kg,
+        age_years,
+        sex,
+        activity_level,
+        goal,
+        bmi,
+        bmi_category,
+        bmr_calories,
+        daily_calorie_target,
+        formula
+      )
+      values (
+        ${profile.id},
+        ${input.heightCm},
+        ${input.weightKg},
+        ${input.ageYears},
+        ${input.sex},
+        ${input.activityLevel},
+        ${input.goal},
+        ${input.bmi},
+        ${input.bmiCategory},
+        ${input.bmrCalories},
+        ${input.dailyCalorieTarget},
+        ${input.formula}
+      )
+      on conflict (profile_id) do update
+      set
+        height_cm = excluded.height_cm,
+        weight_kg = excluded.weight_kg,
+        age_years = excluded.age_years,
+        sex = excluded.sex,
+        activity_level = excluded.activity_level,
+        goal = excluded.goal,
+        bmi = excluded.bmi,
+        bmi_category = excluded.bmi_category,
+        bmr_calories = excluded.bmr_calories,
+        daily_calorie_target = excluded.daily_calorie_target,
+        formula = excluded.formula,
+        updated_at = now()
+      returning
+        profile_id::text,
+        height_cm,
+        weight_kg,
+        age_years,
+        sex,
+        activity_level,
+        goal,
+        bmi,
+        bmi_category,
+        bmr_calories,
+        daily_calorie_target,
+        formula,
+        created_at::text,
+        updated_at::text
+    `;
+
+    return healthTargetFromRow(target);
   }
 
   async signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession> {

@@ -8,6 +8,12 @@ import type {
   ScanCreditState,
 } from "@logmyplate/domain";
 import type { AiProviderRunMetadata } from "../services/ai-provider.js";
+import type {
+  ActivityLevel,
+  BmiCategory,
+  HealthGoal,
+  HealthSex,
+} from "../services/health-targets.js";
 
 export type Profile = {
   id: string;
@@ -110,8 +116,32 @@ export type DailyMealAggregate = {
   totals: MacroTotals;
 };
 
+export type ProfileHealthTarget = {
+  profileId: string;
+  heightCm: number;
+  weightKg: number;
+  ageYears: number;
+  sex: HealthSex;
+  activityLevel: ActivityLevel;
+  goal: HealthGoal;
+  bmi: number;
+  bmiCategory: BmiCategory;
+  bmrCalories: number;
+  dailyCalorieTarget: number;
+  formula: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpsertProfileHealthTargetInput = Omit<
+  ProfileHealthTarget,
+  "profileId" | "createdAt" | "updatedAt"
+>;
+
 export interface AppRepository {
   getProfile(): Promise<Profile>;
+  getHealthTarget(profileId?: string): Promise<ProfileHealthTarget | undefined>;
+  upsertHealthTarget(input: UpsertProfileHealthTargetInput): Promise<ProfileHealthTarget>;
   signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
   loginWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
   revokeSession(token: string): Promise<void>;

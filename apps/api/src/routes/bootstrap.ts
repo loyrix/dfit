@@ -12,10 +12,17 @@ export const registerBootstrapRoutes = async (
   app.get("/v1/app/bootstrap", async (request) => {
     const timer = createRouteTimer();
     const profile = await timer.measure("profile", () => repository.getProfile());
-    const [quota, today, weeklySummary] = await Promise.all([
+    const [quota, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
-      timer.measure("today", () => buildTodayJournal(repository, profile, mealImageStorage)),
-      timer.measure("weeklySummary", () => buildJournalSummary(repository, profile, 7)),
+      timer.measure("healthTarget", () => repository.getHealthTarget(profile.id)),
+    ]);
+    const [today, weeklySummary] = await Promise.all([
+      timer.measure("today", () =>
+        buildTodayJournal(repository, profile, mealImageStorage, healthTarget ?? null),
+      ),
+      timer.measure("weeklySummary", () =>
+        buildJournalSummary(repository, profile, 7, 0, healthTarget ?? null),
+      ),
     ]);
 
     request.log.info(
@@ -31,6 +38,7 @@ export const registerBootstrapRoutes = async (
     return {
       serverTime: new Date().toISOString(),
       profile,
+      healthTarget,
       quota,
       today,
       weeklySummary,

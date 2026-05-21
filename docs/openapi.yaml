@@ -83,7 +83,7 @@ paths:
       summary: Bootstrap the app
       description: |
         Returns the initial payload needed to render the signed-in or anonymous app:
-        current profile, scan quota, today's journal, and the current weekly range.
+        current profile, scan quota, today's journal, health target, and lightweight weekly summary.
       security:
         - bearerAuth: []
         - installId: []
@@ -290,6 +290,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProfileEnvelope"
+
+  /v1/profiles/me/health:
+    get:
+      tags: [Profile]
+      summary: Get current health target
+      description: Returns the BMI-derived daily calorie target for the current account when configured.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current health target, if configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthTargetEnvelope"
+    put:
+      tags: [Profile]
+      summary: Save current health target
+      description: Calculates and stores BMI, BMR, and daily calorie target from account health inputs.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthTargetRequest"
+      responses:
+        "200":
+          description: Saved health target.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthTargetEnvelope"
+        "401":
+          description: Account required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
 
   /v1/journal/today:
     get:
@@ -880,6 +920,76 @@ components:
         accessToken:
           type: string
 
+    HealthTargetRequest:
+      type: object
+      required: [heightCm, weightKg, ageYears, sex, activityLevel, goal]
+      properties:
+        heightCm:
+          type: number
+          minimum: 90
+          maximum: 250
+        weightKg:
+          type: number
+          minimum: 25
+          maximum: 300
+        ageYears:
+          type: integer
+          minimum: 18
+          maximum: 90
+        sex:
+          type: string
+          enum: [female, male, not_specified]
+        activityLevel:
+          type: string
+          enum: [sedentary, light, moderate, active]
+        goal:
+          type: string
+          enum: [maintain, lose_gently, gain_gently]
+
+    HealthTarget:
+      allOf:
+        - $ref: "#/components/schemas/HealthTargetRequest"
+        - type: object
+          required:
+            - profileId
+            - bmi
+            - bmiCategory
+            - bmrCalories
+            - dailyCalorieTarget
+            - formula
+            - createdAt
+            - updatedAt
+          properties:
+            profileId:
+              type: string
+            bmi:
+              type: number
+              minimum: 0
+            bmiCategory:
+              type: string
+              enum: [underweight, healthy, overweight, obese]
+            bmrCalories:
+              type: integer
+              minimum: 1
+            dailyCalorieTarget:
+              type: integer
+              minimum: 1
+            formula:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    HealthTargetEnvelope:
+      type: object
+      properties:
+        healthTarget:
+          nullable: true
+          $ref: "#/components/schemas/HealthTarget"
+
     EmailAuthRequest:
       type: object
       required: [email, password]
@@ -1449,17 +1559,22 @@ components:
 
     BootstrapResponse:
       type: object
-      required: [serverTime, profile, quota, today, weeklyRange]
+      required: [serverTime, profile, quota, today, weeklySummary]
       properties:
         serverTime:
           type: string
           format: date-time
         profile:
           $ref: "#/components/schemas/Profile"
+        healthTarget:
+          nullable: true
+          $ref: "#/components/schemas/HealthTarget"
         quota:
           $ref: "#/components/schemas/Quota"
         today:
           $ref: "#/components/schemas/TodayJournalResponse"
+        weeklySummary:
+          $ref: "#/components/schemas/JournalRangeResponse"
         weeklyRange:
           $ref: "#/components/schemas/JournalRangeResponse"
 

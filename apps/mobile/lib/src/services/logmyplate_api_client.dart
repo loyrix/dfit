@@ -145,6 +145,25 @@ class LogMyPlateApiClient {
     _throwIfBad(response);
   }
 
+  Future<HealthTarget> saveHealthTarget(
+    HealthTargetInput input, {
+    required String idempotencyKey,
+  }) async {
+    final response = await _httpClient.put(
+      Uri.parse('$baseUrl/v1/profiles/me/health'),
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
+      body: jsonEncode(input.toJson()),
+    );
+    _throwIfBad(response);
+    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    return HealthTarget.fromJson(
+      payload['healthTarget'] as Map<String, dynamic>,
+    );
+  }
+
   Future<MealLog> createMeal({
     required MealType type,
     required String title,

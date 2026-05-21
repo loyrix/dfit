@@ -23,6 +23,7 @@ class JournalController extends ChangeNotifier {
   List<MealLog> _meals = [];
   MacroTotals _totals = MacroTotals.zero;
   ScanQuota? _quota;
+  HealthTarget? _healthTarget;
   JournalRangeData? _weeklyRange;
   DateTime? _lastLoadedAt;
 
@@ -31,6 +32,9 @@ class JournalController extends ChangeNotifier {
   List<MealLog> get meals => List.unmodifiable(_meals);
   MacroTotals get totals => _totals;
   ScanQuota? get quota => _quota;
+  HealthTarget? get healthTarget => _healthTarget;
+  MacroTotals? get dailyTarget =>
+      _healthTarget?.dailyTargetTotals ?? _weeklyRange?.target;
   JournalRangeData? get weeklyRange => _weeklyRange;
   DateTime? get lastLoadedAt => _lastLoadedAt;
   bool get initialLoading =>
@@ -42,6 +46,7 @@ class JournalController extends ChangeNotifier {
     _meals = [];
     _totals = MacroTotals.zero;
     _quota = null;
+    _healthTarget = null;
     _weeklyRange = null;
     _lastLoadedAt = null;
     notifyListeners();
@@ -175,6 +180,28 @@ class JournalController extends ChangeNotifier {
 
   Future<void> refreshQuota() => _refreshQuota();
 
+  Future<HealthTarget> saveHealthTarget(HealthTargetInput input) async {
+    try {
+      final target = await _apiClient.saveHealthTarget(
+        input,
+        idempotencyKey:
+            'health-target-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      _healthTarget = target;
+      _error = null;
+      notifyListeners();
+      _refreshJournalSoon();
+      return target;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'profile.health.save',
+        error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+
   Future<RewardedAdCredit> completeRewardedAd({
     required String adUnitId,
     required String idempotencyKey,
@@ -234,6 +261,7 @@ class JournalController extends ChangeNotifier {
   void _applyBootstrap(AppBootstrapData bootstrap) {
     _meals = bootstrap.today.meals;
     _totals = bootstrap.today.totals;
+    _healthTarget = bootstrap.healthTarget;
     _weeklyRange = bootstrap.weeklyRange;
     _quota = bootstrap.quota;
     _lastLoadedAt =

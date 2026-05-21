@@ -10,6 +10,7 @@ import 'screens/account_gate_screen.dart';
 import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
+import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
 import 'screens/review_meal_screen.dart';
 import 'screens/settings_screen.dart';
@@ -56,6 +57,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
   bool _openingWeeklyJournal = false;
+  bool _openingHealthTargetSetup = false;
 
   @override
   void initState() {
@@ -109,6 +111,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         return TodayScreen(
           meals: _journalController.meals,
           totals: _journalController.totals,
+          target: _journalController.dailyTarget,
           quota: _journalController.quota,
           weeklyRange: _journalController.weeklyRange,
           loading: _journalController.loading,
@@ -190,6 +193,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
 
     if (!await _ensureScanAllowed()) return;
+    if (!await _confirmDailyTargetScan()) return;
     await _persistWelcomeSeen();
     await _pushCameraFlow();
     if (mounted) await _markWelcomeSeen();
@@ -209,6 +213,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _openCamera() async {
     if (!await _ensureScanAllowed()) return;
+    if (!await _confirmDailyTargetScan()) return;
     await _pushCameraFlow();
   }
 
@@ -440,8 +445,39 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       _journalController.resetForAccountChange();
       _navigatorKey.currentState!.popUntil((route) => route.isFirst);
       await _journalController.loadToday();
+      await _promptForHealthTargetIfNeeded();
     }
     return session;
+  }
+
+  Future<void> _promptForHealthTargetIfNeeded() async {
+    if (!_authController.isSignedIn ||
+        _journalController.healthTarget != null ||
+        _openingHealthTargetSetup) {
+      return;
+    }
+
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
+    _openingHealthTargetSetup = true;
+    try {
+      final target = await navigator.push<HealthTarget>(
+        logmyplatePageRoute<HealthTarget>(
+          builder: (_) =>
+              HealthTargetScreen(onSave: _journalController.saveHealthTarget),
+        ),
+      );
+      if (target != null) {
+        _showJournalNotice(
+          tone: LogMyPlateNoticeTone.success,
+          title: 'Daily target set',
+          message: '${target.dailyCalorieTarget} kCal will guide your journal.',
+        );
+      }
+    } finally {
+      _openingHealthTargetSetup = false;
+    }
   }
 
   Future<AuthSession?> _openAccountGate(AccountGateReason reason) async {
@@ -557,6 +593,30 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       }
     }
   }
+
+  Future<bool> _confirmDailyTargetScan() async {
+    final target = _journalController.dailyTarget;
+    if (!_authController.isSignedIn ||
+        target == null ||
+        target.calories <= 0 ||
+        _journalController.totals.calories < target.calories) {
+      return true;
+    }
+
+    final context = _navigatorKey.currentContext;
+    if (context == null) return true;
+
+    final continueScan = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _DailyTargetReachedSheet(
+        consumedCalories: _journalController.totals.calories,
+        targetCalories: target.calories,
+      ),
+    );
+
+    return continueScan == true;
+  }
 }
 
 class _LaunchScreen extends StatelessWidget {
@@ -649,6 +709,99 @@ class _NoScanCreditsSheet extends StatelessWidget {
               onPressed: () =>
                   Navigator.of(context).pop(_NoScanCreditsAction.refresh),
               child: const Text('Refresh quota'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyTargetReachedSheet extends StatelessWidget {
+  const _DailyTargetReachedSheet({
+    required this.consumedCalories,
+    required this.targetCalories,
+  });
+
+  final int consumedCalories;
+  final int targetCalories;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final overBy = consumedCalories - targetCalories;
+
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${((consumedCalories / targetCalories) * 100).round()}%',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.accentText,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daily target reached',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        overBy <= 0
+                            ? 'You are at your calorie target for today.'
+                            : 'You are $overBy kCal over today\'s target.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: LogMyPlateColors.accent,
+                foregroundColor: LogMyPlateColors.accentDeep,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Scan anyway'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Stay on journal'),
             ),
           ],
         ),

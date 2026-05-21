@@ -715,6 +715,96 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("requires an account before saving BMI based daily targets", async () => {
+    const app = await testApp();
+    const response = await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: {
+        "x-logmyplate-install-id": "anonymous-health-target",
+        "x-logmyplate-platform": "ios",
+        "idempotency-key": "anonymous-health-target-save",
+      },
+      payload: {
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        sex: "male",
+        activityLevel: "light",
+        goal: "maintain",
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: "account_required" });
+    await app.close();
+  });
+
+  it("saves health targets and exposes daily calorie targets in bootstrap", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "health-target-account",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "health@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: {
+        ...accountHeaders,
+        "idempotency-key": "account-health-target-save",
+      },
+      payload: {
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        sex: "male",
+        activityLevel: "light",
+        goal: "maintain",
+      },
+    });
+
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().healthTarget).toMatchObject({
+      heightCm: 170,
+      weightKg: 70,
+      ageYears: 28,
+      bmi: 24.2,
+      bmiCategory: "healthy",
+      bmrCalories: 1628,
+      dailyCalorieTarget: 2238,
+    });
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: accountHeaders,
+    });
+
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().healthTarget).toMatchObject({
+      dailyCalorieTarget: 2238,
+    });
+    expect(bootstrap.json().today.target).toMatchObject({
+      calories: 2238,
+    });
+    expect(bootstrap.json().weeklySummary.target).toMatchObject({
+      calories: 2238,
+    });
+    await app.close();
+  });
+
   it("binds anonymous journal data when an email account is created", async () => {
     const app = await testApp();
     const installHeaders = {

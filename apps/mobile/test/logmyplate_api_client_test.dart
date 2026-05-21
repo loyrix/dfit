@@ -244,6 +244,20 @@ void main() {
               'rewardedRemaining': 0,
               'premiumRemaining': 0,
             },
+            'healthTarget': {
+              'profileId': 'profile_1',
+              'heightCm': 170,
+              'weightKg': 70,
+              'ageYears': 28,
+              'sex': 'male',
+              'activityLevel': 'light',
+              'goal': 'maintain',
+              'bmi': 24.2,
+              'bmiCategory': 'healthy',
+              'bmrCalories': 1628,
+              'dailyCalorieTarget': 2238,
+              'formula': 'mifflin_st_jeor_v1',
+            },
             'today': {
               'date': '2026-05-12',
               'timezone': 'Asia/Kolkata',
@@ -252,6 +266,12 @@ void main() {
                 'proteinG': 10.8,
                 'carbsG': 25.2,
                 'fatG': 5.4,
+              },
+              'target': {
+                'calories': 2238,
+                'proteinG': 0,
+                'carbsG': 0,
+                'fatG': 0,
               },
               'meals': [
                 {
@@ -280,6 +300,12 @@ void main() {
               'startDate': '2026-05-06',
               'endDate': '2026-05-12',
               'timezone': 'Asia/Kolkata',
+              'target': {
+                'calories': 2238,
+                'proteinG': 0,
+                'carbsG': 0,
+                'fatG': 0,
+              },
               'summary': {
                 'windowDays': 7,
                 'activeDays': 1,
@@ -314,8 +340,74 @@ void main() {
 
     expect(bootstrap.profile.authMethod, 'anonymous');
     expect(bootstrap.quota.totalRemaining, 3);
+    expect(bootstrap.healthTarget?.dailyCalorieTarget, 2238);
+    expect(bootstrap.today.target?.calories, 2238);
+    expect(bootstrap.weeklyRange.target?.calories, 2238);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
     expect(bootstrap.weeklyRange.summary.trackedDayAverage.calories, 180);
+  });
+
+  test('saves health targets with account auth headers', () async {
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      loadAuthSession: () async => AuthSession(
+        provider: AuthProvider.email,
+        displayName: 'friend@test.com',
+        linkedAt: DateTime(2026, 5, 13),
+        profileId: 'profile_1',
+        accessToken: 'token_existing',
+      ),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/profiles/me/health');
+        expect(request.method, 'PUT');
+        expect(request.headers['authorization'], 'Bearer token_existing');
+        expect(request.headers['idempotency-key'], 'health-key');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect((body['heightCm'] as num).toDouble(), 170);
+        expect((body['weightKg'] as num).toDouble(), 70);
+        expect(body, containsPair('ageYears', 28));
+        expect(body, containsPair('sex', 'male'));
+        expect(body, containsPair('activityLevel', 'light'));
+        expect(body, containsPair('goal', 'maintain'));
+
+        return http.Response(
+          jsonEncode({
+            'healthTarget': {
+              'profileId': 'profile_1',
+              'heightCm': 170,
+              'weightKg': 70,
+              'ageYears': 28,
+              'sex': 'male',
+              'activityLevel': 'light',
+              'goal': 'maintain',
+              'bmi': 24.2,
+              'bmiCategory': 'healthy',
+              'bmrCalories': 1628,
+              'dailyCalorieTarget': 2238,
+              'formula': 'mifflin_st_jeor_v1',
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final target = await client.saveHealthTarget(
+      const HealthTargetInput(
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        sex: HealthSex.male,
+        activityLevel: ActivityLevel.light,
+        goal: HealthGoal.maintain,
+      ),
+      idempotencyKey: 'health-key',
+    );
+
+    expect(target.bmi, 24.2);
+    expect(target.friendlyBmiCategory, 'Balanced range');
+    expect(target.dailyTargetTotals.calories, 2238);
   });
 
   test('parses legacy journal summary payloads during API rollout', () async {

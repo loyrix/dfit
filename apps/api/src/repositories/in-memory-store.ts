@@ -20,10 +20,12 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   Profile,
+  ProfileHealthTarget,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   ScanSession,
   UpdateMealInput,
+  UpsertProfileHealthTargetInput,
 } from "./app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AccountAuthError as AuthError } from "./app-repository.js";
@@ -42,6 +44,7 @@ export class InMemoryStore implements AppRepository {
   private readonly installProfiles = new Map<string, string>();
   private readonly credentials = new Map<string, { profileId: string; password: string }>();
   private readonly sessions = new Map<string, string>();
+  private readonly healthTargets = new Map<string, ProfileHealthTarget>();
   private readonly meals = new Map<string, MealSummary>();
   private readonly mealProfiles = new Map<string, string>();
   private readonly mealScanSessions = new Map<string, string>();
@@ -76,6 +79,30 @@ export class InMemoryStore implements AppRepository {
     }
 
     return this.defaultProfile;
+  }
+
+  async getHealthTarget(profileId?: string): Promise<ProfileHealthTarget | undefined> {
+    const owner = profileId ?? (await this.getProfile()).id;
+    const target = this.healthTargets.get(owner);
+    return target ? { ...target } : undefined;
+  }
+
+  async upsertHealthTarget(input: UpsertProfileHealthTargetInput): Promise<ProfileHealthTarget> {
+    const profile = await this.getProfile();
+    if (profile.authMethod === "anonymous") {
+      throw new AuthError("account_required", "Create an account to save a daily target.", 401);
+    }
+
+    const now = new Date().toISOString();
+    const existing = this.healthTargets.get(profile.id);
+    const target: ProfileHealthTarget = {
+      profileId: profile.id,
+      ...input,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    this.healthTargets.set(profile.id, target);
+    return { ...target };
   }
 
   async signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession> {

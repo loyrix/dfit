@@ -1,5 +1,9 @@
 import { sumTotals } from "@logmyplate/domain";
-import type { AppRepository, Profile } from "../repositories/app-repository.js";
+import type {
+  AppRepository,
+  Profile,
+  ProfileHealthTarget,
+} from "../repositories/app-repository.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 
 type RouteMeal =
@@ -76,10 +80,31 @@ const dailyAverage = (totals: ReturnType<typeof sumTotals>, days: number) => ({
   sodiumMg: Math.round((totals.sodiumMg ?? 0) / days),
 });
 
+const dailyCalorieTarget = (healthTarget?: ProfileHealthTarget) =>
+  healthTarget
+    ? {
+        calories: healthTarget.dailyCalorieTarget,
+        proteinG: 0,
+        carbsG: 0,
+        fatG: 0,
+      }
+    : undefined;
+
+const resolveDailyCalorieTarget = async (
+  repository: AppRepository,
+  profileId: string,
+  healthTarget?: ProfileHealthTarget | null,
+) => {
+  const resolved =
+    healthTarget === undefined ? await repository.getHealthTarget(profileId) : healthTarget;
+  return dailyCalorieTarget(resolved ?? undefined);
+};
+
 export const buildTodayJournal = async (
   repository: AppRepository,
   profile: Profile,
   mealImageStorage: MealImageStorage,
+  healthTarget?: ProfileHealthTarget | null,
 ) => {
   const today = toDateString(new Date());
   const meals = await repository.listMeals({ fromDate: today, toDate: today });
@@ -88,6 +113,7 @@ export const buildTodayJournal = async (
     date: today,
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
+    target: await resolveDailyCalorieTarget(repository, profile.id, healthTarget),
     meals: await Promise.all(meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage))),
   };
 };
@@ -98,6 +124,7 @@ export const buildJournalRange = async (
   daysCount: number,
   mealImageStorage: MealImageStorage,
   weekOffset = 0,
+  healthTarget?: ProfileHealthTarget | null,
 ) => {
   const endDate = addDays(new Date(), -(weekOffset * 7));
   const dates = dateWindow(daysCount, endDate);
@@ -132,6 +159,7 @@ export const buildJournalRange = async (
     startDate: dates[0],
     endDate: dates[dates.length - 1],
     timezone: profile.timezone,
+    target: await resolveDailyCalorieTarget(repository, profile.id, healthTarget),
     days,
     summary: {
       windowDays: daysCount,
@@ -149,6 +177,7 @@ export const buildJournalSummary = async (
   profile: Profile,
   daysCount: number,
   weekOffset = 0,
+  healthTarget?: ProfileHealthTarget | null,
 ) => {
   const endDate = addDays(new Date(), -(weekOffset * 7));
   const dates = dateWindow(daysCount, endDate);
@@ -173,6 +202,7 @@ export const buildJournalSummary = async (
     startDate: dates[0],
     endDate: dates[dates.length - 1],
     timezone: profile.timezone,
+    target: await resolveDailyCalorieTarget(repository, profile.id, healthTarget),
     summary: {
       windowDays: daysCount,
       activeDays,

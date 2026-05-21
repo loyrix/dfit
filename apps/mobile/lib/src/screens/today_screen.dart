@@ -15,6 +15,7 @@ class TodayScreen extends StatelessWidget {
     super.key,
     required this.meals,
     required this.totals,
+    this.target,
     this.quota,
     this.weeklyRange,
     this.loading = false,
@@ -32,6 +33,7 @@ class TodayScreen extends StatelessWidget {
 
   final List<MealLog> meals;
   final MacroTotals totals;
+  final MacroTotals? target;
   final ScanQuota? quota;
   final JournalRangeData? weeklyRange;
   final bool loading;
@@ -105,7 +107,11 @@ class TodayScreen extends StatelessWidget {
                   if (initialLoading)
                     const _TodayLoadingBody()
                   else ...[
-                    EnergyHeroCard(totals: totals, mealCount: meals.length),
+                    EnergyHeroCard(
+                      totals: totals,
+                      mealCount: meals.length,
+                      target: target,
+                    ),
                     const SizedBox(height: 12),
                     MacroBarGroup(totals: totals),
                     if (weeklyRange != null &&
@@ -207,6 +213,10 @@ class _WeeklySummaryCard extends StatelessWidget {
     final trackedProgress = summary.windowDays == 0
         ? 0.0
         : (summary.activeDays / summary.windowDays).clamp(0.0, 1.0);
+    final targetCalories = range.target?.calories;
+    final hasTarget = targetCalories != null && targetCalories > 0;
+    final averageCalories = summary.trackedDayAverage.calories;
+    final averageDelta = hasTarget ? targetCalories - averageCalories : null;
 
     return Material(
       color: colors.surfaceCard,
@@ -261,6 +271,10 @@ class _WeeklySummaryCard extends StatelessWidget {
                               ? 'Opening weekly journal'
                               : syncing
                               ? '${summary.mealCount} meals logged - syncing'
+                              : hasTarget && summary.activeDays > 0
+                              ? averageDelta! >= 0
+                                    ? 'Avg $averageDelta kCal under target'
+                                    : 'Avg ${averageDelta.abs()} kCal over target'
                               : '${summary.mealCount} meals logged',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: colors.textSecondary),
@@ -288,6 +302,13 @@ class _WeeklySummaryCard extends StatelessWidget {
                 totalDays: summary.windowDays,
                 progress: trackedProgress,
               ),
+              if (hasTarget && summary.activeDays > 0) ...[
+                const SizedBox(height: 12),
+                _TargetAverageStrip(
+                  averageCalories: averageCalories,
+                  targetCalories: targetCalories,
+                ),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -338,6 +359,61 @@ class _WeeklySummaryCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TargetAverageStrip extends StatelessWidget {
+  const _TargetAverageStrip({
+    required this.averageCalories,
+    required this.targetCalories,
+  });
+
+  final int averageCalories;
+  final int targetCalories;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final progress = targetCalories <= 0
+        ? 0.0
+        : (averageCalories / targetCalories).clamp(0.0, 1.15).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            minHeight: 6,
+            value: progress.clamp(0.0, 1.0),
+            color: progress <= 1
+                ? LogMyPlateColors.accent
+                : LogMyPlateColors.destructive,
+            backgroundColor: colors.mutedFill,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(
+              'Avg $averageCalories kCal',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textSecondary,
+                letterSpacing: 0,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Target $targetCalories kCal',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textSecondary,
+                letterSpacing: 0,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

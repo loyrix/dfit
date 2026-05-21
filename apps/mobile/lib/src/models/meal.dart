@@ -395,17 +395,22 @@ class JournalRangeData {
     required this.endDate,
     required this.days,
     required this.summary,
+    this.target,
   });
 
   final String startDate;
   final String endDate;
   final List<JournalDayData> days;
   final JournalRangeSummary summary;
+  final MacroTotals? target;
 
   factory JournalRangeData.fromJson(Map<String, dynamic> json) {
     return JournalRangeData(
       startDate: json['startDate'] as String,
       endDate: json['endDate'] as String,
+      target: json['target'] == null
+          ? null
+          : MacroTotals.fromJson(json['target'] as Map<String, dynamic>),
       days: ((json['days'] as List<dynamic>?) ?? const [])
           .map((day) => JournalDayData.fromJson(day as Map<String, dynamic>))
           .toList(),
@@ -419,6 +424,9 @@ class JournalRangeData {
     return JournalRangeData(
       startDate: json['startDate'] as String,
       endDate: json['endDate'] as String,
+      target: json['target'] == null
+          ? null
+          : MacroTotals.fromJson(json['target'] as Map<String, dynamic>),
       days: const [],
       summary: JournalRangeSummary.fromJson(
         json['summary'] as Map<String, dynamic>,
@@ -430,9 +438,204 @@ class JournalRangeData {
     return {
       'startDate': startDate,
       'endDate': endDate,
+      'target': target?.toJson(),
       'days': days.map((day) => day.toJson()).toList(),
       'summary': summary.toJson(),
     };
+  }
+}
+
+enum HealthSex { female, male, notSpecified }
+
+extension HealthSexApi on HealthSex {
+  String get apiName {
+    switch (this) {
+      case HealthSex.female:
+        return 'female';
+      case HealthSex.male:
+        return 'male';
+      case HealthSex.notSpecified:
+        return 'not_specified';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case HealthSex.female:
+        return 'Female';
+      case HealthSex.male:
+        return 'Male';
+      case HealthSex.notSpecified:
+        return 'Prefer not to say';
+    }
+  }
+
+  static HealthSex fromApi(String value) {
+    return switch (value) {
+      'female' => HealthSex.female,
+      'male' => HealthSex.male,
+      _ => HealthSex.notSpecified,
+    };
+  }
+}
+
+enum ActivityLevel { sedentary, light, moderate, active }
+
+extension ActivityLevelApi on ActivityLevel {
+  String get apiName => name;
+
+  String get label {
+    switch (this) {
+      case ActivityLevel.sedentary:
+        return 'Mostly sitting';
+      case ActivityLevel.light:
+        return 'Light movement';
+      case ActivityLevel.moderate:
+        return 'Active routine';
+      case ActivityLevel.active:
+        return 'Very active';
+    }
+  }
+
+  static ActivityLevel fromApi(String value) {
+    return ActivityLevel.values.firstWhere(
+      (level) => level.apiName == value,
+      orElse: () => ActivityLevel.light,
+    );
+  }
+}
+
+enum HealthGoal { maintain, loseGently, gainGently }
+
+extension HealthGoalApi on HealthGoal {
+  String get apiName {
+    switch (this) {
+      case HealthGoal.maintain:
+        return 'maintain';
+      case HealthGoal.loseGently:
+        return 'lose_gently';
+      case HealthGoal.gainGently:
+        return 'gain_gently';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case HealthGoal.maintain:
+        return 'Maintain';
+      case HealthGoal.loseGently:
+        return 'Lose gently';
+      case HealthGoal.gainGently:
+        return 'Gain gently';
+    }
+  }
+
+  static HealthGoal fromApi(String value) {
+    return switch (value) {
+      'lose_gently' => HealthGoal.loseGently,
+      'gain_gently' => HealthGoal.gainGently,
+      _ => HealthGoal.maintain,
+    };
+  }
+}
+
+class HealthTargetInput {
+  const HealthTargetInput({
+    required this.heightCm,
+    required this.weightKg,
+    required this.ageYears,
+    required this.sex,
+    required this.activityLevel,
+    required this.goal,
+  });
+
+  final double heightCm;
+  final double weightKg;
+  final int ageYears;
+  final HealthSex sex;
+  final ActivityLevel activityLevel;
+  final HealthGoal goal;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'heightCm': heightCm,
+      'weightKg': weightKg,
+      'ageYears': ageYears,
+      'sex': sex.apiName,
+      'activityLevel': activityLevel.apiName,
+      'goal': goal.apiName,
+    };
+  }
+}
+
+class HealthTarget {
+  const HealthTarget({
+    required this.profileId,
+    required this.heightCm,
+    required this.weightKg,
+    required this.ageYears,
+    required this.sex,
+    required this.activityLevel,
+    required this.goal,
+    required this.bmi,
+    required this.bmiCategory,
+    required this.bmrCalories,
+    required this.dailyCalorieTarget,
+    required this.formula,
+  });
+
+  final String profileId;
+  final double heightCm;
+  final double weightKg;
+  final int ageYears;
+  final HealthSex sex;
+  final ActivityLevel activityLevel;
+  final HealthGoal goal;
+  final double bmi;
+  final String bmiCategory;
+  final int bmrCalories;
+  final int dailyCalorieTarget;
+  final String formula;
+
+  String get friendlyBmiCategory {
+    switch (bmiCategory) {
+      case 'underweight':
+        return 'Below range';
+      case 'healthy':
+        return 'Balanced range';
+      case 'overweight':
+        return 'Above range';
+      case 'obese':
+        return 'High range';
+      default:
+        return 'Screening range';
+    }
+  }
+
+  factory HealthTarget.fromJson(Map<String, dynamic> json) {
+    return HealthTarget(
+      profileId: json['profileId'] as String,
+      heightCm: (json['heightCm'] as num).toDouble(),
+      weightKg: (json['weightKg'] as num).toDouble(),
+      ageYears: json['ageYears'] as int,
+      sex: HealthSexApi.fromApi(json['sex'] as String),
+      activityLevel: ActivityLevelApi.fromApi(json['activityLevel'] as String),
+      goal: HealthGoalApi.fromApi(json['goal'] as String),
+      bmi: (json['bmi'] as num).toDouble(),
+      bmiCategory: json['bmiCategory'] as String,
+      bmrCalories: json['bmrCalories'] as int,
+      dailyCalorieTarget: json['dailyCalorieTarget'] as int,
+      formula: json['formula'] as String? ?? '',
+    );
+  }
+
+  MacroTotals get dailyTargetTotals {
+    return MacroTotals(
+      calories: dailyCalorieTarget,
+      proteinG: 0,
+      carbsG: 0,
+      fatG: 0,
+    );
   }
 }
 
@@ -512,6 +715,7 @@ class AppBootstrapData {
   const AppBootstrapData({
     required this.serverTime,
     required this.profile,
+    this.healthTarget,
     required this.quota,
     required this.today,
     required this.weeklyRange,
@@ -519,6 +723,7 @@ class AppBootstrapData {
 
   final String serverTime;
   final AppProfile profile;
+  final HealthTarget? healthTarget;
   final ScanQuota quota;
   final TodayJournalData today;
   final JournalRangeData weeklyRange;
@@ -527,6 +732,9 @@ class AppBootstrapData {
     return AppBootstrapData(
       serverTime: json['serverTime'] as String? ?? '',
       profile: AppProfile.fromJson(json['profile'] as Map<String, dynamic>),
+      healthTarget: json['healthTarget'] == null
+          ? null
+          : HealthTarget.fromJson(json['healthTarget'] as Map<String, dynamic>),
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
       today: TodayJournalData.fromJson(json['today'] as Map<String, dynamic>),
       weeklyRange: json['weeklySummary'] == null
@@ -543,11 +751,28 @@ class AppBootstrapData {
     return {
       'serverTime': serverTime,
       'profile': profile.toJson(),
+      'healthTarget': healthTarget == null
+          ? null
+          : {
+              'profileId': healthTarget!.profileId,
+              'heightCm': healthTarget!.heightCm,
+              'weightKg': healthTarget!.weightKg,
+              'ageYears': healthTarget!.ageYears,
+              'sex': healthTarget!.sex.apiName,
+              'activityLevel': healthTarget!.activityLevel.apiName,
+              'goal': healthTarget!.goal.apiName,
+              'bmi': healthTarget!.bmi,
+              'bmiCategory': healthTarget!.bmiCategory,
+              'bmrCalories': healthTarget!.bmrCalories,
+              'dailyCalorieTarget': healthTarget!.dailyCalorieTarget,
+              'formula': healthTarget!.formula,
+            },
       'quota': quota.toJson(),
       'today': today.toJson(),
       'weeklySummary': {
         'startDate': weeklyRange.startDate,
         'endDate': weeklyRange.endDate,
+        'target': weeklyRange.target?.toJson(),
         'summary': weeklyRange.summary.toJson(),
       },
     };

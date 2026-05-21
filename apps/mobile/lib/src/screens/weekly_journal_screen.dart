@@ -98,7 +98,11 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
               const _EmptyWeekCard()
             else
               for (final day in days)
-                _JournalDayRow(day: day, onTap: () => _openDay(context, day)),
+                _JournalDayRow(
+                  day: day,
+                  target: _range.target,
+                  onTap: () => _openDay(context, day),
+                ),
           ],
         ),
       ),
@@ -110,6 +114,7 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
       logmyplatePageRoute<void>(
         builder: (_) => DayJournalDetailScreen(
           day: day,
+          target: _range.target,
           onOpenMeal: widget.onOpenMeal,
           onDeleteMeal: widget.onDeleteMeal,
           onMealDeleted: () async {
@@ -198,9 +203,11 @@ class DayJournalDetailScreen extends StatefulWidget {
     required this.onOpenMeal,
     required this.onDeleteMeal,
     required this.onMealDeleted,
+    this.target,
   });
 
   final JournalDayData day;
+  final MacroTotals? target;
   final Future<bool> Function(MealLog meal) onOpenMeal;
   final Future<void> Function(MealLog meal) onDeleteMeal;
   final Future<void> Function() onMealDeleted;
@@ -233,11 +240,12 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
                 totals: _day.totals,
                 mealCount: _day.mealCount,
                 label: 'Day Energy',
+                target: widget.target,
               ),
               const SizedBox(height: 12),
               MacroBarGroup(totals: _day.totals),
               const SizedBox(height: 18),
-              _DayCompositionCard(day: _day),
+              _DayCompositionCard(day: _day, target: widget.target),
             ] else
               _EmptyDayOverview(day: _day),
             const SizedBox(height: 22),
@@ -908,9 +916,10 @@ class _EmptyWeekCard extends StatelessWidget {
 }
 
 class _JournalDayRow extends StatelessWidget {
-  const _JournalDayRow({required this.day, required this.onTap});
+  const _JournalDayRow({required this.day, required this.onTap, this.target});
 
   final JournalDayData day;
+  final MacroTotals? target;
   final VoidCallback onTap;
 
   @override
@@ -918,6 +927,11 @@ class _JournalDayRow extends StatelessWidget {
     final colors = context.logmyplate;
     final hasMeals = day.mealCount > 0;
     final date = _parseDate(day.date);
+    final targetCalories = target?.calories;
+    final hasTarget = targetCalories != null && targetCalories > 0;
+    final targetProgress = hasTarget
+        ? (day.totals.calories / targetCalories).clamp(0.0, 1.0).toDouble()
+        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -971,6 +985,14 @@ class _JournalDayRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 11),
                       _MacroTriplet(totals: day.totals, muted: !hasMeals),
+                      if (hasTarget) ...[
+                        const SizedBox(height: 10),
+                        _DayTargetStrip(
+                          calories: day.totals.calories,
+                          targetCalories: targetCalories,
+                          progress: targetProgress,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -985,6 +1007,55 @@ class _JournalDayRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DayTargetStrip extends StatelessWidget {
+  const _DayTargetStrip({
+    required this.calories,
+    required this.targetCalories,
+    required this.progress,
+  });
+
+  final int calories;
+  final int targetCalories;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final overTarget = calories > targetCalories;
+
+    return Row(
+      children: [
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 5,
+              value: progress,
+              color: overTarget
+                  ? LogMyPlateColors.destructive
+                  : LogMyPlateColors.accent,
+              backgroundColor: colors.mutedFill,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          overTarget
+              ? '+${calories - targetCalories} kCal'
+              : '${targetCalories - calories} kCal left',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: overTarget
+                ? LogMyPlateColors.destructive
+                : colors.textSecondary,
+            letterSpacing: 0,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1107,9 +1178,10 @@ class _MacroPill extends StatelessWidget {
 }
 
 class _DayCompositionCard extends StatelessWidget {
-  const _DayCompositionCard({required this.day});
+  const _DayCompositionCard({required this.day, this.target});
 
   final JournalDayData day;
+  final MacroTotals? target;
 
   @override
   Widget build(BuildContext context) {
@@ -1118,6 +1190,10 @@ class _DayCompositionCard extends StatelessWidget {
       0,
       (count, meal) => count + meal.items.length,
     );
+    final targetCalories = target?.calories;
+    final targetDelta = targetCalories == null
+        ? null
+        : targetCalories - day.totals.calories;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1141,10 +1217,14 @@ class _DayCompositionCard extends StatelessWidget {
           Container(width: 1, height: 38, color: colors.border),
           Expanded(
             child: _CompositionMetric(
-              label: 'kCal / meal',
-              value: day.mealCount == 0
-                  ? '0 kCal'
-                  : '${(day.totals.calories / day.mealCount).round()} kCal',
+              label: targetDelta == null ? 'kCal / meal' : 'Target',
+              value: targetDelta == null
+                  ? day.mealCount == 0
+                        ? '0 kCal'
+                        : '${(day.totals.calories / day.mealCount).round()} kCal'
+                  : targetDelta >= 0
+                  ? '$targetDelta kCal left'
+                  : '${targetDelta.abs()} kCal over',
             ),
           ),
         ],

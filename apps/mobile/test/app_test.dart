@@ -9,6 +9,7 @@ import 'package:logmyplate_mobile/src/models/meal.dart';
 import 'package:logmyplate_mobile/src/screens/account_gate_screen.dart';
 import 'package:logmyplate_mobile/src/screens/account_profile_screen.dart';
 import 'package:logmyplate_mobile/src/screens/analyzing_screen.dart';
+import 'package:logmyplate_mobile/src/screens/health_target_screen.dart';
 import 'package:logmyplate_mobile/src/screens/meal_detail_screen.dart';
 import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
 import 'package:logmyplate_mobile/src/screens/settings_screen.dart';
@@ -932,10 +933,55 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(authGateway.emailAuthCount, 1);
+    expect(find.byType(HealthTargetScreen), findsOneWidget);
+    await tester.tap(find.text('Set later'));
+    await tester.pumpAndSettle();
+
     expect(find.byType(TodayScreen), findsOneWidget);
     expect(find.byType(SettingsScreen), findsNothing);
     expect(find.byType(AccountGateScreen), findsNothing);
     expect(find.byType(AccountProfileScreen), findsNothing);
+  });
+
+  testWidgets('health target setup previews BMI and saves a daily target', (
+    tester,
+  ) async {
+    HealthTargetInput? submitted;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: HealthTargetScreen(
+          onSave: (input) async {
+            submitted = input;
+            return const HealthTarget(
+              profileId: 'profile_test',
+              heightCm: 170,
+              weightKg: 70,
+              ageYears: 28,
+              sex: HealthSex.notSpecified,
+              activityLevel: ActivityLevel.light,
+              goal: HealthGoal.maintain,
+              bmi: 24.2,
+              bmiCategory: 'healthy',
+              bmrCalories: 1545,
+              dailyCalorieTarget: 2124,
+              formula: 'mifflin_st_jeor_v1',
+            );
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('Set your daily target'), findsOneWidget);
+    expect(find.text('BMI'), findsOneWidget);
+    expect(find.text('Save target'), findsOneWidget);
+
+    await tester.tap(find.text('Save target'));
+    await tester.pumpAndSettle();
+
+    expect(submitted?.heightCm, 170);
+    expect(submitted?.weightKg, 70);
   });
 
   testWidgets('logout returns the user to the anonymous dashboard', (
