@@ -73,6 +73,8 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final locked = widget.lockedFromAnalysis;
 
     return SafeArea(
       child: Padding(
@@ -80,7 +82,9 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
         child: Container(
           constraints: const BoxConstraints(maxHeight: 680),
           decoration: BoxDecoration(
-            color: colors.surfaceCard,
+            color: isDark
+                ? const Color(0xFF17201B)
+                : colors.surfaceCard.withValues(alpha: 0.98),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: colors.border, width: 0.6),
             boxShadow: [
@@ -131,31 +135,59 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                 ],
               ),
               const SizedBox(height: 10),
-              _EditTextField(
-                key: const ValueKey('edit-item-name'),
-                label: 'Food',
-                controller: _nameController,
-                textInputAction: TextInputAction.next,
-                enabled: !widget.lockedFromAnalysis,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _EditTextField(
-                      key: const ValueKey('edit-item-quantity'),
-                      label: widget.lockedFromAnalysis ? 'Portions' : 'Qty',
-                      controller: _quantityController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+              if (locked) ...[
+                _ReadonlyIdentityCard(name: _workingItem.name),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-quantity'),
+                        label: 'Portions',
+                        controller: _quantityController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.next,
+                        onChanged: _updateLockedFromQuantity,
                       ),
-                      textInputAction: TextInputAction.next,
-                      onChanged: widget.lockedFromAnalysis
-                          ? _updateLockedFromQuantity
-                          : null,
                     ),
-                  ),
-                  if (!widget.lockedFromAnalysis) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-grams'),
+                        label: 'Grams',
+                        controller: _gramsController,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.done,
+                        onChanged: _updateLockedFromGrams,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _CalculatedNutritionGrid(totals: _workingItem.nutrition),
+              ] else ...[
+                _EditTextField(
+                  key: const ValueKey('edit-item-name'),
+                  label: 'Food',
+                  controller: _nameController,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-quantity'),
+                        label: 'Qty',
+                        controller: _quantityController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: DropdownButtonFormField<String>(
@@ -172,79 +204,72 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                       ),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _EditTextField(
-                      key: const ValueKey('edit-item-grams'),
-                      label: 'Grams',
-                      controller: _gramsController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.next,
-                      onChanged: widget.lockedFromAnalysis
-                          ? _updateLockedFromGrams
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _EditTextField(
-                      key: const ValueKey('edit-item-calories'),
-                      label: 'kCal',
-                      controller: _caloriesController,
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.next,
-                      enabled: !widget.lockedFromAnalysis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _EditTextField(
-                      key: const ValueKey('edit-item-protein'),
-                      label: 'Protein',
-                      controller: _proteinController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-grams'),
+                        label: 'Grams',
+                        controller: _gramsController,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
                       ),
-                      textInputAction: TextInputAction.next,
-                      enabled: !widget.lockedFromAnalysis,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _EditTextField(
-                      key: const ValueKey('edit-item-carbs'),
-                      label: 'Carbs',
-                      controller: _carbsController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-calories'),
+                        label: 'kCal',
+                        controller: _caloriesController,
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
                       ),
-                      textInputAction: TextInputAction.next,
-                      enabled: !widget.lockedFromAnalysis,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _EditTextField(
-                      key: const ValueKey('edit-item-fat'),
-                      label: 'Fat',
-                      controller: _fatController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-protein'),
+                        label: 'Protein',
+                        controller: _proteinController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.next,
                       ),
-                      textInputAction: TextInputAction.done,
-                      enabled: !widget.lockedFromAnalysis,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-carbs'),
+                        label: 'Carbs',
+                        controller: _carbsController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _EditTextField(
+                        key: const ValueKey('edit-item-fat'),
+                        label: 'Fat',
+                        controller: _fatController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.done,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               if (_validation != null) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -324,16 +349,20 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
     if (_syncingDerivedFields) return;
     final quantity = _parsePositiveDouble(value);
     if (quantity == null) return;
-    _workingItem = widget.item.scaledToQuantity(quantity);
-    _syncDerivedFields(updateQuantity: false);
+    setState(() {
+      _workingItem = widget.item.scaledToQuantity(quantity);
+      _syncDerivedFields(updateQuantity: false);
+    });
   }
 
   void _updateLockedFromGrams(String value) {
     if (_syncingDerivedFields) return;
     final grams = _parsePositiveInt(value);
     if (grams == null) return;
-    _workingItem = widget.item.scaledToGrams(grams);
-    _syncDerivedFields(updateGrams: false);
+    setState(() {
+      _workingItem = widget.item.scaledToGrams(grams);
+      _syncDerivedFields(updateGrams: false);
+    });
   }
 
   void _syncDerivedFields({
@@ -357,6 +386,180 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
   }
 }
 
+class _ReadonlyIdentityCard extends StatelessWidget {
+  const _ReadonlyIdentityCard({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      key: const ValueKey('edit-item-name-readonly'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.045)
+            : colors.textPrimary.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.border.withValues(alpha: 0.72)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.lock_outline_rounded,
+            size: 17,
+            color: colors.textTertiary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Food',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textTertiary,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.textSecondary,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalculatedNutritionGrid extends StatelessWidget {
+  const _CalculatedNutritionGrid({required this.totals});
+
+  final MacroTotals totals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _CalculatedNutritionTile(
+                label: 'kCal',
+                value: totals.calories.toString(),
+                color: LogMyPlateColors.accent,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _CalculatedNutritionTile(
+                label: 'Protein',
+                value: _formatInputNumber(totals.proteinG),
+                color: LogMyPlateColors.macroProtein,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _CalculatedNutritionTile(
+                label: 'Carbs',
+                value: _formatInputNumber(totals.carbsG),
+                color: LogMyPlateColors.macroCarbs,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _CalculatedNutritionTile(
+                label: 'Fat',
+                value: _formatInputNumber(totals.fatG),
+                color: LogMyPlateColors.macroFat,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _CalculatedNutritionTile extends StatelessWidget {
+  const _CalculatedNutritionTile({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.12 : 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withValues(alpha: isDark ? 0.22 : 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EditTextField extends StatelessWidget {
   const _EditTextField({
     super.key,
@@ -364,7 +567,6 @@ class _EditTextField extends StatelessWidget {
     required this.controller,
     this.keyboardType,
     this.textInputAction,
-    this.enabled = true,
     this.onChanged,
   });
 
@@ -372,51 +574,45 @@ class _EditTextField extends StatelessWidget {
   final TextEditingController controller;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
-  final bool enabled;
   final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.logmyplate;
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
-      enabled: enabled,
       onChanged: onChanged,
-      decoration: _fieldDecoration(context, label, enabled: enabled),
+      decoration: _fieldDecoration(context, label),
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-        color: enabled
-            ? context.logmyplate.textPrimary
-            : context.logmyplate.textTertiary,
+        color: colors.textPrimary,
         letterSpacing: 0,
       ),
     );
   }
 }
 
-InputDecoration _fieldDecoration(
-  BuildContext context,
-  String label, {
-  bool enabled = true,
-}) {
+InputDecoration _fieldDecoration(BuildContext context, String label) {
   final colors = context.logmyplate;
-  final enabledFill = colors.surfaceCard;
-  final disabledFill = colors.mutedFill.withValues(alpha: 0.64);
-  final enabledBorder = colors.border;
-  final disabledBorder = colors.border.withValues(alpha: 0.48);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final enabledFill = isDark
+      ? Colors.white.withValues(alpha: 0.035)
+      : colors.surfaceCard;
+  final enabledBorder = colors.border.withValues(alpha: 0.86);
 
   return InputDecoration(
     labelText: label,
     labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: enabled ? colors.textSecondary : colors.textTertiary,
+      color: colors.textSecondary,
       letterSpacing: 0.4,
     ),
     filled: true,
-    fillColor: enabled ? enabledFill : disabledFill,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+    fillColor: enabledFill,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: enabled ? enabledBorder : disabledBorder),
+      borderSide: BorderSide(color: enabledBorder),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -428,7 +624,7 @@ InputDecoration _fieldDecoration(
     ),
     disabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: disabledBorder),
+      borderSide: BorderSide(color: colors.border.withValues(alpha: 0.48)),
     ),
   );
 }

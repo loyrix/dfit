@@ -198,30 +198,50 @@ class _CameraScreenState extends State<CameraScreen>
                         final compact = constraints.maxHeight < 720;
                         final keyboardOpen =
                             MediaQuery.viewInsetsOf(context).bottom > 0;
-                        final previewSize = keyboardOpen
-                            ? 148.0
-                            : compact
-                            ? 208.0
-                            : 292.0;
                         final hasPhoto = preparedCapture != null;
 
                         return Column(
                           children: [
-                            _ScanIntroCard(
-                              activeSource: activeSource,
-                              hasPhoto: hasPhoto,
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: keyboardOpen
+                                  ? const SizedBox.shrink()
+                                  : _ScanIntroCard(
+                                      activeSource: activeSource,
+                                      hasPhoto: hasPhoto,
+                                    ),
                             ),
-                            SizedBox(height: compact ? 16 : 22),
+                            SizedBox(
+                              height: keyboardOpen
+                                  ? 8
+                                  : compact
+                                  ? 16
+                                  : 22,
+                            ),
                             Expanded(
                               child: LayoutBuilder(
                                 builder: (context, previewConstraints) {
-                                  final fittedPreviewSize = math.min(
-                                    previewSize,
+                                  final maxPreviewWidth = math.min(
+                                    370.0,
+                                    previewConstraints.maxWidth,
+                                  );
+                                  final emptySize = math.min(
+                                    compact ? 214.0 : 292.0,
                                     math.min(
                                       previewConstraints.maxWidth,
                                       previewConstraints.maxHeight,
                                     ),
                                   );
+                                  final preparedHeight = keyboardOpen
+                                      ? math.min(
+                                          126.0,
+                                          previewConstraints.maxHeight,
+                                        )
+                                      : math.min(
+                                          compact ? 252.0 : 330.0,
+                                          previewConstraints.maxHeight,
+                                        );
 
                                   return Center(
                                     child: AnimatedSwitcher(
@@ -229,9 +249,7 @@ class _CameraScreenState extends State<CameraScreen>
                                         milliseconds: 260,
                                       ),
                                       child: preparedCapture == null
-                                          ? _EmptyCaptureState(
-                                              size: fittedPreviewSize,
-                                            )
+                                          ? _EmptyCaptureState(size: emptySize)
                                           : _PreparedMealPreview(
                                               key: ValueKey(
                                                 preparedCapture.fileName,
@@ -239,17 +257,25 @@ class _CameraScreenState extends State<CameraScreen>
                                               capture: preparedCapture,
                                               progress: _controller.value,
                                               onClear: _clearPreparedCapture,
-                                              frameSize: fittedPreviewSize,
+                                              frameWidth: maxPreviewWidth,
+                                              frameHeight: preparedHeight,
                                             ),
                                     ),
                                   );
                                 },
                               ),
                             ),
-                            SizedBox(height: compact ? 12 : 18),
+                            SizedBox(
+                              height: keyboardOpen
+                                  ? 8
+                                  : compact
+                                  ? 12
+                                  : 18,
+                            ),
                             _CaptureComposerPanel(
                               controller: _hintController,
                               compact: compact,
+                              keyboardOpen: keyboardOpen,
                               progress: _controller.value,
                               activeSource: activeSource,
                               prepared: hasPhoto,
@@ -452,24 +478,26 @@ class _PreparedMealPreview extends StatelessWidget {
     required this.capture,
     required this.progress,
     required this.onClear,
-    required this.frameSize,
+    required this.frameWidth,
+    required this.frameHeight,
   });
 
   final _PreparedCapture capture;
   final double progress;
   final VoidCallback onClear;
-  final double frameSize;
+  final double frameWidth;
+  final double frameHeight;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final compactPreview = frameSize < 190;
+    final compactPreview = frameHeight < 170;
     final scanY =
-        30 + (math.sin(progress * math.pi * 2) + 1) * (frameSize * 0.32);
+        26 + (math.sin(progress * math.pi * 2) + 1) * (frameHeight * 0.30);
 
     return SizedBox(
-      width: frameSize,
-      height: frameSize,
+      width: frameWidth,
+      height: frameHeight,
       child: Stack(
         children: [
           Positioned.fill(
@@ -515,8 +543,8 @@ class _PreparedMealPreview extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 24,
-            right: 24,
+            left: compactPreview ? 18 : 26,
+            right: compactPreview ? 18 : 26,
             top: scanY,
             child: Container(
               height: 2,
@@ -547,43 +575,6 @@ class _PreparedMealPreview extends StatelessWidget {
             right: compactPreview ? 8 : 14,
             child: _PreviewClearButton(onTap: onClear),
           ),
-          if (!compactPreview)
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 18,
-              child: Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: LogMyPlateColors.accent,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      capture.source == _CaptureSource.camera
-                          ? Icons.photo_camera_rounded
-                          : Icons.photo_library_rounded,
-                      color: LogMyPlateColors.accentDeep,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Review note before scan',
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
@@ -647,24 +638,29 @@ class _PlateHintField extends StatelessWidget {
   const _PlateHintField({
     required this.controller,
     required this.compact,
+    required this.keyboardOpen,
     required this.onChanged,
   });
 
   final TextEditingController controller;
   final bool compact;
+  final bool keyboardOpen;
   final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
+      padding: const EdgeInsets.fromLTRB(15, 14, 12, 12),
       decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.045)
+            : Colors.white.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.border.withValues(alpha: 0.82)),
       ),
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
@@ -688,7 +684,11 @@ class _PlateHintField extends StatelessWidget {
                     child: TextField(
                       controller: controller,
                       maxLength: 280,
-                      minLines: compact ? 3 : 4,
+                      minLines: keyboardOpen
+                          ? 2
+                          : compact
+                          ? 3
+                          : 4,
                       maxLines: null,
                       onChanged: (_) => onChanged(),
                       textInputAction: TextInputAction.newline,
@@ -698,8 +698,7 @@ class _PlateHintField extends StatelessWidget {
                       ),
                       decoration: InputDecoration(
                         counterText: '',
-                        hintText:
-                            'Example: 2 rotis with dal and mixed veg sabzi',
+                        hintText: 'Example: small tea and two methi thepla',
                         labelText: 'Food note',
                         labelStyle: Theme.of(context).textTheme.labelSmall
                             ?.copyWith(
@@ -759,6 +758,7 @@ class _CaptureComposerPanel extends StatelessWidget {
   const _CaptureComposerPanel({
     required this.controller,
     required this.compact,
+    required this.keyboardOpen,
     required this.progress,
     required this.activeSource,
     required this.prepared,
@@ -772,6 +772,7 @@ class _CaptureComposerPanel extends StatelessWidget {
 
   final TextEditingController controller;
   final bool compact;
+  final bool keyboardOpen;
   final double progress;
   final _CaptureSource? activeSource;
   final bool prepared;
@@ -785,23 +786,22 @@ class _CaptureComposerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      constraints: const BoxConstraints(maxWidth: 360),
-      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(maxWidth: 386),
+      padding: EdgeInsets.all(keyboardOpen ? 10 : 12),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: colors.border, width: 0.6),
+        color: isDark
+            ? const Color(0xFF18201C).withValues(alpha: 0.94)
+            : Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: colors.border.withValues(alpha: 0.84)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(
-              alpha: Theme.of(context).brightness == Brightness.dark
-                  ? 0.18
-                  : 0.07,
-            ),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.08),
+            blurRadius: 34,
+            offset: const Offset(0, 18),
           ),
         ],
       ),
@@ -811,6 +811,7 @@ class _CaptureComposerPanel extends StatelessWidget {
           _PlateHintField(
             controller: controller,
             compact: compact,
+            keyboardOpen: keyboardOpen,
             onChanged: onChanged,
           ),
           AnimatedSwitcher(
@@ -1145,8 +1146,19 @@ class _CameraBackdropPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final warmWash = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0, -0.08),
+        radius: 0.82,
+        colors: [
+          LogMyPlateColors.accent.withValues(alpha: 0.12),
+          Colors.transparent,
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, warmWash);
+
     final line = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.035)
+      ..color = colors.textPrimary.withValues(alpha: 0.018)
       ..strokeWidth = 1;
     final yShift = progress * 28;
 
@@ -1156,8 +1168,8 @@ class _CameraBackdropPainter extends CustomPainter {
 
     final vignette = Paint()
       ..shader = RadialGradient(
-        colors: [Colors.transparent, colors.background.withValues(alpha: 0.84)],
-        stops: const [0.42, 1],
+        colors: [Colors.transparent, colors.background.withValues(alpha: 0.70)],
+        stops: const [0.46, 1],
       ).createShader(Offset.zero & size);
 
     canvas.drawRect(Offset.zero & size, vignette);
