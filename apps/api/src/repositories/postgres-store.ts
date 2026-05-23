@@ -493,7 +493,7 @@ export class PostgresStore implements AppRepository {
     const email = normalizeEmail(input.email);
     const credential = await this.findCredentialByEmail(email);
     if (!credential) {
-      throw new AccountAuthError("invalid_credentials", "Invalid email or password.", 401);
+      throw new AccountAuthError("account_not_found", "User does not exist.", 404);
     }
 
     const passwordMatches = await verifyPassword(
@@ -1488,7 +1488,7 @@ export class PostgresStore implements AppRepository {
         profiles.deactivated_at::text
       from account_password_credentials
       inner join profiles on profiles.id = account_password_credentials.profile_id
-      where email = ${email}
+      where account_password_credentials.email = ${email}
       limit 1
     `;
     return credential;

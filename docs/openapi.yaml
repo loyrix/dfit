@@ -250,7 +250,13 @@ paths:
         "400":
           $ref: "#/components/responses/InvalidEmailAuth"
         "401":
-          description: Invalid credentials.
+          description: Password is incorrect.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "404":
+          description: Account does not exist.
           content:
             application/json:
               schema:

@@ -147,6 +147,8 @@ String _emailAuthErrorMessage(Object error, EmailAuthMode mode) {
     switch (error.errorCode) {
       case 'email_already_registered':
         return 'This email is already registered. Log in instead.';
+      case 'account_not_found':
+        return 'User does not exist.';
       case 'invalid_credentials':
         return 'Email or password is incorrect.';
       case 'account_deactivated':

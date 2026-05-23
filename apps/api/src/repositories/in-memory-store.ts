@@ -136,12 +136,15 @@ export class InMemoryStore implements AppRepository {
   async loginWithEmail(input: { email: string; password: string }): Promise<AccountSession> {
     const email = normalizeEmail(input.email);
     const credential = this.credentials.get(email);
-    if (!credential || credential.password !== input.password) {
+    if (!credential) {
+      throw new AuthError("account_not_found", "User does not exist.", 404);
+    }
+    if (credential.password !== input.password) {
       throw new AuthError("invalid_credentials", "Invalid credentials.", 401);
     }
 
     const accountProfile = this.profiles.get(credential.profileId);
-    if (!accountProfile) throw new AuthError("invalid_credentials", "Invalid credentials.", 401);
+    if (!accountProfile) throw new AuthError("account_not_found", "User does not exist.", 404);
     if (this.deactivatedProfiles.has(accountProfile.id)) {
       throw new AuthError(
         "account_deactivated",

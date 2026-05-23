@@ -911,8 +911,23 @@ describe("LogMyPlate API", () => {
       headers: installHeaders,
       payload: { email: "delete-profile@example.com", password: "secret1" },
     });
-    expect(login.statusCode).toBe(401);
-    expect(login.json()).toMatchObject({ error: "invalid_credentials" });
+    expect(login.statusCode).toBe(404);
+    expect(login.json()).toMatchObject({
+      error: "account_not_found",
+      message: "User does not exist.",
+    });
+
+    const recreated = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "delete-profile@example.com", password: "secret1" },
+    });
+    expect(recreated.statusCode).toBe(201);
+    expect(recreated.json().profile).toMatchObject({
+      authMethod: "email",
+      email: "delete-profile@example.com",
+    });
     await app.close();
   });
 

@@ -65,6 +65,30 @@ void main() {
     expect(controller.error, 'Email or password is incorrect.');
   });
 
+  test('shows a specific missing account login message', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(
+        error: LogMyPlateApiException(
+          404,
+          jsonEncode({
+            'error': 'account_not_found',
+            'message': 'User does not exist.',
+          }),
+        ),
+      ),
+      store: AccountSessionStore(),
+    );
+
+    final session = await controller.signInWithEmail(
+      mode: EmailAuthMode.logIn,
+      email: 'deleted@test.com',
+      password: 'secret1',
+    );
+
+    expect(session, isNull);
+    expect(controller.error, 'User does not exist.');
+  });
+
   test('shows provider-specific coming soon copy', () async {
     final controller = AuthController(
       gateway: _FailingAuthGateway(error: UnsupportedError('not wired')),
