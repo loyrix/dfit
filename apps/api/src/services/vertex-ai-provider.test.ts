@@ -83,6 +83,8 @@ describe("VertexAiProvider", () => {
       config: {
         responseMimeType: "application/json",
         maxOutputTokens: 3072,
+        responseSchema: expect.any(Object),
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     const prompt = (requestBody as { contents: Array<{ parts: Array<{ text?: string }> }> })
@@ -153,5 +155,88 @@ describe("VertexAiProvider", () => {
       },
     });
     expect(calls).toBe(2);
+  });
+
+  it("preserves Vertex AI upstream error details for logs", async () => {
+    const upstreamError = Object.assign(new Error("permission denied for Vertex AI"), {
+      status: 403,
+      code: "PERMISSION_DENIED",
+    });
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      client: {
+        models: {
+          generateContent: async () => {
+            throw upstreamError;
+          },
+        },
+      },
+    });
+
+    await expect(
+      provider.analyzeMealImage({
+        scanId: "scan-test",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "PERMISSION_DENIED",
+      statusCode: 502,
+      retryable: false,
+      cause: upstreamError,
+      details: {
+        upstreamStatus: 403,
+        upstreamMessage: "permission denied for Vertex AI",
+      },
+    });
+  });
+
+  it("includes a raw response preview when Vertex AI returns invalid food JSON", async () => {
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      client: {
+        models: {
+          generateContent: async () => ({
+            text: JSON.stringify({
+              mealType: "brunch",
+              mealName: "Food",
+              detectedLanguage: "en",
+              items: [],
+            }),
+            usageMetadata: {},
+          }),
+        },
+      },
+    });
+
+    await expect(
+      provider.analyzeMealImage({
+        scanId: "scan-test",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "ai_provider_invalid_response",
+      details: {
+        rawTextPreview: expect.stringContaining('"mealType":"brunch"'),
+        issues: expect.any(Array),
+      },
+    });
   });
 });

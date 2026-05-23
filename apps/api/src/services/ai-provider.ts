@@ -35,15 +35,23 @@ export interface AiProvider {
   analyzeMealImage(input: AnalyzeMealImageInput): Promise<AnalyzeMealImageResult>;
 }
 
+type AiProviderErrorOptions = ErrorOptions & {
+  details?: Record<string, unknown>;
+};
+
 export class AiProviderError extends Error {
+  public readonly details?: Record<string, unknown>;
+
   constructor(
     public readonly code: string,
     message: string,
     public readonly statusCode = 502,
     public readonly retryable = true,
+    options?: AiProviderErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "AiProviderError";
+    this.details = options?.details;
   }
 }
 

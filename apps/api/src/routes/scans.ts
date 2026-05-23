@@ -122,6 +122,25 @@ export const registerScanRoutes = async (
         }),
       );
 
+      request.log.error(
+        {
+          err: error,
+          route: "/v1/scans/:id/analyze",
+          scanId: scan.id,
+          timings: timer.snapshot(),
+          aiProviderError:
+            error instanceof AiProviderError
+              ? {
+                  code: error.code,
+                  statusCode: error.statusCode,
+                  retryable: error.retryable,
+                  details: error.details,
+                }
+              : undefined,
+        },
+        "scan analyze failed",
+      );
+
       if (error instanceof AiProviderError) {
         return reply.status(error.statusCode).send({
           error: error.code,

@@ -54,7 +54,10 @@ type VertexGenerateContentParams = {
     candidateCount: number;
     maxOutputTokens: number;
     responseMimeType: "application/json";
-    responseJsonSchema: unknown;
+    responseSchema: unknown;
+    thinkingConfig?: {
+      thinkingBudget: number;
+    };
   };
 };
 
@@ -106,7 +109,8 @@ export class VertexAiProvider implements AiProvider {
           candidateCount: 1,
           maxOutputTokens: this.options.maxOutputTokens,
           responseMimeType: "application/json",
-          responseJsonSchema: foodPhotoResponseSchema,
+          responseSchema: foodPhotoResponseSchema,
+          ...thinkingConfigForModel(this.options.model),
         },
       });
 
@@ -120,8 +124,28 @@ export class VertexAiProvider implements AiProvider {
         );
       }
 
-      const vertexAnalysis = parseFoodPhotoAnalysisText(text);
-      const analysis = mapFoodPhotoAnalysisToScan(input.scanId, vertexAnalysis);
+      let analysis;
+      try {
+        const vertexAnalysis = parseFoodPhotoAnalysisText(text);
+        analysis = mapFoodPhotoAnalysisToScan(input.scanId, vertexAnalysis);
+      } catch (error) {
+        if (error instanceof z.ZodError || error instanceof SyntaxError) {
+          throw new AiProviderError(
+            "ai_provider_invalid_response",
+            "Vertex AI returned food analysis that did not match the LogMyPlate schema.",
+            502,
+            true,
+            {
+              cause: error,
+              details: {
+                rawTextPreview: previewText(text),
+                issues: error instanceof z.ZodError ? error.issues : undefined,
+              },
+            },
+          );
+        }
+        throw error;
+      }
 
       return {
         analysis,
@@ -152,9 +176,14 @@ export class VertexAiProvider implements AiProvider {
           "Vertex AI analysis timed out.",
           504,
           true,
+          { cause: error },
         );
       }
-      throw new AiProviderError("ai_provider_failed", "Vertex AI analysis failed.", 502, true);
+      const upstreamError = toVertexUpstreamProviderError(error);
+      if (upstreamError) throw upstreamError;
+      throw new AiProviderError("ai_provider_failed", "Vertex AI analysis failed.", 502, true, {
+        cause: error,
+      });
     }
   }
 
@@ -224,10 +253,21 @@ const parseServiceAccountCredentials = (options: VertexAiProviderOptions) => {
     );
   }
 
-  const credentials = JSON.parse(rawJson) as {
+  let credentials: {
     client_email?: string;
     private_key?: string;
   };
+  try {
+    credentials = JSON.parse(rawJson) as typeof credentials;
+  } catch (error) {
+    throw new AiProviderError(
+      "ai_provider_not_configured",
+      "Vertex AI service account credentials JSON is invalid.",
+      503,
+      false,
+      { cause: error },
+    );
+  }
 
   if (!credentials.client_email || !credentials.private_key) {
     throw new AiProviderError(
@@ -243,7 +283,7 @@ const parseServiceAccountCredentials = (options: VertexAiProviderOptions) => {
 
 const isRetryableVertexError = (error: unknown) => {
   const status = readStatusCode(error);
-  if (status !== undefined) return status >= 500 || status === 408 || status === 429;
+  if (status !== undefined) return isRetryableVertexStatus(status);
 
   if (error instanceof Error) {
     return ["ECONNRESET", "ETIMEDOUT", "ENOTFOUND", "EAI_AGAIN"].some((code) =>
@@ -253,6 +293,33 @@ const isRetryableVertexError = (error: unknown) => {
 
   return false;
 };
+
+const isRetryableVertexStatus = (status: number) =>
+  status >= 500 || status === 408 || status === 429;
+
+const toVertexUpstreamProviderError = (error: unknown) => {
+  const status = readStatusCode(error);
+  if (status === undefined) return undefined;
+
+  return new AiProviderError(
+    readErrorCode(error) ?? "ai_provider_http_error",
+    "Vertex AI analysis failed.",
+    status >= 400 && status < 500 ? 502 : status,
+    isRetryableVertexStatus(status),
+    {
+      cause: error,
+      details: {
+        upstreamStatus: status,
+        upstreamMessage: readErrorMessage(error),
+      },
+    },
+  );
+};
+
+const thinkingConfigForModel = (model: string) =>
+  model.includes("gemini-2.5-") ? { thinkingConfig: { thinkingBudget: 0 } } : {};
+
+const previewText = (text: string) => text.slice(0, 2_000);
 
 const readStatusCode = (error: unknown) => {
   if (!error || typeof error !== "object") return undefined;
@@ -264,6 +331,46 @@ const readStatusCode = (error: unknown) => {
 
   for (const value of [candidate.status, candidate.statusCode, candidate.code]) {
     if (typeof value === "number") return value;
+  }
+
+  return undefined;
+};
+
+const readErrorCode = (error: unknown) => {
+  if (!error || typeof error !== "object") return undefined;
+  const candidate = error as {
+    code?: unknown;
+    status?: unknown;
+    error?: {
+      code?: unknown;
+      status?: unknown;
+    };
+  };
+
+  for (const value of [
+    candidate.error?.status,
+    candidate.error?.code,
+    candidate.status,
+    candidate.code,
+  ]) {
+    if (typeof value === "string") return value;
+  }
+
+  return undefined;
+};
+
+const readErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (!error || typeof error !== "object") return undefined;
+  const candidate = error as {
+    message?: unknown;
+    error?: {
+      message?: unknown;
+    };
+  };
+
+  for (const value of [candidate.error?.message, candidate.message]) {
+    if (typeof value === "string") return value;
   }
 
   return undefined;
