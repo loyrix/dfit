@@ -2,6 +2,7 @@ import type { AnalyzeScanResponseContract } from "@logmyplate/contracts";
 import type { ApiConfig } from "../config.js";
 import { GeminiAiProvider } from "./gemini-ai-provider.js";
 import { MockAiProvider } from "./mock-ai-provider.js";
+import { VertexAiProvider } from "./vertex-ai-provider.js";
 
 export type AnalyzeMealImageInput = {
   scanId: string;
@@ -14,7 +15,7 @@ export type AnalyzeMealImageInput = {
 };
 
 export type AiProviderRunMetadata = {
-  provider: "mock" | "gemini" | "openai";
+  provider: "mock" | "gemini" | "openai" | "vertex-ai";
   model: string;
   promptVersion: string;
   schemaVersion: string;
@@ -54,6 +55,16 @@ export const createAiProvider = (config: ApiConfig): AiProvider => {
         model: config.gemini.model,
         endpoint: config.gemini.endpoint,
         timeoutMs: config.gemini.timeoutMs,
+      });
+    case "vertex":
+      return new VertexAiProvider({
+        project: config.vertex.project,
+        location: config.vertex.location,
+        model: config.vertex.model,
+        credentialsJson: config.vertex.credentialsJson,
+        credentialsJsonBase64: config.vertex.credentialsJsonBase64,
+        timeoutMs: config.vertex.timeoutMs,
+        maxOutputTokens: config.vertex.maxOutputTokens,
       });
     case "openai":
       throw new AiProviderError(

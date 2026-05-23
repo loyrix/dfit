@@ -13,8 +13,8 @@ import {
   type AnalyzeMealImageResult,
 } from "./ai-provider.js";
 
-const promptVersion = "gemini_food_photo_v3";
-const schemaVersion = "scan_v1";
+export const foodPhotoPromptVersion = "gemini_food_photo_v3";
+export const foodPhotoSchemaVersion = "scan_v1";
 
 const preparationSchema = z.enum(["home", "restaurant", "packaged", "unknown"]);
 
@@ -44,7 +44,7 @@ const geminiAnalysisSchema = z.object({
   items: z.array(geminiItemSchema).max(12).default([]),
 });
 
-type GeminiAnalysis = z.infer<typeof geminiAnalysisSchema>;
+export type GeminiAnalysis = z.infer<typeof geminiAnalysisSchema>;
 
 type GeminiProviderOptions = {
   apiKey?: string;
@@ -73,7 +73,7 @@ type GeminiGenerateContentResponse = {
   };
 };
 
-const responseSchema = {
+export const foodPhotoResponseSchema = {
   type: "object",
   properties: {
     mealType: {
@@ -189,7 +189,7 @@ export class GeminiAiProvider implements AiProvider {
           generationConfig: {
             temperature: 0.1,
             responseMimeType: "application/json",
-            responseJsonSchema: responseSchema,
+            responseJsonSchema: foodPhotoResponseSchema,
           },
         }),
       });
@@ -205,26 +205,15 @@ export class GeminiAiProvider implements AiProvider {
       }
 
       const geminiAnalysis = parseGeminiAnalysis(raw);
-      const analysis = analyzeScanResponseSchema.parse({
-        scanId: input.scanId,
-        status: "ready_for_review",
-        mealType: geminiAnalysis.mealType,
-        mealName: geminiAnalysis.mealName,
-        detectedLanguage: geminiAnalysis.detectedLanguage,
-        items: geminiAnalysis.items.map((item) => ({
-          ...item,
-          id: randomUUID(),
-        })),
-        totals: sumTotals(geminiAnalysis.items.map((item) => item.nutrition)),
-      });
+      const analysis = mapFoodPhotoAnalysisToScan(input.scanId, geminiAnalysis);
 
       return {
         analysis,
         providerRun: {
           provider: "gemini",
           model: this.options.model,
-          promptVersion,
-          schemaVersion,
+          promptVersion: foodPhotoPromptVersion,
+          schemaVersion: foodPhotoSchemaVersion,
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: raw.usageMetadata?.promptTokenCount,
           outputTokenEstimate: raw.usageMetadata?.candidatesTokenCount,
@@ -273,11 +262,29 @@ const parseGeminiAnalysis = (raw: GeminiGenerateContentResponse): GeminiAnalysis
     );
   }
 
+  return parseFoodPhotoAnalysisText(text);
+};
+
+export const parseFoodPhotoAnalysisText = (text: string): GeminiAnalysis => {
   const parsed = JSON.parse(text) as unknown;
   return geminiAnalysisSchema.parse(parsed);
 };
 
-const buildFoodPhotoPrompt = (userHint?: string) => {
+export const mapFoodPhotoAnalysisToScan = (scanId: string, analysis: GeminiAnalysis) =>
+  analyzeScanResponseSchema.parse({
+    scanId,
+    status: "ready_for_review",
+    mealType: analysis.mealType,
+    mealName: analysis.mealName,
+    detectedLanguage: analysis.detectedLanguage,
+    items: analysis.items.map((item) => ({
+      ...item,
+      id: randomUUID(),
+    })),
+    totals: sumTotals(analysis.items.map((item) => item.nutrition)),
+  });
+
+export const buildFoodPhotoPrompt = (userHint?: string) => {
   const normalizedHint = userHint?.replace(/\s+/g, " ").trim();
 
   return `

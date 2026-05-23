@@ -19,12 +19,21 @@ export type ApiConfig = {
   nodeEnv: string;
   host: string;
   port: number;
-  aiProvider: "mock" | "openai" | "gemini";
+  aiProvider: "mock" | "openai" | "gemini" | "vertex";
   gemini: {
     apiKey?: string;
     model: string;
     endpoint: string;
     timeoutMs: number;
+  };
+  vertex: {
+    project: string;
+    location: string;
+    model: string;
+    credentialsJson?: string;
+    credentialsJsonBase64?: string;
+    timeoutMs: number;
+    maxOutputTokens: number;
   };
   storage: {
     s3Endpoint?: string;
@@ -37,7 +46,7 @@ export type ApiConfig = {
 
 type ConfigEnv = Record<string, string | undefined>;
 
-const aiProviders = ["mock", "openai", "gemini"] as const;
+const aiProviders = ["mock", "openai", "gemini", "vertex"] as const;
 
 export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
   const builtConfig: ApiConfig = {
@@ -50,6 +59,15 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       model: env.GEMINI_MODEL ?? "gemini-2.5-flash",
       endpoint: env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
       timeoutMs: Number(env.GEMINI_TIMEOUT_MS ?? 25_000),
+    },
+    vertex: {
+      project: env.GOOGLE_CLOUD_PROJECT ?? "",
+      location: env.GOOGLE_CLOUD_LOCATION ?? "asia-south1",
+      model: env.VERTEX_AI_MODEL ?? "gemini-2.5-flash",
+      credentialsJson: env.GOOGLE_APPLICATION_CREDENTIALS_JSON,
+      credentialsJsonBase64: env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64,
+      timeoutMs: Number(env.VERTEX_AI_TIMEOUT_MS ?? 30_000),
+      maxOutputTokens: Number(env.VERTEX_AI_MAX_OUTPUT_TOKENS ?? 3_072),
     },
     storage: {
       s3Endpoint: env.STORAGE_S3_ENDPOINT,
@@ -72,6 +90,29 @@ export const validateApiConfig = (candidate: ApiConfig): void => {
   if (candidate.aiProvider === "gemini" && !candidate.gemini.apiKey?.trim()) {
     throw new Error("GEMINI_API_KEY is required when AI_PROVIDER=gemini.");
   }
+
+  if (candidate.aiProvider === "vertex") {
+    if (!candidate.vertex.project.trim()) {
+      throw new Error("GOOGLE_CLOUD_PROJECT is required when AI_PROVIDER=vertex.");
+    }
+
+    if (!candidate.vertex.location.trim()) {
+      throw new Error("GOOGLE_CLOUD_LOCATION is required when AI_PROVIDER=vertex.");
+    }
+
+    if (!candidate.vertex.model.trim()) {
+      throw new Error("VERTEX_AI_MODEL is required when AI_PROVIDER=vertex.");
+    }
+
+    if (
+      !candidate.vertex.credentialsJson?.trim() &&
+      !candidate.vertex.credentialsJsonBase64?.trim()
+    ) {
+      throw new Error(
+        "GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64 is required when AI_PROVIDER=vertex.",
+      );
+    }
+  }
 };
 
 const parseAiProvider = (value: string | undefined): ApiConfig["aiProvider"] => {
@@ -80,7 +121,7 @@ const parseAiProvider = (value: string | undefined): ApiConfig["aiProvider"] => 
     return provider as ApiConfig["aiProvider"];
   }
 
-  throw new Error(`Unsupported AI_PROVIDER "${provider}". Use mock, openai, or gemini.`);
+  throw new Error(`Unsupported AI_PROVIDER "${provider}". Use mock, openai, gemini, or vertex.`);
 };
 
 export const config = buildApiConfig();
