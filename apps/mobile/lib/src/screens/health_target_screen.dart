@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
@@ -31,18 +32,32 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
   HealthGoal _goal = HealthGoal.maintain;
   bool _saving = false;
   String? _error;
+  late final TextEditingController _heightController;
+  late final TextEditingController _weightController;
 
   @override
   void initState() {
     super.initState();
+    _heightController = TextEditingController();
+    _weightController = TextEditingController();
     final target = widget.initialTarget;
-    if (target == null) return;
-    _heightCm = target.heightCm;
-    _weightKg = target.weightKg;
-    _ageYears = target.ageYears;
-    _sex = target.sex;
-    _activityLevel = target.activityLevel;
-    _goal = target.goal;
+    if (target != null) {
+      _heightCm = target.heightCm;
+      _weightKg = target.weightKg;
+      _ageYears = target.ageYears;
+      _sex = target.sex;
+      _activityLevel = target.activityLevel;
+      _goal = target.goal;
+    }
+    _heightController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+    _weightController.text = _formatMetric(_weightKg, decimalPlaces: 1);
+  }
+
+  @override
+  void dispose() {
+    _heightController.dispose();
+    _weightController.dispose();
+    super.dispose();
   }
 
   @override
@@ -107,10 +122,15 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
               min: 130,
               max: 210,
               unit: 'cm',
+              controller: _heightController,
+              decimalPlaces: 0,
               onChanged: _saving
                   ? null
-                  : (value) =>
-                        setState(() => _heightCm = value.roundToDouble()),
+                  : (value) => _setHeight(value.roundToDouble()),
+              onTextChanged: _saving
+                  ? null
+                  : (value) => _setHeight(value, syncText: false),
+              onTextComplete: _saving ? null : _normalizeHeightInput,
             ),
             const SizedBox(height: 10),
             _MetricSlider(
@@ -119,10 +139,15 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
               min: 35,
               max: 160,
               unit: 'kg',
+              controller: _weightController,
+              decimalPlaces: 1,
               onChanged: _saving
                   ? null
-                  : (value) =>
-                        setState(() => _weightKg = value.roundToDouble()),
+                  : (value) => _setWeight(_roundTo(value, 1)),
+              onTextChanged: _saving
+                  ? null
+                  : (value) => _setWeight(value, syncText: false),
+              onTextComplete: _saving ? null : _normalizeWeightInput,
             ),
             const SizedBox(height: 10),
             _AgeStepper(
@@ -221,6 +246,32 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
     );
   }
 
+  void _setHeight(double value, {bool syncText = true}) {
+    setState(() {
+      _heightCm = _clampMetric(value, 130, 210);
+      if (syncText) {
+        _heightController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+      }
+    });
+  }
+
+  void _setWeight(double value, {bool syncText = true}) {
+    setState(() {
+      _weightKg = _roundTo(_clampMetric(value, 35, 160), 1);
+      if (syncText) {
+        _weightController.text = _formatMetric(_weightKg, decimalPlaces: 1);
+      }
+    });
+  }
+
+  void _normalizeHeightInput() {
+    _setHeight(double.tryParse(_heightController.text) ?? _heightCm);
+  }
+
+  void _normalizeWeightInput() {
+    _setWeight(double.tryParse(_weightController.text) ?? _weightKg);
+  }
+
   Future<void> _save() async {
     if (!_canSave) return;
 
@@ -263,6 +314,22 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
         _activityLevel != initial.activityLevel ||
         _goal != initial.goal;
   }
+
+  static double _clampMetric(double value, double min, double max) {
+    return math.max(min, math.min(max, value)).toDouble();
+  }
+
+  static double _roundTo(double value, int decimals) {
+    final factor = math.pow(10, decimals).toDouble();
+    return (value * factor).round() / factor;
+  }
+
+  static String _formatMetric(double value, {required int decimalPlaces}) {
+    if (decimalPlaces == 0 || value == value.roundToDouble()) {
+      return value.round().toString();
+    }
+    return value.toStringAsFixed(decimalPlaces);
+  }
 }
 
 class _TargetPreviewCard extends StatelessWidget {
@@ -278,65 +345,144 @@ class _TargetPreviewCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: surface.decoration(),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _BmiOrbit(preview: preview, surface: surface),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Text(
+            'BMI overview',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: surface.textSecondary,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _BmiOrbit(preview: preview, surface: surface),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily target',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: surface.textSecondary,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${preview.targetCalories}',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            color: surface.textPrimary,
+                            fontSize: 38,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                    ),
+                    Text(
+                      'kCal per day',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: surface.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.accent.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: colors.accent.withValues(alpha: 0.28),
+                          width: 0.6,
+                        ),
+                      ),
+                      child: Text(
+                        preview.categoryLabel,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: surface.accentText,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _BmiLegend(surface: surface),
+        ],
+      ),
+    );
+  }
+}
+
+class _BmiLegend extends StatelessWidget {
+  const _BmiLegend({required this.surface});
+
+  final LogMyPlateHeroSurfaceStyle surface;
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      _BmiLegendItem('Low', '< 18.5', _bmiLowColor),
+      _BmiLegendItem('Balanced', '18.5-24.9', _bmiBalancedColor),
+      _BmiLegendItem('Above', '25-29.9', _bmiAboveColor),
+      _BmiLegendItem('High', '30+', _bmiHighColor),
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final item in items)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+            decoration: BoxDecoration(
+              color: surface.chipFill,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: surface.chipBorder, width: 0.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: item.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
                 Text(
-                  'Daily target',
+                  '${item.label} ${item.range}',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: surface.textSecondary,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${preview.targetCalories}',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: surface.textPrimary,
-                    fontSize: 38,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                Text(
-                  'kCal per day',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.accent.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: colors.accent.withValues(alpha: 0.28),
-                      width: 0.6,
-                    ),
-                  ),
-                  child: Text(
-                    preview.categoryLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: surface.accentText,
-                      letterSpacing: 0,
-                    ),
+                    fontSize: 11,
+                    height: 1,
+                    letterSpacing: 0,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
+}
+
+class _BmiLegendItem {
+  const _BmiLegendItem(this.label, this.range, this.color);
+
+  final String label;
+  final String range;
+  final Color color;
 }
 
 class _BmiOrbit extends StatelessWidget {
@@ -397,42 +543,72 @@ class _BmiOrbitPainter extends CustomPainter {
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round
       ..color = trackColor;
-    final arc = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round
-      ..shader = const SweepGradient(
-        startAngle: -math.pi / 2,
-        endAngle: math.pi * 1.5,
-        colors: [
-          Color(0xFFFFE7A0),
-          LogMyPlateColors.accent,
-          Color(0xFF9FD8B2),
-          Color(0xFFFF8A8A),
-        ],
-      ).createShader(rect);
 
     canvas.drawCircle(center, radius, track);
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      math.pi * 2 * score.clamp(0.0, 1.0),
-      false,
-      arc,
-    );
+
+    const segmentGap = 0.04;
+    final arcRect = Rect.fromCircle(center: center, radius: radius);
+    for (final segment in _bmiSegments) {
+      final start = -math.pi / 2 + math.pi * 2 * segment.start;
+      final sweep = math.pi * 2 * (segment.end - segment.start) - segmentGap;
+      if (sweep <= 0) continue;
+      canvas.drawArc(
+        arcRect,
+        start,
+        sweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 8
+          ..strokeCap = StrokeCap.round
+          ..color = segment.color,
+      );
+    }
 
     final markerAngle = -math.pi / 2 + math.pi * 2 * score.clamp(0.0, 1.0);
     final marker = Offset(
       center.dx + math.cos(markerAngle) * radius,
       center.dy + math.sin(markerAngle) * radius,
     );
-    canvas.drawCircle(marker, 5, Paint()..color = LogMyPlateColors.accent);
+    canvas.drawCircle(marker, 5, Paint()..color = _bmiColorForScore(score));
   }
 
   @override
   bool shouldRepaint(covariant _BmiOrbitPainter oldDelegate) {
     return oldDelegate.score != score || oldDelegate.trackColor != trackColor;
   }
+}
+
+const _bmiLowColor = Color(0xFF7DB7D8);
+const _bmiBalancedColor = LogMyPlateColors.macroProtein;
+const _bmiAboveColor = LogMyPlateColors.accent;
+const _bmiHighColor = LogMyPlateColors.destructive;
+
+const _bmiSegments = [
+  _BmiSegment(0, (18.5 - 16) / (34 - 16), _bmiLowColor),
+  _BmiSegment(
+    (18.5 - 16) / (34 - 16),
+    (25 - 16) / (34 - 16),
+    _bmiBalancedColor,
+  ),
+  _BmiSegment((25 - 16) / (34 - 16), (30 - 16) / (34 - 16), _bmiAboveColor),
+  _BmiSegment((30 - 16) / (34 - 16), 1, _bmiHighColor),
+];
+
+class _BmiSegment {
+  const _BmiSegment(this.start, this.end, this.color);
+
+  final double start;
+  final double end;
+  final Color color;
+}
+
+Color _bmiColorForScore(double score) {
+  final normalized = score.clamp(0.0, 1.0);
+  for (final segment in _bmiSegments) {
+    if (normalized <= segment.end) return segment.color;
+  }
+  return _bmiHighColor;
 }
 
 class _MetricSlider extends StatelessWidget {
@@ -442,7 +618,11 @@ class _MetricSlider extends StatelessWidget {
     required this.min,
     required this.max,
     required this.unit,
+    required this.controller,
+    required this.decimalPlaces,
     required this.onChanged,
+    required this.onTextChanged,
+    required this.onTextComplete,
   });
 
   final String label;
@@ -450,11 +630,16 @@ class _MetricSlider extends StatelessWidget {
   final double min;
   final double max;
   final String unit;
+  final TextEditingController controller;
+  final int decimalPlaces;
   final ValueChanged<double>? onChanged;
+  final ValueChanged<double>? onTextChanged;
+  final VoidCallback? onTextComplete;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final enabled = onChanged != null;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
@@ -469,11 +654,65 @@ class _MetricSlider extends StatelessWidget {
             children: [
               Text(label, style: Theme.of(context).textTheme.titleMedium),
               const Spacer(),
-              Text(
-                '${value.round()} $unit',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colors.accentText,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              SizedBox(
+                width: 128,
+                child: TextField(
+                  key: ValueKey('metric-input-${label.toLowerCase()}'),
+                  controller: controller,
+                  enabled: enabled,
+                  textAlign: TextAlign.right,
+                  keyboardType: TextInputType.numberWithOptions(
+                    decimal: decimalPlaces > 0,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      decimalPlaces > 0 ? RegExp(r'[0-9.]') : RegExp(r'[0-9]'),
+                    ),
+                    LengthLimitingTextInputFormatter(decimalPlaces > 0 ? 5 : 3),
+                  ],
+                  onChanged: enabled
+                      ? (text) {
+                          final parsed = double.tryParse(text);
+                          if (parsed == null) return;
+                          onTextChanged?.call(parsed);
+                        }
+                      : null,
+                  onEditingComplete: onTextComplete,
+                  onSubmitted: (_) => onTextComplete?.call(),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colors.accentText,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    suffixText: unit,
+                    suffixStyle: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: colors.textSecondary),
+                    filled: true,
+                    fillColor: enabled
+                        ? colors.mutedFill
+                        : colors.mutedFill.withValues(alpha: 0.55),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(13),
+                      borderSide: BorderSide(color: colors.border, width: 0.6),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(13),
+                      borderSide: BorderSide(color: colors.border, width: 0.6),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(13),
+                      borderSide: BorderSide(color: colors.accent, width: 1.1),
+                    ),
+                    disabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(13),
+                      borderSide: BorderSide(color: colors.border, width: 0.6),
+                    ),
+                  ),
                 ),
               ),
             ],

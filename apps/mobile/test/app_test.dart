@@ -1019,14 +1019,27 @@ void main() {
     );
 
     expect(find.text('Set your daily target'), findsOneWidget);
+    expect(find.text('BMI overview'), findsOneWidget);
     expect(find.text('BMI'), findsOneWidget);
+    expect(find.text('Low < 18.5'), findsOneWidget);
+    expect(find.text('Balanced 18.5-24.9'), findsOneWidget);
+    expect(find.text('Above 25-29.9'), findsOneWidget);
+    expect(find.text('High 30+'), findsOneWidget);
     expect(find.text('Save target'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -280));
+    await tester.pumpAndSettle();
+
+    final weightInput = find.byKey(const ValueKey('metric-input-weight'));
+    await tester.enterText(weightInput, '64.5');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
 
     await tester.tap(find.text('Save target'));
     await tester.pumpAndSettle();
 
     expect(submitted?.heightCm, 170);
-    expect(submitted?.weightKg, 70);
+    expect(submitted?.weightKg, 64.5);
   });
 
   testWidgets('health target edit enables save only after changes', (
@@ -1092,11 +1105,9 @@ void main() {
     expect(saveButton.onPressed, isNotNull);
   });
 
-  testWidgets('profile shows saved BMI target and opens edit flow', (
+  testWidgets('profile keeps target editing in the dedicated target tab', (
     tester,
   ) async {
-    var openedEdit = false;
-
     await tester.pumpWidget(
       MaterialApp(
         theme: LogMyPlateTheme.dark(),
@@ -1107,36 +1118,17 @@ void main() {
             displayName: 'friend@test.com',
             linkedAt: DateTime(2026, 5, 12),
           ),
-          healthTarget: const HealthTarget(
-            profileId: 'profile_test',
-            heightCm: 170,
-            weightKg: 70,
-            ageYears: 28,
-            sex: HealthSex.notSpecified,
-            activityLevel: ActivityLevel.light,
-            goal: HealthGoal.maintain,
-            bmi: 24.2,
-            bmiCategory: 'healthy',
-            bmrCalories: 1545,
-            dailyCalorieTarget: 2124,
-            formula: 'mifflin_st_jeor_v1',
-          ),
           onThemeChanged: (_) {},
           onOpenAccount: () {},
-          onEditHealthTarget: () => openedEdit = true,
           onSignOut: () async {},
         ),
       ),
     );
 
-    expect(find.text('2124 kCal'), findsOneWidget);
-    expect(find.text('24.2'), findsOneWidget);
-    expect(find.text('Balanced range - Maintain'), findsOneWidget);
-
-    await tester.tap(find.text('2124 kCal'));
-    await tester.pump();
-
-    expect(openedEdit, isTrue);
+    expect(find.text('friend@test.com'), findsOneWidget);
+    expect(find.text('Theme'), findsOneWidget);
+    expect(find.text('Daily target'), findsNothing);
+    expect(find.text('2124 kCal'), findsNothing);
   });
 
   testWidgets('logout returns the user to the anonymous dashboard', (

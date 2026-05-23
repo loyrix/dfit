@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
-import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
-import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -12,18 +10,14 @@ class ProfileScreen extends StatelessWidget {
     required this.themeMode,
     required this.onThemeChanged,
     required this.session,
-    required this.healthTarget,
     required this.onOpenAccount,
-    required this.onEditHealthTarget,
     required this.onSignOut,
   });
 
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
   final AuthSession? session;
-  final HealthTarget? healthTarget;
   final VoidCallback onOpenAccount;
-  final VoidCallback onEditHealthTarget;
   final Future<void> Function() onSignOut;
 
   @override
@@ -54,12 +48,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _AccountHero(session: session, onTap: onOpenAccount),
-            const SizedBox(height: 14),
-            _DailyTargetCard(
-              signedIn: signedIn,
-              target: healthTarget,
-              onTap: signedIn ? onEditHealthTarget : onOpenAccount,
-            ),
             const SizedBox(height: 18),
             _ProfileSection(
               title: 'Theme',
@@ -192,103 +180,6 @@ class _AccountHero extends StatelessWidget {
     final name = session.displayName.trim();
     if (name.isEmpty) return 'L';
     return name.characters.first.toUpperCase();
-  }
-}
-
-class _DailyTargetCard extends StatelessWidget {
-  const _DailyTargetCard({
-    required this.signedIn,
-    required this.target,
-    required this.onTap,
-  });
-
-  final bool signedIn;
-  final HealthTarget? target;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-    final surface = LogMyPlateHeroSurfaceStyle.of(context);
-    final hasTarget = target != null;
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: surface.decoration(radius: 20),
-          child: Row(
-            children: [
-              Container(
-                width: 82,
-                height: 82,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: LogMyPlateColors.accent.withValues(alpha: 0.46),
-                    width: 7,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    hasTarget ? target!.bmi.toStringAsFixed(1) : '--',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: surface.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Daily target',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: surface.textSecondary,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      hasTarget
-                          ? '${target!.dailyCalorieTarget} kCal'
-                          : signedIn
-                          ? 'Set target'
-                          : 'Login to set',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: surface.textPrimary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      hasTarget
-                          ? '${target!.friendlyBmiCategory} - ${target!.goal.label}'
-                          : 'BMI, calories and goal live here.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: surface.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                hasTarget ? Icons.edit_rounded : Icons.chevron_right_rounded,
-                color: colors.accent,
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

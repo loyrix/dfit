@@ -138,10 +138,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                   : ProfileScreen(
                       themeMode: _themeMode,
                       session: _authController.session,
-                      healthTarget: _journalController.healthTarget,
                       onThemeChanged: _setThemeMode,
                       onOpenAccount: _openProfileAccount,
-                      onEditHealthTarget: _openHealthTargetEditor,
                       onSignOut: _signOutFromProfile,
                     ),
             );
