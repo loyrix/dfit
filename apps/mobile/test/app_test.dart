@@ -107,6 +107,46 @@ void main() {
     expect(find.text('Lunch - 2 items'), findsOneWidget);
   });
 
+  testWidgets('adds a custom review item only after editor save', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReviewMealScreen(
+          initialItems: sampleDetectedItems().take(1).toList(),
+          onConfirm: (_, _) async {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Add item'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Custom item'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit item'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lunch - 1 item'), findsOneWidget);
+    expect(find.text('Custom item'), findsNothing);
+
+    await tester.tap(find.text('Add item'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Custom item'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-name')),
+      'Paneer tikka',
+    );
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lunch - 2 items'), findsOneWidget);
+    expect(find.text('Paneer tikka'), findsOneWidget);
+  });
+
   testWidgets('shows the captured meal photo during scan review', (
     tester,
   ) async {
@@ -1501,10 +1541,13 @@ void main() {
             displayName: 'Google account',
             linkedAt: DateTime(2026, 5, 12),
           ),
+          loading: false,
           onSignOut: () async {
             loggedOut = true;
             return true;
           },
+          onDeactivateProfile: () async => false,
+          onDeleteProfile: () async => false,
         ),
       ),
     );
@@ -1521,6 +1564,44 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(loggedOut, isTrue);
+  });
+
+  testWidgets('profile page confirms destructive lifecycle actions', (
+    tester,
+  ) async {
+    var deleted = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: AccountProfileScreen(
+          session: AuthSession(
+            provider: AuthProvider.email,
+            displayName: 'friend@test.com',
+            linkedAt: DateTime(2026, 5, 12),
+          ),
+          loading: false,
+          onSignOut: () async => false,
+          onDeactivateProfile: () async => false,
+          onDeleteProfile: () async {
+            deleted = true;
+            return true;
+          },
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -360));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Delete profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete profile?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete profile'));
+    await tester.pumpAndSettle();
+
+    expect(deleted, isTrue);
   });
 }
 
@@ -1576,6 +1657,12 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> deactivateProfile() async {}
+
+  @override
+  Future<void> deleteProfile() async {}
 }
 
 JournalController _testJournalController({

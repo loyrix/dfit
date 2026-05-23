@@ -29,6 +29,7 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   Profile,
+  ProfileDeletionPlan,
   ProfileHealthTarget,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
@@ -216,6 +217,94 @@ export class PostgresStore implements AppRepository {
     `;
 
     return profile;
+  }
+
+  async deactivateProfile(): Promise<boolean> {
+    const profile = await this.requireActiveAccountProfile();
+
+    const deactivated = await this.sql.begin(async (tx) => {
+      const [updated] = await tx<{ id: string }[]>`
+        update profiles
+        set
+          deactivated_at = coalesce(deactivated_at, now()),
+          updated_at = now()
+        where id = ${profile.id}
+          and auth_method <> 'anonymous'
+          and deactivated_at is null
+        returning id::text
+      `;
+
+      await tx`
+        update account_sessions
+        set revoked_at = now()
+        where profile_id = ${profile.id}
+          and revoked_at is null
+      `;
+
+      await tx`
+        update install_scan_credits
+        set profile_id = null, updated_at = now()
+        where profile_id = ${profile.id}
+      `;
+
+      return Boolean(updated);
+    });
+
+    await this.resetCurrentInstallToAnonymousProfile();
+    return deactivated;
+  }
+
+  async getProfileDeletionPlan(): Promise<ProfileDeletionPlan> {
+    const profile = await this.requireActiveAccountProfile();
+    const storedObjects = await this.sql<{ bucket: string; object_key: string }[]>`
+      select distinct bucket, object_key
+      from (
+        select bucket, object_key
+        from meal_images
+        where profile_id = ${profile.id}
+
+        union all
+
+        select image_bucket as bucket, image_object_key as object_key
+        from scan_sessions
+        where profile_id = ${profile.id}
+          and image_bucket is not null
+          and image_object_key is not null
+      ) profile_objects
+      where bucket is not null
+        and object_key is not null
+    `;
+
+    return {
+      profileId: profile.id,
+      storedObjects: storedObjects.map((object) => ({
+        bucket: object.bucket,
+        objectKey: object.object_key,
+      })),
+    };
+  }
+
+  async deleteProfile(): Promise<boolean> {
+    const profile = await this.requireActiveAccountProfile();
+    const deleted = await this.sql.begin(async (tx) => {
+      await tx`
+        update install_scan_credits
+        set profile_id = null, updated_at = now()
+        where profile_id = ${profile.id}
+      `;
+
+      const [deletedProfile] = await tx<{ id: string }[]>`
+        delete from profiles
+        where id = ${profile.id}
+          and auth_method <> 'anonymous'
+        returning id::text
+      `;
+
+      return Boolean(deletedProfile);
+    });
+
+    await this.resetCurrentInstallToAnonymousProfile();
+    return deleted;
   }
 
   async getHealthTarget(profileId?: string): Promise<ProfileHealthTarget | undefined> {
@@ -414,6 +503,13 @@ export class PostgresStore implements AppRepository {
     );
     if (!passwordMatches) {
       throw new AccountAuthError("invalid_credentials", "Invalid email or password.", 401);
+    }
+    if (credential.deactivated_at) {
+      throw new AccountAuthError(
+        "account_deactivated",
+        "This profile is deactivated. Contact support to reactivate it.",
+        403,
+      );
     }
 
     const currentProfile = await this.getAnonymousProfileForCurrentInstall();
@@ -1381,14 +1477,35 @@ export class PostgresStore implements AppRepository {
         email: string;
         password_salt: string;
         password_hash: string;
+        deactivated_at: string | null;
       }[]
     >`
-      select profile_id::text, email, password_salt, password_hash
+      select
+        account_password_credentials.profile_id::text,
+        account_password_credentials.email,
+        account_password_credentials.password_salt,
+        account_password_credentials.password_hash,
+        profiles.deactivated_at::text
       from account_password_credentials
+      inner join profiles on profiles.id = account_password_credentials.profile_id
       where email = ${email}
       limit 1
     `;
     return credential;
+  }
+
+  private async requireActiveAccountProfile(): Promise<Profile> {
+    const identity = currentRequestIdentity();
+    if (!identity.sessionToken) {
+      throw new AccountAuthError("account_required", "Log in to manage your profile.", 401);
+    }
+
+    const profile = await this.getProfileForSession(identity.sessionToken);
+    if (!profile || profile.authMethod === "anonymous") {
+      throw new AccountAuthError("account_required", "Log in to manage your profile.", 401);
+    }
+
+    return profile;
   }
 
   private async createSession(profileId: string): Promise<AccountSession> {
@@ -1443,6 +1560,7 @@ export class PostgresStore implements AppRepository {
       where account_sessions.token_hash = ${hashToken(token)}
         and account_sessions.revoked_at is null
         and account_sessions.expires_at > now()
+        and profiles.deactivated_at is null
       limit 1
     `;
     return profile;

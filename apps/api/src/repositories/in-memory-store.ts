@@ -20,6 +20,7 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   Profile,
+  ProfileDeletionPlan,
   ProfileHealthTarget,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
@@ -42,6 +43,7 @@ export class InMemoryStore implements AppRepository {
   private readonly profiles = new Map<string, Profile>([
     [this.defaultProfile.id, this.defaultProfile],
   ]);
+  private readonly deactivatedProfiles = new Set<string>();
   private readonly installProfiles = new Map<string, string>();
   private readonly credentials = new Map<string, { profileId: string; password: string }>();
   private readonly sessions = new Map<string, string>();
@@ -62,7 +64,7 @@ export class InMemoryStore implements AppRepository {
     if (identity.sessionToken) {
       const profileId = this.sessions.get(identity.sessionToken);
       const profile = profileId ? this.profiles.get(profileId) : undefined;
-      if (profile) {
+      if (profile && !this.deactivatedProfiles.has(profile.id)) {
         this.bindInstall(identity.installId, profile.id);
         return profile;
       }
@@ -71,7 +73,9 @@ export class InMemoryStore implements AppRepository {
     if (identity.installId) {
       const profileId = this.installProfiles.get(identity.installId);
       const profile = profileId ? this.profiles.get(profileId) : undefined;
-      if (profile?.authMethod === "anonymous") return profile;
+      if (profile?.authMethod === "anonymous" && !this.deactivatedProfiles.has(profile.id)) {
+        return profile;
+      }
 
       const anonymousProfile = this.createAnonymousProfile();
       this.installProfiles.set(identity.installId, anonymousProfile.id);
@@ -138,6 +142,13 @@ export class InMemoryStore implements AppRepository {
 
     const accountProfile = this.profiles.get(credential.profileId);
     if (!accountProfile) throw new AuthError("invalid_credentials", "Invalid credentials.", 401);
+    if (this.deactivatedProfiles.has(accountProfile.id)) {
+      throw new AuthError(
+        "account_deactivated",
+        "This profile is deactivated. Contact support to reactivate it.",
+        403,
+      );
+    }
 
     const currentProfile = await this.getProfile();
     if (currentProfile.authMethod === "anonymous" && currentProfile.id !== accountProfile.id) {
@@ -157,6 +168,71 @@ export class InMemoryStore implements AppRepository {
       this.installProfiles.set(installId, profile.id);
       this.resetInstallQuotaForAnonymous(installId);
     }
+  }
+
+  async deactivateProfile(): Promise<boolean> {
+    const profile = await this.requireActiveAccountProfile();
+    this.deactivatedProfiles.add(profile.id);
+    for (const [token, profileId] of this.sessions) {
+      if (profileId === profile.id) this.sessions.delete(token);
+    }
+    for (const [installId, profileId] of this.installProfiles) {
+      if (profileId === profile.id) this.resetInstallToAnonymous(installId);
+    }
+    this.resetCurrentInstallToAnonymous();
+    return true;
+  }
+
+  async getProfileDeletionPlan(): Promise<ProfileDeletionPlan> {
+    const profile = await this.requireActiveAccountProfile();
+    const storedObjects = new Map<string, { bucket: string; objectKey: string }>();
+
+    for (const [mealId, profileId] of this.mealProfiles) {
+      if (profileId !== profile.id) continue;
+      const image = this.meals.get(mealId)?.image;
+      if (image) storedObjects.set(`${image.bucket}\0${image.objectKey}`, image);
+    }
+
+    for (const scan of this.scans.values()) {
+      if (scan.profileId !== profile.id || !scan.imageBucket || !scan.imageObjectKey) continue;
+      storedObjects.set(`${scan.imageBucket}\0${scan.imageObjectKey}`, {
+        bucket: scan.imageBucket,
+        objectKey: scan.imageObjectKey,
+      });
+    }
+
+    return {
+      profileId: profile.id,
+      storedObjects: [...storedObjects.values()],
+    };
+  }
+
+  async deleteProfile(): Promise<boolean> {
+    const profile = await this.requireActiveAccountProfile();
+    for (const [email, credential] of this.credentials) {
+      if (credential.profileId === profile.id) this.credentials.delete(email);
+    }
+    for (const [token, profileId] of this.sessions) {
+      if (profileId === profile.id) this.sessions.delete(token);
+    }
+    for (const [mealId, profileId] of this.mealProfiles) {
+      if (profileId !== profile.id) continue;
+      this.meals.delete(mealId);
+      this.mealProfiles.delete(mealId);
+      this.mealScanSessions.delete(mealId);
+    }
+    for (const [scanId, scan] of this.scans) {
+      if (scan.profileId === profile.id) this.scans.delete(scanId);
+    }
+    for (const [installId, profileId] of this.installProfiles) {
+      if (profileId === profile.id) this.resetInstallToAnonymous(installId);
+    }
+    this.healthTargets.delete(profile.id);
+    this.quotas.delete(this.profileQuotaKey(profile.id));
+    this.profiles.delete(profile.id);
+    this.deactivatedProfiles.delete(profile.id);
+    this.resetCurrentInstallToAnonymous();
+    return true;
   }
 
   async searchFoods(query: string) {
@@ -445,6 +521,31 @@ export class InMemoryStore implements AppRepository {
   private bindInstall(installId: string | undefined, profileId: string): void {
     if (!installId) return;
     this.installProfiles.set(installId, profileId);
+  }
+
+  private async requireActiveAccountProfile(): Promise<Profile> {
+    const token = currentRequestIdentity().sessionToken;
+    const profileId = token ? this.sessions.get(token) : undefined;
+    const profile = profileId ? this.profiles.get(profileId) : undefined;
+    if (
+      !profile ||
+      profile.authMethod === "anonymous" ||
+      this.deactivatedProfiles.has(profile.id)
+    ) {
+      throw new AuthError("account_required", "Log in to manage your profile.", 401);
+    }
+    return profile;
+  }
+
+  private resetCurrentInstallToAnonymous(): void {
+    const installId = currentRequestIdentity().installId;
+    if (installId) this.resetInstallToAnonymous(installId);
+  }
+
+  private resetInstallToAnonymous(installId: string): void {
+    const profile = this.createAnonymousProfile();
+    this.installProfiles.set(installId, profile.id);
+    this.resetInstallQuotaForAnonymous(installId);
   }
 
   private mergeProfiles(sourceProfileId: string, targetProfileId: string): void {

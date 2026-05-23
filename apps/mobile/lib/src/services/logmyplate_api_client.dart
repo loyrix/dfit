@@ -145,6 +145,22 @@ class LogMyPlateApiClient {
     _throwIfBad(response);
   }
 
+  Future<void> deactivateProfile({required String idempotencyKey}) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/profiles/me/deactivate'),
+      headers: await _headers(idempotencyKey: idempotencyKey),
+    );
+    _throwIfBad(response);
+  }
+
+  Future<void> deleteProfile({required String idempotencyKey}) async {
+    final response = await _httpClient.delete(
+      Uri.parse('$baseUrl/v1/profiles/me'),
+      headers: await _headers(idempotencyKey: idempotencyKey),
+    );
+    _throwIfBad(response);
+  }
+
   Future<HealthTarget> saveHealthTarget(
     HealthTargetInput input, {
     required String idempotencyKey,

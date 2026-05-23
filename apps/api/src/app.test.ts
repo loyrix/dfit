@@ -6,6 +6,7 @@ import type { AiProvider, AnalyzeMealImageInput } from "./services/ai-provider.j
 import { analyzeWithMockProvider } from "./services/mock-ai-provider.js";
 import type {
   MealImageStorage,
+  StoredObjectDeletionTarget,
   StoredMealImage,
   UploadMealImageInput,
   UploadScanImageInput,
@@ -22,7 +23,7 @@ const testApp = () =>
 class TestMealImageStorage implements MealImageStorage {
   readonly enabled = true;
   readonly uploads: Array<UploadMealImageInput | UploadScanImageInput> = [];
-  readonly deletes: MealImageSummary[] = [];
+  readonly deletes: StoredObjectDeletionTarget[] = [];
 
   async uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage> {
     this.uploads.push(input);
@@ -50,6 +51,10 @@ class TestMealImageStorage implements MealImageStorage {
 
   async deleteMealImage(image: MealImageSummary): Promise<void> {
     this.deletes.push(image);
+  }
+
+  async deleteStoredObject(target: StoredObjectDeletionTarget): Promise<void> {
+    this.deletes.push(target);
   }
 }
 
@@ -737,6 +742,177 @@ describe("LogMyPlate API", () => {
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ error: "account_required" });
+    await app.close();
+  });
+
+  it("requires an account before deactivating or deleting a profile", async () => {
+    const app = await testApp();
+
+    const deactivated = await app.inject({
+      method: "POST",
+      url: "/v1/profiles/me/deactivate",
+      headers: {
+        "x-logmyplate-install-id": "anonymous-profile-lifecycle",
+        "x-logmyplate-platform": "ios",
+      },
+    });
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/v1/profiles/me",
+      headers: {
+        "x-logmyplate-install-id": "anonymous-profile-lifecycle",
+        "x-logmyplate-platform": "ios",
+      },
+    });
+
+    expect(deactivated.statusCode).toBe(401);
+    expect(deactivated.json()).toMatchObject({ error: "account_required" });
+    expect(deleted.statusCode).toBe(401);
+    expect(deleted.json()).toMatchObject({ error: "account_required" });
+    await app.close();
+  });
+
+  it("deactivates a profile, revokes sessions, and blocks future login", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "deactivate-profile-install",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "deactivate@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const deactivated = await app.inject({
+      method: "POST",
+      url: "/v1/profiles/me/deactivate",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+      },
+    });
+    expect(deactivated.statusCode).toBe(204);
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+      },
+    });
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().profile.authMethod).toBe("anonymous");
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      headers: installHeaders,
+      payload: { email: "deactivate@example.com", password: "secret1" },
+    });
+    expect(login.statusCode).toBe(403);
+    expect(login.json()).toMatchObject({ error: "account_deactivated" });
+    await app.close();
+  });
+
+  it("deletes profile data and stored profile images end to end", async () => {
+    const repository = new InMemoryStore();
+    const mealImageStorage = new TestMealImageStorage();
+    const app = await buildApp({ repository, mealImageStorage });
+    const installHeaders = {
+      "x-logmyplate-install-id": "delete-profile-install",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "delete-profile@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { ...accountHeaders, "idempotency-key": "profile-delete-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { ...accountHeaders, "idempotency-key": "profile-delete-analyze" },
+      payload: {
+        hint: "dal rice",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+    expect(analyzed.statusCode).toBe(200);
+    expect(analyzed.json().imageStored).toBe(true);
+
+    const analysis = analyzed.json();
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { ...accountHeaders, "idempotency-key": "profile-delete-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        items: analysis.items.map(
+          (item: {
+            name: string;
+            quantity: number;
+            unit: string;
+            estimatedGrams: number;
+            nutrition: unknown;
+          }) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          }),
+        ),
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/v1/profiles/me",
+      headers: accountHeaders,
+    });
+    expect(deleted.statusCode).toBe(204);
+    expect(mealImageStorage.deletes).toHaveLength(1);
+    expect(mealImageStorage.deletes[0].objectKey).toContain(`/scans/${scanId}/`);
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: accountHeaders,
+    });
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().profile.authMethod).toBe("anonymous");
+    expect(bootstrap.json().today.meals).toEqual([]);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      headers: installHeaders,
+      payload: { email: "delete-profile@example.com", password: "secret1" },
+    });
+    expect(login.statusCode).toBe(401);
+    expect(login.json()).toMatchObject({ error: "invalid_credentials" });
     await app.close();
   });
 

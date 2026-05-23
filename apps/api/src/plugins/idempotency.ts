@@ -3,13 +3,20 @@ import type { AppRepository } from "../repositories/app-repository.js";
 
 const mutatingMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
+const skipsIdempotency = (request: FastifyRequest): boolean => {
+  if (request.url.startsWith("/v1/auth/")) return true;
+  if (request.method === "POST" && request.url === "/v1/profiles/me/deactivate") return true;
+  if (request.method === "DELETE" && request.url === "/v1/profiles/me") return true;
+  return false;
+};
+
 export const registerIdempotency = async (
   app: FastifyInstance,
   repository: AppRepository,
 ): Promise<void> => {
   app.addHook("preHandler", async (request, reply) => {
     if (!mutatingMethods.has(request.method)) return;
-    if (request.url.startsWith("/v1/auth/")) return;
+    if (skipsIdempotency(request)) return;
 
     const key = request.headers["idempotency-key"];
     if (!key || Array.isArray(key)) {
@@ -29,7 +36,7 @@ export const registerIdempotency = async (
 
   app.addHook("onSend", async (request: FastifyRequest, reply: FastifyReply, payload) => {
     if (!mutatingMethods.has(request.method)) return payload;
-    if (request.url.startsWith("/v1/auth/")) return payload;
+    if (skipsIdempotency(request)) return payload;
 
     const key = request.headers["idempotency-key"];
     if (!key || Array.isArray(key) || reply.statusCode >= 500) return payload;

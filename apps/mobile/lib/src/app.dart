@@ -10,6 +10,7 @@ import 'models/meal.dart';
 import 'models/meal_type_resolver.dart';
 import 'navigation/logmyplate_page_route.dart';
 import 'screens/account_gate_screen.dart';
+import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/health_target_screen.dart';
@@ -139,8 +140,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                       session: _authController.session,
                       healthTarget: _journalController.healthTarget,
                       onThemeChanged: _setThemeMode,
-                      onOpenAccount: () =>
-                          _openAccountHome(AccountGateReason.saveJournal),
+                      onOpenAccount: _openProfileAccount,
                       onEditHealthTarget: _openHealthTargetEditor,
                       onSignOut: _signOutFromProfile,
                     ),
@@ -565,6 +565,76 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       await _promptForHealthTargetIfNeeded();
     }
     return session;
+  }
+
+  Future<void> _openProfileAccount() async {
+    final existing = _authController.session;
+    if (existing == null) {
+      await _openAccountHome(AccountGateReason.saveJournal);
+      return;
+    }
+
+    await _navigatorKey.currentState!.push<void>(
+      logmyplatePageRoute<void>(
+        builder: (_) => AnimatedBuilder(
+          animation: _authController,
+          builder: (context, _) {
+            final session = _authController.session ?? existing;
+            return AccountProfileScreen(
+              session: session,
+              loading: _authController.loading,
+              error: _authController.error,
+              onClearError: _authController.clearError,
+              onSignOut: () async {
+                await _signOutFromProfile();
+                return true;
+              },
+              onDeactivateProfile: _deactivateProfileFromAccount,
+              onDeleteProfile: _deleteProfileFromAccount,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _deactivateProfileFromAccount() async {
+    final completed = await _authController.deactivateProfile();
+    if (!completed) return false;
+    await _finishAccountLifecycle(
+      title: 'Profile deactivated',
+      message: 'You can continue anonymously.',
+    );
+    return true;
+  }
+
+  Future<bool> _deleteProfileFromAccount() async {
+    final completed = await _authController.deleteProfile();
+    if (!completed) return false;
+    await _finishAccountLifecycle(
+      title: 'Profile deleted',
+      message: 'Stored account data was removed.',
+    );
+    return true;
+  }
+
+  Future<void> _finishAccountLifecycle({
+    required String title,
+    required String message,
+  }) async {
+    await _markWelcomeSeen();
+    _journalController.resetForAccountChange();
+    setState(() {
+      _selectedTab = 0;
+      _journalTabRange = null;
+    });
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    await _journalController.loadToday();
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.success,
+      title: title,
+      message: message,
+    );
   }
 
   Future<void> _promptForHealthTargetIfNeeded() async {

@@ -24,11 +24,17 @@ export type UploadScanImageInput = {
 
 export type StoredMealImage = Omit<MealImageSummary, "imageId" | "createdAt">;
 
+export type StoredObjectDeletionTarget = {
+  bucket: string;
+  objectKey: string;
+};
+
 export interface MealImageStorage {
   readonly enabled: boolean;
   uploadMealImage(input: UploadMealImageInput): Promise<StoredMealImage>;
   uploadScanImage(input: UploadScanImageInput): Promise<StoredMealImage>;
   createSignedReadUrl(image: MealImageSummary): Promise<string | undefined>;
+  deleteStoredObject(target: StoredObjectDeletionTarget): Promise<void>;
   deleteMealImage(image: MealImageSummary): Promise<void>;
 }
 
@@ -48,6 +54,10 @@ export class DisabledMealImageStorage implements MealImageStorage {
   }
 
   async deleteMealImage(): Promise<void> {
+    throw new Error("Meal image storage is not configured.");
+  }
+
+  async deleteStoredObject(): Promise<void> {
     throw new Error("Meal image storage is not configured.");
   }
 }
@@ -112,10 +122,14 @@ export class S3MealImageStorage implements MealImageStorage {
   }
 
   async deleteMealImage(image: MealImageSummary): Promise<void> {
+    await this.deleteStoredObject(image);
+  }
+
+  async deleteStoredObject(target: StoredObjectDeletionTarget): Promise<void> {
     await this.client.send(
       new DeleteObjectCommand({
-        Bucket: image.bucket,
-        Key: image.objectKey,
+        Bucket: target.bucket,
+        Key: target.objectKey,
       }),
     );
   }

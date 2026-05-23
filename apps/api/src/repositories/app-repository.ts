@@ -85,6 +85,16 @@ export type MealDeletionPlan = {
   scanSessionId?: string;
 };
 
+export type StoredObjectDeletionTarget = {
+  bucket: string;
+  objectKey: string;
+};
+
+export type ProfileDeletionPlan = {
+  profileId: string;
+  storedObjects: StoredObjectDeletionTarget[];
+};
+
 export type RewardedAdCompletionInput = {
   provider: "admob";
   placement: "scan_unlock";
@@ -142,6 +152,9 @@ export type UpsertProfileHealthTargetInput = Omit<
 
 export interface AppRepository {
   getProfile(): Promise<Profile>;
+  deactivateProfile(): Promise<boolean>;
+  getProfileDeletionPlan(): Promise<ProfileDeletionPlan>;
+  deleteProfile(): Promise<boolean>;
   getHealthTarget(profileId?: string): Promise<ProfileHealthTarget | undefined>;
   upsertHealthTarget(input: UpsertProfileHealthTargetInput): Promise<ProfileHealthTarget>;
   signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession>;

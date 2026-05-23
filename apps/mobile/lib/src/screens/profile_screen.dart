@@ -75,7 +75,7 @@ class ProfileScreen extends StatelessWidget {
                 children: const [
                   _StaticRow(label: 'Food photos are saved with meal logs'),
                   _StaticRow(label: 'Nutrition estimates are approximate'),
-                  _StaticRow(label: 'Delete account removes stored app data'),
+                  _StaticRow(label: 'Delete profile removes stored app data'),
                 ],
               ),
             ),

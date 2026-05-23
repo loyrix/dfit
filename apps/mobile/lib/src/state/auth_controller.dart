@@ -99,6 +99,47 @@ class AuthController extends ChangeNotifier {
     _session = null;
     notifyListeners();
   }
+
+  Future<bool> deactivateProfile() async {
+    return _runProfileLifecycleAction(
+      actionName: 'auth.deactivate_profile',
+      operation: _gateway.deactivateProfile,
+      fallbackMessage: 'Could not deactivate this profile. Please try again.',
+    );
+  }
+
+  Future<bool> deleteProfile() async {
+    return _runProfileLifecycleAction(
+      actionName: 'auth.delete_profile',
+      operation: _gateway.deleteProfile,
+      fallbackMessage: 'Could not delete this profile. Please try again.',
+    );
+  }
+
+  Future<bool> _runProfileLifecycleAction({
+    required String actionName,
+    required Future<void> Function() operation,
+    required String fallbackMessage,
+  }) async {
+    if (_loading) return false;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await operation();
+      await _store.clear();
+      _session = null;
+      return true;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(actionName, error, stackTrace: stackTrace);
+      _error = _profileLifecycleErrorMessage(error, fallbackMessage);
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
 }
 
 String _emailAuthErrorMessage(Object error, EmailAuthMode mode) {
@@ -108,6 +149,8 @@ String _emailAuthErrorMessage(Object error, EmailAuthMode mode) {
         return 'This email is already registered. Log in instead.';
       case 'invalid_credentials':
         return 'Email or password is incorrect.';
+      case 'account_deactivated':
+        return 'This profile is deactivated. Contact support to reactivate it.';
       case 'invalid_email_auth':
         return mode == EmailAuthMode.signUp
             ? 'Enter a valid email and a password with 6 or more characters.'
@@ -127,6 +170,27 @@ String _emailAuthErrorMessage(Object error, EmailAuthMode mode) {
       : 'Could not log in. Please try again.';
 }
 
+String _profileLifecycleErrorMessage(Object error, String fallbackMessage) {
+  if (error is LogMyPlateApiException) {
+    switch (error.errorCode) {
+      case 'account_required':
+        return 'Log in again to manage this profile.';
+      case 'profile_storage_delete_unavailable':
+      case 'profile_storage_delete_failed':
+        return 'Stored photos could not be removed. Please try again.';
+    }
+
+    if (error.statusCode >= 500 || error.retryable) {
+      return 'LogMyPlate is taking longer than expected. Try again.';
+    }
+
+    final message = error.message;
+    if (message != null && message.trim().isNotEmpty) return message.trim();
+  }
+
+  return fallbackMessage;
+}
+
 abstract class AccountAuthGateway {
   Future<AuthSession> signIn(AuthProvider provider);
   Future<AuthSession> signInWithEmail({
@@ -135,6 +199,8 @@ abstract class AccountAuthGateway {
     required String password,
   });
   Future<void> signOut();
+  Future<void> deactivateProfile();
+  Future<void> deleteProfile();
 }
 
 class LogMyPlateAccountAuthGateway implements AccountAuthGateway {
@@ -171,5 +237,20 @@ class LogMyPlateAccountAuthGateway implements AccountAuthGateway {
       );
       // Local sign-out must still work if the token is already expired.
     }
+  }
+
+  @override
+  Future<void> deactivateProfile() {
+    return _apiClient.deactivateProfile(
+      idempotencyKey:
+          'deactivate-profile-${DateTime.now().microsecondsSinceEpoch}',
+    );
+  }
+
+  @override
+  Future<void> deleteProfile() {
+    return _apiClient.deleteProfile(
+      idempotencyKey: 'delete-profile-${DateTime.now().microsecondsSinceEpoch}',
+    );
   }
 }

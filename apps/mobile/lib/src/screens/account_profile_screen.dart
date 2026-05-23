@@ -10,11 +10,21 @@ class AccountProfileScreen extends StatelessWidget {
   const AccountProfileScreen({
     super.key,
     required this.session,
+    required this.loading,
+    this.error,
+    this.onClearError,
     required this.onSignOut,
+    required this.onDeactivateProfile,
+    required this.onDeleteProfile,
   });
 
   final AuthSession session;
+  final bool loading;
+  final String? error;
+  final VoidCallback? onClearError;
   final Future<bool> Function() onSignOut;
+  final Future<bool> Function() onDeactivateProfile;
+  final Future<bool> Function() onDeleteProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -22,76 +32,133 @@ class AccountProfileScreen extends StatelessWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+        child: Stack(
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const BackMark(),
-              ),
-            ),
-            const SizedBox(height: 22),
-            Center(child: _AccountAvatar(session: session)),
-            const SizedBox(height: 24),
-            Text(
-              'Profile',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 1.8,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              session.displayName,
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(color: colors.textPrimary),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${session.provider.label} account',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-            ),
-            const SizedBox(height: 28),
-            _ProfileSection(
-              title: 'Account',
+            ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
-                _ProfileRow(label: 'Status', value: 'Signed in'),
-                _ProfileRow(label: 'Provider', value: session.provider.label),
-                _ProfileRow(label: 'Journal', value: 'Linked on this device'),
-              ],
-            ),
-            const SizedBox(height: 18),
-            _ProfileSection(
-              title: 'Access',
-              children: const [
-                _ProfileRow(label: 'Free scans', value: 'Used first'),
-                _ProfileRow(label: 'Ad unlocks', value: 'Coming next'),
-                _ProfileRow(label: 'Premium', value: 'Not active'),
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 54,
-              child: OutlinedButton(
-                onPressed: () => _signOut(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.textPrimary,
-                  side: BorderSide(color: colors.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: loading
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    icon: const BackMark(),
                   ),
                 ),
-                child: const Text('Log out'),
-              ),
+                const SizedBox(height: 22),
+                Center(child: _AccountAvatar(session: session)),
+                const SizedBox(height: 24),
+                Text(
+                  'Profile',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    letterSpacing: 1.8,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  session.displayName,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${session.provider.label} account',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 18),
+                  _AccountErrorBanner(message: error!, onDismiss: onClearError),
+                ],
+                const SizedBox(height: 28),
+                _ProfileSection(
+                  title: 'Account',
+                  children: [
+                    _ProfileRow(label: 'Status', value: 'Signed in'),
+                    _ProfileRow(
+                      label: 'Provider',
+                      value: session.provider.label,
+                    ),
+                    _ProfileRow(
+                      label: 'Journal',
+                      value: 'Synced to this account',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _ProfileSection(
+                  title: 'Access',
+                  children: const [
+                    _ProfileRow(
+                      label: 'Free scans',
+                      value: 'First 3 before login',
+                    ),
+                    _ProfileRow(
+                      label: 'Ad unlocks',
+                      value: 'Available after login',
+                    ),
+                    _ProfileRow(label: 'Premium', value: 'Not active'),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _ProfileSection(
+                  title: 'Profile control',
+                  children: [
+                    _ProfileActionRow(
+                      label: 'Deactivate profile',
+                      value: 'Pause access',
+                      color: LogMyPlateColors.accent,
+                      enabled: !loading,
+                      onTap: () => _requestLifecycleAction(
+                        context,
+                        action: _ProfileLifecycleAction.deactivate,
+                      ),
+                    ),
+                    _ProfileActionRow(
+                      label: 'Delete profile',
+                      value: 'Remove data',
+                      color: LogMyPlateColors.destructive,
+                      enabled: !loading,
+                      onTap: () => _requestLifecycleAction(
+                        context,
+                        action: _ProfileLifecycleAction.delete,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 54,
+                  child: OutlinedButton(
+                    onPressed: loading ? null : () => _signOut(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.textPrimary,
+                      side: BorderSide(color: colors.border),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Log out'),
+                  ),
+                ),
+              ],
             ),
+            if (loading)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: colors.background.withValues(alpha: 0.42),
+                  child: Center(
+                    child: CircularProgressIndicator(color: colors.accent),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -101,7 +168,29 @@ class AccountProfileScreen extends StatelessWidget {
   Future<void> _signOut(BuildContext context) async {
     final shouldPop = await onSignOut();
     if (!context.mounted || !shouldPop) return;
-    Navigator.of(context).pop();
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
+  }
+
+  Future<void> _requestLifecycleAction(
+    BuildContext context, {
+    required _ProfileLifecycleAction action,
+  }) async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ProfileLifecycleSheet(action: action),
+    );
+    if (confirmed != true || !context.mounted || loading) return;
+
+    final completed = switch (action) {
+      _ProfileLifecycleAction.deactivate => await onDeactivateProfile(),
+      _ProfileLifecycleAction.delete => await onDeleteProfile(),
+    };
+    if (!context.mounted || !completed) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
   }
 }
 
@@ -142,6 +231,55 @@ class _AccountAvatar extends StatelessWidget {
     final name = session.displayName.trim();
     if (name.isEmpty) return 'L';
     return name.characters.first.toUpperCase();
+  }
+}
+
+class _AccountErrorBanner extends StatelessWidget {
+  const _AccountErrorBanner({required this.message, this.onDismiss});
+
+  final String message;
+  final VoidCallback? onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      decoration: BoxDecoration(
+        color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: LogMyPlateColors.destructive.withValues(alpha: 0.28),
+          width: 0.6,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: LogMyPlateColors.destructive,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textPrimary),
+            ),
+          ),
+          if (onDismiss != null)
+            IconButton(
+              onPressed: onDismiss,
+              icon: const Icon(Icons.close_rounded),
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -190,6 +328,146 @@ class _ProfileRow extends StatelessWidget {
         style: Theme.of(
           context,
         ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _ProfileActionRow extends StatelessWidget {
+  const _ProfileActionRow({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return ListTile(
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      title: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: enabled ? colors.textPrimary : colors.textTertiary,
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: enabled ? color : colors.textTertiary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: enabled ? color : colors.textTertiary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _ProfileLifecycleAction { deactivate, delete }
+
+class _ProfileLifecycleSheet extends StatelessWidget {
+  const _ProfileLifecycleSheet({required this.action});
+
+  final _ProfileLifecycleAction action;
+
+  bool get isDelete => action == _ProfileLifecycleAction.delete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final actionColor = isDelete
+        ? LogMyPlateColors.destructive
+        : LogMyPlateColors.accent;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
+          decoration: BoxDecoration(
+            color: colors.surfaceCard,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: colors.border, width: 0.6),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: colors.textTertiary.withValues(alpha: 0.36),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                isDelete ? 'Delete profile?' : 'Deactivate profile?',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: colors.textPrimary),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isDelete
+                    ? 'This permanently removes meals, scans, photos, targets and account access. This cannot be undone.'
+                    : 'This signs you out and pauses account access. Your saved meals and photos stay stored.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                height: 54,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: actionColor,
+                    foregroundColor: isDelete
+                        ? Colors.white
+                        : LogMyPlateColors.accentDeep,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                  ),
+                  child: Text(
+                    isDelete ? 'Delete profile' : 'Deactivate profile',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 50,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Keep profile'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

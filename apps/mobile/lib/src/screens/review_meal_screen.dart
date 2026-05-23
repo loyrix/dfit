@@ -244,26 +244,45 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     );
     if (choice == null || !mounted) return;
 
+    if (choice.editImmediately) {
+      final item = await _openNewItemSheet(choice.item);
+      if (item == null || !mounted) return;
+      setState(
+        () => _entries.add(
+          _ReviewMealEntry(item: item, lockedFromAnalysis: false),
+        ),
+      );
+      return;
+    }
+
     final selected = choice.item;
     final existingIndex = _entries.indexWhere(
       (entry) => entry.item.name == selected.name,
     );
-    late final int nextIndex;
     if (existingIndex == -1) {
       setState(
         () => _entries.add(
           _ReviewMealEntry(item: selected, lockedFromAnalysis: false),
         ),
       );
-      nextIndex = _entries.length - 1;
     } else {
       _changeQuantity(existingIndex, 1);
-      nextIndex = existingIndex;
     }
+  }
 
-    if (choice.editImmediately) {
-      await _openEditItemSheet(nextIndex);
-    }
+  Future<MealItem?> _openNewItemSheet(MealItem item) async {
+    final result = await showModalBottomSheet<MealItemEditResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MealItemEditorSheet(
+        item: item,
+        lockedFromAnalysis: false,
+        allowDelete: false,
+      ),
+    );
+    if (result == null || result.delete) return null;
+    return result.item;
   }
 }
 

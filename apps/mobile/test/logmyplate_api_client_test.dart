@@ -410,6 +410,36 @@ void main() {
     expect(target.dailyTargetTotals.calories, 2238);
   });
 
+  test('sends account lifecycle requests with account auth headers', () async {
+    final paths = <String>[];
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      loadAuthSession: () async => AuthSession(
+        provider: AuthProvider.email,
+        displayName: 'friend@test.com',
+        linkedAt: DateTime(2026, 5, 13),
+        profileId: 'profile_1',
+        accessToken: 'token_existing',
+      ),
+      httpClient: MockClient((request) async {
+        paths.add('${request.method} ${request.url.path}');
+        expect(request.headers['authorization'], 'Bearer token_existing');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
+        expect(request.headers['idempotency-key'], isNotEmpty);
+        return http.Response('', 204);
+      }),
+    );
+
+    await client.deactivateProfile(idempotencyKey: 'deactivate-key');
+    await client.deleteProfile(idempotencyKey: 'delete-profile-key');
+
+    expect(paths, [
+      'POST /v1/profiles/me/deactivate',
+      'DELETE /v1/profiles/me',
+    ]);
+  });
+
   test('parses legacy journal summary payloads during API rollout', () async {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',

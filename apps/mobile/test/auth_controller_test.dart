@@ -79,6 +79,28 @@ void main() {
       'Google sign-in is coming soon. Use email for this build.',
     );
   });
+
+  test('delete profile clears the stored account session', () async {
+    final storedSession = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 23),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    final store = AccountSessionStore();
+    await store.save(storedSession);
+    final gateway = _LifecycleAuthGateway();
+    final controller = AuthController(gateway: gateway, store: store);
+
+    await controller.load();
+    final deleted = await controller.deleteProfile();
+
+    expect(deleted, isTrue);
+    expect(gateway.deleteCount, 1);
+    expect(controller.session, isNull);
+    expect(await store.load(), isNull);
+  });
 }
 
 class _FailingAuthGateway implements AccountAuthGateway {
@@ -102,4 +124,43 @@ class _FailingAuthGateway implements AccountAuthGateway {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> deactivateProfile() async {
+    throw error;
+  }
+
+  @override
+  Future<void> deleteProfile() async {
+    throw error;
+  }
+}
+
+class _LifecycleAuthGateway implements AccountAuthGateway {
+  int deleteCount = 0;
+
+  @override
+  Future<AuthSession> signIn(AuthProvider provider) async {
+    throw UnsupportedError('unused');
+  }
+
+  @override
+  Future<AuthSession> signInWithEmail({
+    required EmailAuthMode mode,
+    required String email,
+    required String password,
+  }) async {
+    throw UnsupportedError('unused');
+  }
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<void> deactivateProfile() async {}
+
+  @override
+  Future<void> deleteProfile() async {
+    deleteCount += 1;
+  }
 }

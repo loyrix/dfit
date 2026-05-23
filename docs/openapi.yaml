@@ -14,7 +14,8 @@ info:
     authenticated-only boundary on most endpoints. This document therefore marks those
     endpoints as supporting optional identity rather than requiring login.
 
-    Every mutating endpoint except `/v1/auth/*` requires an `Idempotency-Key` header.
+    Every mutating endpoint except `/v1/auth/*` and account lifecycle endpoints
+    requires an `Idempotency-Key` header.
 servers:
   - url: https://logmyplate-api.vercel.app
     description: Production
@@ -254,6 +255,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorWithMessage"
+        "403":
+          description: Account is deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
 
   /v1/auth/logout:
     post:
@@ -290,6 +297,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProfileEnvelope"
+    delete:
+      tags: [Profile]
+      summary: Delete current profile
+      description: |
+        Permanently deletes the signed-in account profile, meals, scans, targets,
+        account credentials, sessions, and stored meal photos. Anonymous profiles
+        cannot call this endpoint.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Profile and stored data deleted.
+        "401":
+          description: Account required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "502":
+          description: Stored photos could not be deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "503":
+          description: Stored photo deletion is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
+  /v1/profiles/me/deactivate:
+    post:
+      tags: [Profile]
+      summary: Deactivate current profile
+      description: |
+        Deactivates the signed-in profile and revokes its sessions while leaving
+        stored meals and photos intact for possible support-assisted recovery.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Profile deactivated.
+        "401":
+          description: Account required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
 
   /v1/profiles/me/health:
     get:
@@ -750,7 +806,7 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: Required for mutating requests outside `/v1/auth/*`; repeated keys replay the cached response.
+      description: Required for mutating requests outside `/v1/auth/*` and account lifecycle endpoints; repeated keys replay the cached response.
       schema:
         type: string
         minLength: 1
