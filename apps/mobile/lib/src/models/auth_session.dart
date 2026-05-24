@@ -66,9 +66,11 @@ class AuthSession {
     final expiresAt = DateTime.parse(json['expiresAt'] as String).toLocal();
 
     return AuthSession(
-      provider: authMethod == 'email'
-          ? AuthProvider.email
-          : AuthProvider.google,
+      provider: switch (authMethod) {
+        'apple' => AuthProvider.apple,
+        'google' => AuthProvider.google,
+        _ => AuthProvider.email,
+      },
       displayName: email ?? authMethod,
       linkedAt: DateTime.now(),
       profileId: profile['id'] as String?,

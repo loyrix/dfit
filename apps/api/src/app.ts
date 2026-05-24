@@ -23,6 +23,10 @@ import {
   GoogleAdMobRewardedAdVerifier,
   type AdMobRewardedAdVerifier,
 } from "./services/admob-ssv.js";
+import {
+  ConfiguredOAuthIdentityVerifier,
+  type OAuthIdentityVerifier,
+} from "./services/oauth-identity-verifier.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
 import { registerBootstrapRoutes } from "./routes/bootstrap.js";
 import { createMealImageStorage, type MealImageStorage } from "./services/meal-image-storage.js";
@@ -33,6 +37,7 @@ export type BuildAppOptions = {
   aiProvider?: AiProvider;
   rewardedAdVerifier?: AdMobRewardedAdVerifier;
   requireRewardedAdServerVerification?: boolean;
+  oauthVerifier?: OAuthIdentityVerifier;
   mealImageStorage?: MealImageStorage;
 };
 
@@ -55,6 +60,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
     options.aiProvider ??
     (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config));
   const mealImageStorage = options.mealImageStorage ?? createMealImageStorage(config);
+  const oauthVerifier = options.oauthVerifier ?? new ConfiguredOAuthIdentityVerifier(config.auth);
   const rewardedAdVerifier =
     options.rewardedAdVerifier ??
     new GoogleAdMobRewardedAdVerifier({
@@ -82,7 +88,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
       options.requireRewardedAdServerVerification ?? config.adMob.rewardedSsvRequired,
   });
   await registerFoodRoutes(app, repository);
-  await registerProfileRoutes(app, repository, mealImageStorage);
+  await registerProfileRoutes(app, repository, mealImageStorage, oauthVerifier);
   await registerBootstrapRoutes(app, repository, mealImageStorage);
   await registerJournalRoutes(app, repository, mealImageStorage);
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);

@@ -87,6 +87,9 @@ class _AccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final signedIn = session != null;
+    final providerCopy = Theme.of(context).platform == TargetPlatform.iOS
+        ? 'Apple, Google or email'
+        : 'Google or email';
 
     return InkWell(
       onTap: onTap,
@@ -136,7 +139,7 @@ class _AccountCard extends StatelessWidget {
                   Text(
                     signedIn
                         ? '${session!.displayName} - ${session!.provider.label}'
-                        : 'Link with Apple, Google or email',
+                        : 'Link with $providerCopy',
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colors.accentText.withValues(alpha: 0.72),

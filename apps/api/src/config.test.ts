@@ -54,6 +54,39 @@ describe("API config", () => {
     });
   });
 
+  it("reads OAuth provider settings", () => {
+    const config = buildApiConfig({
+      NODE_ENV: "development",
+      AUTH_GOOGLE_CLIENT_IDS:
+        "web-client.apps.googleusercontent.com,ios-client.apps.googleusercontent.com",
+      AUTH_APPLE_CLIENT_IDS: "com.logmyplate.app",
+      AUTH_APPLE_TEAM_ID: "M7ZGXF8RPW",
+      AUTH_APPLE_KEY_ID: "ABC123DEFG",
+      AUTH_APPLE_PRIVATE_KEY_BASE64: Buffer.from("private-key").toString("base64"),
+    });
+
+    expect(config.auth).toMatchObject({
+      googleClientIds: [
+        "web-client.apps.googleusercontent.com",
+        "ios-client.apps.googleusercontent.com",
+      ],
+      appleClientIds: ["com.logmyplate.app"],
+      appleTeamId: "M7ZGXF8RPW",
+      appleKeyId: "ABC123DEFG",
+      applePrivateKey: "private-key",
+      appleJwksUrl: "https://appleid.apple.com/auth/keys",
+    });
+  });
+
+  it("rejects malformed Google OAuth client IDs", () => {
+    expect(() =>
+      buildApiConfig({
+        NODE_ENV: "development",
+        AUTH_GOOGLE_CLIENT_IDS: "not-a-google-client",
+      }),
+    ).toThrow(/AUTH_GOOGLE_CLIENT_IDS/);
+  });
+
   it("rejects invalid rewarded AdMob SSV cache settings", () => {
     expect(() =>
       buildApiConfig({

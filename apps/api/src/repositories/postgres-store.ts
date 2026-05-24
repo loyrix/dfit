@@ -28,6 +28,7 @@ import type {
   IdempotencyRecord,
   ListMealsInput,
   MealDeletionPlan,
+  OAuthAccountInput,
   Profile,
   ProfileDeletionPlan,
   ProfileHealthTarget,
@@ -508,6 +509,26 @@ export class PostgresStore implements AppRepository {
         )
       `;
 
+      await tx`
+        insert into account_identities (
+          profile_id,
+          provider,
+          provider_subject,
+          email,
+          email_verified,
+          display_name
+        )
+        values (
+          ${linkedProfile.id},
+          'email',
+          ${email},
+          ${email},
+          true,
+          null
+        )
+        on conflict (provider, provider_subject) do nothing
+      `;
+
       return linkedProfile;
     });
 
@@ -545,12 +566,149 @@ export class PostgresStore implements AppRepository {
       currentProfile.authMethod === "anonymous" &&
       currentProfile.id !== credential.profile_id
     ) {
-      await this.mergeProfiles(currentProfile.id, credential.profile_id);
+      await this.mergeProfiles(currentProfile.id, credential.profile_id, "email");
     }
 
     await this.attachInstallToProfile(credential.profile_id);
     await this.transferCurrentInstallQuotaToProfile(credential.profile_id);
     return this.createSession(credential.profile_id);
+  }
+
+  async signInWithOAuth(input: OAuthAccountInput): Promise<AccountSession> {
+    const provider = input.provider;
+    const providerSubject = input.providerSubject.trim();
+    const email = input.email ? normalizeEmail(input.email) : undefined;
+
+    if (!providerSubject) {
+      throw new AccountAuthError("invalid_oauth_identity", "OAuth provider subject is required.");
+    }
+
+    const currentProfile = await this.getProfile();
+    const existingIdentity = await this.findOAuthIdentity(provider, providerSubject);
+
+    if (existingIdentity) {
+      if (existingIdentity.deactivated_at) {
+        throw new AccountAuthError(
+          "account_deactivated",
+          "This profile is deactivated. Contact support to reactivate it.",
+          403,
+        );
+      }
+
+      if (
+        currentProfile.authMethod !== "anonymous" &&
+        currentProfile.id !== existingIdentity.profile_id
+      ) {
+        throw new AccountAuthError(
+          "provider_already_linked",
+          "This sign-in provider is already linked to another account.",
+          409,
+        );
+      }
+
+      if (
+        currentProfile.authMethod === "anonymous" &&
+        currentProfile.id !== existingIdentity.profile_id
+      ) {
+        await this.mergeProfiles(currentProfile.id, existingIdentity.profile_id, provider);
+      }
+
+      await this.updateOAuthIdentitySnapshot(existingIdentity.id, {
+        email,
+        emailVerified: input.emailVerified,
+        displayName: input.displayName,
+      });
+      await this.attachInstallToProfile(existingIdentity.profile_id);
+      await this.transferCurrentInstallQuotaToProfile(existingIdentity.profile_id);
+      return this.createSession(existingIdentity.profile_id);
+    }
+
+    if (email && currentProfile.authMethod === "anonymous") {
+      const emailOwner = await this.findProfileByEmail(email);
+      if (emailOwner && emailOwner.id !== currentProfile.id) {
+        throw new AccountAuthError(
+          "email_already_registered",
+          "Email already registered. Log in first to link this provider.",
+          409,
+        );
+      }
+    }
+
+    if (currentProfile.authMethod !== "anonymous") {
+      const existingProfileIdentity = await this.findOAuthIdentityForProfile(
+        currentProfile.id,
+        provider,
+      );
+      if (existingProfileIdentity) {
+        throw new AccountAuthError(
+          "provider_already_linked",
+          `This account is already linked to a ${provider} identity.`,
+          409,
+        );
+      }
+    }
+
+    const profile = await this.sql.begin(async (tx) => {
+      let linkedProfile: Profile;
+
+      if (currentProfile.authMethod === "anonymous") {
+        const [updated] = await tx<Profile[]>`
+          update profiles
+          set
+            auth_method = ${provider},
+            email = coalesce(email, ${email ?? null}),
+            provider_subject = ${`${provider}:${providerSubject}`},
+            linked_at = now(),
+            updated_at = now()
+          where id = ${currentProfile.id}
+          returning
+            id::text,
+            auth_method as "authMethod",
+            email,
+            timezone,
+            linked_at::text as "linkedAt",
+            created_at::text as "createdAt"
+        `;
+        linkedProfile = updated;
+
+        await tx`
+          insert into identity_link_events (profile_id, from_auth_method, to_auth_method, meals_count)
+          values (
+            ${linkedProfile.id},
+            'anonymous',
+            ${provider},
+            (select count(*)::int from meals where profile_id = ${linkedProfile.id})
+          )
+        `;
+      } else {
+        linkedProfile = currentProfile;
+      }
+
+      await tx`
+        insert into account_identities (
+          profile_id,
+          provider,
+          provider_subject,
+          email,
+          email_verified,
+          display_name
+        )
+        values (
+          ${linkedProfile.id},
+          ${provider},
+          ${providerSubject},
+          ${email ?? null},
+          ${input.emailVerified ?? false},
+          ${input.displayName ?? null}
+        )
+      `;
+
+      return linkedProfile;
+    });
+
+    await this.attachInstallToProfile(profile.id);
+    await this.transferCurrentInstallQuotaToProfile(profile.id);
+    return this.createSession(profile.id);
   }
 
   async revokeSession(token: string): Promise<void> {
@@ -1597,6 +1755,78 @@ export class PostgresStore implements AppRepository {
     return credential;
   }
 
+  private async findOAuthIdentity(
+    provider: OAuthAccountInput["provider"],
+    providerSubject: string,
+  ) {
+    const [identity] = await this.sql<
+      {
+        id: string;
+        profile_id: string;
+        deactivated_at: string | null;
+      }[]
+    >`
+      select
+        account_identities.id::text,
+        account_identities.profile_id::text,
+        profiles.deactivated_at::text
+      from account_identities
+      inner join profiles on profiles.id = account_identities.profile_id
+      where account_identities.provider = ${provider}
+        and account_identities.provider_subject = ${providerSubject}
+      limit 1
+    `;
+    return identity;
+  }
+
+  private async findOAuthIdentityForProfile(
+    profileId: string,
+    provider: OAuthAccountInput["provider"],
+  ) {
+    const [identity] = await this.sql<{ id: string }[]>`
+      select id::text
+      from account_identities
+      where profile_id = ${profileId}
+        and provider = ${provider}
+      limit 1
+    `;
+    return identity;
+  }
+
+  private async findProfileByEmail(email: string): Promise<Profile | undefined> {
+    const [profile] = await this.sql<Profile[]>`
+      select
+        id::text,
+        auth_method as "authMethod",
+        email,
+        timezone,
+        linked_at::text as "linkedAt",
+        created_at::text as "createdAt"
+      from profiles
+      where lower(email) = lower(${email})
+      limit 1
+    `;
+    return profile;
+  }
+
+  private async updateOAuthIdentitySnapshot(
+    identityId: string,
+    input: Pick<OAuthAccountInput, "displayName" | "email" | "emailVerified">,
+  ): Promise<void> {
+    await this.sql`
+      update account_identities
+      set
+        email = coalesce(${input.email ?? null}, email),
+        email_verified = case
+          when ${input.emailVerified ?? null}::boolean is null then email_verified
+          else ${input.emailVerified ?? false}
+        end,
+        display_name = coalesce(${input.displayName ?? null}, display_name),
+        updated_at = now()
+      where id = ${identityId}
+    `;
+  }
+
   private async requireActiveAccountProfile(): Promise<Profile> {
     const identity = currentRequestIdentity();
     if (!identity.sessionToken) {
@@ -1862,7 +2092,11 @@ export class PostgresStore implements AppRepository {
     });
   }
 
-  private async mergeProfiles(sourceProfileId: string, targetProfileId: string): Promise<void> {
+  private async mergeProfiles(
+    sourceProfileId: string,
+    targetProfileId: string,
+    toAuthMethod: Exclude<Profile["authMethod"], "anonymous">,
+  ): Promise<void> {
     await this.sql.begin(async (tx) => {
       await tx`
         update meals
@@ -2016,7 +2250,7 @@ export class PostgresStore implements AppRepository {
         values (
           ${targetProfileId},
           'anonymous',
-          'email',
+          ${toAuthMethod},
           (select count(*)::int from meals where profile_id = ${targetProfileId})
         )
       `;

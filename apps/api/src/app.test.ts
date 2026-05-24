@@ -13,6 +13,12 @@ import type {
   UploadScanImageInput,
 } from "./services/meal-image-storage.js";
 import { DisabledMealImageStorage as DisabledStorage } from "./services/meal-image-storage.js";
+import {
+  OAuthVerificationError,
+  type OAuthIdentityVerifier,
+  type OAuthVerificationInput,
+  type VerifiedOAuthIdentity,
+} from "./services/oauth-identity-verifier.js";
 import type { MealImageSummary } from "@logmyplate/domain";
 
 const testApp = (options: BuildAppOptions = {}) =>
@@ -77,6 +83,18 @@ class TestMealImageStorage implements MealImageStorage {
 
   async deleteStoredObject(target: StoredObjectDeletionTarget): Promise<void> {
     this.deletes.push(target);
+  }
+}
+
+class TestOAuthVerifier implements OAuthIdentityVerifier {
+  constructor(private readonly identities: Record<string, VerifiedOAuthIdentity>) {}
+
+  async verify(input: OAuthVerificationInput): Promise<VerifiedOAuthIdentity> {
+    const identity = this.identities[`${input.provider}:${input.idToken}`];
+    if (!identity) {
+      throw new OAuthVerificationError("invalid_oauth_token", "Invalid OAuth token.");
+    }
+    return identity;
   }
 }
 
@@ -1067,6 +1085,149 @@ describe("LogMyPlate API", () => {
       id: meal.json().id,
       title: "Dal rice",
     });
+    await app.close();
+  });
+
+  it("binds anonymous journal data when a Google account is created", async () => {
+    const app = await testApp({
+      oauthVerifier: new TestOAuthVerifier({
+        "google:google-token-one-for-tests": {
+          provider: "google",
+          providerSubject: "google-sub-one",
+          email: "google-user@example.com",
+          emailVerified: true,
+          displayName: "Google User",
+        },
+      }),
+    });
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-google-create",
+      "x-logmyplate-platform": "android",
+    };
+
+    const meal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: { ...installHeaders, "idempotency-key": "anonymous-meal-before-google" },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(meal.statusCode).toBe(201);
+
+    const signIn = await app.inject({
+      method: "POST",
+      url: "/v1/auth/oauth",
+      headers: installHeaders,
+      payload: { provider: "google", idToken: "google-token-one-for-tests" },
+    });
+    expect(signIn.statusCode).toBe(200);
+    expect(signIn.json().profile).toMatchObject({
+      authMethod: "google",
+      email: "google-user@example.com",
+    });
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signIn.json().accessToken}`,
+      },
+    });
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().today.meals[0]).toMatchObject({
+      id: meal.json().id,
+      title: "Dal rice",
+    });
+    await app.close();
+  });
+
+  it("returns the same profile on repeated OAuth login and merges the current anonymous device", async () => {
+    const app = await testApp({
+      oauthVerifier: new TestOAuthVerifier({
+        "apple:apple-token-one-for-tests": {
+          provider: "apple",
+          providerSubject: "apple-sub-one",
+          email: "apple-user@example.com",
+          emailVerified: true,
+          displayName: "Apple User",
+        },
+      }),
+    });
+    const firstSignIn = await app.inject({
+      method: "POST",
+      url: "/v1/auth/oauth",
+      headers: {
+        "x-logmyplate-install-id": "install-apple-first",
+        "x-logmyplate-platform": "ios",
+      },
+      payload: {
+        provider: "apple",
+        idToken: "apple-token-one-for-tests",
+        authorizationCode: "apple-code-one",
+        nonce: "apple-nonce-one",
+      },
+    });
+    expect(firstSignIn.statusCode).toBe(200);
+    const profileId = firstSignIn.json().profile.id;
+
+    const anonymousMeal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: {
+        "x-logmyplate-install-id": "install-apple-second",
+        "x-logmyplate-platform": "ios",
+        "idempotency-key": "anonymous-meal-before-apple-login",
+      },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(anonymousMeal.statusCode).toBe(201);
+
+    const secondSignIn = await app.inject({
+      method: "POST",
+      url: "/v1/auth/oauth",
+      headers: {
+        "x-logmyplate-install-id": "install-apple-second",
+        "x-logmyplate-platform": "ios",
+      },
+      payload: { provider: "apple", idToken: "apple-token-one-for-tests" },
+    });
+    expect(secondSignIn.statusCode).toBe(200);
+    expect(secondSignIn.json().profile.id).toBe(profileId);
+    expect(secondSignIn.json().profile).toMatchObject({
+      authMethod: "apple",
+      email: "apple-user@example.com",
+    });
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: {
+        authorization: `Bearer ${secondSignIn.json().accessToken}`,
+        "x-logmyplate-install-id": "install-apple-second",
+        "x-logmyplate-platform": "ios",
+      },
+    });
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().today.meals[0]).toMatchObject({
+      id: anonymousMeal.json().id,
+    });
+    await app.close();
+  });
+
+  it("rejects invalid OAuth tokens", async () => {
+    const app = await testApp({ oauthVerifier: new TestOAuthVerifier({}) });
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/auth/oauth",
+      headers: {
+        "x-logmyplate-install-id": "install-invalid-oauth",
+        "x-logmyplate-platform": "ios",
+      },
+      payload: { provider: "google", idToken: "invalid-google-token" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: "invalid_oauth_token" });
     await app.close();
   });
 

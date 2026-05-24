@@ -5,6 +5,7 @@ import 'package:logmyplate_mobile/src/models/auth_session.dart';
 import 'package:logmyplate_mobile/src/services/account_session_store.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
+import 'package:logmyplate_mobile/src/services/oauth_sign_in_service.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -89,10 +90,13 @@ void main() {
     expect(controller.error, 'User does not exist.');
   });
 
-  test('shows provider-specific coming soon copy', () async {
+  test('shows provider-specific OAuth failure copy', () async {
     final controller = AuthController(
       gateway: _FailingAuthGateway(error: UnsupportedError('not wired')),
       store: AccountSessionStore(),
+      oauthSignInService: _FailingOAuthSignInService(
+        error: UnsupportedError('not wired'),
+      ),
     );
 
     final session = await controller.signIn(AuthProvider.google);
@@ -100,7 +104,7 @@ void main() {
     expect(session, isNull);
     expect(
       controller.error,
-      'Google sign-in is coming soon. Use email for this build.',
+      'Google sign-in could not be completed. Please try again.',
     );
   });
 
@@ -133,7 +137,7 @@ class _FailingAuthGateway implements AccountAuthGateway {
   final Object error;
 
   @override
-  Future<AuthSession> signIn(AuthProvider provider) async {
+  Future<AuthSession> signIn(OAuthProviderCredential credential) async {
     throw error;
   }
 
@@ -164,7 +168,7 @@ class _LifecycleAuthGateway implements AccountAuthGateway {
   int deleteCount = 0;
 
   @override
-  Future<AuthSession> signIn(AuthProvider provider) async {
+  Future<AuthSession> signIn(OAuthProviderCredential credential) async {
     throw UnsupportedError('unused');
   }
 
@@ -187,4 +191,18 @@ class _LifecycleAuthGateway implements AccountAuthGateway {
   Future<void> deleteProfile() async {
     deleteCount += 1;
   }
+}
+
+class _FailingOAuthSignInService implements OAuthSignInService {
+  _FailingOAuthSignInService({required this.error});
+
+  final Object error;
+
+  @override
+  Future<OAuthProviderCredential> signIn(AuthProvider provider) async {
+    throw error;
+  }
+
+  @override
+  Future<void> signOut() async {}
 }

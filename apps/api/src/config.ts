@@ -19,6 +19,14 @@ export type ApiConfig = {
   nodeEnv: string;
   host: string;
   port: number;
+  auth: {
+    googleClientIds: string[];
+    appleClientIds: string[];
+    appleTeamId?: string;
+    appleKeyId?: string;
+    applePrivateKey?: string;
+    appleJwksUrl: string;
+  };
   aiProvider: "mock" | "openai" | "gemini" | "vertex";
   adMob: {
     rewardedSsvRequired: boolean;
@@ -58,6 +66,16 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
     nodeEnv: env.NODE_ENV ?? "development",
     host: env.API_HOST ?? "127.0.0.1",
     port: Number(env.PORT ?? 4000),
+    auth: {
+      googleClientIds: parseList(env.AUTH_GOOGLE_CLIENT_IDS),
+      appleClientIds: parseList(env.AUTH_APPLE_CLIENT_IDS),
+      appleTeamId: emptyToUndefined(env.AUTH_APPLE_TEAM_ID),
+      appleKeyId: emptyToUndefined(env.AUTH_APPLE_KEY_ID),
+      applePrivateKey:
+        emptyToUndefined(env.AUTH_APPLE_PRIVATE_KEY) ??
+        decodeBase64Value(env.AUTH_APPLE_PRIVATE_KEY_BASE64),
+      appleJwksUrl: env.AUTH_APPLE_JWKS_URL ?? "https://appleid.apple.com/auth/keys",
+    },
     aiProvider: parseAiProvider(env.AI_PROVIDER),
     adMob: {
       rewardedSsvRequired: parseBoolean(env.ADMOB_REWARDED_SSV_REQUIRED, false),
@@ -136,6 +154,16 @@ export const validateApiConfig = (candidate: ApiConfig): void => {
   ) {
     throw new Error("ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS must be a positive number.");
   }
+
+  for (const clientId of candidate.auth.googleClientIds) {
+    if (!clientId.endsWith(".apps.googleusercontent.com")) {
+      throw new Error("AUTH_GOOGLE_CLIENT_IDS must contain Google OAuth client IDs.");
+    }
+  }
+
+  if (!candidate.auth.appleJwksUrl.trim()) {
+    throw new Error("AUTH_APPLE_JWKS_URL cannot be empty.");
+  }
 };
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
@@ -153,6 +181,23 @@ const parseAiProvider = (value: string | undefined): ApiConfig["aiProvider"] => 
   }
 
   throw new Error(`Unsupported AI_PROVIDER "${provider}". Use mock, openai, gemini, or vertex.`);
+};
+
+const parseList = (value: string | undefined): string[] =>
+  value
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean) ?? [];
+
+const emptyToUndefined = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const decodeBase64Value = (value: string | undefined): string | undefined => {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return Buffer.from(trimmed, "base64").toString("utf8");
 };
 
 export const config = buildApiConfig();

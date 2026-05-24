@@ -4,14 +4,20 @@ import '../models/auth_session.dart';
 import '../services/account_session_store.dart';
 import '../services/app_diagnostics.dart';
 import '../services/logmyplate_api_client.dart';
+import '../services/oauth_sign_in_service.dart';
 
 class AuthController extends ChangeNotifier {
-  AuthController({AccountAuthGateway? gateway, AccountSessionStore? store})
-    : _gateway = gateway ?? LogMyPlateAccountAuthGateway(),
-      _store = store ?? AccountSessionStore();
+  AuthController({
+    AccountAuthGateway? gateway,
+    AccountSessionStore? store,
+    OAuthSignInService? oauthSignInService,
+  }) : _gateway = gateway ?? LogMyPlateAccountAuthGateway(),
+       _store = store ?? AccountSessionStore(),
+       _oauthSignInService = oauthSignInService ?? NativeOAuthSignInService();
 
   final AccountAuthGateway _gateway;
   final AccountSessionStore _store;
+  final OAuthSignInService _oauthSignInService;
   AuthSession? _session;
   bool _loading = false;
   String? _error;
@@ -39,7 +45,8 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final session = await _gateway.signIn(provider);
+      final credential = await _oauthSignInService.signIn(provider);
+      final session = await _gateway.signIn(credential);
       await _store.save(session);
       _session = session;
       return session;
@@ -50,8 +57,7 @@ class AuthController extends ChangeNotifier {
         stackTrace: stackTrace,
         context: {'provider': provider.name},
       );
-      _error =
-          '${provider.label} sign-in is coming soon. Use email for this build.';
+      _error = _providerAuthErrorMessage(error, provider);
       return null;
     } finally {
       _loading = false;
@@ -95,6 +101,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> signOut() async {
     await _gateway.signOut();
+    await _oauthSignInService.signOut();
     await _store.clear();
     _session = null;
     notifyListeners();
@@ -140,6 +147,38 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
     }
   }
+}
+
+String _providerAuthErrorMessage(Object error, AuthProvider provider) {
+  if (error is LogMyPlateApiException) {
+    switch (error.errorCode) {
+      case 'invalid_oauth_auth':
+      case 'invalid_oauth_token':
+        return '${provider.label} sign-in could not be verified. Please try again.';
+      case 'oauth_provider_not_configured':
+      case 'oauth_provider_unavailable':
+        return '${provider.label} sign-in is temporarily unavailable. Try again later.';
+      case 'provider_already_linked':
+        return 'This ${provider.label} account is already linked elsewhere.';
+      case 'email_already_registered':
+        return 'This email is already registered. Log in first, then link ${provider.label}.';
+      case 'account_deactivated':
+        return 'This profile is deactivated. Contact support to reactivate it.';
+    }
+
+    if (error.statusCode >= 500 || error.retryable) {
+      return 'LogMyPlate is taking longer than expected. Try again.';
+    }
+
+    final message = error.message;
+    if (message != null && message.trim().isNotEmpty) return message.trim();
+  }
+
+  if (error is UnsupportedError && provider == AuthProvider.apple) {
+    return 'Apple sign-in is not available on this device.';
+  }
+
+  return '${provider.label} sign-in could not be completed. Please try again.';
 }
 
 String _emailAuthErrorMessage(Object error, EmailAuthMode mode) {
@@ -194,7 +233,7 @@ String _profileLifecycleErrorMessage(Object error, String fallbackMessage) {
 }
 
 abstract class AccountAuthGateway {
-  Future<AuthSession> signIn(AuthProvider provider);
+  Future<AuthSession> signIn(OAuthProviderCredential credential);
   Future<AuthSession> signInWithEmail({
     required EmailAuthMode mode,
     required String email,
@@ -212,8 +251,14 @@ class LogMyPlateAccountAuthGateway implements AccountAuthGateway {
   final LogMyPlateApiClient _apiClient;
 
   @override
-  Future<AuthSession> signIn(AuthProvider provider) async {
-    throw UnsupportedError('${provider.label} login is not wired yet.');
+  Future<AuthSession> signIn(OAuthProviderCredential credential) async {
+    return _apiClient.signInWithOAuth(
+      provider: credential.provider,
+      idToken: credential.idToken,
+      authorizationCode: credential.authorizationCode,
+      nonce: credential.nonce,
+      displayName: credential.displayName,
+    );
   }
 
   @override
