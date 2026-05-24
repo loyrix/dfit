@@ -92,7 +92,7 @@ describe("GeminiAiProvider", () => {
     expect(result.providerRun).toMatchObject({
       provider: "gemini",
       model: "gemini-test",
-      promptVersion: "gemini_food_photo_v4",
+      promptVersion: "gemini_food_photo_v5",
       inputTokenEstimate: 100,
       outputTokenEstimate: 50,
     });
@@ -108,6 +108,10 @@ describe("GeminiAiProvider", () => {
     expect(prompt).toContain("Do NOT invent, hallucinate, or assume food items");
     expect(prompt).toContain('return mealName "No food detected" and items []');
     expect(prompt).toContain("Reject screenshots, people, pets, documents");
+    expect(prompt).toContain("Use regional plate context only");
+    expect(prompt).toContain("smooth pink liquid/side in a katori");
+    expect(prompt).toContain("Prefer Solkadhi/kokum kadhi");
+    expect(prompt).toContain("call it raita only when yogurt/curd");
     expect(prompt).toContain("plate geometry");
     expect(prompt).toContain("Count visible pieces/items individually");
     expect(prompt).toContain("return only the required JSON schema");

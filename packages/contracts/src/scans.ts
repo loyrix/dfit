@@ -89,6 +89,7 @@ export const completeRewardedAdRequestSchema = z.object({
   placement: z.literal("scan_unlock").default("scan_unlock"),
   adUnitId: z.string().trim().min(1).max(160).optional(),
   transactionId: z.string().trim().min(1).max(256).optional(),
+  verificationToken: z.string().trim().min(16).max(160).optional(),
   rewardType: z.string().trim().max(64).optional(),
   rewardAmount: z.number().int().nonnegative().optional(),
 });

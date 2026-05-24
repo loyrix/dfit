@@ -612,7 +612,7 @@ paths:
     post:
       tags: [Ads]
       summary: Complete rewarded ad
-      description: Records a completed rewarded ad. Two completed ads grant one rewarded scan credit, capped at five rewarded scans per day.
+      description: Records a completed rewarded ad. One completed rewarded ad grants one rewarded scan credit, capped at five rewarded scans per day. Production can require a matching AdMob server-side verification token before granting.
       security:
         - bearerAuth: []
           installId: []
@@ -645,6 +645,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorWithMessage"
+        "409":
+          description: Rewarded ad server-side verification has not arrived yet.
+
+  /v1/ads/rewarded/ssv:
+    get:
+      tags: [Ads]
+      summary: AdMob rewarded SSV callback
+      description: Receives and verifies Google AdMob rewarded server-side verification callbacks. Configure this URL in the AdMob rewarded ad unit.
+      security: []
+      parameters:
+        - in: query
+          name: ad_network
+          schema:
+            type: string
+        - in: query
+          name: ad_unit
+          schema:
+            type: string
+        - in: query
+          name: custom_data
+          schema:
+            type: string
+        - in: query
+          name: key_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: reward_amount
+          schema:
+            type: integer
+        - in: query
+          name: reward_item
+          schema:
+            type: string
+        - in: query
+          name: signature
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: timestamp
+          schema:
+            type: string
+        - in: query
+          name: transaction_id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: user_id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Callback accepted.
+        "400":
+          description: Callback signature or payload rejected.
+        "503":
+          description: Verification key fetch failed; AdMob should retry.
 
   /v1/scans/prepare:
     post:
@@ -1448,6 +1508,10 @@ components:
           type: string
         transactionId:
           type: string
+        verificationToken:
+          type: string
+          minLength: 16
+          maxLength: 160
         rewardType:
           type: string
         rewardAmount:

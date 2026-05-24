@@ -40,6 +40,9 @@ export const registerIdempotency = async (
 
     const key = request.headers["idempotency-key"];
     if (!key || Array.isArray(key) || reply.statusCode >= 500) return payload;
+    if (request.url === "/v1/ads/rewarded/complete" && reply.statusCode === 409) {
+      return payload;
+    }
 
     try {
       await repository.setIdempotent(key, {

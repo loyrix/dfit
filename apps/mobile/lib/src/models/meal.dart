@@ -901,20 +901,20 @@ class RewardedAdProgress {
   factory RewardedAdProgress.initial() {
     return const RewardedAdProgress(
       adsWatchedToday: 0,
-      adsNeededForNextScan: 3,
+      adsNeededForNextScan: 1,
       scansGrantedToday: 0,
       dailyScanLimit: 5,
-      adsPerScan: 3,
+      adsPerScan: 1,
     );
   }
 
   factory RewardedAdProgress.fromJson(Map<String, dynamic> json) {
     return RewardedAdProgress(
       adsWatchedToday: json['adsWatchedToday'] as int? ?? 0,
-      adsNeededForNextScan: json['adsNeededForNextScan'] as int? ?? 3,
+      adsNeededForNextScan: json['adsNeededForNextScan'] as int? ?? 1,
       scansGrantedToday: json['scansGrantedToday'] as int? ?? 0,
       dailyScanLimit: json['dailyScanLimit'] as int? ?? 5,
-      adsPerScan: json['adsPerScan'] as int? ?? 3,
+      adsPerScan: json['adsPerScan'] as int? ?? 1,
     );
   }
 

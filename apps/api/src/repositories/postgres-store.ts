@@ -34,6 +34,8 @@ import type {
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   RewardedAdProgressState,
+  RewardedAdServerVerification,
+  RewardedAdServerVerificationInput,
   ScanSession,
   UpdateMealInput,
   UpsertProfileHealthTargetInput,
@@ -133,6 +135,12 @@ type RewardedAdProgressRow = {
   granted_scans: number;
 };
 
+type RewardedAdCallbackRow = {
+  transaction_id: string;
+  profile_id: string | null;
+  raw_query: Record<string, string>;
+};
+
 type HealthTargetRow = {
   profile_id: string;
   height_cm: string;
@@ -155,6 +163,25 @@ const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
   rewardedRemaining: row.rewarded_remaining,
   premiumRemaining: row.premium_remaining,
 });
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const rewardedVerificationFromRow = (row: RewardedAdCallbackRow): RewardedAdServerVerification => {
+  const rawQuery = row.raw_query ?? {};
+  return {
+    transactionId: row.transaction_id,
+    profileId: row.profile_id ?? undefined,
+    adUnitId: rawQuery.ad_unit,
+    customData: rawQuery.custom_data,
+    rewardType: rawQuery.reward_item,
+    rewardAmount: parseInteger(rawQuery.reward_amount),
+  };
+};
+
+const parseInteger = (value: string | undefined): number | undefined => {
+  if (!value || !/^\d+$/.test(value)) return undefined;
+  return Number(value);
+};
 
 const healthTargetFromRow = (row: HealthTargetRow): ProfileHealthTarget => ({
   profileId: row.profile_id,
@@ -736,6 +763,54 @@ export class PostgresStore implements AppRepository {
     `;
 
     return quotaFromRow(rows[0]);
+  }
+
+  async recordRewardedAdServerVerification(
+    input: RewardedAdServerVerificationInput,
+  ): Promise<RewardedAdServerVerification> {
+    const profileId = input.profileId && uuidPattern.test(input.profileId) ? input.profileId : null;
+    const [row] = await this.sql<RewardedAdCallbackRow[]>`
+      insert into rewarded_ad_callbacks (
+        transaction_id,
+        profile_id,
+        raw_query,
+        signature_key_id,
+        verified_at
+      )
+      values (
+        ${input.transactionId},
+        ${profileId},
+        ${this.sql.json(input.rawQuery)},
+        ${input.signatureKeyId ?? null},
+        now()
+      )
+      on conflict (transaction_id) do update
+      set
+        profile_id = coalesce(rewarded_ad_callbacks.profile_id, excluded.profile_id),
+        raw_query = excluded.raw_query,
+        signature_key_id = excluded.signature_key_id,
+        verified_at = coalesce(rewarded_ad_callbacks.verified_at, excluded.verified_at)
+      returning transaction_id, profile_id::text, raw_query
+    `;
+
+    return rewardedVerificationFromRow(row);
+  }
+
+  async findRewardedAdServerVerification(input: {
+    profileId: string;
+    customData: string;
+  }): Promise<RewardedAdServerVerification | undefined> {
+    const [row] = await this.sql<RewardedAdCallbackRow[]>`
+      select transaction_id, profile_id::text, raw_query
+      from rewarded_ad_callbacks
+      where profile_id = ${input.profileId}
+        and raw_query ->> 'custom_data' = ${input.customData}
+        and verified_at is not null
+      order by created_at desc
+      limit 1
+    `;
+
+    return row ? rewardedVerificationFromRow(row) : undefined;
   }
 
   async completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {

@@ -6,7 +6,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'app_diagnostics.dart';
 
 abstract class RewardedAdGateway {
-  Future<RewardedAdOutcome> showScanUnlockAd();
+  Future<RewardedAdOutcome> showScanUnlockAd({
+    VoidCallback? onAdShowed,
+    String? serverSideUserId,
+    String? verificationToken,
+  });
   void dispose();
 }
 
@@ -31,7 +35,11 @@ class GoogleRewardedAdService implements RewardedAdGateway {
   Future<RewardedAd?>? _loadingAd;
 
   @override
-  Future<RewardedAdOutcome> showScanUnlockAd() async {
+  Future<RewardedAdOutcome> showScanUnlockAd({
+    VoidCallback? onAdShowed,
+    String? serverSideUserId,
+    String? verificationToken,
+  }) async {
     final adUnitId = LogMyPlateAdConfig.rewardedAdUnitId;
     final ad = _loadedAd ?? await _loadAd(adUnitId);
     _loadedAd = null;
@@ -50,7 +58,37 @@ class GoogleRewardedAdService implements RewardedAdGateway {
     String? rewardType;
     int? rewardAmount;
 
+    final ssvUserId = serverSideUserId?.trim();
+    final ssvCustomData = verificationToken?.trim();
+    if ((ssvUserId?.isNotEmpty ?? false) ||
+        (ssvCustomData?.isNotEmpty ?? false)) {
+      try {
+        await ad.setServerSideOptions(
+          ServerSideVerificationOptions(
+            userId: (ssvUserId?.isNotEmpty ?? false) ? ssvUserId : null,
+            customData: (ssvCustomData?.isNotEmpty ?? false)
+                ? ssvCustomData
+                : null,
+          ),
+        );
+      } catch (error, stackTrace) {
+        ad.dispose();
+        unawaited(_loadAd(adUnitId));
+        AppDiagnostics.instance.record(
+          'ads.rewarded.ssv_options_failed',
+          error,
+          stackTrace: stackTrace,
+        );
+        return RewardedAdOutcome(
+          earnedReward: false,
+          adUnitId: adUnitId,
+          errorMessage: 'Could not prepare ad verification. Please try again.',
+        );
+      }
+    }
+
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (_) => onAdShowed?.call(),
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         unawaited(_loadAd(adUnitId));

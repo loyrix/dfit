@@ -39,6 +39,30 @@ describe("API config", () => {
     ).toBe("gemini");
   });
 
+  it("reads rewarded AdMob SSV settings", () => {
+    const config = buildApiConfig({
+      NODE_ENV: "development",
+      ADMOB_REWARDED_SSV_REQUIRED: "true",
+      ADMOB_REWARDED_SSV_PUBLIC_KEYS_URL: "https://keys.test/verifier-keys.json",
+      ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS: "60000",
+    });
+
+    expect(config.adMob).toMatchObject({
+      rewardedSsvRequired: true,
+      rewardedSsvPublicKeysUrl: "https://keys.test/verifier-keys.json",
+      rewardedSsvKeyCacheTtlMs: 60000,
+    });
+  });
+
+  it("rejects invalid rewarded AdMob SSV cache settings", () => {
+    expect(() =>
+      buildApiConfig({
+        NODE_ENV: "development",
+        ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS: "0",
+      }),
+    ).toThrow(/ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS/);
+  });
+
   it("requires Vertex AI service account config when Vertex is selected", () => {
     expect(() =>
       buildApiConfig({

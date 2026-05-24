@@ -74,7 +74,7 @@ describe("VertexAiProvider", () => {
     expect(result.providerRun).toMatchObject({
       provider: "vertex-ai",
       model: "gemini-2.5-flash",
-      promptVersion: "gemini_food_photo_v4",
+      promptVersion: "gemini_food_photo_v5",
       inputTokenEstimate: 100,
       outputTokenEstimate: 50,
     });
@@ -91,6 +91,7 @@ describe("VertexAiProvider", () => {
       .contents[0]?.parts[0]?.text;
     expect(prompt).toContain('User typed this plate note: "dal rice roti"');
     expect(prompt).toContain("Analyze ONLY food items that are actually visible");
+    expect(prompt).toContain("Prefer Solkadhi/kokum kadhi");
     expect(prompt).toContain('return mealName "No food detected" and items []');
   });
 

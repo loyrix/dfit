@@ -108,10 +108,18 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final imageWidth = math.min(constraints.maxWidth - 40, 390.0);
-                final imageHeight = math.min(
-                  constraints.maxHeight * 0.54,
-                  imageWidth * 1.18,
+                final compact = constraints.maxHeight < 720;
+                final horizontalPadding = compact ? 20.0 : 24.0;
+                final imageWidth = math.min(
+                  constraints.maxWidth - horizontalPadding * 2,
+                  compact ? 300.0 : 340.0,
+                );
+                final imageHeight = math.max(
+                  compact ? 188.0 : 230.0,
+                  math.min(
+                    constraints.maxHeight * (compact ? 0.32 : 0.38),
+                    imageWidth * 0.9,
+                  ),
                 );
 
                 return SingleChildScrollView(
@@ -121,7 +129,12 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                       minHeight: constraints.maxHeight,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        compact ? 14 : 20,
+                        horizontalPadding,
+                        compact ? 18 : 24,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -131,7 +144,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                             width: imageWidth,
                             height: imageHeight,
                           ),
-                          const SizedBox(height: 24),
+                          SizedBox(height: compact ? 16 : 22),
                           Text(
                             failure == null
                                 ? 'Reading your plate'
@@ -143,7 +156,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                                   letterSpacing: 0,
                                 ),
                           ),
-                          const SizedBox(height: 7),
+                          SizedBox(height: compact ? 5 : 7),
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 220),
                             child: Text(
@@ -162,24 +175,24 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                             ),
                           ),
                           if (plateHint != null && plateHint.isNotEmpty) ...[
-                            const SizedBox(height: 14),
+                            SizedBox(height: compact ? 10 : 14),
                             _HintPill(label: plateHint),
                           ],
-                          const SizedBox(height: 26),
+                          SizedBox(height: compact ? 16 : 22),
                           _AnalysisStepTimeline(
                             steps: _steps,
                             activeStep: _activeStep,
                             failure: failure,
                           ),
                           if (failure != null) ...[
-                            const SizedBox(height: 18),
+                            SizedBox(height: compact ? 12 : 18),
                             Text(
                               failure.message,
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: colors.textSecondary),
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: compact ? 10 : 12),
                             _FailureActions(
                               failure: failure,
                               onRetry: _runAnalysis,
@@ -585,94 +598,131 @@ class _AnalysisStepTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final failed = failure != null;
+    final activeLabel = failed
+        ? 'Needs attention'
+        : steps[activeStep.clamp(0, steps.length - 1)];
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 356),
-      child: Column(
-        children: [
-          for (var index = 0; index < steps.length; index++)
-            _StepRow(
-              label: steps[index],
-              done: failure == null && index < activeStep,
-              active: failure == null && index == activeStep,
-              showLine: index < steps.length - 1,
-              lineColor: index < activeStep
-                  ? LogMyPlateColors.accent.withValues(alpha: 0.82)
-                  : colors.border.withValues(alpha: 0.72),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard.withValues(alpha: 0.74),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border.withValues(alpha: 0.74)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                for (var index = 0; index < steps.length; index++) ...[
+                  _StepDot(
+                    done: !failed && index < activeStep,
+                    active: !failed && index == activeStep,
+                    failed: failed && index == activeStep,
+                  ),
+                  if (index < steps.length - 1)
+                    Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 2,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          color: !failed && index < activeStep
+                              ? LogMyPlateColors.accent
+                              : colors.border.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                ],
+              ],
             ),
-        ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: Text(
+                      activeLabel,
+                      key: ValueKey(activeLabel),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: failed
+                            ? LogMyPlateColors.destructive
+                            : colors.textPrimary,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ),
+                ),
+                Text(
+                  failed ? 'Paused' : '${activeStep + 1}/${steps.length}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    letterSpacing: 0,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _StepRow extends StatelessWidget {
-  const _StepRow({
-    required this.label,
-    required this.showLine,
-    required this.lineColor,
-    this.done = false,
-    this.active = false,
-  });
+class _StepDot extends StatelessWidget {
+  const _StepDot({this.done = false, this.active = false, this.failed = false});
 
-  final String label;
-  final bool showLine;
-  final Color lineColor;
   final bool done;
   final bool active;
+  final bool failed;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final dotColor = failed
+        ? LogMyPlateColors.destructive
+        : done || active
+        ? LogMyPlateColors.accent
+        : colors.surfaceCard;
+    final borderColor = failed
+        ? LogMyPlateColors.destructive
+        : done || active
+        ? LogMyPlateColors.accent
+        : colors.border;
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: active ? 22 : 19,
-                height: active ? 22 : 19,
-                decoration: BoxDecoration(
-                  color: done ? LogMyPlateColors.accent : Colors.transparent,
-                  border: Border.all(
-                    color: done || active
-                        ? LogMyPlateColors.accent
-                        : colors.border,
-                    width: 1.6,
-                  ),
-                  shape: BoxShape.circle,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: active ? 22 : 18,
+      height: active ? 22 : 18,
+      decoration: BoxDecoration(
+        color: dotColor,
+        shape: BoxShape.circle,
+        border: Border.all(color: borderColor, width: active ? 2 : 1.4),
+        boxShadow: active || failed
+            ? [
+                BoxShadow(
+                  color: borderColor.withValues(alpha: 0.32),
+                  blurRadius: 12,
+                  spreadRadius: 1,
                 ),
-              ),
-              if (showLine)
-                Container(
-                  width: 1.5,
-                  height: 28,
-                  margin: const EdgeInsets.symmetric(vertical: 5),
-                  color: lineColor,
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: showLine ? 20 : 0),
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: active || done
-                      ? colors.textPrimary
-                      : colors.textSecondary,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                  letterSpacing: 0,
-                ),
-              ),
-            ),
-          ),
-        ],
+              ]
+            : null,
       ),
+      child: done
+          ? const Icon(
+              Icons.check_rounded,
+              size: 12,
+              color: LogMyPlateColors.accentDeep,
+            )
+          : null,
     );
   }
 }

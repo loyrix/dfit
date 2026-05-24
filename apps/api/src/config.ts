@@ -20,6 +20,11 @@ export type ApiConfig = {
   host: string;
   port: number;
   aiProvider: "mock" | "openai" | "gemini" | "vertex";
+  adMob: {
+    rewardedSsvRequired: boolean;
+    rewardedSsvPublicKeysUrl: string;
+    rewardedSsvKeyCacheTtlMs: number;
+  };
   gemini: {
     apiKey?: string;
     model: string;
@@ -54,6 +59,13 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
     host: env.API_HOST ?? "127.0.0.1",
     port: Number(env.PORT ?? 4000),
     aiProvider: parseAiProvider(env.AI_PROVIDER),
+    adMob: {
+      rewardedSsvRequired: parseBoolean(env.ADMOB_REWARDED_SSV_REQUIRED, false),
+      rewardedSsvPublicKeysUrl:
+        env.ADMOB_REWARDED_SSV_PUBLIC_KEYS_URL ??
+        "https://www.gstatic.com/admob/reward/verifier-keys.json",
+      rewardedSsvKeyCacheTtlMs: Number(env.ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS ?? 86_400_000),
+    },
     gemini: {
       apiKey: env.GEMINI_API_KEY,
       model: env.GEMINI_MODEL ?? "gemini-2.5-flash",
@@ -113,6 +125,25 @@ export const validateApiConfig = (candidate: ApiConfig): void => {
       );
     }
   }
+
+  if (!candidate.adMob.rewardedSsvPublicKeysUrl.trim()) {
+    throw new Error("ADMOB_REWARDED_SSV_PUBLIC_KEYS_URL cannot be empty.");
+  }
+
+  if (
+    !Number.isFinite(candidate.adMob.rewardedSsvKeyCacheTtlMs) ||
+    candidate.adMob.rewardedSsvKeyCacheTtlMs <= 0
+  ) {
+    throw new Error("ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS must be a positive number.");
+  }
+};
+
+const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
+  if (value === undefined) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return fallback;
 };
 
 const parseAiProvider = (value: string | undefined): ApiConfig["aiProvider"] => {

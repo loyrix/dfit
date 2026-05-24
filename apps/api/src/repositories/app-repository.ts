@@ -100,6 +100,28 @@ export type RewardedAdCompletionInput = {
   placement: "scan_unlock";
   adUnitId?: string;
   transactionId?: string;
+  verificationToken?: string;
+  rewardType?: string;
+  rewardAmount?: number;
+};
+
+export type RewardedAdServerVerificationInput = {
+  provider: "admob";
+  transactionId: string;
+  profileId?: string;
+  adUnitId?: string;
+  customData?: string;
+  rewardType?: string;
+  rewardAmount?: number;
+  signatureKeyId?: string;
+  rawQuery: Record<string, string>;
+};
+
+export type RewardedAdServerVerification = {
+  transactionId: string;
+  profileId?: string;
+  adUnitId?: string;
+  customData?: string;
   rewardType?: string;
   rewardAmount?: number;
 };
@@ -165,6 +187,13 @@ export interface AppRepository {
   getQuota(): Promise<ScanCreditState>;
   getRewardedAdProgress(): Promise<RewardedAdProgressState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
+  recordRewardedAdServerVerification(
+    input: RewardedAdServerVerificationInput,
+  ): Promise<RewardedAdServerVerification>;
+  findRewardedAdServerVerification(input: {
+    profileId: string;
+    customData: string;
+  }): Promise<RewardedAdServerVerification | undefined>;
   completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;

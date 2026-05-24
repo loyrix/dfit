@@ -94,6 +94,7 @@ class LogMyPlateApiClient {
   Future<RewardedAdCredit> completeRewardedAd({
     required String adUnitId,
     required String idempotencyKey,
+    String? verificationToken,
     String? rewardType,
     int? rewardAmount,
   }) async {
@@ -102,6 +103,9 @@ class LogMyPlateApiClient {
       'placement': 'scan_unlock',
       if (adUnitId.isNotEmpty) 'adUnitId': adUnitId,
     };
+    if (verificationToken != null && verificationToken.trim().isNotEmpty) {
+      payload['verificationToken'] = verificationToken.trim();
+    }
     if (rewardType != null) payload['rewardType'] = rewardType;
     if (rewardAmount != null) payload['rewardAmount'] = rewardAmount;
 

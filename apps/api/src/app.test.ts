@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildApp } from "./app.js";
+import { buildApp, type BuildAppOptions } from "./app.js";
 import { currentRequestIdentity, type RequestIdentity } from "./request-context.js";
 import { InMemoryStore } from "./repositories/in-memory-store.js";
+import type { AdMobRewardedAdVerifier, AdMobRewardedSsvCallback } from "./services/admob-ssv.js";
 import type { AiProvider, AnalyzeMealImageInput } from "./services/ai-provider.js";
 import { analyzeWithMockProvider } from "./services/mock-ai-provider.js";
 import type {
@@ -14,11 +15,32 @@ import type {
 import { DisabledMealImageStorage as DisabledStorage } from "./services/meal-image-storage.js";
 import type { MealImageSummary } from "@logmyplate/domain";
 
-const testApp = () =>
+const testApp = (options: BuildAppOptions = {}) =>
   buildApp({
-    repository: new InMemoryStore(),
-    mealImageStorage: new DisabledStorage(),
+    repository: options.repository ?? new InMemoryStore(),
+    mealImageStorage: options.mealImageStorage ?? new DisabledStorage(),
+    ...options,
   });
+
+class TestRewardedAdVerifier implements AdMobRewardedAdVerifier {
+  async verifyCallbackUrl(rawUrl: string): Promise<AdMobRewardedSsvCallback> {
+    const query = rawUrl.includes("?") ? rawUrl.slice(rawUrl.indexOf("?") + 1) : rawUrl;
+    const rawQuery = Object.fromEntries(new URLSearchParams(query).entries());
+    return {
+      adNetwork: rawQuery.ad_network,
+      adUnitId: rawQuery.ad_unit,
+      customData: rawQuery.custom_data,
+      keyId: rawQuery.key_id ?? "test-key",
+      rewardAmount: rawQuery.reward_amount ? Number(rawQuery.reward_amount) : undefined,
+      rewardType: rawQuery.reward_item,
+      signature: rawQuery.signature ?? "test-signature",
+      timestamp: rawQuery.timestamp,
+      transactionId: rawQuery.transaction_id ?? "test-transaction",
+      userId: rawQuery.user_id,
+      rawQuery,
+    };
+  }
+}
 
 class TestMealImageStorage implements MealImageStorage {
   readonly enabled = true;
@@ -203,7 +225,7 @@ describe("LogMyPlate API", () => {
         freeLifetime: 3,
         rewardedCap: 5,
         launchTotalCap: 8,
-        rewardedAdsPerScan: 3,
+        rewardedAdsPerScan: 1,
         rewardedPeriod: "day",
       },
       features: {
@@ -1381,7 +1403,123 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
-  it("grants one rewarded scan after three completed ads", async () => {
+  it("records AdMob SSV callbacks and uses the verified token when required", async () => {
+    const app = await testApp({
+      rewardedAdVerifier: new TestRewardedAdVerifier(),
+      requireRewardedAdServerVerification: true,
+    });
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-ssv",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads-ssv@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const profileId = signup.json().profile.id as string;
+    const token = "reward-token-ssv-123456";
+
+    const callback = await app.inject({
+      method: "GET",
+      url:
+        `/v1/ads/rewarded/ssv?ad_network=5450213213286189855&ad_unit=1712485313` +
+        `&custom_data=${token}&reward_amount=1&reward_item=scan&timestamp=1770000000000` +
+        `&transaction_id=txn-ssv-1&user_id=${profileId}&signature=test-signature&key_id=test-key`,
+    });
+    expect(callback.statusCode).toBe(200);
+    expect(callback.json()).toEqual({ ok: true });
+
+    const complete = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "idempotency-key": "rewarded-ssv-complete",
+      },
+      payload: {
+        provider: "admob",
+        placement: "scan_unlock",
+        verificationToken: token,
+      },
+    });
+
+    expect(complete.statusCode).toBe(200);
+    expect(complete.json()).toMatchObject({
+      grantedScan: true,
+      adsWatchedToday: 1,
+      scansGrantedToday: 1,
+      quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
+    });
+    await app.close();
+  });
+
+  it("holds rewarded scan grants when required SSV has not arrived", async () => {
+    const app = await testApp({
+      rewardedAdVerifier: new TestRewardedAdVerifier(),
+      requireRewardedAdServerVerification: true,
+    });
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-ssv-pending",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads-ssv-pending@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const profileId = signup.json().profile.id as string;
+    const token = "reward-token-missing-123456";
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "idempotency-key": "rewarded-ssv-pending",
+      },
+      payload: {
+        provider: "admob",
+        placement: "scan_unlock",
+        verificationToken: token,
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: "rewarded_ad_verification_pending" });
+
+    await app.inject({
+      method: "GET",
+      url:
+        `/v1/ads/rewarded/ssv?custom_data=${token}&reward_amount=1&reward_item=scan` +
+        `&transaction_id=txn-ssv-late&user_id=${profileId}&signature=test-signature&key_id=test-key`,
+    });
+    const retry = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "idempotency-key": "rewarded-ssv-pending",
+      },
+      payload: {
+        provider: "admob",
+        placement: "scan_unlock",
+        verificationToken: token,
+      },
+    });
+    expect(retry.statusCode).toBe(200);
+    expect(retry.json()).toMatchObject({ grantedScan: true });
+    await app.close();
+  });
+
+  it("grants one rewarded scan after one completed ad", async () => {
     const app = await testApp();
     const installHeaders = {
       "x-logmyplate-install-id": "install-rewarded-ad",
@@ -1411,54 +1549,11 @@ describe("LogMyPlate API", () => {
     });
     expect(first.statusCode).toBe(200);
     expect(first.json()).toMatchObject({
-      grantedScan: false,
-      adsWatchedToday: 1,
-      adsNeededForNextScan: 2,
-      scansGrantedToday: 0,
-      dailyScanLimit: 5,
-      adsPerScan: 3,
-      quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
-    });
-
-    const second = await app.inject({
-      method: "POST",
-      url: "/v1/ads/rewarded/complete",
-      headers: { ...headers, "idempotency-key": "rewarded-ad-two" },
-      payload: {
-        provider: "admob",
-        placement: "scan_unlock",
-        adUnitId: "ca-app-pub-3940256099942544/1712485313",
-      },
-    });
-    expect(second.statusCode).toBe(200);
-    expect(second.json()).toMatchObject({
-      grantedScan: false,
-      adsWatchedToday: 2,
-      adsNeededForNextScan: 1,
-      scansGrantedToday: 0,
-      dailyScanLimit: 5,
-      adsPerScan: 3,
-      quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
-    });
-
-    const third = await app.inject({
-      method: "POST",
-      url: "/v1/ads/rewarded/complete",
-      headers: { ...headers, "idempotency-key": "rewarded-ad-three" },
-      payload: {
-        provider: "admob",
-        placement: "scan_unlock",
-        adUnitId: "ca-app-pub-3940256099942544/1712485313",
-      },
-    });
-    expect(third.statusCode).toBe(200);
-    expect(third.json()).toMatchObject({
       grantedScan: true,
-      adsWatchedToday: 3,
-      adsNeededForNextScan: 3,
+      adsWatchedToday: 1,
+      adsNeededForNextScan: 1,
       scansGrantedToday: 1,
       dailyScanLimit: 5,
-      adsPerScan: 3,
       quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
     });
     await app.close();
@@ -1483,7 +1578,7 @@ describe("LogMyPlate API", () => {
     };
 
     let lastPayload: Record<string, unknown> = {};
-    for (let index = 1; index <= 16; index += 1) {
+    for (let index = 1; index <= 6; index += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/v1/ads/rewarded/complete",
@@ -1496,7 +1591,7 @@ describe("LogMyPlate API", () => {
 
     expect(lastPayload).toMatchObject({
       grantedScan: false,
-      adsWatchedToday: 16,
+      adsWatchedToday: 6,
       adsNeededForNextScan: 0,
       scansGrantedToday: 5,
       quota: { freeRemaining: 3, rewardedRemaining: 5, premiumRemaining: 0 },
@@ -1547,15 +1642,13 @@ describe("LogMyPlate API", () => {
       authorization: `Bearer ${signup.json().accessToken}`,
     };
 
-    for (let index = 1; index <= 3; index += 1) {
-      const rewarded = await app.inject({
-        method: "POST",
-        url: "/v1/ads/rewarded/complete",
-        headers: { ...accountHeaders, "idempotency-key": `logout-rewarded-${index}` },
-        payload: { provider: "admob", placement: "scan_unlock" },
-      });
-      expect(rewarded.statusCode).toBe(200);
-    }
+    const rewarded = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...accountHeaders, "idempotency-key": "logout-rewarded-1" },
+      payload: { provider: "admob", placement: "scan_unlock" },
+    });
+    expect(rewarded.statusCode).toBe(200);
 
     const accountBootstrap = await app.inject({
       method: "GET",
