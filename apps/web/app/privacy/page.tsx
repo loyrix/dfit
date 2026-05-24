@@ -27,14 +27,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function InlineCode({ children }: { children: React.ReactNode }) {
-  return (
-    <code className="rounded px-1 py-0.5 text-[13px]" style={{ background: "var(--surface-100)" }}>
-      {children}
-    </code>
-  );
-}
-
 export default function PrivacyPage() {
   const jsonLd = {
     "@context": "https://schema.org",
@@ -80,9 +72,8 @@ export default function PrivacyPage() {
               color: "var(--text-secondary)",
             }}
           >
-            This policy is an engineering draft based on the current LogMyPlate app behavior. It
-            should be reviewed by a qualified lawyer before final App Store or Google Play
-            submission.
+            This policy explains what LogMyPlate collects, why it is used, when it may be shared,
+            and how you can request deletion of your app data.
           </div>
         </header>
 
@@ -97,7 +88,7 @@ export default function PrivacyPage() {
             >
               {APP_CONFIG.websiteUrl}
             </a>
-            , and the production API domain is <InlineCode>{APP_CONFIG.apiDomain}</InlineCode>.
+            .
           </p>
           <p>
             You can contact us at{" "}
@@ -114,28 +105,28 @@ export default function PrivacyPage() {
 
         <Section title="2. Information we collect">
           <p>
-            <strong style={{ color: "var(--text-primary)" }}>Anonymous install identity:</strong>{" "}
-            the app creates a random install identifier, such as <InlineCode>inst_...</InlineCode>,
-            and sends it with API requests in the <InlineCode>x-logmyplate-install-id</InlineCode>{" "}
-            header. This helps us associate requests from the same app installation without
-            requiring an account.
+            <strong style={{ color: "var(--text-primary)" }}>App installation identity:</strong> the
+            app may create a random identifier for your app installation so we can keep scan limits,
+            rewarded scan credits, and basic app state working without requiring every user to
+            create an account.
           </p>
           <p>
-            <strong style={{ color: "var(--text-primary)" }}>Device and request data:</strong> the
-            app may send platform, locale, region, timezone, app version, request path, response
-            status, timing, IP address, and error data for reliability, abuse prevention, and
-            debugging.
+            <strong style={{ color: "var(--text-primary)" }}>Device and technical data:</strong> the
+            app and website may collect basic technical information such as device platform, app
+            version, language or region settings, approximate request location from IP address,
+            diagnostics, and error information for reliability, security, abuse prevention, and
+            support.
           </p>
           <p>
             <strong style={{ color: "var(--text-primary)" }}>Account data:</strong> if you create an
-            account, we collect your email address, hashed password, authentication session tokens,
-            and account status. We do not store your plaintext password.
+            account, we collect your email address and authentication information needed to create,
+            secure, and manage your account. We do not store your plaintext password.
           </p>
           <p>
             <strong style={{ color: "var(--text-primary)" }}>Meal photos and notes:</strong> when
-            you scan a meal, the app sends the photo and optional food note to our backend for AI
-            analysis. Meal photos may be stored privately with your meal log when image storage is
-            enabled.
+            you scan a meal, the app sends the photo and optional food note for AI analysis. Meal
+            photos may be stored privately with your meal log when they are attached to saved
+            journal entries.
           </p>
           <p>
             <strong style={{ color: "var(--text-primary)" }}>
@@ -175,31 +166,28 @@ export default function PrivacyPage() {
 
         <Section title="4. AI analysis providers">
           <p>
-            Meal analysis is performed by the active AI provider configured on our backend. Current
-            supported providers include Google Gemini through the Generative Language API, Google
-            Vertex AI, and OpenAI-compatible server configuration.
+            Meal analysis is performed using third-party AI service providers that help identify
+            visible food items and estimate nutrition values.
           </p>
           <p>
-            Your meal photo, note, and necessary request context may be sent to the active provider
-            to generate food item and nutrition estimates. Providers process this data under their
-            own terms and privacy practices.
+            Your meal photo, note, and limited technical context may be shared with those providers
+            only as needed to generate food item and nutrition estimates. These providers process
+            data under their own privacy and security commitments.
           </p>
         </Section>
 
         <Section title="5. Advertising and AdMob">
           <p>
             LogMyPlate uses Google AdMob rewarded ads to let users unlock additional scans beyond
-            free scan limits. Our AdMob publisher ID is{" "}
-            <InlineCode>{APP_CONFIG.admobPublisherId}</InlineCode>, and our app-ads.txt file is
-            available at{" "}
+            free scan limits. Our authorized seller information for ads is published in our{" "}
             <a
               href="/app-ads.txt"
               className="underline underline-offset-4"
               style={{ color: "var(--app-amber)" }}
             >
-              /app-ads.txt
-            </a>
-            .
+              app-ads.txt
+            </a>{" "}
+            file.
           </p>
           <p>
             Google Mobile Ads SDK and Google AdMob may collect device identifiers, advertising
@@ -221,9 +209,9 @@ export default function PrivacyPage() {
             policies.
           </p>
           <p>
-            We may use hosting, logging, database, object storage, email, AI, and ad providers to
-            operate the service. These providers process data only as needed for their role in the
-            service.
+            We may use trusted service providers for hosting, security, analytics, customer support,
+            data storage, email delivery, AI analysis, and advertising. These providers are allowed
+            to process data only as needed to perform services for LogMyPlate.
           </p>
         </Section>
 
@@ -242,8 +230,8 @@ export default function PrivacyPage() {
         <Section title="8. Deletion and account removal">
           <p>
             You can request deletion of your account and associated app data. Deletion removes
-            account profile data, meal logs, health targets, stored meal photos where enabled, and
-            session tokens from active systems.
+            account profile data, meal logs, health targets, stored meal photos, and active sign-in
+            records associated with your account.
           </p>
           <p>
             Read the{" "}
@@ -260,9 +248,9 @@ export default function PrivacyPage() {
 
         <Section title="9. Security">
           <p>
-            We use HTTPS for data in transit, password hashing for account passwords, private object
-            storage for stored meal images, and operational controls to protect app data. No method
-            of transmission or storage is perfectly secure.
+            We use reasonable technical and organizational safeguards designed to protect app data,
+            including encrypted connections, password protection measures, access controls, and
+            operational monitoring. No method of transmission or storage is perfectly secure.
           </p>
         </Section>
 

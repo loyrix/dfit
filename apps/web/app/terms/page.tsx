@@ -72,8 +72,8 @@ export default function TermsPage() {
               color: "var(--text-secondary)",
             }}
           >
-            These terms are an engineering draft and should be reviewed by a qualified lawyer before
-            final App Store or Google Play submission.
+            These terms explain the rules for using LogMyPlate, including AI estimates, account
+            access, app stores, rewarded ads, and responsible use.
           </div>
         </header>
 
@@ -152,9 +152,9 @@ export default function TermsPage() {
         <Section title="6. Acceptable use">
           <p>You agree not to:</p>
           <ul className="ml-5 flex list-disc flex-col gap-2">
-            <li>Use the app or API for unlawful, abusive, or fraudulent activity</li>
+            <li>Use the app or service for unlawful, abusive, or fraudulent activity</li>
             <li>Bypass scan quotas, rewarded-ad verification, rate limits, or security controls</li>
-            <li>Reverse engineer, scrape, overload, or interfere with the app or backend</li>
+            <li>Reverse engineer, scrape, overload, or interfere with the app or service</li>
             <li>Submit malicious files, prompts, or images intended to manipulate the AI system</li>
             <li>Misrepresent AI estimates as clinical, medical, or certified nutrition data</li>
             <li>Use the app to build a competing service without permission</li>
