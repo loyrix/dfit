@@ -187,17 +187,18 @@ void main() {
           'provider': 'admob',
           'placement': 'scan_unlock',
           'adUnitId': 'ca-app-pub-3940256099942544/1712485313',
+          'verificationToken': 'reward-token-123456',
           'rewardType': 'coin',
           'rewardAmount': 1,
         });
         return http.Response(
           jsonEncode({
             'grantedScan': true,
-            'adsWatchedToday': 3,
-            'adsNeededForNextScan': 3,
+            'adsWatchedToday': 1,
+            'adsNeededForNextScan': 1,
             'scansGrantedToday': 1,
             'dailyScanLimit': 5,
-            'adsPerScan': 3,
+            'adsPerScan': 1,
             'quota': {
               'freeRemaining': 0,
               'rewardedRemaining': 1,
@@ -212,13 +213,14 @@ void main() {
     final reward = await client.completeRewardedAd(
       adUnitId: 'ca-app-pub-3940256099942544/1712485313',
       idempotencyKey: 'ad-reward-key',
+      verificationToken: 'reward-token-123456',
       rewardType: 'coin',
       rewardAmount: 1,
     );
 
     expect(reward.grantedScan, isTrue);
-    expect(reward.adsWatchedToday, 3);
-    expect(reward.adsPerScan, 3);
+    expect(reward.adsWatchedToday, 1);
+    expect(reward.adsPerScan, 1);
     expect(reward.dailyScanLimit, 5);
     expect(reward.quota.rewardedRemaining, 1);
   });

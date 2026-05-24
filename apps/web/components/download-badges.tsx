@@ -22,7 +22,7 @@ export function DownloadBadges({ size = "md", className = "" }: DownloadBadgesPr
         target="_blank"
         rel="noopener noreferrer"
         id="badge-app-store"
-        aria-label="Download LogMyPlate on the App Store"
+        aria-label={`Download ${APP_CONFIG.appName} on the App Store`}
         className={`inline-flex items-center ${h} px-4 rounded-xl font-semibold text-[13px] transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 gap-2.5 select-none`}
         style={{
           background: "#111",
@@ -47,7 +47,7 @@ export function DownloadBadges({ size = "md", className = "" }: DownloadBadgesPr
         target="_blank"
         rel="noopener noreferrer"
         id="badge-google-play"
-        aria-label="Get LogMyPlate on Google Play"
+        aria-label={`Get ${APP_CONFIG.appName} on Google Play`}
         className={`inline-flex items-center ${h} px-4 rounded-xl font-semibold text-[13px] transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 gap-2.5 select-none`}
         style={{
           background: "#111",

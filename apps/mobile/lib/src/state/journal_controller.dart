@@ -208,6 +208,7 @@ class JournalController extends ChangeNotifier {
   Future<RewardedAdCredit> completeRewardedAd({
     required String adUnitId,
     required String idempotencyKey,
+    String? verificationToken,
     String? rewardType,
     int? rewardAmount,
   }) async {
@@ -215,6 +216,7 @@ class JournalController extends ChangeNotifier {
       final reward = await _apiClient.completeRewardedAd(
         adUnitId: adUnitId,
         idempotencyKey: idempotencyKey,
+        verificationToken: verificationToken,
         rewardType: rewardType,
         rewardAmount: rewardAmount,
       );
@@ -224,6 +226,10 @@ class JournalController extends ChangeNotifier {
       notifyListeners();
       return reward;
     } catch (error, stackTrace) {
+      if (error is LogMyPlateApiException &&
+          error.errorCode == 'rewarded_ad_verification_pending') {
+        rethrow;
+      }
       AppDiagnostics.instance.record(
         'ads.rewarded.complete',
         error,

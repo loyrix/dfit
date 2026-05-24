@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="LogMyPlate"
+        android:label="LogMyPlate: AI Calorie Tracker"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

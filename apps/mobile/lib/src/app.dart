@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/rewarded_ad_service.dart';
+import 'services/logmyplate_api_client.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'theme/logmyplate_colors.dart';
@@ -445,7 +448,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       );
 
       if (action == _NoScanCreditsAction.watchAd) {
-        return _watchConsecutiveRewardedAdsForScan();
+        return _watchRewardedAdForScanUnlock();
       } else if (action == _NoScanCreditsAction.addManually) {
         await _openManualReview();
       } else if (action == _NoScanCreditsAction.refresh) {
@@ -458,44 +461,35 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     return false;
   }
 
-  Future<bool> _watchConsecutiveRewardedAdsForScan() async {
-    while (mounted) {
-      final progress = _journalController.rewardedAdProgress;
-      if (progress.dailyLimitReached) return false;
-
-      final result = await _watchRewardedAdForScan();
-      if (result == _RewardedAdWatchResult.unlocked) return true;
-      if (result == _RewardedAdWatchResult.failed) return false;
-    }
-
-    return false;
-  }
-
-  Future<_RewardedAdWatchResult> _watchRewardedAdForScan() async {
+  Future<bool> _watchRewardedAdForScanUnlock() async {
     final progress = _journalController.rewardedAdProgress;
-    final next = progress.adsNeededForNextScan;
+    if (progress.dailyLimitReached) return false;
+
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.info,
-      title: next == 1 ? 'Final ad' : 'Preparing ad',
-      message: next == 1
-          ? 'Finish this ad to unlock your scan.'
-          : 'Keep watching to unlock 1 scan.',
+      title: 'Preparing ad',
+      message: 'Complete the rewarded ad to unlock 1 scan.',
     );
 
-    final outcome = await _rewardedAds.showScanUnlockAd();
+    final verificationToken = _newRewardedAdVerificationToken();
+    final outcome = await _showScanUnlockAdWithLoader(
+      verificationToken: verificationToken,
+      serverSideUserId: _authController.session?.profileId,
+    );
     if (!outcome.earnedReward) {
       _showJournalNotice(
         tone: LogMyPlateNoticeTone.warning,
         title: 'Ad not completed',
         message: outcome.errorMessage ?? 'Watch a full ad to earn progress.',
       );
-      return _RewardedAdWatchResult.failed;
+      return false;
     }
 
     try {
-      final reward = await _journalController.completeRewardedAd(
+      final reward = await _completeRewardedAdWithVerificationRetry(
         adUnitId: outcome.adUnitId,
-        idempotencyKey: 'rewarded-ad-${DateTime.now().microsecondsSinceEpoch}',
+        idempotencyKey: 'rewarded-ad-$verificationToken',
+        verificationToken: verificationToken,
         rewardType: outcome.rewardType,
         rewardAmount: outcome.rewardAmount,
       );
@@ -506,28 +500,116 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           title: 'Scan unlocked',
           message: 'You can scan one more meal now.',
         );
-        return reward.quota.totalRemaining > 0
-            ? _RewardedAdWatchResult.unlocked
-            : _RewardedAdWatchResult.failed;
+        return reward.quota.totalRemaining > 0;
       }
 
-      final next = reward.adsNeededForNextScan;
       _showJournalNotice(
-        tone: LogMyPlateNoticeTone.info,
-        title: 'Almost there',
-        message: next == 1
-            ? 'Opening 1 more ad to unlock your scan.'
-            : 'Opening $next more ads to unlock your scan.',
+        tone: LogMyPlateNoticeTone.warning,
+        title: 'Scan not unlocked',
+        message: reward.scansGrantedToday >= reward.dailyScanLimit
+            ? 'Today\'s ad unlock limit has been reached.'
+            : 'The ad was completed, but no scan credit was granted.',
       );
-      return _RewardedAdWatchResult.progressed;
-    } catch (_) {
+      return false;
+    } catch (error) {
+      if (error is LogMyPlateApiException &&
+          error.errorCode == 'rewarded_ad_verification_pending') {
+        _showJournalNotice(
+          tone: LogMyPlateNoticeTone.warning,
+          title: 'Verification delayed',
+          message:
+              'The ad was watched, but Google verification is still pending.',
+        );
+        return false;
+      }
+
       _showJournalNotice(
         tone: LogMyPlateNoticeTone.error,
         title: 'Unlock sync failed',
         message: 'Ad was watched, but the scan could not be credited.',
       );
-      return _RewardedAdWatchResult.failed;
+      return false;
     }
+  }
+
+  Future<RewardedAdCredit> _completeRewardedAdWithVerificationRetry({
+    required String adUnitId,
+    required String idempotencyKey,
+    required String verificationToken,
+    String? rewardType,
+    int? rewardAmount,
+  }) async {
+    const retryDelays = [
+      Duration(milliseconds: 700),
+      Duration(milliseconds: 1200),
+      Duration(milliseconds: 1800),
+      Duration(milliseconds: 2500),
+    ];
+
+    for (var attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+      try {
+        return await _journalController.completeRewardedAd(
+          adUnitId: adUnitId,
+          idempotencyKey: idempotencyKey,
+          verificationToken: verificationToken,
+          rewardType: rewardType,
+          rewardAmount: rewardAmount,
+        );
+      } catch (error) {
+        final pendingVerification =
+            error is LogMyPlateApiException &&
+            error.errorCode == 'rewarded_ad_verification_pending';
+        if (!pendingVerification || attempt == retryDelays.length) rethrow;
+
+        if (attempt == 0) {
+          _showJournalNotice(
+            tone: LogMyPlateNoticeTone.info,
+            title: 'Verifying ad',
+            message: 'Finishing the rewarded scan unlock now.',
+          );
+        }
+        await Future<void>.delayed(retryDelays[attempt]);
+      }
+    }
+
+    throw StateError('Rewarded ad verification retry loop exhausted.');
+  }
+
+  Future<RewardedAdOutcome> _showScanUnlockAdWithLoader({
+    required String verificationToken,
+    String? serverSideUserId,
+  }) async {
+    final context = _navigatorKey.currentContext;
+    final overlay = context == null || !context.mounted
+        ? null
+        : Overlay.maybeOf(context, rootOverlay: true);
+    OverlayEntry? loader;
+
+    void hideLoader() {
+      loader?.remove();
+      loader = null;
+    }
+
+    if (overlay != null) {
+      loader = OverlayEntry(builder: (_) => const _RewardedAdLoadingOverlay());
+      overlay.insert(loader!);
+    }
+
+    try {
+      return await _rewardedAds.showScanUnlockAd(
+        onAdShowed: hideLoader,
+        serverSideUserId: serverSideUserId,
+        verificationToken: verificationToken,
+      );
+    } finally {
+      hideLoader();
+    }
+  }
+
+  String _newRewardedAdVerificationToken() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(24, (_) => random.nextInt(256));
+    return base64UrlEncode(bytes).replaceAll('=', '');
   }
 
   void _showJournalNotice({
@@ -1213,8 +1295,6 @@ class _JournalTabLoadingScreen extends StatelessWidget {
 
 enum _NoScanCreditsAction { watchAd, addManually, refresh }
 
-enum _RewardedAdWatchResult { unlocked, progressed, failed }
-
 class _NoScanCreditsSheet extends StatelessWidget {
   const _NoScanCreditsSheet({required this.progress});
 
@@ -1227,13 +1307,20 @@ class _NoScanCreditsSheet extends StatelessWidget {
     final completed = progress.dailyLimitReached
         ? progress.adsPerScan
         : progress.adsCompletedTowardNextScan;
-    final title = adsNeeded == 1 ? 'Almost there' : 'No scans left';
+    final usesSingleAd = progress.adsPerScan <= 1;
+    final title = usesSingleAd || adsNeeded != 1
+        ? 'No scans left'
+        : 'Almost there';
     final description = progress.dailyLimitReached
         ? 'You have reached today\'s ad unlock limit. Add this meal manually or refresh later.'
+        : usesSingleAd
+        ? 'Watch one rewarded ad to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.'
         : adsNeeded == 1
         ? 'Watch 1 more rewarded ad to unlock 1 scan.'
         : 'Watch $adsNeeded rewarded ads to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.';
-    final buttonLabel = adsNeeded == 1
+    final buttonLabel = usesSingleAd
+        ? 'Watch ad'
+        : adsNeeded == 1
         ? 'Watch final ad'
         : 'Start earning scan';
 
@@ -1260,7 +1347,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              if (!progress.dailyLimitReached) ...[
+              if (!progress.dailyLimitReached && !usesSingleAd) ...[
                 const SizedBox(height: 12),
                 Text(
                   'Progress $completed of ${progress.adsPerScan} ads',
@@ -1307,6 +1394,60 @@ class _NoScanCreditsSheet extends StatelessWidget {
                 child: const Text('Refresh quota'),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RewardedAdLoadingOverlay extends StatelessWidget {
+  const _RewardedAdLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Positioned.fill(
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.42),
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.surfaceCard,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: colors.border),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.6,
+                      color: colors.primaryAction,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Loading rewarded ad',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Your scan unlock starts after the ad completes.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

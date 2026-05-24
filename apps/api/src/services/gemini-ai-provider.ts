@@ -13,7 +13,7 @@ import {
   type AnalyzeMealImageResult,
 } from "./ai-provider.js";
 
-export const foodPhotoPromptVersion = "gemini_food_photo_v4";
+export const foodPhotoPromptVersion = "gemini_food_photo_v5";
 export const foodPhotoSchemaVersion = "scan_v1";
 
 const preparationSchema = z.enum(["home", "restaurant", "packaged", "unknown"]);
@@ -306,6 +306,14 @@ VISIBLE-ONLY RULES:
 - If uncertain, prefer a conservative identification, lower confidence, and add a plausible
   alternative identification in aliases rather than guessing.
 - Accuracy is more important than completeness.
+
+REGIONAL DISAMBIGUATION:
+- Use regional plate context only to choose between visually plausible foods; it must not override
+  visible-only rules.
+- In Indian thali photos, a smooth pink liquid/side in a katori may be Solkadhi/kokum kadhi or
+  pink/beetroot raita. Prefer Solkadhi/kokum kadhi when it appears smooth and drink-like in
+  Maharashtrian, Goan, Konkani, or coastal thali context; call it raita only when yogurt/curd
+  texture or vegetable/herb pieces are visible.
 
 PORTION ESTIMATION METHOD:
 - Use plate geometry, relative object scaling, estimated plate diameter, food area coverage,

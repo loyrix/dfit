@@ -1,78 +1,75 @@
-# LogMyPlate — Web
+# LogMyPlate: AI Calorie Tracker — Web
 
-Marketing website for [LogMyPlate](https://logmyplate.com), a photo-based meal calorie and macro tracker for iOS and Android.
+Production marketing, legal, and SEO website for [LogMyPlate: AI Calorie Tracker](https://logmyplate.com), a photo-based calorie and macro tracker for iOS and Android.
 
 Built with **Next.js 16 + App Router + TypeScript + Tailwind CSS 4**.
-
----
 
 ## Development
 
 ```bash
 # From repo root
 pnpm install
-cd apps/web
-pnpm dev       # http://localhost:3000
+pnpm --filter web dev
 
 # Type check
-pnpm typecheck
+pnpm --filter web typecheck
 
-# Build
-pnpm build
+# Production build
+pnpm --filter web build
 ```
 
----
+## Production Domains
 
-## Deploying to Vercel
+| Use          | Domain                                                   |
+| ------------ | -------------------------------------------------------- |
+| Website      | `logmyplate.com`                                         |
+| API backend  | `api.logmyplate.com` as a separate Vercel/API deployment |
+| AdMob seller | `https://logmyplate.com/app-ads.txt`                     |
 
-This package is designed to be deployed as a **standalone Vercel project** from the monorepo.
+## Vercel Project Settings
 
-### Vercel project settings
+| Setting          | Value          |
+| ---------------- | -------------- |
+| Root Directory   | `apps/web`     |
+| Framework Preset | Next.js        |
+| Install Command  | `pnpm install` |
+| Build Command    | `pnpm build`   |
+| Output Directory | `.next`        |
 
-| Setting              | Value                   |
-| -------------------- | ----------------------- |
-| **Root Directory**   | `apps/web`              |
-| **Framework Preset** | Next.js                 |
-| **Install Command**  | `pnpm install`          |
-| **Build Command**    | `pnpm build`            |
-| **Output Directory** | `.next` (auto-detected) |
+## Key Files
 
-### Recommended domains
+| Path                         | Purpose                                          |
+| ---------------------------- | ------------------------------------------------ |
+| `config/app.ts`              | App metadata, store URLs, domains, support email |
+| `app/layout.tsx`             | Root SEO metadata, app links, icons, theme color |
+| `app/sitemap.ts`             | Sitemap served at `/sitemap.xml`                 |
+| `app/robots.ts`              | Robots rules served at `/robots.txt`             |
+| `app/opengraph-image.tsx`    | Generated social share image                     |
+| `app/guides/content.ts`      | SEO guide/blog content source                    |
+| `app/privacy/page.tsx`       | Privacy Policy draft                             |
+| `app/terms/page.tsx`         | Terms of Service draft                           |
+| `app/data-deletion/page.tsx` | Account and data deletion instructions           |
+| `public/app-ads.txt`         | AdMob publisher verification                     |
 
-| Use          | Domain                                                      |
-| ------------ | ----------------------------------------------------------- |
-| Landing page | `logmyplate.com`                                            |
-| API backend  | `api.logmyplate.com` → `apps/api` (separate Vercel project) |
+## Launch Checklist
 
----
+- Confirm App Store and Google Play URLs in `config/app.ts`.
+- Confirm `support@logmyplate.com` inbox exists and is monitored.
+- Confirm `api.logmyplate.com` is configured for the backend project.
+- Verify `https://logmyplate.com/app-ads.txt` returns the AdMob seller line.
+- Submit `/privacy`, `/terms`, and `/data-deletion` URLs in App Store Connect and Google Play Console as needed.
+- Have the legal pages reviewed by a qualified lawyer before final store submission.
 
-## Key files
+## SEO
 
-| Path                 | Purpose                                                  |
-| -------------------- | -------------------------------------------------------- |
-| `app/config/app.ts`  | App Store URL, Play Store URL, API domain, support email |
-| `public/app-ads.txt` | AdMob publisher verification (`pub-6936425975956435`)    |
-| `app/sitemap.ts`     | SEO sitemap (auto-served at `/sitemap.xml`)              |
-| `app/robots.ts`      | Robots.txt (auto-served at `/robots.txt`)                |
+The site includes:
 
-### Updating store URLs
-
-Before launch, update `app/config/app.ts`:
-
-```ts
-appStoreUrl: "https://apps.apple.com/app/logmyplate/id<YOUR_APP_ID>",
-playStoreUrl: "https://play.google.com/store/apps/details?id=<YOUR_PACKAGE_ID>",
-```
-
----
-
-## Legal pages
-
-`/privacy` and `/terms` are engineering drafts based on actual app behavior.
-**They must be reviewed by a qualified lawyer before App Store or Google Play submission.**
-
----
+- Root metadata with canonical URL, Open Graph, Twitter card, app links, icons, and manifest.
+- Generated Open Graph image at `/opengraph-image`.
+- `robots.txt` and `sitemap.xml`.
+- Structured data for the homepage, guide index, guide articles, FAQs, privacy, terms, and data deletion pages.
+- Dynamic guide routes generated from `app/guides/content.ts`.
 
 ## Theme
 
-The site supports light and dark themes via `next-themes`. The theme toggle is in the top-right nav. Default follows the user&apos;s system preference.
+The site follows the mobile app palette and supports light/dark/system themes via `next-themes`.

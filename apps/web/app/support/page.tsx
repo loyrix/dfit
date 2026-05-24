@@ -4,14 +4,14 @@ import { APP_CONFIG } from "@/config/app";
 
 export const metadata: Metadata = {
   title: "Support",
-  description: "Get help with LogMyPlate — FAQ, tips, and contact information.",
+  description: "Get help with LogMyPlate: AI Calorie Tracker — FAQ, tips, and contact information.",
   alternates: { canonical: "/support" },
 };
 
 const faqs = [
   {
     q: "How accurate are the calorie estimates?",
-    a: "LogMyPlate uses AI to estimate calories and macros from a photo. Accuracy depends on photo quality, how clearly each item is visible, and portion estimation from visual size. Expect estimates within a reasonable range — treat them as a useful reference, not a clinical measurement.",
+    a: "LogMyPlate: AI Calorie Tracker uses AI to estimate calories and macros from a photo. Accuracy depends on photo quality, how clearly each item is visible, and portion estimation from visual size. Expect estimates within a reasonable range — treat them as a useful reference, not a clinical measurement.",
   },
   {
     q: "Can I correct the AI's food item list?",

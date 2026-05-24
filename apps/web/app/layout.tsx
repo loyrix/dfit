@@ -7,34 +7,92 @@ import { APP_CONFIG } from "@/config/app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_CONFIG.websiteUrl),
+  applicationName: APP_CONFIG.appName,
+  category: "Health & Fitness",
+  keywords: [...APP_CONFIG.keywords],
+  authors: [{ name: APP_CONFIG.developerName, url: APP_CONFIG.websiteUrl }],
+  creator: APP_CONFIG.developerName,
+  publisher: APP_CONFIG.developerName,
+  manifest: "/site.webmanifest",
   title: {
     default: `${APP_CONFIG.appName} — Track Meals from a Photo`,
     template: `%s | ${APP_CONFIG.appName}`,
   },
   description: APP_CONFIG.description,
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     type: "website",
+    url: APP_CONFIG.websiteUrl,
     siteName: APP_CONFIG.appName,
     title: `${APP_CONFIG.appName} — Track Meals from a Photo`,
     description: APP_CONFIG.description,
-    images: [{ url: "/icon.png", width: 1024, height: 1024, alt: "LogMyPlate" }],
+    locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: `${APP_CONFIG.appName} app preview`,
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: `${APP_CONFIG.appName} — Track Meals from a Photo`,
     description: APP_CONFIG.description,
-    images: ["/icon.png"],
+    images: ["/opengraph-image"],
+  },
+  appLinks: {
+    ios: {
+      url: APP_CONFIG.appStoreUrl,
+      app_store_id: APP_CONFIG.iosAppId,
+      app_name: APP_CONFIG.appName,
+    },
+    android: {
+      package: APP_CONFIG.androidPackage,
+      app_name: APP_CONFIG.appName,
+      url: APP_CONFIG.playStoreUrl,
+    },
+    web: {
+      url: APP_CONFIG.websiteUrl,
+      should_fallback: true,
+    },
+  },
+  appleWebApp: {
+    capable: true,
+    title: APP_CONFIG.brandName,
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
   },
   icons: {
-    icon: "/icon.png",
-    apple: "/icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
   },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
-    { media: "(prefers-color-scheme: dark)", color: "#111114" },
+    { media: "(prefers-color-scheme: light)", color: APP_CONFIG.lightThemeColor },
+    { media: "(prefers-color-scheme: dark)", color: APP_CONFIG.darkThemeColor },
   ],
 };
 

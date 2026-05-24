@@ -31,40 +31,52 @@
 
 /* ─── Light Theme ────────────────────────────────────────────────────────────── */
 :root {
-  --surface-50: #fafaf9;
-  --surface-100: #f5f5f0;
-  --surface-200: #e8e8e0;
+  --surface-50: #fbfaf5;
+  --surface-100: #f4f0e5;
+  --surface-200: #e7ddc7;
   --surface-800: #2c2c32;
   --surface-900: #1a1a1f;
   --surface-950: #111114;
 
-  --text-primary: #111114;
-  --text-secondary: #44444d;
-  --text-muted: #888894;
+  --text-primary: #101713;
+  --text-secondary: #5f655f;
+  --text-muted: #9a9d96;
 
-  --border: #e2e2da;
+  --border: #e8dfcd;
 
-  --background: #fafaf9;
-  --foreground: #111114;
+  --background: #fbfaf5;
+  --background-rgb: 251, 250, 245;
+  --foreground: #101713;
+  --app-card: #fffaf0;
+  --app-card-strong: #ffffff;
+  --app-amber: #efbd44;
+  --app-teal: #70caa3;
+  --app-coral: #ff7e78;
 }
 
 /* ─── Dark Theme ─────────────────────────────────────────────────────────────── */
 .dark {
-  --surface-50: #1a1a1f;
-  --surface-100: #222228;
-  --surface-200: #2c2c35;
+  --surface-50: #111914;
+  --surface-100: #17211b;
+  --surface-200: #253029;
   --surface-800: #e0e0d8;
   --surface-900: #ebebe3;
   --surface-950: #f5f5f0;
 
-  --text-primary: #f0f0ec;
-  --text-secondary: #b0b0b8;
-  --text-muted: #68687a;
+  --text-primary: #f7f4ed;
+  --text-secondary: #b8b5ad;
+  --text-muted: #787a73;
 
-  --border: #2e2e38;
+  --border: #26342c;
 
-  --background: #111114;
-  --foreground: #f0f0ec;
+  --background: #0c120f;
+  --background-rgb: 12, 18, 15;
+  --foreground: #f7f4ed;
+  --app-card: #121c16;
+  --app-card-strong: #18231d;
+  --app-amber: #efbd44;
+  --app-teal: #70caa3;
+  --app-coral: #ff7e78;
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────────── */
@@ -84,6 +96,9 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: "Inter", system-ui, sans-serif;
+  background-image:
+    linear-gradient(rgba(var(--background-rgb), 0.96), rgba(var(--background-rgb), 0.96)),
+    linear-gradient(90deg, rgba(239, 189, 68, 0.04), rgba(112, 202, 163, 0.03));
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
@@ -96,10 +111,23 @@ body {
 
 /* ─── Gradient text ──────────────────────────────────────────────────────────── */
 .gradient-text {
-  background: linear-gradient(135deg, #f5a623 0%, #e8634a 60%, #5bbcaa 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-amber) 0%,
+    var(--app-coral) 58%,
+    var(--app-teal) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.app-rings {
+  background-image: repeating-radial-gradient(
+    circle,
+    rgba(239, 189, 68, 0.16) 0 1px,
+    transparent 1px 34px
+  );
 }
 
 /* ─── Subtle glass surface ───────────────────────────────────────────────────── */

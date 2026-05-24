@@ -27,7 +27,7 @@ export function Nav() {
     <header
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled ? "rgba(var(--background-rgb, 250, 250, 249), 0.92)" : "transparent",
+        background: scrolled ? "rgba(var(--background-rgb), 0.88)" : "transparent",
         backdropFilter: scrolled ? "blur(16px)" : "none",
         WebkitBackdropFilter: scrolled ? "blur(16px)" : "none",
         borderBottom: scrolled ? "1px solid var(--border)" : "1px solid transparent",

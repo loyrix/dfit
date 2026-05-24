@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { DownloadBadges } from "@/components/download-badges";
+import { APP_CONFIG } from "@/config/app";
 
 export const metadata: Metadata = {
-  title: "Download LogMyPlate",
+  title: `Download ${APP_CONFIG.appName}`,
   description:
-    "Download LogMyPlate on iPhone or Android. Snap a photo of any meal and get instant calorie and macro estimates — no barcodes, no database searching.",
+    "Download LogMyPlate: AI Calorie Tracker on iPhone or Android. Snap a photo of any meal and get instant calorie and macro estimates — no barcodes, no database searching.",
   alternates: { canonical: "/download" },
 };
 
@@ -36,6 +37,7 @@ export default function DownloadPage() {
             Download
             <br />
             <span className="gradient-text">LogMyPlate</span>
+            <span className="block text-2xl sm:text-3xl mt-2">AI Calorie Tracker</span>
           </h1>
           <p
             className="text-[17px] leading-relaxed max-w-md"

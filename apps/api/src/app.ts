@@ -19,6 +19,10 @@ import { registerScanRoutes } from "./routes/scans.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { config } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
+import {
+  GoogleAdMobRewardedAdVerifier,
+  type AdMobRewardedAdVerifier,
+} from "./services/admob-ssv.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
 import { registerBootstrapRoutes } from "./routes/bootstrap.js";
 import { createMealImageStorage, type MealImageStorage } from "./services/meal-image-storage.js";
@@ -27,6 +31,8 @@ export type BuildAppOptions = {
   repository?: AppRepository;
   sql?: SqlClient;
   aiProvider?: AiProvider;
+  rewardedAdVerifier?: AdMobRewardedAdVerifier;
+  requireRewardedAdServerVerification?: boolean;
   mealImageStorage?: MealImageStorage;
 };
 
@@ -49,6 +55,12 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
     options.aiProvider ??
     (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config));
   const mealImageStorage = options.mealImageStorage ?? createMealImageStorage(config);
+  const rewardedAdVerifier =
+    options.rewardedAdVerifier ??
+    new GoogleAdMobRewardedAdVerifier({
+      publicKeysUrl: config.adMob.rewardedSsvPublicKeysUrl,
+      keyCacheTtlMs: config.adMob.rewardedSsvKeyCacheTtlMs,
+    });
 
   if (sql) {
     app.addHook("onClose", async () => {
@@ -64,7 +76,11 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerRequestContext(app);
   await registerIdempotency(app, repository);
   await registerConfigRoutes(app);
-  await registerAdRoutes(app, repository);
+  await registerAdRoutes(app, repository, {
+    rewardedAdVerifier,
+    requireRewardedAdServerVerification:
+      options.requireRewardedAdServerVerification ?? config.adMob.rewardedSsvRequired,
+  });
   await registerFoodRoutes(app, repository);
   await registerProfileRoutes(app, repository, mealImageStorage);
   await registerBootstrapRoutes(app, repository, mealImageStorage);

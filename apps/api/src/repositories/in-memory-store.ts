@@ -25,6 +25,8 @@ import type {
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   RewardedAdProgressState,
+  RewardedAdServerVerification,
+  RewardedAdServerVerificationInput,
   ScanSession,
   UpdateMealInput,
   UpsertProfileHealthTargetInput,
@@ -58,6 +60,8 @@ export class InMemoryStore implements AppRepository {
     string,
     { completedAds: number; grantedScans: number }
   >();
+  private readonly rewardedAdServerVerifications = new Map<string, RewardedAdServerVerification>();
+  private readonly rewardedAdTransactions = new Set<string>();
 
   async getProfile(): Promise<Profile> {
     const identity = currentRequestIdentity();
@@ -279,7 +283,32 @@ export class InMemoryStore implements AppRepository {
     return this.getQuota();
   }
 
-  async completeRewardedAd(_input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
+  async recordRewardedAdServerVerification(
+    input: RewardedAdServerVerificationInput,
+  ): Promise<RewardedAdServerVerification> {
+    const verification = {
+      transactionId: input.transactionId,
+      profileId: input.profileId,
+      adUnitId: input.adUnitId,
+      customData: input.customData,
+      rewardType: input.rewardType,
+      rewardAmount: input.rewardAmount,
+    };
+    this.rewardedAdServerVerifications.set(input.transactionId, verification);
+    return verification;
+  }
+
+  async findRewardedAdServerVerification(input: {
+    profileId: string;
+    customData: string;
+  }): Promise<RewardedAdServerVerification | undefined> {
+    return [...this.rewardedAdServerVerifications.values()].find(
+      (verification) =>
+        verification.profileId === input.profileId && verification.customData === input.customData,
+    );
+  }
+
+  async completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
     const profile = await this.getProfile();
     const quota = this.quotaFor(profile);
     const today = new Date().toISOString().slice(0, 10);
@@ -289,9 +318,15 @@ export class InMemoryStore implements AppRepository {
       grantedScans: 0,
     };
 
-    progress.completedAds += 1;
+    const alreadyCompleted =
+      input.transactionId != null && this.rewardedAdTransactions.has(input.transactionId);
+    if (!alreadyCompleted) {
+      if (input.transactionId) this.rewardedAdTransactions.add(input.transactionId);
+      progress.completedAds += 1;
+    }
+
     const state = calculateRewardedAdState(progress);
-    const grantableScans = Math.min(state.grantableScans, 1);
+    const grantableScans = alreadyCompleted ? 0 : Math.min(state.grantableScans, 1);
     if (grantableScans > 0) {
       progress.grantedScans += grantableScans;
       quota.rewardedRemaining += grantableScans;

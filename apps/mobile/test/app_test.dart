@@ -1227,55 +1227,17 @@ void main() {
           rewardType: 'coin',
           rewardAmount: 1,
         ),
-        RewardedAdOutcome(
-          earnedReward: true,
-          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
-          rewardType: 'coin',
-          rewardAmount: 1,
-        ),
-        RewardedAdOutcome(
-          earnedReward: true,
-          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
-          rewardType: 'coin',
-          rewardAmount: 1,
-        ),
       ],
     );
 
     final rewardResponses = [
       {
-        'grantedScan': false,
-        'adsWatchedToday': 1,
-        'adsNeededForNextScan': 2,
-        'scansGrantedToday': 0,
-        'dailyScanLimit': 5,
-        'adsPerScan': 3,
-        'quota': {
-          'freeRemaining': 0,
-          'rewardedRemaining': 0,
-          'premiumRemaining': 0,
-        },
-      },
-      {
-        'grantedScan': false,
-        'adsWatchedToday': 2,
-        'adsNeededForNextScan': 1,
-        'scansGrantedToday': 0,
-        'dailyScanLimit': 5,
-        'adsPerScan': 3,
-        'quota': {
-          'freeRemaining': 0,
-          'rewardedRemaining': 0,
-          'premiumRemaining': 0,
-        },
-      },
-      {
         'grantedScan': true,
-        'adsWatchedToday': 3,
-        'adsNeededForNextScan': 3,
+        'adsWatchedToday': 1,
+        'adsNeededForNextScan': 1,
         'scansGrantedToday': 1,
         'dailyScanLimit': 5,
-        'adsPerScan': 3,
+        'adsPerScan': 1,
         'quota': {
           'freeRemaining': 0,
           'rewardedRemaining': 1,
@@ -1303,19 +1265,20 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
     await tester.pumpAndSettle();
-    expect(find.text('Start earning scan'), findsOneWidget);
+    expect(find.text('Watch ad'), findsOneWidget);
 
-    await tester.tap(find.text('Start earning scan'));
+    await tester.tap(find.text('Watch ad'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(adGateway.showCount, 3);
+    expect(adGateway.showCount, 1);
+    expect(adGateway.lastServerSideUserId, 'profile_test');
+    expect(adGateway.lastVerificationToken, isNotNull);
+    expect(adGateway.lastVerificationToken!.length, greaterThanOrEqualTo(16));
     expect(find.text('AI Meal Scan'), findsOneWidget);
   });
 
-  testWidgets('saved rewarded ad progress resumes with the final ad', (
-    tester,
-  ) async {
+  testWidgets('saved rewarded ad progress unlocks with one ad', (tester) async {
     final session = AuthSession(
       provider: AuthProvider.email,
       displayName: 'friend@test.com',
@@ -1348,20 +1311,20 @@ void main() {
             'premiumRemaining': 0,
           },
           rewardedAdProgress: const {
-            'adsWatchedToday': 2,
+            'adsWatchedToday': 0,
             'adsNeededForNextScan': 1,
             'scansGrantedToday': 0,
             'dailyScanLimit': 5,
-            'adsPerScan': 3,
+            'adsPerScan': 1,
           },
           rewardedAdResponses: const [
             {
               'grantedScan': true,
-              'adsWatchedToday': 3,
-              'adsNeededForNextScan': 3,
+              'adsWatchedToday': 1,
+              'adsNeededForNextScan': 1,
               'scansGrantedToday': 1,
               'dailyScanLimit': 5,
-              'adsPerScan': 3,
+              'adsPerScan': 1,
               'quota': {
                 'freeRemaining': 0,
                 'rewardedRemaining': 1,
@@ -1376,17 +1339,19 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
     await tester.pumpAndSettle();
-    expect(find.text('Watch final ad'), findsOneWidget);
+    expect(find.text('Watch ad'), findsOneWidget);
 
-    await tester.tap(find.text('Watch final ad'));
+    await tester.tap(find.text('Watch ad'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(adGateway.showCount, 1);
+    expect(adGateway.lastServerSideUserId, 'profile_test');
+    expect(adGateway.lastVerificationToken, isNotNull);
     expect(find.text('AI Meal Scan'), findsOneWidget);
   });
 
-  testWidgets('consecutive rewarded ads stop when user closes an ad', (
+  testWidgets('rewarded unlock does not chain ads when no scan is granted', (
     tester,
   ) async {
     final session = AuthSession(
@@ -1429,10 +1394,10 @@ void main() {
             {
               'grantedScan': false,
               'adsWatchedToday': 1,
-              'adsNeededForNextScan': 2,
+              'adsNeededForNextScan': 1,
               'scansGrantedToday': 0,
               'dailyScanLimit': 5,
-              'adsPerScan': 3,
+              'adsPerScan': 1,
               'quota': {
                 'freeRemaining': 0,
                 'rewardedRemaining': 0,
@@ -1448,12 +1413,87 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Start earning scan'));
+    await tester.tap(find.text('Watch ad'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(adGateway.showCount, 2);
+    expect(adGateway.showCount, 1);
     expect(find.text('AI Meal Scan'), findsNothing);
+  });
+
+  testWidgets('rewarded unlock retries while server verification is pending', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+    final adGateway = _FakeRewardedAdGateway(
+      outcomes: const [
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'scan',
+          rewardAmount: 1,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        rewardedAdGateway: adGateway,
+        journalController: _testJournalController(
+          quota: const {
+            'freeRemaining': 0,
+            'rewardedRemaining': 0,
+            'premiumRemaining': 0,
+          },
+          rewardedAdHttpResponses: [
+            http.Response(
+              jsonEncode({
+                'error': 'rewarded_ad_verification_pending',
+                'message': 'pending',
+              }),
+              409,
+            ),
+            http.Response(
+              jsonEncode({
+                'grantedScan': true,
+                'adsWatchedToday': 1,
+                'adsNeededForNextScan': 1,
+                'scansGrantedToday': 1,
+                'dailyScanLimit': 5,
+                'adsPerScan': 1,
+                'quota': {
+                  'freeRemaining': 0,
+                  'rewardedRemaining': 1,
+                  'premiumRemaining': 0,
+                },
+              }),
+              200,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Watch ad'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(adGateway.showCount, 1);
+    expect(find.text('AI Meal Scan'), findsOneWidget);
   });
 
   testWidgets('save journal account gate backs out without manual review', (
@@ -1605,10 +1645,19 @@ class _FakeRewardedAdGateway implements RewardedAdGateway {
 
   final List<RewardedAdOutcome> outcomes;
   int showCount = 0;
+  String? lastServerSideUserId;
+  String? lastVerificationToken;
 
   @override
-  Future<RewardedAdOutcome> showScanUnlockAd() async {
+  Future<RewardedAdOutcome> showScanUnlockAd({
+    VoidCallback? onAdShowed,
+    String? serverSideUserId,
+    String? verificationToken,
+  }) async {
     showCount += 1;
+    lastServerSideUserId = serverSideUserId;
+    lastVerificationToken = verificationToken;
+    onAdShowed?.call();
     final index = showCount - 1;
     return outcomes[index.clamp(0, outcomes.length - 1)];
   }
@@ -1661,6 +1710,7 @@ JournalController _testJournalController({
   Map<String, int>? quota,
   Map<String, dynamic>? rewardedAdResponse,
   List<Map<String, dynamic>>? rewardedAdResponses,
+  List<http.Response>? rewardedAdHttpResponses,
   Map<String, int>? rewardedAdProgress,
 }) {
   final quotaPayload =
@@ -1671,6 +1721,7 @@ JournalController _testJournalController({
       rewardedAdResponses ??
       (rewardedAdResponse == null ? null : [rewardedAdResponse]);
   var rewardedAdResponseIndex = 0;
+  var rewardedAdHttpResponseIndex = 0;
 
   return JournalController(
     apiClient: LogMyPlateApiClient(
@@ -1689,6 +1740,17 @@ JournalController _testJournalController({
         }
         if (request.url.path == '/v1/quota') {
           return http.Response(jsonEncode(quotaPayload), 200);
+        }
+        if (request.url.path == '/v1/ads/rewarded/complete' &&
+            rewardedAdHttpResponses != null &&
+            rewardedAdHttpResponses.isNotEmpty) {
+          final response =
+              rewardedAdHttpResponses[rewardedAdHttpResponseIndex.clamp(
+                0,
+                rewardedAdHttpResponses.length - 1,
+              )];
+          rewardedAdHttpResponseIndex += 1;
+          return response;
         }
         if (request.url.path == '/v1/ads/rewarded/complete' &&
             adResponses != null &&
@@ -1731,10 +1793,10 @@ Map<String, dynamic> _emptyBootstrapPayload({
         rewardedAdProgress ??
         {
           'adsWatchedToday': 0,
-          'adsNeededForNextScan': 3,
+          'adsNeededForNextScan': 1,
           'scansGrantedToday': 0,
           'dailyScanLimit': 5,
-          'adsPerScan': 3,
+          'adsPerScan': 1,
         },
     'today': {'totals': zeroTotals, 'meals': []},
     'weeklyRange': {
