@@ -13,7 +13,7 @@ import {
   type AnalyzeMealImageResult,
 } from "./ai-provider.js";
 
-export const foodPhotoPromptVersion = "gemini_food_photo_v3";
+export const foodPhotoPromptVersion = "gemini_food_photo_v4";
 export const foodPhotoSchemaVersion = "scan_v1";
 
 const preparationSchema = z.enum(["home", "restaurant", "packaged", "unknown"]);
@@ -294,6 +294,10 @@ home-cooked foods, common English food names, Hinglish terms, regional Indian na
 global foods when they are actually visible.
 
 VISIBLE-ONLY RULES:
+- First decide whether the image contains visible edible food or drink intended for a meal log.
+- If there is no clear edible food or drink, return mealName "No food detected" and items [].
+- Reject screenshots, people, pets, documents, menus, packaging-only photos, kitchens, empty plates,
+  utensils, and random objects unless edible food or drink is clearly visible.
 - Analyze ONLY food items that are actually visible in the image.
 - Do NOT invent, hallucinate, or assume food items.
 - Do NOT assume hidden ingredients.
@@ -334,7 +338,5 @@ Return JSON only. Calories are kcal. Protein, carbs, fat, fiber, and sugar are g
 is milligrams. Prefer these portion units when appropriate: gram, ml, piece, serving, bowl,
 katori, cup, tablespoon, teaspoon, ladle, roti, idli, dosa, slice, scoop, small, medium,
 large.
-
-If the image has no food, return an empty items array with mealName "No food detected".
-`.trim();
+	`.trim();
 };

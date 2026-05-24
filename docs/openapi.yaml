@@ -677,8 +677,9 @@ paths:
       summary: Analyze scan
       description: |
         Runs food-photo analysis for a prepared scan. The caller may include a short human hint
-        and an image. On success, the scan consumes one available credit and returns editable
-        analysis output for review.
+        and an image. On successful food detection, the scan consumes one available credit and
+        returns editable analysis output for review. If no food is detected, the AI run is logged
+        but no scan credit is consumed.
       security:
         - bearerAuth: []
         - installId: []
@@ -713,6 +714,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScanCreditRequiredError"
+        "422":
+          description: No visible food or drink was detected in the image.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
+        "429":
+          description: Too many repeated non-food scan attempts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
         "404":
           $ref: "#/components/responses/ScanNotFound"
         "502":

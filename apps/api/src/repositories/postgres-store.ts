@@ -1424,6 +1424,34 @@ export class PostgresStore implements AppRepository {
     });
   }
 
+  async countNoFoodScanAttemptsSince(sinceIso: string) {
+    const profile = await this.getProfile();
+    const [row] = await this.sql<{ count: number | string }[]>`
+      select count(*)::integer as count
+      from scan_sessions
+      inner join lateral (
+        select raw_ai_json
+        from ai_predictions
+        where ai_predictions.scan_session_id = scan_sessions.id
+        order by ai_predictions.created_at desc
+        limit 1
+      ) ai_predictions on true
+      where scan_sessions.profile_id = ${profile.id}
+        and scan_sessions.created_at >= ${sinceIso}::timestamptz
+        and jsonb_array_length(
+          case
+            when jsonb_typeof(ai_predictions.raw_ai_json -> 'analysis' -> 'items') = 'array'
+              then ai_predictions.raw_ai_json -> 'analysis' -> 'items'
+            when jsonb_typeof(ai_predictions.raw_ai_json -> 'items') = 'array'
+              then ai_predictions.raw_ai_json -> 'items'
+            else '[]'::jsonb
+          end
+        ) = 0
+    `;
+
+    return Number(row?.count ?? 0);
+  }
+
   async getIdempotent(key: string): Promise<IdempotencyRecord | undefined> {
     const profile = await this.getProfile();
     const [row] = await this.sql<

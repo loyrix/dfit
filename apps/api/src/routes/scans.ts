@@ -11,6 +11,9 @@ import { createRouteTimer } from "./route-timing.js";
 const isStoredImageMimeType = (value: string | undefined): value is StoredMealImage["mimeType"] =>
   value === "image/jpeg" || value === "image/png" || value === "image/webp";
 
+const noFoodScanWindowMs = 24 * 60 * 60 * 1_000;
+const defaultNoFoodScanLimit = 5;
+
 const imageFromScan = (
   scan: Awaited<ReturnType<AppRepository["getScan"]>>,
 ): StoredMealImage | undefined => {
@@ -29,6 +32,29 @@ const imageFromScan = (
     mimeType: scan.imageMimeType,
     byteSize: scan.imageByteSize,
   };
+};
+
+const isNoFoodAnalysis = (analysis: unknown) => {
+  const candidate = analysis as { items?: unknown } | undefined;
+  return Array.isArray(candidate?.items) && candidate.items.length === 0;
+};
+
+const noFoodDetectedResponse = () => ({
+  error: "no_food_detected",
+  message:
+    "We could not detect food clearly. Try a clear, well-lit top-down photo of the full plate.",
+  retryable: false,
+});
+
+const noFoodLimitResponse = () => ({
+  error: "no_food_scan_limit_exceeded",
+  message: "Too many non-food scans were detected today. Try again later with a clear meal photo.",
+  retryable: false,
+});
+
+const noFoodScanLimit = () => {
+  const configured = Number(process.env.NO_FOOD_SCAN_DAILY_LIMIT ?? defaultNoFoodScanLimit);
+  return Number.isFinite(configured) ? Math.max(0, Math.floor(configured)) : defaultNoFoodScanLimit;
 };
 
 export const registerScanRoutes = async (
@@ -54,6 +80,10 @@ export const registerScanRoutes = async (
     const scan = await timer.measure("getScan", () => repository.getScan(params.id));
     if (!scan) return reply.status(404).send({ error: "scan_not_found" });
     if (scan.analyzedResponse) {
+      if (isNoFoodAnalysis(scan.analyzedResponse)) {
+        return reply.status(422).send(noFoodDetectedResponse());
+      }
+
       request.log.info(
         {
           route: "/v1/scans/:id/analyze",
@@ -93,6 +123,18 @@ export const registerScanRoutes = async (
         reason: decision.reason,
         quota,
       });
+    }
+
+    const noFoodLimit = noFoodScanLimit();
+    if (noFoodLimit > 0) {
+      const noFoodAttempts = await timer.measure("noFoodAttempts", () =>
+        repository.countNoFoodScanAttemptsSince(
+          new Date(Date.now() - noFoodScanWindowMs).toISOString(),
+        ),
+      );
+      if (noFoodAttempts >= noFoodLimit) {
+        return reply.status(429).send(noFoodLimitResponse());
+      }
     }
 
     const userHint = parsed.data.hint?.trim() || undefined;
@@ -156,10 +198,13 @@ export const registerScanRoutes = async (
       });
     }
 
-    await timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason));
+    const hasFoodItems = analyzedResult.analysis.items.length > 0;
+    if (hasFoodItems) {
+      await timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason));
+    }
 
     let storedScanImage: StoredMealImage | undefined;
-    if (image && imageBytes && mealImageStorage.enabled) {
+    if (hasFoodItems && image && imageBytes && mealImageStorage.enabled) {
       try {
         storedScanImage = await timer.measure("scanImageUpload", () =>
           mealImageStorage.uploadScanImage({
@@ -177,8 +222,8 @@ export const registerScanRoutes = async (
     await timer.measure("scanMarkReady", () =>
       repository.updateScan({
         ...scanWithRequestContext,
-        status: "ready_for_review",
-        creditReason: decision.reason,
+        status: hasFoodItems ? "ready_for_review" : "failed",
+        creditReason: hasFoodItems ? decision.reason : undefined,
         analyzedResponse: analyzedResult.analysis,
         aiProviderRun: analyzedResult.providerRun,
         imageBucket: storedScanImage?.bucket,
@@ -190,6 +235,20 @@ export const registerScanRoutes = async (
       ...analyzedResult.analysis,
       imageStored: Boolean(storedScanImage),
     };
+
+    if (!hasFoodItems) {
+      request.log.info(
+        {
+          route: "/v1/scans/:id/analyze",
+          scanId: scan.id,
+          hasImage: Boolean(image),
+          noFoodDetected: true,
+          timings: timer.snapshot(),
+        },
+        "scan analyze no food detected",
+      );
+      return reply.status(422).send(noFoodDetectedResponse());
+    }
 
     request.log.info(
       {

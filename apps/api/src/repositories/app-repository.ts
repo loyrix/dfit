@@ -178,6 +178,7 @@ export interface AppRepository {
   prepareScan(profileId?: string): Promise<ScanSession>;
   getScan(scanId: string): Promise<ScanSession | undefined>;
   updateScan(scan: ScanSession): Promise<void>;
+  countNoFoodScanAttemptsSince(sinceIso: string): Promise<number>;
   getIdempotent(key: string): Promise<IdempotencyRecord | undefined>;
   setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">): Promise<void>;
 }

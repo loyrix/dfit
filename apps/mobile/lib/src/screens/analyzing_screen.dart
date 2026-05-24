@@ -236,6 +236,24 @@ class _AnalysisFailure {
               'Create or open your account to keep this journal safe, then unlock more scans when credits are available.',
         );
       }
+      if (error.errorCode == 'no_food_detected') {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.invalidImage,
+          title: 'No food detected',
+          subtitle: 'Try another plate photo',
+          message:
+              'Keep the full meal visible in a clear, well-lit top-down photo. We will not use a scan credit for this attempt.',
+        );
+      }
+      if (error.errorCode == 'no_food_scan_limit_exceeded') {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.invalidImage,
+          title: 'Scan limit paused',
+          subtitle: 'Too many non-food photos',
+          message:
+              'Try again later with a clear meal photo. This protects your scan credits and keeps AI costs under control.',
+        );
+      }
       if (error.errorCode == 'invalid_scan_image') {
         return const _AnalysisFailure(
           kind: _AnalysisFailureKind.invalidImage,

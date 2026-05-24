@@ -448,6 +448,20 @@ export class InMemoryStore implements AppRepository {
     this.scans.set(scan.id, scan);
   }
 
+  async countNoFoodScanAttemptsSince(sinceIso: string) {
+    const profile = await this.getProfile();
+    const sinceTime = Date.parse(sinceIso);
+    let count = 0;
+
+    for (const scan of this.scans.values()) {
+      if (scan.profileId !== profile.id) continue;
+      if (Date.parse(scan.createdAt) < sinceTime) continue;
+      if (scanHasNoFoodAnalysis(scan)) count += 1;
+    }
+
+    return count;
+  }
+
   async getIdempotent(key: string) {
     return this.idempotency.get(key);
   }
@@ -624,6 +638,11 @@ export class InMemoryStore implements AppRepository {
     this.quotas.set(key, quota);
   }
 }
+
+const scanHasNoFoodAnalysis = (scan: ScanSession) => {
+  const response = scan.analyzedResponse as { items?: unknown } | undefined;
+  return Array.isArray(response?.items) && response.items.length === 0;
+};
 
 export const store = new InMemoryStore();
 

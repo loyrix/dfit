@@ -1652,6 +1652,158 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("does not consume scan credit when AI detects no food", async () => {
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        return {
+          analysis: {
+            scanId: input.scanId,
+            status: "ready_for_review",
+            mealType: "snack",
+            mealName: "No food detected",
+            detectedLanguage: "en",
+            items: [],
+            totals: {
+              calories: 0,
+              proteinG: 0,
+              carbsG: 0,
+              fatG: 0,
+            },
+          },
+          providerRun: {
+            provider: "mock",
+            model: "test-no-food-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const repository = new InMemoryStore();
+    const mealImageStorage = new TestMealImageStorage();
+    const app = await buildApp({
+      repository,
+      aiProvider,
+      mealImageStorage,
+    });
+    const beforeQuota = await app.inject({ method: "GET", url: "/v1/quota" });
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "no-food-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "no-food-analyze" },
+      payload: {
+        hint: "plate",
+        image: {
+          mimeType: "image/jpeg",
+          base64: "AQID",
+          byteSize: 3,
+        },
+      },
+    });
+    const afterQuota = await app.inject({ method: "GET", url: "/v1/quota" });
+
+    expect(analyzed.statusCode).toBe(422);
+    expect(analyzed.json()).toMatchObject({
+      error: "no_food_detected",
+      retryable: false,
+    });
+    expect(afterQuota.json()).toMatchObject(beforeQuota.json());
+    expect(mealImageStorage.uploads).toHaveLength(0);
+    await expect(repository.getScan(scanId)).resolves.toMatchObject({
+      status: "failed",
+      analyzedResponse: {
+        mealName: "No food detected",
+        items: [],
+      },
+    });
+    await app.close();
+  });
+
+  it("rate limits repeated no-food scan attempts before calling AI again", async () => {
+    const previousLimit = process.env.NO_FOOD_SCAN_DAILY_LIMIT;
+    process.env.NO_FOOD_SCAN_DAILY_LIMIT = "2";
+    let calls = 0;
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        calls += 1;
+        return {
+          analysis: {
+            scanId: input.scanId,
+            status: "ready_for_review",
+            mealType: "snack",
+            mealName: "No food detected",
+            detectedLanguage: "en",
+            items: [],
+            totals: {
+              calories: 0,
+              proteinG: 0,
+              carbsG: 0,
+              fatG: 0,
+            },
+          },
+          providerRun: {
+            provider: "mock",
+            model: "test-no-food-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+    const analyze = async (key: string) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": `no-food-limit-prepare-${key}` },
+      });
+      return app.inject({
+        method: "POST",
+        url: `/v1/scans/${prepared.json().scanId}/analyze`,
+        headers: { "idempotency-key": `no-food-limit-analyze-${key}` },
+        payload: {
+          hint: "plate",
+          image: {
+            mimeType: "image/jpeg",
+            base64: "AQID",
+            byteSize: 3,
+          },
+        },
+      });
+    };
+
+    try {
+      expect((await analyze("one")).statusCode).toBe(422);
+      expect((await analyze("two")).statusCode).toBe(422);
+      const blocked = await analyze("three");
+
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.json()).toMatchObject({
+        error: "no_food_scan_limit_exceeded",
+        retryable: false,
+      });
+      expect(calls).toBe(2);
+    } finally {
+      if (previousLimit === undefined) {
+        delete process.env.NO_FOOD_SCAN_DAILY_LIMIT;
+      } else {
+        process.env.NO_FOOD_SCAN_DAILY_LIMIT = previousLimit;
+      }
+      await app.close();
+    }
+  });
+
   it("requires a concise plate note before analysis", async () => {
     const app = await testApp();
     const prepared = await app.inject({
