@@ -57,8 +57,8 @@ export default function DataDeletionPage() {
             <li>Account profile and email login data, where an account exists</li>
             <li>Meal journal entries, food items, calorie estimates, macros, and timestamps</li>
             <li>Health targets, BMI estimate inputs, activity level, and goal settings</li>
-            <li>Session tokens and stored authentication records</li>
-            <li>Stored meal photos attached to meal logs, where photo storage is enabled</li>
+            <li>Active sign-in records associated with your account</li>
+            <li>Stored meal photos attached to saved meal logs</li>
           </ul>
         </section>
 
