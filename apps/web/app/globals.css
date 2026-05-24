@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────────── */
+@theme inline {
+  /* Brand palette — derived from app icon: amber / teal / coral */
+  --color-brand-amber: #f5a623;
+  --color-brand-teal: #5bbcaa;
+  --color-brand-coral: #e8634a;
+  --color-brand-dark: #1f1f23;
+
+  /* Neutral surface palette */
+  --color-surface-50: var(--surface-50);
+  --color-surface-100: var(--surface-100);
+  --color-surface-200: var(--surface-200);
+  --color-surface-800: var(--surface-800);
+  --color-surface-900: var(--surface-900);
+  --color-surface-950: var(--surface-950);
+
+  /* Text */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  /* Border */
+  --color-border: var(--border);
+
+  /* Font families */
+  --font-display: "Outfit", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* ─── Light Theme ────────────────────────────────────────────────────────────── */
+:root {
+  --surface-50: #fafaf9;
+  --surface-100: #f5f5f0;
+  --surface-200: #e8e8e0;
+  --surface-800: #2c2c32;
+  --surface-900: #1a1a1f;
+  --surface-950: #111114;
+
+  --text-primary: #111114;
+  --text-secondary: #44444d;
+  --text-muted: #888894;
+
+  --border: #e2e2da;
+
+  --background: #fafaf9;
+  --foreground: #111114;
+}
+
+/* ─── Dark Theme ─────────────────────────────────────────────────────────────── */
+.dark {
+  --surface-50: #1a1a1f;
+  --surface-100: #222228;
+  --surface-200: #2c2c35;
+  --surface-800: #e0e0d8;
+  --surface-900: #ebebe3;
+  --surface-950: #f5f5f0;
+
+  --text-primary: #f0f0ec;
+  --text-secondary: #b0b0b8;
+  --text-muted: #68687a;
+
+  --border: #2e2e38;
+
+  --background: #111114;
+  --foreground: #f0f0ec;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", system-ui, sans-serif;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* ─── Typography helpers ─────────────────────────────────────────────────────── */
+.font-display {
+  font-family: "Outfit", system-ui, sans-serif;
+}
+
+/* ─── Gradient text ──────────────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #f5a623 0%, #e8634a 60%, #5bbcaa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Subtle glass surface ───────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ─── Glow effect ────────────────────────────────────────────────────────────── */
+.glow-amber {
+  box-shadow: 0 0 60px rgba(245, 166, 35, 0.15);
+}
+
+/* ─── Smooth transitions ─────────────────────────────────────────────────────── */
+.transition-theme {
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
