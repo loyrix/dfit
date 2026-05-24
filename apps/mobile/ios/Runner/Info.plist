@@ -36,7 +36,7 @@
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>$(LOGMYPLATE_ADMOB_IOS_APP_ID)</string>
 	<key>GIDClientID</key>
 	<string>214310664631-m5a1spfqnuqfbct7lb72lafgs42fbocn.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>

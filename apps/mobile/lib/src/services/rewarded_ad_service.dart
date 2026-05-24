@@ -192,12 +192,41 @@ class LogMyPlateAdConfig {
       'ca-app-pub-3940256099942544/5224354917';
   static const iosTestRewardedAdUnitId =
       'ca-app-pub-3940256099942544/1712485313';
+  static const androidRewardedAdUnitId =
+      'ca-app-pub-6936425975956435/2997685695';
+  static const iosRewardedAdUnitId = 'ca-app-pub-6936425975956435/9427362674';
 
   static String get rewardedAdUnitId {
     const configured = String.fromEnvironment('LOGMYPLATE_REWARDED_AD_UNIT_ID');
-    if (configured.trim().isNotEmpty) return configured.trim();
+    return resolveRewardedAdUnitId(
+      configured: configured,
+      platform: defaultTargetPlatform,
+      releaseMode: kReleaseMode,
+    );
+  }
 
-    return switch (defaultTargetPlatform) {
+  static void validateForCurrentBuild() {
+    rewardedAdUnitId;
+  }
+
+  @visibleForTesting
+  static String resolveRewardedAdUnitId({
+    required String configured,
+    required TargetPlatform platform,
+    required bool releaseMode,
+  }) {
+    final configuredAdUnitId = configured.trim();
+    if (configuredAdUnitId.isNotEmpty) return configuredAdUnitId;
+
+    if (releaseMode) {
+      return switch (platform) {
+        TargetPlatform.android => androidRewardedAdUnitId,
+        TargetPlatform.iOS => iosRewardedAdUnitId,
+        _ => iosRewardedAdUnitId,
+      };
+    }
+
+    return switch (platform) {
       TargetPlatform.android => androidTestRewardedAdUnitId,
       TargetPlatform.iOS => iosTestRewardedAdUnitId,
       _ => iosTestRewardedAdUnitId,

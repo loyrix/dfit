@@ -197,6 +197,7 @@
 			buildPhases = (
 				5B49CDA12A503A3165F77748 /* [CP] Check Pods Manifest.lock */,
 				9740EEB61CF901F6004384FC /* Run Script */,
+				B4A19E2A2FC5000000AD0001 /* Validate AdMob Release Config */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
@@ -283,13 +284,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -369,7 +366,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+			shellScript = "if [ -f \"${SRCROOT}/scripts/load_flutter_dart_defines.sh\" ]; then\n  . \"${SRCROOT}/scripts/load_flutter_dart_defines.sh\"\nfi\n/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+		};
+		B4A19E2A2FC5000000AD0001 /* Validate AdMob Release Config */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Validate AdMob Release Config";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${CONFIGURATION}\" = \"Release\" ]; then\n  if [ -z \"${LOGMYPLATE_ADMOB_IOS_APP_ID}\" ]; then\n    echo \"error: LOGMYPLATE_ADMOB_IOS_APP_ID must be set in ios/Flutter/Release.xcconfig for iOS release builds.\" >&2\n    exit 1\n  fi\n\n  case \"${LOGMYPLATE_ADMOB_IOS_APP_ID}\" in\n    ca-app-pub-3940256099942544~*)\n      echo \"error: Release builds must not use Google's demo AdMob iOS app ID.\" >&2\n      exit 1\n      ;;\n    ca-app-pub-6936425975956435~*)\n      ;;\n    *)\n      echo \"error: LOGMYPLATE_ADMOB_IOS_APP_ID must belong to publisher pub-6936425975956435 from app-ads.txt.\" >&2\n      exit 1\n      ;;\n  esac\nfi\n";
 		};
 		F012E129A48BDF2A122FD114 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -379,13 +391,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

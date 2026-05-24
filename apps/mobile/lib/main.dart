@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'src/app.dart';
 import 'src/screens/startup_error_screen.dart';
 import 'src/services/app_diagnostics.dart';
+import 'src/services/rewarded_ad_service.dart';
 
 void main() {
   runZonedGuarded<Future<void>>(
@@ -46,6 +47,7 @@ void main() {
         return true;
       };
 
+      LogMyPlateAdConfig.validateForCurrentBuild();
       await MobileAds.instance.initialize();
 
       runApp(const LogMyPlateApp());
