@@ -216,8 +216,12 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
               style: FilledButton.styleFrom(
                 backgroundColor: LogMyPlateColors.accent,
                 foregroundColor: LogMyPlateColors.accentDeep,
-                disabledBackgroundColor: colors.mutedFill,
-                disabledForegroundColor: colors.textSecondary,
+                disabledBackgroundColor: LogMyPlateColors.accent.withValues(
+                  alpha: 0.26,
+                ),
+                disabledForegroundColor: colors.accentText.withValues(
+                  alpha: 0.72,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -231,7 +235,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: colors.textSecondary,
+                          color: colors.accentText,
                         ),
                       )
                     : const Text(
@@ -274,6 +278,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
 
   Future<void> _save() async {
     if (!_canSave) return;
+    FocusScope.of(context).unfocus();
 
     setState(() {
       _saving = true;
@@ -493,6 +498,8 @@ class _BmiOrbit extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = _bmiColorForScore(preview.normalizedBmi);
+
     return SizedBox(
       width: 132,
       height: 132,
@@ -500,6 +507,10 @@ class _BmiOrbit extends StatelessWidget {
         painter: _BmiOrbitPainter(
           score: preview.normalizedBmi,
           trackColor: surface.track,
+          activeColor: activeColor,
+          markerOutlineColor: surface.isDark
+              ? const Color(0xFF101412)
+              : const Color(0xFFFFFCF4),
         ),
         child: Center(
           child: Column(
@@ -509,13 +520,39 @@ class _BmiOrbit extends StatelessWidget {
                 preview.bmi.toStringAsFixed(1),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: surface.textPrimary,
+                  fontSize: 32,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: activeColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'BMI',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: surface.textSecondary,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               Text(
-                'BMI',
+                _bmiShortLabel(preview.bmi),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: surface.textSecondary,
+                  color: activeColor,
+                  fontSize: 9,
+                  height: 1,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -528,58 +565,110 @@ class _BmiOrbit extends StatelessWidget {
 }
 
 class _BmiOrbitPainter extends CustomPainter {
-  const _BmiOrbitPainter({required this.score, required this.trackColor});
+  const _BmiOrbitPainter({
+    required this.score,
+    required this.trackColor,
+    required this.activeColor,
+    required this.markerOutlineColor,
+  });
 
   final double score;
   final Color trackColor;
+  final Color activeColor;
+  final Color markerOutlineColor;
+
+  static const _startAngle = math.pi * 0.75;
+  static const _totalSweep = math.pi * 1.5;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final center = rect.center;
-    final radius = math.min(size.width, size.height) / 2 - 10;
-    final track = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round
-      ..color = trackColor;
+    final radius = math.min(size.width, size.height) / 2 - 16;
+    final gaugeRect = Rect.fromCircle(center: center, radius: radius);
+    final normalized = score.clamp(0.0, 1.0);
+    final activeSweep = _totalSweep * normalized;
 
-    canvas.drawCircle(center, radius, track);
+    canvas.drawArc(
+      gaugeRect,
+      _startAngle,
+      _totalSweep,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12
+        ..strokeCap = StrokeCap.round
+        ..color = trackColor.withValues(alpha: 0.72),
+    );
 
-    const segmentGap = 0.04;
-    final arcRect = Rect.fromCircle(center: center, radius: radius);
-    for (final segment in _bmiSegments) {
-      final start = -math.pi / 2 + math.pi * 2 * segment.start;
-      final sweep = math.pi * 2 * (segment.end - segment.start) - segmentGap;
+    final tickRect = Rect.fromCircle(center: center, radius: radius + 11);
+    for (var index = 0; index < _bmiSegments.length; index++) {
+      final segment = _bmiSegments[index];
+      const tickGap = 0.014;
+      final start = _startAngle + _totalSweep * segment.start + tickGap;
+      final sweep = _totalSweep * (segment.end - segment.start) - tickGap * 2;
       if (sweep <= 0) continue;
+      final isActive =
+          normalized >= segment.start &&
+          (normalized < segment.end || index == _bmiSegments.length - 1);
       canvas.drawArc(
-        arcRect,
+        tickRect,
         start,
         sweep,
         false,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 8
+          ..strokeWidth = isActive ? 4.5 : 3.5
           ..strokeCap = StrokeCap.round
-          ..color = segment.color,
+          ..color = segment.color.withValues(alpha: isActive ? 0.44 : 0.22),
       );
     }
 
-    final markerAngle = -math.pi / 2 + math.pi * 2 * score.clamp(0.0, 1.0);
+    if (activeSweep > 0) {
+      canvas.drawArc(
+        gaugeRect,
+        _startAngle,
+        activeSweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 17
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+          ..color = activeColor.withValues(alpha: 0.12),
+      );
+      canvas.drawArc(
+        gaugeRect,
+        _startAngle,
+        activeSweep,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 12
+          ..strokeCap = StrokeCap.round
+          ..color = activeColor,
+      );
+    }
+
+    final markerAngle = _startAngle + _totalSweep * normalized;
     final marker = Offset(
       center.dx + math.cos(markerAngle) * radius,
       center.dy + math.sin(markerAngle) * radius,
     );
-    canvas.drawCircle(marker, 5, Paint()..color = _bmiColorForScore(score));
+    canvas.drawCircle(marker, 7, Paint()..color = markerOutlineColor);
+    canvas.drawCircle(marker, 4.2, Paint()..color = activeColor);
   }
 
   @override
   bool shouldRepaint(covariant _BmiOrbitPainter oldDelegate) {
-    return oldDelegate.score != score || oldDelegate.trackColor != trackColor;
+    return oldDelegate.score != score ||
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.activeColor != activeColor ||
+        oldDelegate.markerOutlineColor != markerOutlineColor;
   }
 }
 
-const _bmiLowColor = Color(0xFF7DB7D8);
+const _bmiLowColor = Color(0xFF4EA6D8);
 const _bmiBalancedColor = LogMyPlateColors.macroProtein;
 const _bmiAboveColor = LogMyPlateColors.accent;
 const _bmiHighColor = LogMyPlateColors.destructive;
@@ -605,10 +694,21 @@ class _BmiSegment {
 
 Color _bmiColorForScore(double score) {
   final normalized = score.clamp(0.0, 1.0);
-  for (final segment in _bmiSegments) {
-    if (normalized <= segment.end) return segment.color;
+  for (var index = 0; index < _bmiSegments.length; index++) {
+    final segment = _bmiSegments[index];
+    if (normalized >= segment.start &&
+        (normalized < segment.end || index == _bmiSegments.length - 1)) {
+      return segment.color;
+    }
   }
   return _bmiHighColor;
+}
+
+String _bmiShortLabel(double bmi) {
+  if (bmi < 18.5) return 'LOW';
+  if (bmi < 25) return 'BALANCED';
+  if (bmi < 30) return 'ABOVE';
+  return 'HIGH';
 }
 
 class _MetricSlider extends StatelessWidget {
@@ -639,14 +739,24 @@ class _MetricSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final enabled = onChanged != null;
+    final fieldFill = enabled
+        ? colors.mutedFill
+        : LogMyPlateColors.accent.withValues(alpha: isDark ? 0.10 : 0.14);
+    final fieldBorder = enabled
+        ? colors.border
+        : LogMyPlateColors.accent.withValues(alpha: isDark ? 0.18 : 0.26);
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       decoration: BoxDecoration(
-        color: colors.surfaceCard,
+        color: enabled
+            ? colors.surfaceCard
+            : colors.surfaceCard.withValues(alpha: isDark ? 0.82 : 0.92),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
+        border: Border.all(color: fieldBorder, width: 0.6),
       ),
       child: Column(
         children: [
@@ -656,61 +766,68 @@ class _MetricSlider extends StatelessWidget {
               const Spacer(),
               SizedBox(
                 width: 128,
-                child: TextField(
-                  key: ValueKey('metric-input-${label.toLowerCase()}'),
-                  controller: controller,
-                  enabled: enabled,
-                  textAlign: TextAlign.right,
-                  keyboardType: TextInputType.numberWithOptions(
-                    decimal: decimalPlaces > 0,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      decimalPlaces > 0 ? RegExp(r'[0-9.]') : RegExp(r'[0-9]'),
+                child: IgnorePointer(
+                  ignoring: !enabled,
+                  child: TextField(
+                    key: ValueKey('metric-input-${label.toLowerCase()}'),
+                    controller: controller,
+                    readOnly: !enabled,
+                    enableInteractiveSelection: enabled,
+                    textAlign: TextAlign.right,
+                    keyboardType: TextInputType.numberWithOptions(
+                      decimal: decimalPlaces > 0,
                     ),
-                    LengthLimitingTextInputFormatter(decimalPlaces > 0 ? 5 : 3),
-                  ],
-                  onChanged: enabled
-                      ? (text) {
-                          final parsed = double.tryParse(text);
-                          if (parsed == null) return;
-                          onTextChanged?.call(parsed);
-                        }
-                      : null,
-                  onEditingComplete: onTextComplete,
-                  onSubmitted: (_) => onTextComplete?.call(),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.accentText,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    suffixText: unit,
-                    suffixStyle: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: colors.textSecondary),
-                    filled: true,
-                    fillColor: enabled
-                        ? colors.mutedFill
-                        : colors.mutedFill.withValues(alpha: 0.55),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        decimalPlaces > 0
+                            ? RegExp(r'[0-9.]')
+                            : RegExp(r'[0-9]'),
+                      ),
+                      LengthLimitingTextInputFormatter(
+                        decimalPlaces > 0 ? 5 : 3,
+                      ),
+                    ],
+                    onChanged: enabled
+                        ? (text) {
+                            final parsed = double.tryParse(text);
+                            if (parsed == null) return;
+                            onTextChanged?.call(parsed);
+                          }
+                        : null,
+                    onEditingComplete: onTextComplete,
+                    onSubmitted: (_) => onTextComplete?.call(),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: enabled
+                          ? colors.accentText
+                          : colors.accentText.withValues(alpha: 0.78),
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(13),
-                      borderSide: BorderSide(color: colors.border, width: 0.6),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(13),
-                      borderSide: BorderSide(color: colors.border, width: 0.6),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(13),
-                      borderSide: BorderSide(color: colors.accent, width: 1.1),
-                    ),
-                    disabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(13),
-                      borderSide: BorderSide(color: colors.border, width: 0.6),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      suffixText: unit,
+                      suffixStyle: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: colors.textSecondary),
+                      filled: true,
+                      fillColor: fieldFill,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(color: fieldBorder, width: 0.6),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(color: fieldBorder, width: 0.6),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(13),
+                        borderSide: BorderSide(
+                          color: colors.accent,
+                          width: 1.1,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -721,6 +838,15 @@ class _MetricSlider extends StatelessWidget {
             data: SliderTheme.of(context).copyWith(
               activeTrackColor: LogMyPlateColors.accent,
               inactiveTrackColor: colors.mutedFill,
+              disabledActiveTrackColor: LogMyPlateColors.accent.withValues(
+                alpha: isDark ? 0.34 : 0.44,
+              ),
+              disabledInactiveTrackColor: colors.mutedFill.withValues(
+                alpha: 0.62,
+              ),
+              disabledThumbColor: LogMyPlateColors.accent.withValues(
+                alpha: isDark ? 0.44 : 0.56,
+              ),
               thumbColor: LogMyPlateColors.accent,
               overlayColor: LogMyPlateColors.accent.withValues(alpha: 0.12),
               trackHeight: 5,

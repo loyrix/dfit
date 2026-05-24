@@ -94,6 +94,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       darkTheme: LogMyPlateTheme.dark(),
       themeMode: _themeMode,
       navigatorKey: _navigatorKey,
+      builder: (context, child) =>
+          _KeyboardDismissScope(child: child ?? const SizedBox.shrink()),
       home: !_welcomeStateLoaded
           ? const _LaunchScreen()
           : _hasSeenWelcome
@@ -836,6 +838,21 @@ class _LaunchScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _KeyboardDismissScope extends StatelessWidget {
+  const _KeyboardDismissScope({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: child,
     );
   }
 }
