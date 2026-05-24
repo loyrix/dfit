@@ -20,6 +20,7 @@ import 'package:logmyplate_mobile/src/screens/weekly_journal_screen.dart';
 import 'package:logmyplate_mobile/src/services/account_session_store.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
+import 'package:logmyplate_mobile/src/services/oauth_sign_in_service.dart';
 import 'package:logmyplate_mobile/src/services/rewarded_ad_service.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
 import 'package:logmyplate_mobile/src/state/journal_controller.dart';
@@ -864,7 +865,7 @@ void main() {
     expect(accountOpened, isTrue);
   });
 
-  testWidgets('account gate offers Apple Google and email auth', (
+  testWidgets('account gate offers Google and email auth on Android', (
     tester,
   ) async {
     EmailAuthMode? submittedMode;
@@ -872,7 +873,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: LogMyPlateTheme.dark(),
+        theme: LogMyPlateTheme.dark().copyWith(
+          platform: TargetPlatform.android,
+        ),
         home: AccountGateScreen(
           reason: AccountGateReason.quotaExhausted,
           loading: false,
@@ -897,7 +900,7 @@ void main() {
 
     expect(find.text('No scans left'), findsOneWidget);
     expect(find.text('Create account to keep scanning'), findsOneWidget);
-    expect(find.text('Apple'), findsOneWidget);
+    expect(find.text('Apple'), findsNothing);
     expect(find.text('Google'), findsOneWidget);
     expect(find.text('Create account'), findsOneWidget);
 
@@ -911,6 +914,28 @@ void main() {
 
     expect(submittedMode, EmailAuthMode.signUp);
     expect(submittedEmail, 'friend@test.com');
+  });
+
+  testWidgets('account gate offers Apple auth on iOS', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark().copyWith(platform: TargetPlatform.iOS),
+        home: AccountGateScreen(
+          reason: AccountGateReason.quotaExhausted,
+          loading: false,
+          onSignIn: (provider) async => AuthSession(
+            provider: provider,
+            displayName: provider.label,
+            linkedAt: DateTime(2026, 5, 12),
+          ),
+          onEmailAuth: (mode, email, password) async => null,
+          onManualLog: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Apple'), findsOneWidget);
+    expect(find.text('Google'), findsOneWidget);
   });
 
   testWidgets('account gate shows focused email validation messages', (
@@ -1670,10 +1695,10 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
   int emailAuthCount = 0;
 
   @override
-  Future<AuthSession> signIn(AuthProvider provider) async {
+  Future<AuthSession> signIn(OAuthProviderCredential credential) async {
     return AuthSession(
-      provider: provider,
-      displayName: provider.label,
+      provider: credential.provider,
+      displayName: credential.provider.label,
       linkedAt: DateTime(2026, 5, 19),
       profileId: 'profile_test',
       accessToken: 'token_test',

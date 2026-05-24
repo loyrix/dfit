@@ -19,6 +19,7 @@ import type {
   IdempotencyRecord,
   ListMealsInput,
   MealDeletionPlan,
+  OAuthAccountInput,
   Profile,
   ProfileDeletionPlan,
   ProfileHealthTarget,
@@ -48,6 +49,15 @@ export class InMemoryStore implements AppRepository {
   private readonly deactivatedProfiles = new Set<string>();
   private readonly installProfiles = new Map<string, string>();
   private readonly credentials = new Map<string, { profileId: string; password: string }>();
+  private readonly oauthIdentities = new Map<
+    string,
+    {
+      profileId: string;
+      email?: string;
+      emailVerified?: boolean;
+      displayName?: string;
+    }
+  >();
   private readonly sessions = new Map<string, string>();
   private readonly healthTargets = new Map<string, ProfileHealthTarget>();
   private readonly meals = new Map<string, MealSummary>();
@@ -133,6 +143,11 @@ export class InMemoryStore implements AppRepository {
 
     this.profiles.set(linkedProfile.id, linkedProfile);
     this.credentials.set(email, { profileId: linkedProfile.id, password: input.password });
+    this.oauthIdentities.set(identityKey("email", email), {
+      profileId: linkedProfile.id,
+      email,
+      emailVerified: true,
+    });
     this.transferCurrentInstallQuotaToProfile(linkedProfile.id);
     return this.createSession(linkedProfile);
   }
@@ -165,6 +180,96 @@ export class InMemoryStore implements AppRepository {
     this.bindInstall(currentRequestIdentity().installId, accountProfile.id);
     this.transferCurrentInstallQuotaToProfile(accountProfile.id);
     return this.createSession(accountProfile);
+  }
+
+  async signInWithOAuth(input: OAuthAccountInput): Promise<AccountSession> {
+    const providerSubject = input.providerSubject.trim();
+    if (!providerSubject) {
+      throw new AuthError("invalid_oauth_identity", "OAuth provider subject is required.");
+    }
+
+    const key = identityKey(input.provider, providerSubject);
+    const email = input.email ? normalizeEmail(input.email) : undefined;
+    const existingIdentity = this.oauthIdentities.get(key);
+    const currentProfile = await this.getProfile();
+
+    if (existingIdentity) {
+      const accountProfile = this.profiles.get(existingIdentity.profileId);
+      if (!accountProfile) throw new AuthError("account_not_found", "User does not exist.", 404);
+      if (this.deactivatedProfiles.has(accountProfile.id)) {
+        throw new AuthError(
+          "account_deactivated",
+          "This profile is deactivated. Contact support to reactivate it.",
+          403,
+        );
+      }
+      if (currentProfile.authMethod !== "anonymous" && currentProfile.id !== accountProfile.id) {
+        throw new AuthError(
+          "provider_already_linked",
+          "This sign-in provider is already linked to another account.",
+          409,
+        );
+      }
+      if (currentProfile.authMethod === "anonymous" && currentProfile.id !== accountProfile.id) {
+        this.mergeProfiles(currentProfile.id, accountProfile.id);
+      }
+
+      this.oauthIdentities.set(key, {
+        ...existingIdentity,
+        email: email ?? existingIdentity.email,
+        emailVerified: input.emailVerified ?? existingIdentity.emailVerified,
+        displayName: input.displayName ?? existingIdentity.displayName,
+      });
+      this.bindInstall(currentRequestIdentity().installId, accountProfile.id);
+      this.transferCurrentInstallQuotaToProfile(accountProfile.id);
+      return this.createSession(accountProfile);
+    }
+
+    if (email && currentProfile.authMethod === "anonymous") {
+      for (const profile of this.profiles.values()) {
+        if (profile.email === email && profile.id !== currentProfile.id) {
+          throw new AuthError(
+            "email_already_registered",
+            "Email already registered. Log in first to link this provider.",
+            409,
+          );
+        }
+      }
+    }
+
+    if (currentProfile.authMethod !== "anonymous") {
+      for (const [candidateKey, identity] of this.oauthIdentities) {
+        if (!candidateKey.startsWith(`${input.provider}:`)) continue;
+        if (identity?.profileId === currentProfile.id) {
+          throw new AuthError(
+            "provider_already_linked",
+            `This account is already linked to a ${input.provider} identity.`,
+            409,
+          );
+        }
+      }
+    }
+
+    const linkedProfile =
+      currentProfile.authMethod === "anonymous"
+        ? {
+            ...currentProfile,
+            authMethod: input.provider,
+            email: currentProfile.email ?? email,
+            linkedAt: new Date().toISOString(),
+          }
+        : currentProfile;
+
+    this.profiles.set(linkedProfile.id, linkedProfile);
+    this.oauthIdentities.set(key, {
+      profileId: linkedProfile.id,
+      email,
+      emailVerified: input.emailVerified,
+      displayName: input.displayName,
+    });
+    this.bindInstall(currentRequestIdentity().installId, linkedProfile.id);
+    this.transferCurrentInstallQuotaToProfile(linkedProfile.id);
+    return this.createSession(linkedProfile);
   }
 
   async revokeSession(token: string): Promise<void> {
@@ -218,6 +323,9 @@ export class InMemoryStore implements AppRepository {
     const profile = await this.requireActiveAccountProfile();
     for (const [email, credential] of this.credentials) {
       if (credential.profileId === profile.id) this.credentials.delete(email);
+    }
+    for (const [key, identity] of this.oauthIdentities) {
+      if (identity.profileId === profile.id) this.oauthIdentities.delete(key);
     }
     for (const [token, profileId] of this.sessions) {
       if (profileId === profile.id) this.sessions.delete(token);
@@ -682,3 +790,6 @@ const scanHasNoFoodAnalysis = (scan: ScanSession) => {
 export const store = new InMemoryStore();
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
+const identityKey = (provider: OAuthAccountInput["provider"] | "email", subject: string): string =>
+  `${provider}:${subject}`;

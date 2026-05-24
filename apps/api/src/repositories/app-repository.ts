@@ -30,6 +30,14 @@ export type AccountSession = {
   expiresAt: string;
 };
 
+export type OAuthAccountInput = {
+  provider: "apple" | "google";
+  providerSubject: string;
+  email?: string;
+  emailVerified?: boolean;
+  displayName?: string;
+};
+
 export class AccountAuthError extends Error {
   constructor(
     public readonly code: string,
@@ -181,6 +189,7 @@ export interface AppRepository {
   upsertHealthTarget(input: UpsertProfileHealthTargetInput): Promise<ProfileHealthTarget>;
   signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
   loginWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
+  signInWithOAuth(input: OAuthAccountInput): Promise<AccountSession>;
   revokeSession(token: string): Promise<void>;
   searchFoods(query: string): Promise<FoodSearchResult[]>;
   getFood(foodId: string): Promise<FoodRecord | undefined>;

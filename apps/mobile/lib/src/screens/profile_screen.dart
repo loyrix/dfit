@@ -101,6 +101,9 @@ class _AccountHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final signedIn = session != null;
+    final providerCopy = Theme.of(context).platform == TargetPlatform.iOS
+        ? 'Apple, Google or email'
+        : 'Google or email';
 
     return InkWell(
       onTap: onTap,
@@ -154,7 +157,7 @@ class _AccountHero extends StatelessWidget {
                   Text(
                     signedIn
                         ? '${session!.provider.label} account'
-                        : 'Use Apple, Google or email after free scans.',
+                        : 'Use $providerCopy after free scans.',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(

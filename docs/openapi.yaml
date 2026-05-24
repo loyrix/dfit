@@ -268,6 +268,65 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorWithMessage"
 
+  /v1/auth/oauth:
+    post:
+      tags: [Auth]
+      summary: Sign in with Google or Apple
+      description: |
+        Verifies a Google or Apple ID token, links the provider identity to the
+        current anonymous profile when present, and returns a LogMyPlate session.
+      security:
+        - installId: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthAuthRequest"
+            examples:
+              google:
+                value:
+                  provider: google
+                  idToken: eyJhbGciOiJSUzI1NiIs...
+              apple:
+                value:
+                  provider: apple
+                  idToken: eyJhbGciOiJSUzI1NiIs...
+                  authorizationCode: c0de
+                  nonce: random-nonce
+      responses:
+        "200":
+          description: Provider verified and session issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSession"
+        "400":
+          description: Request body is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithIssues"
+        "401":
+          description: Provider token is invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "409":
+          description: Provider or email is already linked to another account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "503":
+          description: Provider verification is temporarily unavailable or not configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
   /v1/auth/logout:
     post:
       tags: [Auth]
@@ -1137,6 +1196,25 @@ components:
           type: string
           minLength: 6
           maxLength: 128
+
+    OAuthAuthRequest:
+      type: object
+      required: [provider, idToken]
+      properties:
+        provider:
+          type: string
+          enum: [apple, google]
+        idToken:
+          type: string
+          minLength: 20
+        authorizationCode:
+          type: string
+        nonce:
+          type: string
+          maxLength: 256
+        displayName:
+          type: string
+          maxLength: 160
 
     MacroTotals:
       type: object

@@ -36,6 +36,7 @@ class AccountGateScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final copy = _AccountGateCopy.forReason(reason);
+    final showAppleSignIn = Theme.of(context).platform == TargetPlatform.iOS;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -88,15 +89,17 @@ class AccountGateScreen extends StatelessWidget {
               const SizedBox(height: 22),
               Row(
                 children: [
-                  Expanded(
-                    child: _ProviderButton(
-                      label: 'Apple',
-                      provider: AuthProvider.apple,
-                      loading: loading,
-                      onTap: () => _signIn(context, AuthProvider.apple),
+                  if (showAppleSignIn) ...[
+                    Expanded(
+                      child: _ProviderButton(
+                        label: 'Apple',
+                        provider: AuthProvider.apple,
+                        loading: loading,
+                        onTap: () => _signIn(context, AuthProvider.apple),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
+                    const SizedBox(width: 10),
+                  ],
                   Expanded(
                     child: _ProviderButton(
                       label: 'Google',

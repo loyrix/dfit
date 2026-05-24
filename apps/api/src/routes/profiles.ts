@@ -4,16 +4,29 @@ import { z } from "zod";
 import { AccountAuthError, type AppRepository } from "../repositories/app-repository.js";
 import { calculateHealthTarget } from "../services/health-targets.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
+import {
+  OAuthVerificationError,
+  type OAuthIdentityVerifier,
+} from "../services/oauth-identity-verifier.js";
 
 const emailAuthSchema = z.object({
   email: z.string().trim().email().max(254),
   password: z.string().min(6).max(128),
 });
 
+const oauthAuthSchema = z.object({
+  provider: z.enum(["apple", "google"]),
+  idToken: z.string().trim().min(20),
+  authorizationCode: z.string().trim().min(1).optional(),
+  nonce: z.string().trim().min(1).max(256).optional(),
+  displayName: z.string().trim().min(1).max(160).optional(),
+});
+
 export const registerProfileRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
   mealImageStorage: MealImageStorage,
+  oauthVerifier: OAuthIdentityVerifier,
 ): Promise<void> => {
   app.post("/v1/auth/anonymous", async () => ({
     profile: await repository.getProfile(),
@@ -148,6 +161,30 @@ export const registerProfileRoutes = async (
           message: error.message,
         });
       }
+      throw error;
+    }
+  });
+
+  app.post("/v1/auth/oauth", async (request, reply) => {
+    const parsed = oauthAuthSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_oauth_auth",
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const identity = await oauthVerifier.verify(parsed.data);
+      return await repository.signInWithOAuth(identity);
+    } catch (error) {
+      if (error instanceof OAuthVerificationError) {
+        return reply.status(error.statusCode).send({
+          error: error.code,
+          message: error.message,
+        });
+      }
+      if (error instanceof AccountAuthError) return sendAuthError(reply, error);
       throw error;
     }
   });

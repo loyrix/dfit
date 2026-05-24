@@ -141,6 +141,34 @@ class LogMyPlateApiClient {
     return _emailAuth('/v1/auth/email/login', email: email, password: password);
   }
 
+  Future<AuthSession> signInWithOAuth({
+    required AuthProvider provider,
+    required String idToken,
+    String? authorizationCode,
+    String? nonce,
+    String? displayName,
+  }) async {
+    final payload = <String, dynamic>{
+      'provider': provider.name,
+      'idToken': idToken,
+    };
+    if (authorizationCode != null) {
+      payload['authorizationCode'] = authorizationCode;
+    }
+    if (nonce != null) payload['nonce'] = nonce;
+    if (displayName != null) payload['displayName'] = displayName;
+
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/auth/oauth'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode(payload),
+    );
+    _throwIfBad(response);
+    return AuthSession.fromApiJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<void> logout() async {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/auth/logout'),
