@@ -13,18 +13,18 @@ export const metadata: Metadata = {
 
 const heroScreens = [
   {
-    src: "/screenshots/scan-ready-dark.jpeg",
-    alt: "LogMyPlate scan screen with a misal pav photo ready to analyze",
+    src: "/screenshots/appstore/scan-ready-dark.webp",
+    alt: "LogMyPlate scan screen with an Indian veg thali photo ready to analyze",
     className: "z-30 w-[220px] sm:w-[248px] lg:w-[276px]",
   },
   {
-    src: "/screenshots/review-dark.jpeg",
+    src: "/screenshots/appstore/review-estimate-dark.webp",
     alt: "LogMyPlate review estimate screen showing calories and macros",
     className:
       "z-20 hidden sm:block w-[190px] lg:w-[224px] -ml-16 translate-y-14 rotate-[5deg] opacity-90",
   },
   {
-    src: "/screenshots/dashboard-light.jpeg",
+    src: "/screenshots/appstore/today-dashboard-light.webp",
     alt: "LogMyPlate light theme dashboard with macro mix and weekly rhythm",
     className: "z-10 hidden lg:block w-[196px] -ml-20 -translate-y-10 rotate-[-7deg] opacity-90",
   },
@@ -34,37 +34,37 @@ const flow = [
   {
     eyebrow: "Photo",
     title: "Photo plus food note",
-    body: "Start with one clear plate image. Add a short note like 'misal pav' when it helps the AI.",
-    image: "/screenshots/scan-empty-light.jpeg",
-    alt: "LogMyPlate empty scan screen in light theme",
+    body: "Start with one clear plate image. Add a short note like 'Indian veg thali' when it helps the AI.",
+    image: "/screenshots/appstore/scan-ready-light.webp",
+    alt: "LogMyPlate light theme scan screen with a meal photo ready to analyze",
   },
   {
     eyebrow: "Analyze",
     title: "AI reads the plate",
     body: "The app calculates calories and macro nutrients while keeping the photo flow simple.",
-    image: "/screenshots/analyzing-dark.jpeg",
+    image: "/screenshots/appstore/analyzing-dark.webp",
     alt: "LogMyPlate analyzing screen reading a meal photo",
   },
   {
     eyebrow: "Review",
     title: "Confirm the estimate",
     body: "Review every item, portion, and macro before the meal is saved to your journal.",
-    image: "/screenshots/review-dark.jpeg",
+    image: "/screenshots/appstore/review-estimate-dark.webp",
     alt: "LogMyPlate review estimate screen with food items to confirm",
   },
   {
     eyebrow: "Journal",
     title: "Build your rhythm",
     body: "See daily energy, macro mix, weekly rhythm, and meal details in one calm journal.",
-    image: "/screenshots/dashboard-light.jpeg",
+    image: "/screenshots/appstore/today-dashboard-light.webp",
     alt: "LogMyPlate dashboard showing daily energy and weekly rhythm",
   },
 ];
 
 const macroItems = [
-  { label: "Protein", value: "24g", color: "var(--app-teal)" },
-  { label: "Carbs", value: "98g", color: "var(--app-amber)" },
-  { label: "Fat", value: "18g", color: "var(--app-coral)" },
+  { label: "Protein", value: "33g", color: "var(--app-teal)" },
+  { label: "Carbs", value: "193g", color: "var(--app-amber)" },
+  { label: "Fat", value: "28g", color: "var(--app-coral)" },
 ];
 
 function PhoneShot({
@@ -90,8 +90,8 @@ function PhoneShot({
       <Image
         src={src}
         alt={alt}
-        width={739}
-        height={1600}
+        width={1242}
+        height={2688}
         priority={priority}
         sizes="(max-width: 768px) 58vw, 280px"
         className="h-auto w-full"
@@ -297,7 +297,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
           <div className="relative flex justify-center">
             <PhoneShot
-              src="/screenshots/meal-detail-dark.jpeg"
+              src="/screenshots/appstore/meal-result-dark.webp"
               alt="LogMyPlate meal detail screen showing macro profile and item contribution"
               className="w-[240px] sm:w-[286px]"
             />
@@ -387,18 +387,18 @@ export default function HomePage() {
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
-                src: "/screenshots/dashboard-dark.jpeg",
+                src: "/screenshots/appstore/today-dashboard-dark.webp",
                 alt: "LogMyPlate dark theme today dashboard",
                 label: "Dark dashboard",
               },
               {
-                src: "/screenshots/dashboard-light.jpeg",
+                src: "/screenshots/appstore/today-dashboard-light.webp",
                 alt: "LogMyPlate light theme today dashboard",
                 label: "Light dashboard",
               },
               {
-                src: "/screenshots/target-light.jpeg",
-                alt: "LogMyPlate daily target screen in light theme",
+                src: "/screenshots/appstore/edit-target-dark.webp",
+                alt: "LogMyPlate daily target screen in dark theme",
                 label: "Target setup",
               },
             ].map((shot) => (

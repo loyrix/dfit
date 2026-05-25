@@ -57,7 +57,7 @@ export function GuideArticle({ slug }: { slug: string }) {
         },
       },
       mainEntityOfPage: url,
-      image: `${APP_CONFIG.websiteUrl}/screenshots/dashboard-light.jpeg`,
+      image: `${APP_CONFIG.websiteUrl}/screenshots/appstore/today-dashboard-light.webp`,
       keywords: guide.keywords.join(", "),
     },
     {
