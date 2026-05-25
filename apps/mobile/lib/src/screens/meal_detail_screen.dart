@@ -66,6 +66,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               Row(
                 children: [
                   IconButton(
+                    tooltip: 'Back',
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const BackMark(),
                   ),

@@ -386,9 +386,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _saveMeal(MealType type, List<MealItem> items) async {
-    await _journalController.saveMeal(type, items);
-    _journalTabRange = null;
-    _navigatorKey.currentState!.popUntil((route) => route.isFirst);
+    final meal = await _journalController.saveMeal(type, items);
+    setState(() {
+      _journalTabRange = null;
+      _selectedTab = 0;
+    });
+    _replaceCurrentRouteWithMealDetail(meal);
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
       title: 'Meal saved',
@@ -403,19 +406,39 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     required List<MealItem> items,
     CapturedMealPhoto? photo,
   }) async {
-    await _journalController.confirmAnalyzedMeal(
+    final meal = await _journalController.confirmAnalyzedMeal(
       scanId: scanId,
       title: title,
       type: type,
       items: items,
       photo: photo,
     );
-    _journalTabRange = null;
-    _navigatorKey.currentState!.popUntil((route) => route.isFirst);
+    setState(() {
+      _journalTabRange = null;
+      _selectedTab = 0;
+    });
+    _replaceCurrentRouteWithMealDetail(meal);
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
       title: 'Scan saved',
       message: 'Your meal log is ready.',
+    );
+  }
+
+  void _replaceCurrentRouteWithMealDetail(MealLog meal) {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
+    unawaited(
+      navigator.pushReplacement<bool, void>(
+        logmyplatePageRoute<bool>(
+          builder: (_) => MealDetailScreen(
+            meal: meal,
+            onUpdateMeal: _journalController.updateMeal,
+            onDeleteMeal: _deleteMeal,
+          ),
+        ),
+      ),
     );
   }
 

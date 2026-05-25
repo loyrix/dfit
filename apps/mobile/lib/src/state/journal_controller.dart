@@ -91,7 +91,7 @@ class JournalController extends ChangeNotifier {
     }
   }
 
-  Future<void> saveMeal(MealType type, List<MealItem> items) async {
+  Future<MealLog> saveMeal(MealType type, List<MealItem> items) async {
     final title = items.map((item) => item.name).take(3).join(', ');
     final key = 'meal-${DateTime.now().microsecondsSinceEpoch}';
 
@@ -105,6 +105,8 @@ class JournalController extends ChangeNotifier {
       _upsertLocalMeal(meal);
       _error = null;
       _refreshJournalSoon();
+      notifyListeners();
+      return meal;
     } catch (error, stackTrace) {
       AppDiagnostics.instance.record(
         'journal.save_meal',
@@ -123,9 +125,9 @@ class JournalController extends ChangeNotifier {
       );
       _upsertLocalMeal(pendingMeal);
       _error = 'Saved locally. Will sync when the API is reachable.';
+      notifyListeners();
+      return pendingMeal;
     }
-
-    notifyListeners();
   }
 
   Future<MealLog> updateMeal(MealLog meal, List<MealItem> items) async {
@@ -334,7 +336,7 @@ class JournalController extends ChangeNotifier {
     }
   }
 
-  Future<void> confirmAnalyzedMeal({
+  Future<MealLog> confirmAnalyzedMeal({
     required String scanId,
     required MealType type,
     required String title,
@@ -366,6 +368,7 @@ class JournalController extends ChangeNotifier {
       _error = null;
       notifyListeners();
       _refreshJournalSoon();
+      return meal;
     } catch (error, stackTrace) {
       AppDiagnostics.instance.record(
         'scan.confirm',

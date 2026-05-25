@@ -233,6 +233,39 @@ void main() {
     expect(find.text('Confirm meal'), findsOneWidget);
   });
 
+  testWidgets('confirmed manual meal opens result then back returns to today', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+    });
+
+    await tester.pumpWidget(
+      LogMyPlateApp(journalController: _testJournalController()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add manually'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ReviewMealScreen), findsOneWidget);
+
+    await tester.tap(find.text('Confirm meal'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MealDetailScreen), findsOneWidget);
+    expect(find.text('Dal, Rice'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TodayScreen), findsOneWidget);
+    expect(find.byType(MealDetailScreen), findsNothing);
+  });
+
   testWidgets('primitive icons inherit dark theme color', (tester) async {
     late Color resolvedColor;
 
@@ -1765,6 +1798,37 @@ JournalController _testJournalController({
         }
         if (request.url.path == '/v1/quota') {
           return http.Response(jsonEncode(quotaPayload), 200);
+        }
+        if (request.url.path == '/v1/meals' && request.method == 'POST') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final items = (body['items'] as List<dynamic>)
+              .map(
+                (item) => {
+                  'displayName': (item as Map<String, dynamic>)['displayName'],
+                  'quantity': item['quantity'],
+                  'unit': item['unit'],
+                  'grams': item['grams'],
+                  'nutrition': item['nutrition'],
+                },
+              )
+              .toList();
+
+          return http.Response(
+            jsonEncode({
+              'id': 'meal-created',
+              'mealType': body['mealType'],
+              'title': body['title'],
+              'loggedAt': '2026-05-19T10:10:00.000Z',
+              'items': items,
+              'totals': const {
+                'calories': 390,
+                'proteinG': 15,
+                'carbsG': 70.3,
+                'fatG': 6.1,
+              },
+            }),
+            201,
+          );
         }
         if (request.url.path == '/v1/ads/rewarded/complete' &&
             rewardedAdHttpResponses != null &&
