@@ -7,6 +7,7 @@ import {
   updateModelAction,
 } from "../lib/actions";
 import { adminGet, type AiModel, type AiPrompt } from "../lib/api";
+import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,11 @@ export default async function AiPage() {
 
                 <form action={updateModelAction} className="form-grid mt-4">
                   <input name="key" type="hidden" value={model.key} />
+                  <input
+                    name="idempotencyKey"
+                    type="hidden"
+                    value={createMutationKey(`model:${model.key}:update`)}
+                  />
                   <label className="flex items-center gap-2 text-sm">
                     <input name="enabled" type="checkbox" defaultChecked={model.enabled} /> Enabled
                   </label>
@@ -58,7 +64,10 @@ export default async function AiPage() {
                         className="input"
                         name="maxOutputTokens"
                         type="number"
+                        min="256"
+                        max="8192"
                         defaultValue={model.maxOutputTokens}
+                        required
                       />
                     </label>
                     <label className="grid gap-2">
@@ -67,8 +76,11 @@ export default async function AiPage() {
                         className="input"
                         name="temperature"
                         type="number"
+                        min="0"
+                        max="2"
                         step="0.01"
                         defaultValue={model.temperature}
+                        required
                       />
                     </label>
                     <label className="grid gap-2">
@@ -77,8 +89,11 @@ export default async function AiPage() {
                         className="input"
                         name="topP"
                         type="number"
+                        min="0.01"
+                        max="1"
                         step="0.01"
                         defaultValue={model.topP}
+                        required
                       />
                     </label>
                   </div>
@@ -92,6 +107,8 @@ export default async function AiPage() {
                     className="input"
                     name="reason"
                     placeholder="Reason for model config change"
+                    minLength={8}
+                    maxLength={500}
                     required
                   />
                   <button className="button button-secondary" type="submit">
@@ -103,9 +120,16 @@ export default async function AiPage() {
                   <form action={setDefaultModelAction} className="mt-3 flex gap-3">
                     <input name="key" type="hidden" value={model.key} />
                     <input
+                      name="idempotencyKey"
+                      type="hidden"
+                      value={createMutationKey(`model:${model.key}:default`)}
+                    />
+                    <input
                       className="input"
                       name="reason"
                       placeholder="Reason for switching default model"
+                      minLength={8}
+                      maxLength={500}
                       required
                     />
                     <button className="button" type="submit">
@@ -164,9 +188,16 @@ export default async function AiPage() {
                       <form action={activatePromptAction} className="flex gap-2">
                         <input name="id" type="hidden" value={prompt.id} />
                         <input
+                          name="idempotencyKey"
+                          type="hidden"
+                          value={createMutationKey(`prompt:${prompt.id}:activate`)}
+                        />
+                        <input
                           className="input"
                           name="reason"
                           placeholder="Activation reason"
+                          minLength={8}
+                          maxLength={500}
                           required
                         />
                         <button className="button" type="submit">
@@ -184,18 +215,37 @@ export default async function AiPage() {
         <div className="panel">
           <h2 className="text-xl font-bold">Create prompt draft</h2>
           <form action={createPromptAction} className="form-grid mt-4">
-            <input className="input" name="version" placeholder="food_photo_v6" required />
-            <input className="input" name="title" placeholder="Prompt title" required />
+            <input name="idempotencyKey" type="hidden" value={createMutationKey("prompt:create")} />
+            <input
+              className="input"
+              name="version"
+              placeholder="food_photo_v6"
+              minLength={3}
+              maxLength={80}
+              required
+            />
+            <input
+              className="input"
+              name="title"
+              placeholder="Prompt title"
+              minLength={3}
+              maxLength={160}
+              required
+            />
             <textarea
               className="textarea"
               name="body"
               placeholder="Prompt body. Include {{USER_HINT_BLOCK}} where the user food note should be inserted."
+              minLength={100}
+              maxLength={20000}
               required
             />
             <input
               className="input"
               name="reason"
               placeholder="Reason for creating this prompt"
+              minLength={8}
+              maxLength={500}
               required
             />
             <button className="button" type="submit">

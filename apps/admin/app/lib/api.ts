@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 export type AdminOverview = {
   profiles: number;
   accountProfiles: number;
@@ -166,10 +168,24 @@ export async function adminGet<T>(path: string): Promise<T> {
   return adminFetch<T>(path, { method: "GET" });
 }
 
-export async function adminSend<T>(path: string, body: Record<string, unknown>, method = "POST") {
+type AdminSendOptions = {
+  idempotencyKey?: string;
+  method?: string;
+};
+
+export async function adminSend<T>(
+  path: string,
+  body: Record<string, unknown>,
+  options: AdminSendOptions | string = {},
+) {
+  const method = typeof options === "string" ? options : (options.method ?? "POST");
+  const idempotencyKey = typeof options === "string" ? undefined : options.idempotencyKey;
   return adminFetch<T>(path, {
     method,
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": normalizeIdempotencyKey(idempotencyKey, method),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -208,4 +224,11 @@ function apiPassword() {
   const password = process.env.ADMIN_API_PASSWORD ?? process.env.ADMIN_DASHBOARD_PASSWORD;
   if (!password) throw new Error("ADMIN_API_PASSWORD is required for the admin app.");
   return password;
+}
+
+function normalizeIdempotencyKey(idempotencyKey: string | undefined, method: string) {
+  const value = idempotencyKey?.trim();
+  if (!value) return `admin:${method.toLowerCase()}:${randomUUID()}`;
+  if (/[\r\n]/.test(value)) throw new Error("Invalid idempotency key.");
+  return value;
 }

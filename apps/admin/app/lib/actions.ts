@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { adminSend } from "./api";
+import { readMutationKey } from "./idempotency";
 import {
   clearAdminSession,
   createAdminSession,
@@ -30,11 +31,15 @@ export async function logoutAction() {
 export async function grantCreditsAction(formData: FormData) {
   await requireAdminSession();
   const profileId = stringValue(formData, "profileId");
-  await adminSend(`/admin/users/${profileId}/grants`, {
-    creditType: stringValue(formData, "creditType"),
-    amount: numberValue(formData, "amount"),
-    reason: stringValue(formData, "reason"),
-  });
+  await adminSend(
+    `/admin/users/${profileId}/grants`,
+    {
+      creditType: stringValue(formData, "creditType"),
+      amount: numberValue(formData, "amount"),
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData) },
+  );
   revalidatePath("/users");
   redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
 }
@@ -47,7 +52,7 @@ export async function setDefaultModelAction(formData: FormData) {
       key: stringValue(formData, "key"),
       reason: stringValue(formData, "reason"),
     },
-    "PUT",
+    { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
   revalidatePath("/ai");
   redirect("/ai");
@@ -66,7 +71,7 @@ export async function updateModelAction(formData: FormData) {
       notes: stringValue(formData, "notes"),
       reason: stringValue(formData, "reason"),
     },
-    "PATCH",
+    { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
   revalidatePath("/ai");
   redirect("/ai");
@@ -74,12 +79,16 @@ export async function updateModelAction(formData: FormData) {
 
 export async function createPromptAction(formData: FormData) {
   await requireAdminSession();
-  await adminSend("/admin/ai/prompts", {
-    version: stringValue(formData, "version"),
-    title: stringValue(formData, "title"),
-    body: stringValue(formData, "body"),
-    reason: stringValue(formData, "reason"),
-  });
+  await adminSend(
+    "/admin/ai/prompts",
+    {
+      version: stringValue(formData, "version"),
+      title: stringValue(formData, "title"),
+      body: stringValue(formData, "body"),
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData) },
+  );
   revalidatePath("/ai");
   redirect("/ai");
 }
@@ -92,7 +101,7 @@ export async function activatePromptAction(formData: FormData) {
       id: stringValue(formData, "id"),
       reason: stringValue(formData, "reason"),
     },
-    "PUT",
+    { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
   revalidatePath("/ai");
   redirect("/ai");
@@ -108,7 +117,7 @@ export async function updateFeatureFlagAction(formData: FormData) {
       description: stringValue(formData, "description"),
       reason: stringValue(formData, "reason"),
     },
-    "PUT",
+    { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
   revalidatePath("/flags");
   redirect("/flags");
@@ -116,15 +125,19 @@ export async function updateFeatureFlagAction(formData: FormData) {
 
 export async function createNoticeAction(formData: FormData) {
   await requireAdminSession();
-  await adminSend("/admin/notices", {
-    title: stringValue(formData, "title"),
-    body: stringValue(formData, "body"),
-    severity: stringValue(formData, "severity"),
-    active: formData.get("active") === "on",
-    ctaLabel: optionalStringValue(formData, "ctaLabel"),
-    ctaUrl: optionalStringValue(formData, "ctaUrl"),
-    reason: stringValue(formData, "reason"),
-  });
+  await adminSend(
+    "/admin/notices",
+    {
+      title: stringValue(formData, "title"),
+      body: stringValue(formData, "body"),
+      severity: stringValue(formData, "severity"),
+      active: formData.get("active") === "on",
+      ctaLabel: optionalStringValue(formData, "ctaLabel"),
+      ctaUrl: optionalStringValue(formData, "ctaUrl"),
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData) },
+  );
   revalidatePath("/flags");
   redirect("/flags");
 }
@@ -138,7 +151,7 @@ export async function updateNoticeAction(formData: FormData) {
       active: formData.get("active") === "on",
       reason: stringValue(formData, "reason"),
     },
-    "PATCH",
+    { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
   revalidatePath("/flags");
   redirect("/flags");

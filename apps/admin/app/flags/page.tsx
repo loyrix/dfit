@@ -2,6 +2,7 @@ import { AdminShell } from "../components/shell";
 import { Badge, PageHeader, formatDate } from "../components/ui";
 import { createNoticeAction, updateFeatureFlagAction, updateNoticeAction } from "../lib/actions";
 import { adminGet, type AppNotice, type FeatureFlag } from "../lib/api";
+import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,11 @@ export default async function FlagsPage() {
                 key={flag.key}
               >
                 <input name="key" type="hidden" value={flag.key} />
+                <input
+                  name="idempotencyKey"
+                  type="hidden"
+                  value={createMutationKey(`flag:${flag.key}:update`)}
+                />
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="font-bold">{flag.key}</div>
@@ -38,6 +44,7 @@ export default async function FlagsPage() {
                       name="description"
                       defaultValue={flag.description ?? ""}
                       placeholder="Description"
+                      maxLength={500}
                     />
                     <div className="muted mt-2 text-xs">Updated {formatDate(flag.updatedAt)}</div>
                   </div>
@@ -51,6 +58,8 @@ export default async function FlagsPage() {
                     className="input"
                     name="reason"
                     placeholder="Reason for flag change"
+                    minLength={8}
+                    maxLength={500}
                     required
                   />
                   <button className="button" type="submit">
@@ -65,8 +74,23 @@ export default async function FlagsPage() {
         <div className="panel">
           <h2 className="text-xl font-bold">Create in-app notice</h2>
           <form action={createNoticeAction} className="form-grid mt-4">
-            <input className="input" name="title" placeholder="Notice title" required />
-            <textarea className="textarea" name="body" placeholder="Notice message" required />
+            <input name="idempotencyKey" type="hidden" value={createMutationKey("notice:create")} />
+            <input
+              className="input"
+              name="title"
+              placeholder="Notice title"
+              minLength={3}
+              maxLength={120}
+              required
+            />
+            <textarea
+              className="textarea"
+              name="body"
+              placeholder="Notice message"
+              minLength={3}
+              maxLength={500}
+              required
+            />
             <select className="select" name="severity" defaultValue="info">
               <option value="info">Info</option>
               <option value="success">Success</option>
@@ -76,9 +100,26 @@ export default async function FlagsPage() {
             <label className="flex items-center gap-2">
               <input name="active" type="checkbox" /> Active now
             </label>
-            <input className="input" name="ctaLabel" placeholder="CTA label, optional" />
-            <input className="input" name="ctaUrl" placeholder="CTA URL, optional" />
-            <input className="input" name="reason" placeholder="Reason for notice" required />
+            <input
+              className="input"
+              name="ctaLabel"
+              placeholder="CTA label, optional"
+              maxLength={80}
+            />
+            <input
+              className="input"
+              name="ctaUrl"
+              placeholder="CTA URL, optional"
+              maxLength={500}
+            />
+            <input
+              className="input"
+              name="reason"
+              placeholder="Reason for notice"
+              minLength={8}
+              maxLength={500}
+              required
+            />
             <button className="button" type="submit">
               Publish notice
             </button>
@@ -115,10 +156,22 @@ export default async function FlagsPage() {
                 <td>
                   <form action={updateNoticeAction} className="flex gap-2">
                     <input name="noticeId" type="hidden" value={notice.id} />
+                    <input
+                      name="idempotencyKey"
+                      type="hidden"
+                      value={createMutationKey(`notice:${notice.id}:update`)}
+                    />
                     <label className="flex items-center gap-2">
                       <input name="active" type="checkbox" defaultChecked={notice.active} /> Active
                     </label>
-                    <input className="input" name="reason" placeholder="Reason" required />
+                    <input
+                      className="input"
+                      name="reason"
+                      placeholder="Reason"
+                      minLength={8}
+                      maxLength={500}
+                      required
+                    />
                     <button className="button" type="submit">
                       Save
                     </button>

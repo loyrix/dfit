@@ -3,6 +3,7 @@ import { AdminShell } from "../components/shell";
 import { Badge, Metric, PageHeader, formatDate, formatNumber } from "../components/ui";
 import { grantCreditsAction } from "../lib/actions";
 import { adminGet, type AdminUser } from "../lib/api";
+import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,11 @@ function UserDetail({ user }: { user: AdminUser }) {
 
         <form action={grantCreditsAction} className="form-grid mt-5">
           <input name="profileId" type="hidden" value={user.id} />
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey(`grant:${user.id}`)}
+          />
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-2">
               <span className="text-sm muted">Credit type</span>
@@ -137,6 +143,7 @@ function UserDetail({ user }: { user: AdminUser }) {
                 min="1"
                 max="1000"
                 defaultValue="1"
+                required
               />
             </label>
           </div>
@@ -146,6 +153,8 @@ function UserDetail({ user }: { user: AdminUser }) {
               className="input"
               name="reason"
               placeholder="Example: compensated failed scan reported in support"
+              minLength={8}
+              maxLength={500}
               required
             />
           </label>
