@@ -109,7 +109,7 @@ export default async function ScansPage({
               />
               <div>
                 <div className="metric-label">AI output</div>
-                <pre className="mt-2 max-h-[460px] overflow-auto rounded-lg bg-black/30 p-3 text-xs">
+                <pre className="code-block mt-2 max-h-[460px] overflow-auto">
                   {JSON.stringify(detail.scan.rawAiJson ?? null, null, 2)}
                 </pre>
               </div>

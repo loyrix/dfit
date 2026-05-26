@@ -16,15 +16,13 @@ export default async function LoginPage({
   return (
     <main className="grid min-h-screen place-items-center px-5 py-10">
       <section className="panel w-full max-w-md">
-        <div className="brand-mark mb-6" aria-hidden />
+        <img className="brand-mark mb-6" src="/icon.png" alt="" />
         <div className="eyebrow">Restricted</div>
         <h1 className="title text-4xl">Admin login</h1>
         <p className="muted mt-3">Use the operational credentials configured for LogMyPlate.</p>
 
         {params?.error ? (
-          <div className="mt-5 rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">
-            Invalid admin credentials.
-          </div>
+          <div className="error-callout mt-5">Invalid admin credentials.</div>
         ) : null}
 
         <form action={loginAction} className="form-grid mt-6">

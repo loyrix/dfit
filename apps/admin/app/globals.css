@@ -1,16 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
-  --bg: #0d1210;
-  --panel: #151d18;
-  --panel-soft: #1c2721;
-  --line: rgba(235, 226, 204, 0.13);
-  --text: #f9f5ea;
-  --muted: #aaa395;
-  --gold: #f4c249;
-  --green: #74d3aa;
-  --red: #ff7d73;
+  color-scheme: light;
+  --bg: #faf9f4;
+  --panel: #ffffff;
+  --panel-soft: #f6f2e7;
+  --line: #e7e0d1;
+  --text: #1d211e;
+  --muted: #6f766f;
+  --gold: #eab93f;
+  --gold-soft: #fff3ce;
+  --green: #3da981;
+  --green-soft: #e9f7f0;
+  --red: #d65f55;
+  --red-soft: #fff0ee;
+  --shadow: 0 18px 48px rgba(52, 43, 24, 0.08);
 }
 
 * {
@@ -20,9 +24,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 10% 0%, rgba(244, 194, 73, 0.12), transparent 34rem),
-    linear-gradient(180deg, #0f1612 0%, #090d0b 100%);
+  background: linear-gradient(180deg, #fffdf8 0%, var(--bg) 46%, #f5f1e7 100%);
   color: var(--text);
   font-family:
     Inter,
@@ -54,7 +56,8 @@ textarea {
 
 .sidebar {
   border-right: 1px solid var(--line);
-  background: rgba(12, 17, 14, 0.86);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 12px 0 32px rgba(52, 43, 24, 0.035);
   padding: 24px 18px;
   position: sticky;
   top: 0;
@@ -62,20 +65,12 @@ textarea {
 }
 
 .brand-mark {
-  width: 38px;
-  height: 38px;
+  background: #202823;
   border-radius: 12px;
-  background:
-    conic-gradient(
-      from 0deg,
-      #74d3aa 0 28%,
-      transparent 28% 38%,
-      #ff785f 38% 66%,
-      transparent 66% 74%,
-      #ffb454 74% 100%
-    ),
-    #202823;
-  box-shadow: 0 16px 40px rgba(244, 194, 73, 0.15);
+  box-shadow: 0 12px 28px rgba(52, 43, 24, 0.16);
+  height: 42px;
+  object-fit: cover;
+  width: 42px;
 }
 
 .nav-link {
@@ -86,12 +81,18 @@ textarea {
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--panel-soft);
   color: var(--text);
 }
 
+.admin-account {
+  border-top: 1px solid var(--line);
+  margin-top: 32px;
+  padding-top: 20px;
+}
+
 .content {
-  padding: 28px;
+  padding: 30px;
 }
 
 .page-head {
@@ -103,7 +104,7 @@ textarea {
 }
 
 .eyebrow {
-  color: var(--gold);
+  color: #8a6812;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -135,14 +136,16 @@ textarea {
 }
 
 .panel {
-  background: linear-gradient(180deg, rgba(28, 39, 33, 0.96), rgba(18, 25, 21, 0.96));
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+  box-shadow: var(--shadow);
   padding: 18px;
 }
 
 .panel-light {
-  background: rgba(249, 245, 234, 0.06);
+  background: var(--panel-soft);
+  border: 1px solid rgba(231, 224, 209, 0.75);
 }
 
 .metric-label {
@@ -172,41 +175,47 @@ textarea {
 }
 
 .table th {
+  background: #fbf8ef;
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
 }
 
 .badge {
-  background: rgba(244, 194, 73, 0.14);
-  border: 1px solid rgba(244, 194, 73, 0.24);
+  background: var(--gold-soft);
+  border: 1px solid #ead489;
   border-radius: 999px;
-  color: #ffd36b;
+  color: #755514;
   display: inline-flex;
   font-size: 12px;
   padding: 5px 9px;
 }
 
 .badge-green {
-  background: rgba(116, 211, 170, 0.13);
-  border-color: rgba(116, 211, 170, 0.25);
+  background: var(--green-soft);
+  border-color: #b7e1cc;
   color: var(--green);
 }
 
 .badge-red {
-  background: rgba(255, 125, 115, 0.12);
-  border-color: rgba(255, 125, 115, 0.24);
+  background: var(--red-soft);
+  border-color: #f0c5bf;
   color: var(--red);
 }
 
 .input,
 .select,
 .textarea {
-  background: rgba(255, 255, 255, 0.06);
+  background: #fffdf8;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--text);
   width: 100%;
+}
+
+.select option {
+  background: #fffdf8;
+  color: var(--text);
 }
 
 .input,
@@ -236,9 +245,32 @@ textarea {
 }
 
 .button-secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: #fffdf8;
   border: 1px solid var(--line);
   color: var(--text);
+}
+
+.button:hover,
+.button-secondary:hover {
+  filter: brightness(0.98);
+}
+
+.code-block {
+  background: #f7f3e8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #242820;
+  font-size: 12px;
+  padding: 12px;
+}
+
+.error-callout {
+  background: var(--red-soft);
+  border: 1px solid #f0c5bf;
+  border-radius: 8px;
+  color: #a93e36;
+  font-size: 14px;
+  padding: 12px;
 }
 
 .form-grid {

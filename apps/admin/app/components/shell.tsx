@@ -18,7 +18,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="admin-shell">
       <aside className="sidebar">
         <div className="flex items-center gap-3">
-          <div className="brand-mark" aria-hidden />
+          <img className="brand-mark" src="/icon.png" alt="" />
           <div>
             <div className="font-bold">LogMyPlate</div>
             <div className="text-sm muted">Admin backoffice</div>
@@ -33,7 +33,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="mt-8 border-t border-white/10 pt-5">
+        <div className="admin-account">
           <div className="text-sm muted">Signed in as</div>
           <div className="mt-1 font-semibold">{session.actor}</div>
           <form action={logoutAction} className="mt-4">

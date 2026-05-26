@@ -4,6 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LogMyPlate Admin",
   description: "Operational admin for LogMyPlate.",
+  icons: {
+    icon: "/icon.png",
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
   robots: {
     index: false,
     follow: false,

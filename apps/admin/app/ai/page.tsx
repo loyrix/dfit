@@ -130,9 +130,7 @@ export default async function AiPage() {
                 Updated {formatDate(activePrompt.updatedAt)} by{" "}
                 {activePrompt.updatedBy ?? "unknown"}
               </p>
-              <pre className="mt-4 max-h-[360px] overflow-auto rounded-lg bg-black/30 p-3 text-xs">
-                {activePrompt.body}
-              </pre>
+              <pre className="code-block mt-4 max-h-[360px] overflow-auto">{activePrompt.body}</pre>
             </div>
           ) : (
             <p className="muted mt-3">No active prompt is configured.</p>

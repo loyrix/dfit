@@ -35,7 +35,7 @@ export default async function AuditPage() {
                   <div className="font-semibold">{entry.action}</div>
                   <details className="mt-2">
                     <summary className="muted cursor-pointer text-xs">Before / after</summary>
-                    <pre className="mt-2 max-h-[260px] overflow-auto rounded-lg bg-black/30 p-3 text-xs">
+                    <pre className="code-block mt-2 max-h-[260px] overflow-auto">
                       {JSON.stringify({ before: entry.before, after: entry.after }, null, 2)}
                     </pre>
                   </details>
