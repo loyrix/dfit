@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -82,6 +83,20 @@ val androidProductionAdMobAppId = "ca-app-pub-6936425975956435~2270550089"
 val productionAdMobAppId =
     providers.gradleProperty("LOGMYPLATE_ADMOB_ANDROID_APP_ID").orNull?.trim()
         ?.takeIf { it.isNotEmpty() } ?: androidProductionAdMobAppId
+val releaseSigningPropertiesFile = rootProject.file("key.properties")
+val releaseSigningProperties =
+    Properties().apply {
+        if (releaseSigningPropertiesFile.isFile) {
+            releaseSigningPropertiesFile.inputStream().use { load(it) }
+        }
+    }
+
+fun releaseSigningProperty(key: String): String? =
+    releaseSigningProperties.getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+
+val releaseSigningConfigured =
+    listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        .all { releaseSigningProperty(it) != null }
 
 android {
     namespace = "com.logmyplate.app"
@@ -108,6 +123,17 @@ android {
         manifestPlaceholders["logmyplateAdMobAppId"] = androidDemoAdMobAppId
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseSigningConfigured) {
+                storeFile = rootProject.file(releaseSigningProperty("storeFile")!!)
+                storePassword = releaseSigningProperty("storePassword")
+                keyAlias = releaseSigningProperty("keyAlias")
+                keyPassword = releaseSigningProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             manifestPlaceholders["logmyplateAdMobAppId"] = androidDemoAdMobAppId
@@ -115,10 +141,25 @@ android {
 
         release {
             manifestPlaceholders["logmyplateAdMobAppId"] = productionAdMobAppId
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val releaseBuildRequested =
+        allTasks.any { task ->
+            task.name == "assembleRelease" ||
+                task.name == "bundleRelease" ||
+                task.name == "packageReleaseBundle"
+        }
+    if (releaseBuildRequested && !releaseSigningConfigured) {
+        throw GradleException(
+            "Android release signing is not configured. Create apps/mobile/android/key.properties " +
+                "with storeFile, storePassword, keyAlias, and keyPassword before building a Play Store release.",
+        )
     }
 }
 

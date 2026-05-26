@@ -81,3 +81,15 @@ flutter build appbundle --release \
   --build-name=1.0.0 \
   --build-number=1
 ```
+
+For Google Play uploads, prefer the release helper from the repo root:
+
+```sh
+scripts/mobile/build-android-play-release.sh --build-number 11
+```
+
+The build number is the Android `versionCode` and must be higher than every
+build already uploaded to Play Console. The helper validates local release
+signing, runs `flutter pub get`, `flutter analyze`, `flutter test`, builds a
+signed `.aab`, verifies the bundle signature when `jarsigner` is available, and
+copies the upload-ready bundle to `apps/mobile/build/playstore/`.

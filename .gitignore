@@ -6,6 +6,8 @@ node_modules/
 dist/
 coverage/
 .turbo/
+.idea/
+generated/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -15,4 +17,7 @@ ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 android/.gradle/
+apps/mobile/android/key.properties
+apps/mobile/android/*.jks
+apps/mobile/android/*.keystore
 *.iml
