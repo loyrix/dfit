@@ -12,6 +12,7 @@ class ProfileScreen extends StatelessWidget {
     required this.session,
     required this.onOpenAccount,
     required this.onSignOut,
+    this.bottomPadding = 188,
   });
 
   final ThemeMode themeMode;
@@ -19,6 +20,7 @@ class ProfileScreen extends StatelessWidget {
   final AuthSession? session;
   final VoidCallback onOpenAccount;
   final Future<void> Function() onSignOut;
+  final double bottomPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 188),
+          padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
           children: [
             Text(
               'Profile',

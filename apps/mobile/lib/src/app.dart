@@ -124,29 +124,39 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         return AnimatedBuilder(
           animation: _journalController,
           builder: (context, _) {
-            return _LogMyPlateShell(
-              selectedIndex: _selectedTab,
-              scanPulsing:
-                  _journalController.meals.isEmpty &&
-                  !_journalController.initialLoading,
-              onSelect: _selectTab,
-              onScan: _openCamera,
-              onTarget: _openHealthTargetEditor,
-              child: _selectedTab == 0
-                  ? _todayScreen(
-                      showScanAction: false,
-                      showSettingsAction: false,
-                      bottomPadding: 144,
-                    )
-                  : _selectedTab == 1
-                  ? _journalTabScreen()
-                  : ProfileScreen(
-                      themeMode: _themeMode,
-                      session: _authController.session,
-                      onThemeChanged: _setThemeMode,
-                      onOpenAccount: _openProfileAccount,
-                      onSignOut: _signOutFromProfile,
-                    ),
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final useTabletLayout = _LogMyPlateShell.useTabletLayoutFor(
+                  constraints,
+                );
+                final shellBottomPadding = useTabletLayout ? 32.0 : 144.0;
+
+                return _LogMyPlateShell(
+                  selectedIndex: _selectedTab,
+                  scanPulsing:
+                      _journalController.meals.isEmpty &&
+                      !_journalController.initialLoading,
+                  onSelect: _selectTab,
+                  onScan: _openCamera,
+                  onTarget: _openHealthTargetEditor,
+                  child: _selectedTab == 0
+                      ? _todayScreen(
+                          showScanAction: false,
+                          showSettingsAction: false,
+                          bottomPadding: shellBottomPadding,
+                        )
+                      : _selectedTab == 1
+                      ? _journalTabScreen(bottomPadding: shellBottomPadding)
+                      : ProfileScreen(
+                          themeMode: _themeMode,
+                          session: _authController.session,
+                          bottomPadding: useTabletLayout ? 32 : 188,
+                          onThemeChanged: _setThemeMode,
+                          onOpenAccount: _openProfileAccount,
+                          onSignOut: _signOutFromProfile,
+                        ),
+                );
+              },
             );
           },
         );
@@ -187,12 +197,13 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  Widget _journalTabScreen() {
+  Widget _journalTabScreen({double bottomPadding = 144}) {
     final range = _journalTabRange;
     if (range == null) {
       return _JournalTabLoadingScreen(
         loading: _loadingJournalTab,
         message: _journalTabError,
+        bottomPadding: bottomPadding,
         onRetry: () => _loadJournalTab(force: true),
       );
     }
@@ -200,7 +211,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     return WeeklyJournalScreen(
       range: range,
       showBackButton: false,
-      bottomPadding: 144,
+      bottomPadding: bottomPadding,
       isSyncing: _loadingJournalTab,
       syncMessage: _journalTabError,
       onRefresh: () => _loadJournalTab(force: true),
@@ -979,52 +990,333 @@ class _LogMyPlateShell extends StatelessWidget {
   final VoidCallback onScan;
   final VoidCallback onTarget;
 
+  static const _tabletShortestSideBreakpoint = 600.0;
+  static const _tabletContentMaxWidth = 760.0;
+
+  static bool useTabletLayoutFor(BoxConstraints constraints) {
+    return constraints.biggest.shortestSide >= _tabletShortestSideBreakpoint;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 240),
-              transitionBuilder: (child, animation) {
-                final slide =
-                    Tween<Offset>(
-                      begin: const Offset(0.03, 0),
-                      end: Offset.zero,
-                    ).animate(
-                      CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
+    final colors = context.logmyplate;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useTabletLayout = useTabletLayoutFor(constraints);
+
+        if (useTabletLayout) {
+          return Scaffold(
+            backgroundColor: colors.background,
+            body: SafeArea(
+              child: Row(
+                children: [
+                  _ShellSideRail(
+                    selectedIndex: selectedIndex,
+                    onSelect: onSelect,
+                    onScan: onScan,
+                    onTarget: onTarget,
+                    scanPulsing: scanPulsing,
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: LayoutBuilder(
+                        builder: (context, contentConstraints) {
+                          final contentWidth = min(
+                            contentConstraints.maxWidth,
+                            _tabletContentMaxWidth,
+                          );
+
+                          return Center(
+                            child: SizedBox(
+                              width: contentWidth,
+                              height: contentConstraints.maxHeight,
+                              child: _AnimatedShellContent(
+                                selectedIndex: selectedIndex,
+                                child: child,
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(position: slide, child: child),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey<int>(selectedIndex),
-                child: child,
+                    ),
+                  ),
+                ],
               ),
             ),
+          );
+        }
+
+        return Scaffold(
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: _AnimatedShellContent(
+                  selectedIndex: selectedIndex,
+                  child: child,
+                ),
+              ),
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 12,
+                child: SafeArea(
+                  top: false,
+                  child: _ShellNavBar(
+                    selectedIndex: selectedIndex,
+                    onSelect: onSelect,
+                    onScan: onScan,
+                    onTarget: onTarget,
+                    scanPulsing: scanPulsing,
+                  ),
+                ),
+              ),
+            ],
           ),
-          Positioned(
-            left: 14,
-            right: 14,
-            bottom: 12,
-            child: SafeArea(
-              top: false,
-              child: _ShellNavBar(
-                selectedIndex: selectedIndex,
-                onSelect: onSelect,
-                onScan: onScan,
-                onTarget: onTarget,
-                scanPulsing: scanPulsing,
+        );
+      },
+    );
+  }
+}
+
+class _AnimatedShellContent extends StatelessWidget {
+  const _AnimatedShellContent({
+    required this.selectedIndex,
+    required this.child,
+  });
+
+  final int selectedIndex;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 240),
+      transitionBuilder: (child, animation) {
+        final slide =
+            Tween<Offset>(
+              begin: const Offset(0.03, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: KeyedSubtree(key: ValueKey<int>(selectedIndex), child: child),
+    );
+  }
+}
+
+class _ShellSideRail extends StatelessWidget {
+  const _ShellSideRail({
+    required this.selectedIndex,
+    required this.onSelect,
+    required this.onScan,
+    required this.onTarget,
+    required this.scanPulsing,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onScan;
+  final VoidCallback onTarget;
+  final bool scanPulsing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Material(
+      color: colors.surfaceCard.withValues(alpha: 0.82),
+      child: Container(
+        width: 104,
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: colors.border, width: 0.6)),
+        ),
+        child: Column(
+          children: [
+            const Spacer(),
+            _ShellRailButton(
+              label: 'Today',
+              icon: Icons.home_rounded,
+              selected: selectedIndex == 0,
+              onTap: () => onSelect(0),
+            ),
+            const SizedBox(height: 8),
+            _ShellRailButton(
+              label: 'Journal',
+              icon: Icons.calendar_month_rounded,
+              selected: selectedIndex == 1,
+              onTap: () => onSelect(1),
+            ),
+            const SizedBox(height: 10),
+            _ShellRailScanButton(onTap: onScan, pulsing: scanPulsing),
+            const SizedBox(height: 10),
+            _ShellRailButton(
+              label: 'Target',
+              icon: Icons.track_changes_rounded,
+              selected: false,
+              onTap: onTarget,
+            ),
+            const SizedBox(height: 8),
+            _ShellRailButton(
+              label: 'Profile',
+              icon: Icons.person_rounded,
+              selected: selectedIndex == 2,
+              onTap: () => onSelect(2),
+            ),
+            const Spacer(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShellRailButton extends StatelessWidget {
+  const _ShellRailButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? LogMyPlateColors.accent.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 21,
+              color: selected ? colors.accentText : colors.textSecondary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: selected ? colors.accentText : colors.textSecondary,
+                letterSpacing: 0,
+                fontSize: 11,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShellRailScanButton extends StatelessWidget {
+  const _ShellRailScanButton({required this.onTap, required this.pulsing});
+
+  final VoidCallback onTap;
+  final bool pulsing;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return InkWell(
+      key: const ValueKey('shell-scan-action'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: LogMyPlateColors.accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: LogMyPlateColors.accent.withValues(alpha: 0.28),
+            width: 0.6,
           ),
-        ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                if (pulsing)
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.22),
+                      ),
+                    ),
+                  ),
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFFFE3A3), LogMyPlateColors.accent],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.20),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: PrimitiveCameraIcon(
+                      color: colors.accentOn,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Scan',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.accentText,
+                letterSpacing: 0,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1249,11 +1541,13 @@ class _JournalTabLoadingScreen extends StatelessWidget {
   const _JournalTabLoadingScreen({
     required this.loading,
     required this.message,
+    required this.bottomPadding,
     required this.onRetry,
   });
 
   final bool loading;
   final String? message;
+  final double bottomPadding;
   final VoidCallback onRetry;
 
   @override
@@ -1263,7 +1557,7 @@ class _JournalTabLoadingScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 126),
+          padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -81,6 +81,32 @@ void main() {
     expect(find.byType(TodayScreen), findsOneWidget);
   });
 
+  testWidgets('uses side navigation on tablet sized screens', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1024, 768));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+    });
+
+    await tester.pumpWidget(
+      LogMyPlateApp(journalController: _testJournalController()),
+    );
+    await tester.pumpAndSettle();
+
+    final scanAction = find.byKey(const ValueKey('shell-scan-action'));
+    final profileNavLabel = find.text('Profile');
+    expect(scanAction, findsOneWidget);
+    expect(profileNavLabel, findsOneWidget);
+    expect(tester.getCenter(scanAction).dx, lessThan(130));
+    expect(tester.getCenter(profileNavLabel).dx, lessThan(130));
+    expect(find.byType(TodayScreen), findsOneWidget);
+
+    await tester.tap(profileNavLabel);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProfileScreen), findsOneWidget);
+  });
+
   testWidgets('renders controlled startup error screen', (tester) async {
     await tester.pumpWidget(
       const LogMyPlateStartupErrorApp(message: 'Missing configuration'),
