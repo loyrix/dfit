@@ -15,7 +15,7 @@ import {
   parseFoodPhotoAnalysisText,
 } from "./gemini-ai-provider.js";
 
-type VertexAiProviderOptions = {
+export type VertexAiProviderOptions = {
   project: string;
   location: string;
   model: string;
@@ -23,6 +23,10 @@ type VertexAiProviderOptions = {
   credentialsJsonBase64?: string;
   timeoutMs: number;
   maxOutputTokens: number;
+  temperature?: number;
+  topP?: number;
+  promptTemplate?: string;
+  promptVersion?: string;
   client?: VertexGenerateClient;
   sleepFn?: (ms: number) => Promise<void>;
 };
@@ -93,7 +97,7 @@ export class VertexAiProvider implements AiProvider {
           {
             role: "user",
             parts: [
-              { text: buildFoodPhotoPrompt(input.userHint) },
+              { text: buildFoodPhotoPrompt(input.userHint, this.options.promptTemplate) },
               {
                 inlineData: {
                   mimeType: input.image.mimeType,
@@ -104,8 +108,8 @@ export class VertexAiProvider implements AiProvider {
           },
         ],
         config: {
-          temperature: 0.1,
-          topP: 0.8,
+          temperature: this.options.temperature ?? 0.1,
+          topP: this.options.topP ?? 0.8,
           candidateCount: 1,
           maxOutputTokens: this.options.maxOutputTokens,
           responseMimeType: "application/json",
@@ -152,7 +156,7 @@ export class VertexAiProvider implements AiProvider {
         providerRun: {
           provider: "vertex-ai",
           model: this.options.model,
-          promptVersion: foodPhotoPromptVersion,
+          promptVersion: this.options.promptVersion ?? foodPhotoPromptVersion,
           schemaVersion: foodPhotoSchemaVersion,
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: response.usageMetadata?.promptTokenCount,

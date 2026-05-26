@@ -10,3 +10,4 @@ apps/mobile/ios/Pods/
 apps/mobile/ios/.symlinks/
 apps/mobile/android/.gradle/
 apps/web/.next/
+apps/admin/.next/

@@ -1,4 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import postgres from "postgres";
+import { z } from "zod";
 import type { SqlClient } from "../db/client.js";
 
 const usdToInr = Number(process.env.AI_COST_USD_TO_INR ?? 95.4);
@@ -98,6 +100,16 @@ type RecentRunRow = {
 };
 
 export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient): Promise<void> => {
+  app.get("/admin/session", { preHandler: requireAdmin }, async (request) => ({
+    actor: getAdminActor(request),
+    enabled: true,
+  }));
+
+  app.get("/admin/overview", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return loadAdminOverview(sql);
+  });
+
   app.get("/admin/ai-cost", { preHandler: requireAdmin }, async (_request, reply) => {
     return reply.type("text/html").send(renderAiCostDashboardHtml());
   });
@@ -112,7 +124,1257 @@ export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient)
     const data = await loadAiCostData(sql, days);
     return reply.send(data);
   });
+
+  app.get("/admin/users", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const query = adminUserSearchQuerySchema.parse(request.query ?? {});
+    return { users: await searchAdminUsers(sql, query.query, query.limit) };
+  });
+
+  app.get("/admin/users/:profileId", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const { profileId } = profileParamsSchema.parse(request.params);
+    const user = await loadAdminUser(sql, profileId);
+    if (!user) return reply.status(404).send({ error: "profile_not_found" });
+    return { user };
+  });
+
+  app.post(
+    "/admin/users/:profileId/grants",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+      const { profileId } = profileParamsSchema.parse(request.params);
+      const body = grantCreditSchema.parse(request.body ?? {});
+      const grant = await grantScanCredits(sql, request, profileId, body);
+      if (!grant) return reply.status(404).send({ error: "profile_not_found" });
+      return reply.status(201).send({ grant });
+    },
+  );
+
+  app.get("/admin/scans", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const query = adminScanQuerySchema.parse(request.query ?? {});
+    return { scans: await listAdminScans(sql, query) };
+  });
+
+  app.get("/admin/scans/:scanId", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const { scanId } = scanParamsSchema.parse(request.params);
+    const scan = await loadAdminScan(sql, scanId);
+    if (!scan) return reply.status(404).send({ error: "scan_not_found" });
+    return { scan };
+  });
+
+  app.get("/admin/ai/models", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { models: await listAiModels(sql) };
+  });
+
+  app.put("/admin/ai/models/default", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = setDefaultModelSchema.parse(request.body ?? {});
+    const model = await setDefaultAiModel(sql, request, body);
+    return { model };
+  });
+
+  app.patch("/admin/ai/models/:key", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const { key } = modelParamsSchema.parse(request.params);
+    const body = updateModelSchema.parse(request.body ?? {});
+    const model = await updateAiModel(sql, request, key, body);
+    if (!model) return reply.status(404).send({ error: "ai_model_not_found" });
+    return { model };
+  });
+
+  app.get("/admin/ai/prompts", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { prompts: await listAiPrompts(sql) };
+  });
+
+  app.post("/admin/ai/prompts", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = createPromptSchema.parse(request.body ?? {});
+    const prompt = await createPromptVersion(sql, request, body);
+    return reply.status(201).send({ prompt });
+  });
+
+  app.put("/admin/ai/prompts/active", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = activatePromptSchema.parse(request.body ?? {});
+    const prompt = await activatePromptVersion(sql, request, body);
+    return { prompt };
+  });
+
+  app.get("/admin/feature-flags", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { flags: await listFeatureFlags(sql) };
+  });
+
+  app.put("/admin/feature-flags/:key", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const { key } = flagParamsSchema.parse(request.params);
+    const body = updateFeatureFlagSchema.parse(request.body ?? {});
+    const flag = await updateFeatureFlag(sql, request, key, body);
+    return { flag };
+  });
+
+  app.get("/admin/notices", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { notices: await listAppNotices(sql) };
+  });
+
+  app.post("/admin/notices", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = createNoticeSchema.parse(request.body ?? {});
+    const notice = await createAppNotice(sql, request, body);
+    return reply.status(201).send({ notice });
+  });
+
+  app.patch("/admin/notices/:noticeId", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const { noticeId } = noticeParamsSchema.parse(request.params);
+    const body = updateNoticeSchema.parse(request.body ?? {});
+    const notice = await updateAppNotice(sql, request, noticeId, body);
+    if (!notice) return reply.status(404).send({ error: "notice_not_found" });
+    return { notice };
+  });
+
+  app.get("/admin/audit-log", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const query = adminLimitQuerySchema.parse(request.query ?? {});
+    return { entries: await listAuditLog(sql, query.limit) };
+  });
 };
+
+const uuidSchema = z.string().uuid();
+
+const adminLimitQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+const adminUserSearchQuerySchema = adminLimitQuerySchema.extend({
+  query: z.string().trim().max(160).optional(),
+});
+
+const adminScanQuerySchema = adminLimitQuerySchema.extend({
+  profileId: uuidSchema.optional(),
+  status: z
+    .enum(["prepared", "analyzing", "ready_for_review", "confirmed", "cancelled", "failed"])
+    .optional(),
+});
+
+const profileParamsSchema = z.object({ profileId: uuidSchema });
+const scanParamsSchema = z.object({ scanId: uuidSchema });
+const modelParamsSchema = z.object({ key: z.string().min(1).max(160) });
+const flagParamsSchema = z.object({ key: z.string().min(1).max(160) });
+const noticeParamsSchema = z.object({ noticeId: uuidSchema });
+
+const requiredReasonSchema = z.string().trim().min(8).max(500);
+
+const grantCreditSchema = z.object({
+  creditType: z.enum(["free", "rewarded", "premium"]),
+  amount: z.coerce.number().int().min(1).max(1000),
+  reason: requiredReasonSchema,
+});
+
+const setDefaultModelSchema = z.object({
+  key: z.string().min(1).max(160),
+  reason: requiredReasonSchema,
+});
+
+const updateModelSchema = z.object({
+  enabled: z.boolean().optional(),
+  maxOutputTokens: z.coerce.number().int().min(256).max(8192).optional(),
+  temperature: z.coerce.number().min(0).max(2).optional(),
+  topP: z.coerce.number().min(0.01).max(1).optional(),
+  notes: z.string().trim().max(1000).optional(),
+  reason: requiredReasonSchema,
+});
+
+const createPromptSchema = z.object({
+  version: z.string().trim().min(3).max(80),
+  title: z.string().trim().min(3).max(160),
+  body: z.string().trim().min(100).max(20000),
+  reason: requiredReasonSchema,
+});
+
+const activatePromptSchema = z.object({
+  id: uuidSchema,
+  reason: requiredReasonSchema,
+});
+
+const updateFeatureFlagSchema = z.object({
+  value: z.boolean(),
+  description: z.string().trim().max(500).optional(),
+  reason: requiredReasonSchema,
+});
+
+const createNoticeSchema = z.object({
+  title: z.string().trim().min(3).max(120),
+  body: z.string().trim().min(3).max(500),
+  severity: z.enum(["info", "success", "warning", "critical"]).default("info"),
+  active: z.boolean().default(false),
+  ctaLabel: z.string().trim().max(80).optional(),
+  ctaUrl: z.string().trim().url().max(500).optional(),
+  reason: requiredReasonSchema,
+});
+
+const updateNoticeSchema = z.object({
+  title: z.string().trim().min(3).max(120).optional(),
+  body: z.string().trim().min(3).max(500).optional(),
+  severity: z.enum(["info", "success", "warning", "critical"]).optional(),
+  active: z.boolean().optional(),
+  ctaLabel: z.string().trim().max(80).nullable().optional(),
+  ctaUrl: z.string().trim().url().max(500).nullable().optional(),
+  reason: requiredReasonSchema,
+});
+
+type AdminOverviewRow = {
+  profiles: number | string;
+  account_profiles: number | string;
+  scans: number | string;
+  failed_scans: number | string;
+  meals: number | string;
+  active_notices: number | string;
+};
+
+const loadAdminOverview = async (sql: SqlClient) => {
+  const [row] = await sql<AdminOverviewRow[]>`
+    select
+      (select count(*) from profiles)::int as profiles,
+      (select count(*) from profiles where auth_method <> 'anonymous')::int as account_profiles,
+      (select count(*) from scan_sessions)::int as scans,
+      (select count(*) from scan_sessions where status = 'failed')::int as failed_scans,
+      (select count(*) from meals)::int as meals,
+      (select count(*) from app_notices where active)::int as active_notices
+  `;
+
+  return {
+    profiles: numberValue(row?.profiles),
+    accountProfiles: numberValue(row?.account_profiles),
+    scans: numberValue(row?.scans),
+    failedScans: numberValue(row?.failed_scans),
+    meals: numberValue(row?.meals),
+    activeNotices: numberValue(row?.active_notices),
+  };
+};
+
+type AdminUserRow = {
+  id: string;
+  auth_method: string;
+  email: string | null;
+  timezone: string;
+  linked_at: string | null;
+  deletion_requested_at: string | null;
+  deactivated_at: string | null;
+  created_at: string;
+  updated_at: string;
+  free_remaining: number | null;
+  rewarded_remaining: number | null;
+  premium_remaining: number | null;
+  meals: number | string;
+  scans: number | string;
+  failed_scans: number | string;
+  grants: number | string;
+};
+
+type AdminGrantRow = {
+  id: string;
+  profile_id: string;
+  credit_type: "free" | "rewarded" | "premium";
+  amount: number;
+  reason: string;
+  actor: string;
+  created_at: string;
+};
+
+const searchAdminUsers = async (sql: SqlClient, query: string | undefined, limit: number) => {
+  const normalized = query?.trim() || "";
+  const pattern = `%${normalized}%`;
+  const rows = await sql<AdminUserRow[]>`
+    select
+      profiles.id::text,
+      profiles.auth_method::text,
+      profiles.email,
+      profiles.timezone,
+      profiles.linked_at::text,
+      profiles.deletion_requested_at::text,
+      profiles.deactivated_at::text,
+      profiles.created_at::text,
+      profiles.updated_at::text,
+      scan_credits.free_remaining,
+      scan_credits.rewarded_remaining,
+      scan_credits.premium_remaining,
+      count(distinct meals.id)::int as meals,
+      count(distinct scan_sessions.id)::int as scans,
+      count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
+      count(distinct admin_scan_credit_grants.id)::int as grants
+    from profiles
+    left join scan_credits
+      on scan_credits.profile_id = profiles.id
+      and scan_credits.local_date = date '1970-01-01'
+    left join meals on meals.profile_id = profiles.id
+    left join scan_sessions on scan_sessions.profile_id = profiles.id
+    left join admin_scan_credit_grants on admin_scan_credit_grants.profile_id = profiles.id
+    where
+      ${normalized} = ''
+      or profiles.id::text = ${normalized}
+      or profiles.email ilike ${pattern}
+      or profiles.provider_subject ilike ${pattern}
+    group by profiles.id, scan_credits.free_remaining, scan_credits.rewarded_remaining, scan_credits.premium_remaining
+    order by profiles.updated_at desc
+    limit ${limit}
+  `;
+
+  return rows.map(mapAdminUserRow);
+};
+
+const loadAdminUser = async (sql: SqlClient, profileId: string) => {
+  const [userRow] = await sql<AdminUserRow[]>`
+    select
+      profiles.id::text,
+      profiles.auth_method::text,
+      profiles.email,
+      profiles.timezone,
+      profiles.linked_at::text,
+      profiles.deletion_requested_at::text,
+      profiles.deactivated_at::text,
+      profiles.created_at::text,
+      profiles.updated_at::text,
+      scan_credits.free_remaining,
+      scan_credits.rewarded_remaining,
+      scan_credits.premium_remaining,
+      count(distinct meals.id)::int as meals,
+      count(distinct scan_sessions.id)::int as scans,
+      count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
+      count(distinct admin_scan_credit_grants.id)::int as grants
+    from profiles
+    left join scan_credits
+      on scan_credits.profile_id = profiles.id
+      and scan_credits.local_date = date '1970-01-01'
+    left join meals on meals.profile_id = profiles.id
+    left join scan_sessions on scan_sessions.profile_id = profiles.id
+    left join admin_scan_credit_grants on admin_scan_credit_grants.profile_id = profiles.id
+    where profiles.id = ${profileId}
+    group by profiles.id, scan_credits.free_remaining, scan_credits.rewarded_remaining, scan_credits.premium_remaining
+    limit 1
+  `;
+
+  if (!userRow) return undefined;
+
+  const grants = await sql<AdminGrantRow[]>`
+    select
+      id::text,
+      profile_id::text,
+      credit_type,
+      amount,
+      reason,
+      actor,
+      created_at::text
+    from admin_scan_credit_grants
+    where profile_id = ${profileId}
+    order by created_at desc
+    limit 20
+  `;
+
+  const scans = await listAdminScans(sql, { profileId, limit: 20 });
+
+  return {
+    ...mapAdminUserRow(userRow),
+    grants: grants.map(mapAdminGrantRow),
+    recentScans: scans,
+  };
+};
+
+const mapAdminUserRow = (row: AdminUserRow) => ({
+  id: row.id,
+  authMethod: row.auth_method,
+  email: row.email ?? undefined,
+  timezone: row.timezone,
+  linkedAt: row.linked_at ?? undefined,
+  deletionRequestedAt: row.deletion_requested_at ?? undefined,
+  deactivatedAt: row.deactivated_at ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  quota: {
+    freeRemaining: row.free_remaining ?? 0,
+    rewardedRemaining: row.rewarded_remaining ?? 0,
+    premiumRemaining: row.premium_remaining ?? 0,
+  },
+  stats: {
+    meals: numberValue(row.meals),
+    scans: numberValue(row.scans),
+    failedScans: numberValue(row.failed_scans),
+    grants: numberValue(row.grants),
+  },
+});
+
+const mapAdminGrantRow = (row: AdminGrantRow) => ({
+  id: row.id,
+  profileId: row.profile_id,
+  creditType: row.credit_type,
+  amount: row.amount,
+  reason: row.reason,
+  actor: row.actor,
+  createdAt: row.created_at,
+});
+
+const grantScanCredits = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  profileId: string,
+  input: z.infer<typeof grantCreditSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const [profile] = await tx<{ id: string }[]>`
+      select id::text
+      from profiles
+      where id = ${profileId}
+      limit 1
+    `;
+    if (!profile) return undefined;
+
+    const [before] = await tx<QuotaSnapshotRow[]>`
+      select free_remaining, rewarded_remaining, premium_remaining
+      from scan_credits
+      where profile_id = ${profileId}
+        and local_date = date '1970-01-01'
+      limit 1
+    `;
+
+    const column = creditColumn(input.creditType);
+    const freeInsertAmount = input.creditType === "free" ? input.amount : 0;
+    const rewardedInsertAmount = input.creditType === "rewarded" ? input.amount : 0;
+    const premiumInsertAmount = input.creditType === "premium" ? input.amount : 0;
+    const [quota] = await tx<QuotaSnapshotRow[]>`
+      insert into scan_credits (
+        profile_id,
+        local_date,
+        free_remaining,
+        rewarded_remaining,
+        premium_remaining
+      )
+      values (${profileId}, date '1970-01-01', ${freeInsertAmount}, ${rewardedInsertAmount}, ${premiumInsertAmount})
+      on conflict (profile_id, local_date) do update
+      set
+        ${tx(column)} = ${tx(column)} + ${input.amount},
+        updated_at = now()
+      returning free_remaining, rewarded_remaining, premium_remaining
+    `;
+
+    const auditLogId = await insertAuditLog(tx, request, {
+      action: "grant_scan_credits",
+      targetType: "profile",
+      targetId: profileId,
+      reason: input.reason,
+      before: before ? mapQuotaSnapshot(before) : null,
+      after: mapQuotaSnapshot(quota),
+    });
+
+    const [grant] = await tx<AdminGrantRow[]>`
+      insert into admin_scan_credit_grants (
+        profile_id,
+        credit_type,
+        amount,
+        reason,
+        actor,
+        audit_log_id
+      )
+      values (
+        ${profileId},
+        ${input.creditType},
+        ${input.amount},
+        ${input.reason},
+        ${getAdminActor(request) ?? "unknown"},
+        ${auditLogId}
+      )
+      returning id::text, profile_id::text, credit_type, amount, reason, actor, created_at::text
+    `;
+
+    await tx`
+      insert into quota_events (profile_id, event_type, reason, delta, local_date)
+      values (${profileId}, 'grant', ${`admin_${input.creditType}`}, ${input.amount}, current_date)
+    `;
+
+    return mapAdminGrantRow(grant);
+  });
+
+type QuotaSnapshotRow = {
+  free_remaining: number;
+  rewarded_remaining: number;
+  premium_remaining: number;
+};
+
+const mapQuotaSnapshot = (row: QuotaSnapshotRow) => ({
+  freeRemaining: row.free_remaining,
+  rewardedRemaining: row.rewarded_remaining,
+  premiumRemaining: row.premium_remaining,
+});
+
+const creditColumn = (creditType: "free" | "rewarded" | "premium") =>
+  creditType === "free"
+    ? "free_remaining"
+    : creditType === "rewarded"
+      ? "rewarded_remaining"
+      : "premium_remaining";
+
+type AdminScanRow = {
+  id: string;
+  profile_id: string;
+  status: string;
+  consumed_credit_reason: string | null;
+  user_hint: string | null;
+  image_mime_type: string | null;
+  image_byte_size: number | null;
+  image_bucket: string | null;
+  image_object_key: string | null;
+  created_at: string;
+  updated_at: string;
+  provider: string | null;
+  model: string | null;
+  prompt_version: string | null;
+  latency_ms: number | null;
+  success: boolean | null;
+  error_code: string | null;
+  total_confidence: number | string | null;
+  meal_id: string | null;
+  meal_title: string | null;
+};
+
+const listAdminScans = async (
+  sql: SqlClient,
+  query: z.infer<typeof adminScanQuerySchema> | { profileId?: string; limit: number },
+) => {
+  const profileId = "profileId" in query ? query.profileId : undefined;
+  const status = "status" in query ? query.status : undefined;
+  const rows = await sql<AdminScanRow[]>`
+    select
+      scan_sessions.id::text,
+      scan_sessions.profile_id::text,
+      scan_sessions.status::text,
+      scan_sessions.consumed_credit_reason,
+      scan_sessions.user_hint,
+      scan_sessions.image_mime_type,
+      scan_sessions.image_byte_size,
+      scan_sessions.image_bucket,
+      scan_sessions.image_object_key,
+      scan_sessions.created_at::text,
+      scan_sessions.updated_at::text,
+      provider_run.provider,
+      provider_run.model,
+      provider_run.prompt_version,
+      provider_run.latency_ms,
+      provider_run.success,
+      provider_run.error_code,
+      prediction.total_confidence,
+      meals.id::text as meal_id,
+      meals.title as meal_title
+    from scan_sessions
+    left join lateral (
+      select provider, model, prompt_version, latency_ms, success, error_code
+      from ai_provider_runs
+      where ai_provider_runs.scan_session_id = scan_sessions.id
+      order by created_at desc
+      limit 1
+    ) provider_run on true
+    left join lateral (
+      select total_confidence
+      from ai_predictions
+      where ai_predictions.scan_session_id = scan_sessions.id
+      order by created_at desc
+      limit 1
+    ) prediction on true
+    left join meals on meals.scan_session_id = scan_sessions.id
+    where (${profileId ?? null}::uuid is null or scan_sessions.profile_id = ${profileId ?? null})
+      and (${status ?? null}::text is null or scan_sessions.status::text = ${status ?? null})
+    order by scan_sessions.created_at desc
+    limit ${query.limit}
+  `;
+
+  return rows.map(mapAdminScanRow);
+};
+
+const loadAdminScan = async (sql: SqlClient, scanId: string) => {
+  const [row] = await sql<(AdminScanRow & { raw_ai_json: unknown })[]>`
+    select
+      scan_sessions.id::text,
+      scan_sessions.profile_id::text,
+      scan_sessions.status::text,
+      scan_sessions.consumed_credit_reason,
+      scan_sessions.user_hint,
+      scan_sessions.image_mime_type,
+      scan_sessions.image_byte_size,
+      scan_sessions.image_bucket,
+      scan_sessions.image_object_key,
+      scan_sessions.created_at::text,
+      scan_sessions.updated_at::text,
+      provider_run.provider,
+      provider_run.model,
+      provider_run.prompt_version,
+      provider_run.latency_ms,
+      provider_run.success,
+      provider_run.error_code,
+      prediction.total_confidence,
+      prediction.raw_ai_json,
+      meals.id::text as meal_id,
+      meals.title as meal_title
+    from scan_sessions
+    left join lateral (
+      select provider, model, prompt_version, latency_ms, success, error_code
+      from ai_provider_runs
+      where ai_provider_runs.scan_session_id = scan_sessions.id
+      order by created_at desc
+      limit 1
+    ) provider_run on true
+    left join lateral (
+      select raw_ai_json, total_confidence
+      from ai_predictions
+      where ai_predictions.scan_session_id = scan_sessions.id
+      order by created_at desc
+      limit 1
+    ) prediction on true
+    left join meals on meals.scan_session_id = scan_sessions.id
+    where scan_sessions.id = ${scanId}
+    limit 1
+  `;
+
+  return row
+    ? {
+        ...mapAdminScanRow(row),
+        rawAiJson: row.raw_ai_json,
+      }
+    : undefined;
+};
+
+const mapAdminScanRow = (row: AdminScanRow) => ({
+  id: row.id,
+  profileId: row.profile_id,
+  status: row.status,
+  creditReason: row.consumed_credit_reason ?? undefined,
+  userHint: row.user_hint ?? undefined,
+  image: row.image_object_key
+    ? {
+        mimeType: row.image_mime_type ?? undefined,
+        byteSize: row.image_byte_size ?? undefined,
+        bucket: row.image_bucket ?? undefined,
+        objectKey: row.image_object_key,
+      }
+    : undefined,
+  ai: row.model
+    ? {
+        provider: row.provider ?? undefined,
+        model: row.model,
+        promptVersion: row.prompt_version ?? undefined,
+        latencyMs: row.latency_ms ?? undefined,
+        success: row.success ?? undefined,
+        errorCode: row.error_code ?? undefined,
+        confidence: nullableNumberValue(row.total_confidence),
+      }
+    : undefined,
+  meal: row.meal_id ? { id: row.meal_id, title: row.meal_title ?? undefined } : undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+type AiModelRow = {
+  key: string;
+  platform: string;
+  model_family: string;
+  model: string;
+  display_name: string;
+  enabled: boolean;
+  is_default: boolean;
+  fallback_key: string | null;
+  max_output_tokens: number | string;
+  temperature: number | string;
+  top_p: number | string;
+  pricing_json: unknown;
+  notes: string | null;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+const listAiModels = async (sql: SqlClient) => {
+  const rows = await sql<AiModelRow[]>`
+    select
+      key,
+      platform,
+      model_family,
+      model,
+      display_name,
+      enabled,
+      is_default,
+      fallback_key,
+      max_output_tokens,
+      temperature,
+      top_p,
+      pricing_json,
+      notes,
+      updated_by,
+      updated_at::text
+    from ai_model_configs
+    order by is_default desc, enabled desc, display_name
+  `;
+  return rows.map(mapAiModelRow);
+};
+
+const mapAiModelRow = (row: AiModelRow) => ({
+  key: row.key,
+  platform: row.platform,
+  modelFamily: row.model_family,
+  model: row.model,
+  displayName: row.display_name,
+  enabled: row.enabled,
+  isDefault: row.is_default,
+  fallbackKey: row.fallback_key ?? undefined,
+  maxOutputTokens: numberValue(row.max_output_tokens),
+  temperature: numberValue(row.temperature),
+  topP: numberValue(row.top_p),
+  pricing: row.pricing_json,
+  notes: row.notes ?? undefined,
+  updatedBy: row.updated_by ?? undefined,
+  updatedAt: row.updated_at,
+});
+
+const setDefaultAiModel = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof setDefaultModelSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [before] = await tx<AiModelRow[]>`
+      select *
+      from ai_model_configs
+      where is_default
+      limit 1
+    `;
+    const [candidate] = await tx<AiModelRow[]>`
+      select *
+      from ai_model_configs
+      where key = ${input.key}
+        and enabled
+      limit 1
+    `;
+    if (!candidate) throw new Error("ai_model_not_found");
+    if (candidate.model_family !== "gemini") {
+      throw new Error(
+        "Only Vertex Gemini model family can be set as default until the backend adapter is added.",
+      );
+    }
+
+    await tx`update ai_model_configs set is_default = false, updated_at = now() where is_default`;
+    const [updated] = await tx<AiModelRow[]>`
+      update ai_model_configs
+      set is_default = true, updated_by = ${actor}, updated_at = now()
+      where key = ${input.key}
+      returning *
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "set_default_ai_model",
+      targetType: "ai_model",
+      targetId: input.key,
+      reason: input.reason,
+      before: before ? mapAiModelRow(before) : null,
+      after: mapAiModelRow(updated),
+    });
+
+    return mapAiModelRow(updated);
+  });
+
+const updateAiModel = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  key: string,
+  input: z.infer<typeof updateModelSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [before] = await tx<AiModelRow[]>`
+      select *
+      from ai_model_configs
+      where key = ${key}
+      limit 1
+    `;
+    if (!before) return undefined;
+
+    const [updated] = await tx<AiModelRow[]>`
+      update ai_model_configs
+      set
+        enabled = ${input.enabled ?? before.enabled},
+        max_output_tokens = ${input.maxOutputTokens ?? before.max_output_tokens},
+        temperature = ${input.temperature ?? before.temperature},
+        top_p = ${input.topP ?? before.top_p},
+        notes = ${input.notes ?? before.notes},
+        updated_by = ${actor},
+        updated_at = now()
+      where key = ${key}
+      returning *
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_ai_model",
+      targetType: "ai_model",
+      targetId: key,
+      reason: input.reason,
+      before: mapAiModelRow(before),
+      after: mapAiModelRow(updated),
+    });
+
+    return mapAiModelRow(updated);
+  });
+
+type AiPromptRow = {
+  id: string;
+  key: string;
+  version: string;
+  model_family: string;
+  title: string;
+  body: string;
+  status: string;
+  is_active: boolean;
+  updated_by: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const listAiPrompts = async (sql: SqlClient) => {
+  const rows = await sql<AiPromptRow[]>`
+    select
+      id::text,
+      key,
+      version,
+      model_family,
+      title,
+      body,
+      status,
+      is_active,
+      updated_by,
+      published_at::text,
+      created_at::text,
+      updated_at::text
+    from ai_prompt_versions
+    order by is_active desc, updated_at desc
+  `;
+  return rows.map(mapAiPromptRow);
+};
+
+const mapAiPromptRow = (row: AiPromptRow) => ({
+  id: row.id,
+  key: row.key,
+  version: row.version,
+  modelFamily: row.model_family,
+  title: row.title,
+  body: row.body,
+  status: row.status,
+  isActive: row.is_active,
+  updatedBy: row.updated_by ?? undefined,
+  publishedAt: row.published_at ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const createPromptVersion = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof createPromptSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [prompt] = await tx<AiPromptRow[]>`
+      insert into ai_prompt_versions (
+        key,
+        version,
+        model_family,
+        title,
+        body,
+        status,
+        created_by,
+        updated_by
+      )
+      values (
+        'food_photo',
+        ${input.version},
+        'gemini',
+        ${input.title},
+        ${input.body},
+        'draft',
+        ${actor},
+        ${actor}
+      )
+      returning id::text, key, version, model_family, title, body, status, is_active, updated_by, published_at::text, created_at::text, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "create_ai_prompt_version",
+      targetType: "ai_prompt",
+      targetId: prompt.id,
+      reason: input.reason,
+      before: null,
+      after: mapAiPromptRow(prompt),
+    });
+
+    return mapAiPromptRow(prompt);
+  });
+
+const activatePromptVersion = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof activatePromptSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [before] = await tx<AiPromptRow[]>`
+      select
+        id::text,
+        key,
+        version,
+        model_family,
+        title,
+        body,
+        status,
+        is_active,
+        updated_by,
+        published_at::text,
+        created_at::text,
+        updated_at::text
+      from ai_prompt_versions
+      where id = ${input.id}
+      limit 1
+    `;
+    if (!before) throw new Error("ai_prompt_not_found");
+
+    await tx`
+      update ai_prompt_versions
+      set is_active = false, updated_at = now()
+      where key = ${before.key}
+    `;
+
+    const [updated] = await tx<AiPromptRow[]>`
+      update ai_prompt_versions
+      set
+        status = 'published',
+        is_active = true,
+        published_at = coalesce(published_at, now()),
+        updated_by = ${actor},
+        updated_at = now()
+      where id = ${input.id}
+      returning id::text, key, version, model_family, title, body, status, is_active, updated_by, published_at::text, created_at::text, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "activate_ai_prompt_version",
+      targetType: "ai_prompt",
+      targetId: input.id,
+      reason: input.reason,
+      before: mapAiPromptRow(before),
+      after: mapAiPromptRow(updated),
+    });
+
+    return mapAiPromptRow(updated);
+  });
+
+type FeatureFlagRow = {
+  key: string;
+  value: unknown;
+  description: string | null;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+const listFeatureFlags = async (sql: SqlClient) => {
+  const rows = await sql<FeatureFlagRow[]>`
+    select key, value, description, updated_by, updated_at::text
+    from feature_flags
+    order by key
+  `;
+  return rows.map(mapFeatureFlagRow);
+};
+
+const mapFeatureFlagRow = (row: FeatureFlagRow) => ({
+  key: row.key,
+  value: row.value,
+  description: row.description ?? undefined,
+  updatedBy: row.updated_by ?? undefined,
+  updatedAt: row.updated_at,
+});
+
+const updateFeatureFlag = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  key: string,
+  input: z.infer<typeof updateFeatureFlagSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [before] = await tx<FeatureFlagRow[]>`
+      select key, value, description, updated_by, updated_at::text
+      from feature_flags
+      where key = ${key}
+      limit 1
+    `;
+
+    const [flag] = await tx<FeatureFlagRow[]>`
+      insert into feature_flags (key, value, description, updated_by)
+      values (${key}, ${tx.json(input.value)}, ${input.description ?? before?.description ?? null}, ${actor})
+      on conflict (key) do update
+      set
+        value = excluded.value,
+        description = excluded.description,
+        updated_by = excluded.updated_by,
+        updated_at = now()
+      returning key, value, description, updated_by, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_feature_flag",
+      targetType: "feature_flag",
+      targetId: key,
+      reason: input.reason,
+      before: before ? mapFeatureFlagRow(before) : null,
+      after: mapFeatureFlagRow(flag),
+    });
+
+    return mapFeatureFlagRow(flag);
+  });
+
+type AppNoticeRow = {
+  id: string;
+  title: string;
+  body: string;
+  severity: string;
+  active: boolean;
+  cta_label: string | null;
+  cta_url: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+const listAppNotices = async (sql: SqlClient) => {
+  const rows = await sql<AppNoticeRow[]>`
+    select
+      id::text,
+      title,
+      body,
+      severity,
+      active,
+      cta_label,
+      cta_url,
+      created_by,
+      updated_by,
+      created_at::text,
+      updated_at::text
+    from app_notices
+    order by active desc, updated_at desc
+  `;
+  return rows.map(mapAppNoticeRow);
+};
+
+const mapAppNoticeRow = (row: AppNoticeRow) => ({
+  id: row.id,
+  title: row.title,
+  body: row.body,
+  severity: row.severity,
+  active: row.active,
+  ctaLabel: row.cta_label ?? undefined,
+  ctaUrl: row.cta_url ?? undefined,
+  createdBy: row.created_by ?? undefined,
+  updatedBy: row.updated_by ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const createAppNotice = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof createNoticeSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [notice] = await tx<AppNoticeRow[]>`
+      insert into app_notices (
+        title,
+        body,
+        severity,
+        active,
+        cta_label,
+        cta_url,
+        created_by,
+        updated_by
+      )
+      values (
+        ${input.title},
+        ${input.body},
+        ${input.severity},
+        ${input.active},
+        ${input.ctaLabel ?? null},
+        ${input.ctaUrl ?? null},
+        ${actor},
+        ${actor}
+      )
+      returning id::text, title, body, severity, active, cta_label, cta_url, created_by, updated_by, created_at::text, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "create_app_notice",
+      targetType: "app_notice",
+      targetId: notice.id,
+      reason: input.reason,
+      before: null,
+      after: mapAppNoticeRow(notice),
+    });
+
+    return mapAppNoticeRow(notice);
+  });
+
+const updateAppNotice = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  noticeId: string,
+  input: z.infer<typeof updateNoticeSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [before] = await tx<AppNoticeRow[]>`
+      select
+        id::text,
+        title,
+        body,
+        severity,
+        active,
+        cta_label,
+        cta_url,
+        created_by,
+        updated_by,
+        created_at::text,
+        updated_at::text
+      from app_notices
+      where id = ${noticeId}
+      limit 1
+    `;
+    if (!before) return undefined;
+
+    const [notice] = await tx<AppNoticeRow[]>`
+      update app_notices
+      set
+        title = ${input.title ?? before.title},
+        body = ${input.body ?? before.body},
+        severity = ${input.severity ?? before.severity},
+        active = ${input.active ?? before.active},
+        cta_label = ${input.ctaLabel === undefined ? before.cta_label : input.ctaLabel},
+        cta_url = ${input.ctaUrl === undefined ? before.cta_url : input.ctaUrl},
+        updated_by = ${actor},
+        updated_at = now()
+      where id = ${noticeId}
+      returning id::text, title, body, severity, active, cta_label, cta_url, created_by, updated_by, created_at::text, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_app_notice",
+      targetType: "app_notice",
+      targetId: noticeId,
+      reason: input.reason,
+      before: mapAppNoticeRow(before),
+      after: mapAppNoticeRow(notice),
+    });
+
+    return mapAppNoticeRow(notice);
+  });
+
+type AuditLogRow = {
+  id: string;
+  actor: string;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  reason: string | null;
+  before_json: unknown;
+  after_json: unknown;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+};
+
+const listAuditLog = async (sql: SqlClient, limit: number) => {
+  const rows = await sql<AuditLogRow[]>`
+    select
+      id::text,
+      actor,
+      action,
+      target_type,
+      target_id,
+      reason,
+      before_json,
+      after_json,
+      ip_address,
+      user_agent,
+      created_at::text
+    from admin_audit_log
+    order by created_at desc
+    limit ${limit}
+  `;
+  return rows.map((row) => ({
+    id: row.id,
+    actor: row.actor,
+    action: row.action,
+    targetType: row.target_type,
+    targetId: row.target_id ?? undefined,
+    reason: row.reason ?? undefined,
+    before: row.before_json,
+    after: row.after_json,
+    ipAddress: row.ip_address ?? undefined,
+    userAgent: row.user_agent ?? undefined,
+    createdAt: row.created_at,
+  }));
+};
+
+const insertAuditLog = async (
+  sql: SqlClient | postgres.TransactionSql,
+  request: FastifyRequest,
+  input: {
+    action: string;
+    targetType: string;
+    targetId?: string;
+    reason?: string;
+    before?: unknown;
+    after?: unknown;
+  },
+) => {
+  const [row] = await sql<{ id: string }[]>`
+    insert into admin_audit_log (
+      actor,
+      action,
+      target_type,
+      target_id,
+      reason,
+      before_json,
+      after_json,
+      ip_address,
+      user_agent
+    )
+    values (
+      ${getAdminActor(request) ?? "unknown"},
+      ${input.action},
+      ${input.targetType},
+      ${input.targetId ?? null},
+      ${input.reason ?? null},
+      ${input.before === undefined ? null : sql.json(toJsonValue(input.before))},
+      ${input.after === undefined ? null : sql.json(toJsonValue(input.after))},
+      ${request.ip},
+      ${request.headers["user-agent"] ?? null}
+    )
+    returning id::text
+  `;
+  return row.id;
+};
+
+const toJsonValue = (value: unknown): postgres.JSONValue =>
+  JSON.parse(JSON.stringify(value ?? null)) as postgres.JSONValue;
 
 const requireAdmin = async (request: FastifyRequest, reply: FastifyReply) => {
   const credentials = getAdminCredentials();
@@ -129,6 +1391,9 @@ const requireAdmin = async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.status(401).send({ error: "admin_required" });
   }
 };
+
+const getAdminActor = (request: FastifyRequest): string | undefined =>
+  extractBasicCredentials(request.headers.authorization)?.username;
 
 const getAdminCredentials = (): { username: string; password: string } | undefined => {
   const username = process.env.ADMIN_DASHBOARD_USERNAME?.trim();

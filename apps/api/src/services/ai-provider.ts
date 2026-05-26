@@ -1,7 +1,9 @@
 import type { AnalyzeScanResponseContract } from "@logmyplate/contracts";
 import type { ApiConfig } from "../config.js";
+import type { SqlClient } from "../db/client.js";
 import { GeminiAiProvider } from "./gemini-ai-provider.js";
 import { MockAiProvider } from "./mock-ai-provider.js";
+import { RuntimeVertexAiProvider } from "./runtime-vertex-ai-provider.js";
 import { VertexAiProvider } from "./vertex-ai-provider.js";
 
 export type AnalyzeMealImageInput = {
@@ -55,7 +57,7 @@ export class AiProviderError extends Error {
   }
 }
 
-export const createAiProvider = (config: ApiConfig): AiProvider => {
+export const createAiProvider = (config: ApiConfig, sql?: SqlClient): AiProvider => {
   switch (config.aiProvider) {
     case "gemini":
       return new GeminiAiProvider({
@@ -65,6 +67,9 @@ export const createAiProvider = (config: ApiConfig): AiProvider => {
         timeoutMs: config.gemini.timeoutMs,
       });
     case "vertex":
+      if (sql) {
+        return new RuntimeVertexAiProvider(config.vertex, sql);
+      }
       return new VertexAiProvider({
         project: config.vertex.project,
         location: config.vertex.location,

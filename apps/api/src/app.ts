@@ -58,7 +58,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   const repository = options.repository ?? (sql ? new PostgresStore(sql) : new InMemoryStore());
   const aiProvider =
     options.aiProvider ??
-    (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config));
+    (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config, sql));
   const mealImageStorage = options.mealImageStorage ?? createMealImageStorage(config);
   const oauthVerifier = options.oauthVerifier ?? new ConfiguredOAuthIdentityVerifier(config.auth);
   const rewardedAdVerifier =
@@ -81,7 +81,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
 
   await registerRequestContext(app);
   await registerIdempotency(app, repository);
-  await registerConfigRoutes(app);
+  await registerConfigRoutes(app, sql);
   await registerAdRoutes(app, repository, {
     rewardedAdVerifier,
     requireRewardedAdServerVerification:
