@@ -543,7 +543,6 @@ const grantScanCredits = async (
       limit 1
     `;
 
-    const column = creditColumn(input.creditType);
     const freeInsertAmount = input.creditType === "free" ? input.amount : 0;
     const rewardedInsertAmount = input.creditType === "rewarded" ? input.amount : 0;
     const premiumInsertAmount = input.creditType === "premium" ? input.amount : 0;
@@ -558,7 +557,9 @@ const grantScanCredits = async (
       values (${profileId}, date '1970-01-01', ${freeInsertAmount}, ${rewardedInsertAmount}, ${premiumInsertAmount})
       on conflict (profile_id, local_date) do update
       set
-        ${tx(column)} = ${tx(column)} + ${input.amount},
+        free_remaining = scan_credits.free_remaining + ${freeInsertAmount},
+        rewarded_remaining = scan_credits.rewarded_remaining + ${rewardedInsertAmount},
+        premium_remaining = scan_credits.premium_remaining + ${premiumInsertAmount},
         updated_at = now()
       returning free_remaining, rewarded_remaining, premium_remaining
     `;
@@ -611,13 +612,6 @@ const mapQuotaSnapshot = (row: QuotaSnapshotRow) => ({
   rewardedRemaining: row.rewarded_remaining,
   premiumRemaining: row.premium_remaining,
 });
-
-const creditColumn = (creditType: "free" | "rewarded" | "premium") =>
-  creditType === "free"
-    ? "free_remaining"
-    : creditType === "rewarded"
-      ? "rewarded_remaining"
-      : "premium_remaining";
 
 type AdminScanRow = {
   id: string;
