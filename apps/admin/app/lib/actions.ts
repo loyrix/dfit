@@ -44,6 +44,20 @@ export async function grantCreditsAction(formData: FormData) {
   redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
 }
 
+export async function reactivateUserAction(formData: FormData) {
+  await requireAdminSession();
+  const profileId = stringValue(formData, "profileId");
+  await adminSend(
+    `/admin/users/${profileId}/reactivate`,
+    {
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData), method: "PATCH" },
+  );
+  revalidatePath("/users");
+  redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
+}
+
 export async function setDefaultModelAction(formData: FormData) {
   await requireAdminSession();
   await adminSend(

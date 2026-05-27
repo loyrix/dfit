@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AdminShell } from "../components/shell";
 import { Badge, Metric, PageHeader, formatDate, formatNumber } from "../components/ui";
-import { grantCreditsAction } from "../lib/actions";
+import { grantCreditsAction, reactivateUserAction } from "../lib/actions";
 import { adminGet, type AdminUser } from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
 
@@ -112,11 +112,42 @@ function UserDetail({ user }: { user: AdminUser }) {
           <div>
             <h2 className="text-xl font-bold">{user.email ?? "Anonymous profile"}</h2>
             <p className="muted mt-1 break-all text-sm">{user.id}</p>
+            {user.deactivatedAt ? (
+              <p className="muted mt-2 text-sm">Deactivated {formatDate(user.deactivatedAt)}</p>
+            ) : null}
           </div>
           <Badge tone={user.deactivatedAt ? "red" : "green"}>
             {user.deactivatedAt ? "Inactive" : "Active"}
           </Badge>
         </div>
+
+        {user.deactivatedAt ? (
+          <form
+            action={reactivateUserAction}
+            className="mt-5 grid gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
+          >
+            <input name="profileId" type="hidden" value={user.id} />
+            <input
+              name="idempotencyKey"
+              type="hidden"
+              value={createMutationKey(`reactivate:${user.id}`)}
+            />
+            <input
+              name="reason"
+              type="hidden"
+              value="Admin reactivated profile after support review"
+            />
+            <div>
+              <h3 className="font-semibold text-slate-950">Reactivate profile</h3>
+              <p className="muted mt-1 text-sm">
+                Enables this account for future sign-in. Existing revoked sessions stay revoked.
+              </p>
+            </div>
+            <button className="button" type="submit">
+              Reactivate user
+            </button>
+          </form>
+        ) : null}
 
         <form action={grantCreditsAction} className="form-grid mt-5">
           <input name="profileId" type="hidden" value={user.id} />

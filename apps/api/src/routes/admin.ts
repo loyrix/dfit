@@ -152,6 +152,19 @@ export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient)
     },
   );
 
+  app.patch(
+    "/admin/users/:profileId/reactivate",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+      const { profileId } = profileParamsSchema.parse(request.params);
+      const body = reactivateProfileSchema.parse(request.body ?? {});
+      const result = await reactivateUserProfile(sql, request, profileId, body);
+      if (!result) return reply.status(404).send({ error: "profile_not_found" });
+      return result;
+    },
+  );
+
   app.get("/admin/scans", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const query = adminScanQuerySchema.parse(request.query ?? {});
@@ -275,6 +288,10 @@ const requiredReasonSchema = z.string().trim().min(8).max(500);
 const grantCreditSchema = z.object({
   creditType: z.enum(["free", "rewarded", "premium"]),
   amount: z.coerce.number().int().min(1).max(1000),
+  reason: requiredReasonSchema,
+});
+
+const reactivateProfileSchema = z.object({
   reason: requiredReasonSchema,
 });
 
@@ -611,6 +628,80 @@ const mapQuotaSnapshot = (row: QuotaSnapshotRow) => ({
   freeRemaining: row.free_remaining,
   rewardedRemaining: row.rewarded_remaining,
   premiumRemaining: row.premium_remaining,
+});
+
+type AdminProfileLifecycleRow = {
+  id: string;
+  auth_method: string;
+  email: string | null;
+  deletion_requested_at: string | null;
+  deactivated_at: string | null;
+  updated_at: string;
+};
+
+const reactivateUserProfile = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  profileId: string,
+  input: z.infer<typeof reactivateProfileSchema>,
+) => {
+  const result = await sql.begin(async (tx) => {
+    const [before] = await tx<AdminProfileLifecycleRow[]>`
+      select
+        id::text,
+        auth_method::text,
+        email,
+        deletion_requested_at::text,
+        deactivated_at::text,
+        updated_at::text
+      from profiles
+      where id = ${profileId}
+      limit 1
+      for update
+    `;
+    if (!before) return undefined;
+    if (!before.deactivated_at) return { reactivated: false };
+
+    const [after] = await tx<AdminProfileLifecycleRow[]>`
+      update profiles
+      set
+        deactivated_at = null,
+        deletion_requested_at = null,
+        updated_at = now()
+      where id = ${profileId}
+      returning
+        id::text,
+        auth_method::text,
+        email,
+        deletion_requested_at::text,
+        deactivated_at::text,
+        updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "reactivate_profile",
+      targetType: "profile",
+      targetId: profileId,
+      reason: input.reason,
+      before: mapProfileLifecycleSnapshot(before),
+      after: mapProfileLifecycleSnapshot(after),
+    });
+
+    return { reactivated: true };
+  });
+
+  if (!result) return undefined;
+  const user = await loadAdminUser(sql, profileId);
+  return user ? { user, reactivated: result.reactivated } : undefined;
+};
+
+const mapProfileLifecycleSnapshot = (row: AdminProfileLifecycleRow) => ({
+  id: row.id,
+  authMethod: row.auth_method,
+  email: row.email ?? undefined,
+  deletionRequestedAt: row.deletion_requested_at ?? undefined,
+  deactivatedAt: row.deactivated_at ?? undefined,
+  updatedAt: row.updated_at,
 });
 
 type AdminScanRow = {
