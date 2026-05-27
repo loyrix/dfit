@@ -56,6 +56,21 @@ fun dartDefineKey(encodedDefine: String): String? =
             .takeIf { it.isNotBlank() }
     }.getOrNull()
 
+fun dartDefineValue(encodedDefines: String, key: String): String? =
+    encodedDefines
+        .split(",")
+        .firstNotNullOfOrNull { encodedDefine ->
+            runCatching {
+                val decoded = String(Base64.getDecoder().decode(encodedDefine.trim()), Charsets.UTF_8)
+                val separator = decoded.indexOf("=")
+                if (separator <= 0 || decoded.substring(0, separator) != key) {
+                    null
+                } else {
+                    decoded.substring(separator + 1)
+                }
+            }.getOrNull()
+        }
+
 fun existingDartDefineKeys(encodedDefines: String): Set<String> =
     encodedDefines
         .split(",")
@@ -70,12 +85,23 @@ val envDartDefines =
         if (key in existingDartDefineKeys) return@mapNotNull null
         encodeDartDefine(key, value)
     }
+val effectiveDartDefines =
+    (listOf(existingDartDefines).filter { it.isNotBlank() } + envDartDefines).joinToString(",")
 
 if (envDartDefines.isNotEmpty()) {
     extensions.extraProperties.set(
         "dart-defines",
-        (listOf(existingDartDefines).filter { it.isNotBlank() } + envDartDefines).joinToString(","),
+        effectiveDartDefines,
     )
+}
+
+fun configuredDartDefineValue(key: String): String? =
+    dartDefineValue(effectiveDartDefines, key)?.trim()?.takeIf { it.isNotEmpty() }
+
+fun requireReleaseDartDefine(key: String, message: String) {
+    if (configuredDartDefineValue(key) == null) {
+        throw GradleException(message)
+    }
 }
 
 val androidDemoAdMobAppId = "ca-app-pub-3940256099942544~3347511713"
@@ -155,10 +181,23 @@ gradle.taskGraph.whenReady {
                 task.name == "bundleRelease" ||
                 task.name == "packageReleaseBundle"
         }
-    if (releaseBuildRequested && !releaseSigningConfigured) {
-        throw GradleException(
-            "Android release signing is not configured. Create apps/mobile/android/key.properties " +
-                "with storeFile, storePassword, keyAlias, and keyPassword before building a Play Store release.",
+    if (releaseBuildRequested) {
+        if (!releaseSigningConfigured) {
+            throw GradleException(
+                "Android release signing is not configured. Create apps/mobile/android/key.properties " +
+                    "with storeFile, storePassword, keyAlias, and keyPassword before building a Play Store release.",
+            )
+        }
+        requireReleaseDartDefine(
+            "LOGMYPLATE_GOOGLE_WEB_CLIENT_ID",
+            "Android Google sign-in is not configured. Set LOGMYPLATE_GOOGLE_WEB_CLIENT_ID " +
+                "to the Web OAuth client ID so it can be passed as serverClientId.",
+        )
+        requireReleaseDartDefine(
+            "LOGMYPLATE_GOOGLE_ANDROID_CLIENT_ID",
+            "Android Google sign-in is missing its Android OAuth client marker. Set " +
+                "LOGMYPLATE_GOOGLE_ANDROID_CLIENT_ID after creating the Android OAuth client " +
+                "for package com.logmyplate.app and the current signing SHA.",
         )
     }
 }

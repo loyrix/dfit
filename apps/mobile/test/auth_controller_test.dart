@@ -108,6 +108,50 @@ void main() {
     );
   });
 
+  test('shows Android Google configuration failure copy', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(error: UnsupportedError('unused')),
+      store: AccountSessionStore(),
+      oauthSignInService: _FailingOAuthSignInService(
+        error: const OAuthSignInFailure(
+          provider: AuthProvider.google,
+          kind: OAuthSignInFailureKind.configuration,
+          message: 'serverClientId must be provided on Android',
+        ),
+      ),
+    );
+
+    final session = await controller.signIn(AuthProvider.google);
+
+    expect(session, isNull);
+    expect(
+      controller.error,
+      'Google sign-in is not configured for this build. Use email login for now.',
+    );
+  });
+
+  test('shows Android Google pre-backend failure copy', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(error: UnsupportedError('unused')),
+      store: AccountSessionStore(),
+      oauthSignInService: _FailingOAuthSignInService(
+        error: const OAuthSignInFailure(
+          provider: AuthProvider.google,
+          kind: OAuthSignInFailureKind.canceled,
+          message: 'activity is cancelled by the user',
+        ),
+      ),
+    );
+
+    final session = await controller.signIn(AuthProvider.google);
+
+    expect(session, isNull);
+    expect(
+      controller.error,
+      'Google sign-in stopped before verification. Try again or use email login.',
+    );
+  });
+
   test('delete profile clears the stored account session', () async {
     final storedSession = AuthSession(
       provider: AuthProvider.email,

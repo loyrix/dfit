@@ -47,6 +47,26 @@ local config as terminal `flutter run`. Explicit CLI or CI dart defines still
 win over `.env`, so release automation can pass fixed values without editing
 local files.
 
+## Android Google Sign-In
+
+Android uses the `google_sign_in` plugin without `google-services.json`. Keep
+`LOGMYPLATE_GOOGLE_WEB_CLIENT_ID` set to the Web OAuth client ID; the app passes
+that value to Google as `serverClientId`.
+
+The Android OAuth client in Google Cloud must use package `com.logmyplate.app`
+and the signing SHA for every build you test:
+
+- local debug SHA-1:
+  `62:39:CA:E9:D3:AA:02:A6:F5:15:92:BC:72:38:85:E4:6B:45:90:2C`
+- current upload/release SHA-1:
+  `B4:E7:82:92:9C:F8:83:F1:82:22:EF:27:4A:5D:D3:D0:3E:E6:CC:BC`
+- Google Play App Signing SHA-1 from Play Console, for internal testing and
+  production installs.
+
+The API must also accept the same Web OAuth client ID in
+`AUTH_GOOGLE_CLIENT_IDS`, otherwise the app can complete native Google sign-in
+but the backend will reject the returned ID token.
+
 ## AdMob Configuration
 
 Debug builds use Google's demo AdMob app IDs and rewarded ad unit IDs so local

@@ -178,6 +178,19 @@ String _providerAuthErrorMessage(Object error, AuthProvider provider) {
     return 'Apple sign-in is not available on this device.';
   }
 
+  if (error is OAuthSignInFailure) {
+    switch (error.kind) {
+      case OAuthSignInFailureKind.configuration:
+        return '${provider.label} sign-in is not configured for this build. Use email login for now.';
+      case OAuthSignInFailureKind.canceled:
+        return '${provider.label} sign-in stopped before verification. Try again or use email login.';
+      case OAuthSignInFailureKind.unavailable:
+        return '${provider.label} sign-in is unavailable on this device. Use email login for now.';
+      case OAuthSignInFailureKind.unknown:
+        return '${provider.label} sign-in could not start. Try again or use email login.';
+    }
+  }
+
   return '${provider.label} sign-in could not be completed. Please try again.';
 }
 

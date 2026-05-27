@@ -22,6 +22,49 @@ class OAuthProviderCredential {
   final String? displayName;
 }
 
+enum OAuthSignInFailureKind { canceled, configuration, unavailable, unknown }
+
+class OAuthSignInFailure implements Exception {
+  const OAuthSignInFailure({
+    required this.provider,
+    required this.kind,
+    required this.message,
+    this.details,
+  });
+
+  factory OAuthSignInFailure.google(GoogleSignInException error) {
+    final description = error.description?.trim();
+    return OAuthSignInFailure(
+      provider: AuthProvider.google,
+      kind: switch (error.code) {
+        GoogleSignInExceptionCode.canceled => OAuthSignInFailureKind.canceled,
+        GoogleSignInExceptionCode.clientConfigurationError ||
+        GoogleSignInExceptionCode.providerConfigurationError =>
+          OAuthSignInFailureKind.configuration,
+        GoogleSignInExceptionCode.uiUnavailable ||
+        GoogleSignInExceptionCode.interrupted =>
+          OAuthSignInFailureKind.unavailable,
+        _ => OAuthSignInFailureKind.unknown,
+      },
+      message: description == null || description.isEmpty
+          ? 'Google sign-in failed before backend verification.'
+          : description,
+      details: error.toString(),
+    );
+  }
+
+  final AuthProvider provider;
+  final OAuthSignInFailureKind kind;
+  final String message;
+  final String? details;
+
+  @override
+  String toString() {
+    final suffix = details == null ? '' : ' ($details)';
+    return 'OAuthSignInFailure(${provider.name}, ${kind.name}): $message$suffix';
+  }
+}
+
 abstract class OAuthSignInService {
   Future<OAuthProviderCredential> signIn(AuthProvider provider);
   Future<void> signOut();
@@ -59,14 +102,28 @@ class NativeOAuthSignInService implements OAuthSignInService {
 
   Future<OAuthProviderCredential> _signInWithGoogle() async {
     if (_googleWebClientId.trim().isEmpty) {
-      throw StateError('LOGMYPLATE_GOOGLE_WEB_CLIENT_ID is required.');
+      throw const OAuthSignInFailure(
+        provider: AuthProvider.google,
+        kind: OAuthSignInFailureKind.configuration,
+        message: 'LOGMYPLATE_GOOGLE_WEB_CLIENT_ID is required.',
+      );
     }
 
-    await _ensureGoogleInitialized();
-    final account = await GoogleSignIn.instance.authenticate();
+    late final GoogleSignInAccount account;
+    try {
+      await _ensureGoogleInitialized();
+      account = await GoogleSignIn.instance.authenticate();
+    } on GoogleSignInException catch (error) {
+      throw OAuthSignInFailure.google(error);
+    }
+
     final idToken = account.authentication.idToken;
     if (idToken == null || idToken.isEmpty) {
-      throw StateError('Google did not return an ID token.');
+      throw const OAuthSignInFailure(
+        provider: AuthProvider.google,
+        kind: OAuthSignInFailureKind.configuration,
+        message: 'Google did not return an ID token.',
+      );
     }
 
     return OAuthProviderCredential(
