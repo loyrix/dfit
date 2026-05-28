@@ -3,5 +3,6 @@
   "framework": "nextjs",
   "installCommand": "corepack enable && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack prepare pnpm@10.11.0 --activate && corepack pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ../../package.json ../../pnpm-lock.yaml ../../pnpm-workspace.yaml ../../turbo.json",
   "outputDirectory": ".next"
 }

@@ -3,7 +3,7 @@
   "installCommand": "pnpm install",
   "buildCommand": "pnpm build",
   "outputDirectory": "public",
-  "ignoreCommand": "npx turbo-ignore @logmyplate/api",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api apps/api packages/contracts packages/domain package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json vercel.json",
   "rewrites": [
     {
       "source": "/(.*)",
