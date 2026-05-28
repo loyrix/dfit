@@ -825,6 +825,16 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                   password: password,
                 );
               },
+              onPasswordResetRequest: (email) {
+                return _authController.requestPasswordReset(email: email);
+              },
+              onPasswordResetConfirm: (email, code, password) {
+                return _authController.confirmPasswordReset(
+                  email: email,
+                  code: code,
+                  password: password,
+                );
+              },
               onClearError: _authController.clearError,
               onManualLog: () {
                 _navigatorKey.currentState!.pop();

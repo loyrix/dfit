@@ -992,6 +992,8 @@ void main() {
               linkedAt: DateTime(2026, 5, 12),
             );
           },
+          onPasswordResetRequest: (_) async => true,
+          onPasswordResetConfirm: (_, _, _) async => null,
           onManualLog: () {},
         ),
       ),
@@ -1028,6 +1030,8 @@ void main() {
             linkedAt: DateTime(2026, 5, 12),
           ),
           onEmailAuth: (mode, email, password) async => null,
+          onPasswordResetRequest: (_) async => true,
+          onPasswordResetConfirm: (_, _, _) async => null,
           onManualLog: () {},
         ),
       ),
@@ -1048,6 +1052,8 @@ void main() {
           loading: false,
           onSignIn: (_) async => null,
           onEmailAuth: (_, _, _) async => null,
+          onPasswordResetRequest: (_) async => true,
+          onPasswordResetConfirm: (_, _, _) async => null,
           onManualLog: () {},
         ),
       ),
@@ -1070,6 +1076,59 @@ void main() {
     );
   });
 
+  testWidgets('account gate supports forgot password code reset', (
+    tester,
+  ) async {
+    String? requestedEmail;
+    String? confirmedCode;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: AccountGateScreen(
+          reason: AccountGateReason.saveJournal,
+          loading: false,
+          onSignIn: (_) async => null,
+          onEmailAuth: (_, _, _) async => null,
+          onPasswordResetRequest: (email) async {
+            requestedEmail = email;
+            return true;
+          },
+          onPasswordResetConfirm: (email, code, password) async {
+            confirmedCode = code;
+            return AuthSession(
+              provider: AuthProvider.email,
+              displayName: email,
+              linkedAt: DateTime(2026, 5, 28),
+            );
+          },
+          onManualLog: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Log in'));
+    await tester.enterText(find.byType(TextField).at(0), 'friend@test.com');
+    await tester.tap(find.text('Forgot password?'));
+    await tester.pump();
+
+    expect(requestedEmail, 'friend@test.com');
+    expect(find.text('Reset password'), findsWidgets);
+    expect(
+      find.text('Enter the 6-digit code sent to friend@test.com.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(TextField).at(1), '123456');
+    await tester.enterText(find.byType(TextField).at(2), 'newpass1');
+    await tester.drag(find.byType(ListView), const Offset(0, -180));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.widgetWithText(FilledButton, 'Reset password'));
+    await tester.pump();
+
+    expect(confirmedCode, '123456');
+  });
+
   testWidgets('account gate offers support for deactivated profiles', (
     tester,
   ) async {
@@ -1083,6 +1142,8 @@ void main() {
               'This profile is deactivated. Contact support to reactivate it.',
           onSignIn: (_) async => null,
           onEmailAuth: (_, _, _) async => null,
+          onPasswordResetRequest: (_) async => true,
+          onPasswordResetConfirm: (_, _, _) async => null,
           onManualLog: () {},
         ),
       ),
@@ -1743,6 +1804,8 @@ void main() {
             loading: false,
             onSignIn: (_) async => null,
             onEmailAuth: (_, _, _) async => null,
+            onPasswordResetRequest: (_) async => true,
+            onPasswordResetConfirm: (_, _, _) async => null,
             onManualLog: () {
               manualOpened = true;
             },
@@ -1919,6 +1982,24 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
     required String password,
   }) async {
     emailAuthCount += 1;
+    return AuthSession(
+      provider: AuthProvider.email,
+      displayName: email,
+      linkedAt: DateTime(2026, 5, 19),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+  }
+
+  @override
+  Future<void> requestPasswordReset({required String email}) async {}
+
+  @override
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
     return AuthSession(
       provider: AuthProvider.email,
       displayName: email,

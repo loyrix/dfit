@@ -19,6 +19,10 @@ import {
   type OAuthVerificationInput,
   type VerifiedOAuthIdentity,
 } from "./services/oauth-identity-verifier.js";
+import type {
+  PasswordResetEmailInput,
+  PasswordResetEmailSender,
+} from "./services/password-reset-email.js";
 import type { MealImageSummary } from "@logmyplate/domain";
 
 const testApp = (options: BuildAppOptions = {}) =>
@@ -95,6 +99,14 @@ class TestOAuthVerifier implements OAuthIdentityVerifier {
       throw new OAuthVerificationError("invalid_oauth_token", "Invalid OAuth token.");
     }
     return identity;
+  }
+}
+
+class TestPasswordResetEmailSender implements PasswordResetEmailSender {
+  readonly deliveries: PasswordResetEmailInput[] = [];
+
+  async sendPasswordResetCode(input: PasswordResetEmailInput): Promise<void> {
+    this.deliveries.push(input);
   }
 }
 
@@ -1355,6 +1367,139 @@ describe("LogMyPlate API", () => {
       id: meal.json().id,
       title: "Dal rice",
     });
+    await app.close();
+  });
+
+  it("resets an email password with a delivered code without revealing missing accounts", async () => {
+    const passwordResetEmailSender = new TestPasswordResetEmailSender();
+    const app = await testApp({ passwordResetEmailSender });
+
+    const missing = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/password-reset/request",
+      payload: { email: "missing@example.com" },
+    });
+    expect(missing.statusCode).toBe(202);
+    expect(missing.json()).toMatchObject({ status: "accepted" });
+    expect(passwordResetEmailSender.deliveries).toHaveLength(0);
+
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      payload: { email: "reset@example.com", password: "oldpass1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const request = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/password-reset/request",
+      payload: { email: "reset@example.com" },
+    });
+    expect(request.statusCode).toBe(202);
+    expect(passwordResetEmailSender.deliveries).toHaveLength(1);
+    expect(passwordResetEmailSender.deliveries[0]).toMatchObject({
+      email: "reset@example.com",
+    });
+    expect(passwordResetEmailSender.deliveries[0].code).toMatch(/^\d{6}$/);
+
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/password-reset/confirm",
+      payload: {
+        email: "reset@example.com",
+        code: "000000",
+        password: "newpass1",
+      },
+    });
+    expect(rejected.statusCode).toBe(400);
+    expect(rejected.json()).toMatchObject({ error: "invalid_password_reset_code" });
+
+    const confirmed = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/password-reset/confirm",
+      payload: {
+        email: "reset@example.com",
+        code: passwordResetEmailSender.deliveries[0].code,
+        password: "newpass1",
+      },
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json().profile).toMatchObject({
+      authMethod: "email",
+      email: "reset@example.com",
+    });
+
+    const oldLogin = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      payload: { email: "reset@example.com", password: "oldpass1" },
+    });
+    expect(oldLogin.statusCode).toBe(401);
+
+    const newLogin = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      payload: { email: "reset@example.com", password: "newpass1" },
+    });
+    expect(newLogin.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("lets an OAuth account with email set an email password through reset", async () => {
+    const passwordResetEmailSender = new TestPasswordResetEmailSender();
+    const app = await testApp({
+      passwordResetEmailSender,
+      oauthVerifier: new TestOAuthVerifier({
+        "google:google-token-password-reset": {
+          provider: "google",
+          providerSubject: "google-password-reset-sub",
+          email: "oauth-reset@example.com",
+          emailVerified: true,
+          displayName: "OAuth Reset",
+        },
+      }),
+    });
+
+    const signIn = await app.inject({
+      method: "POST",
+      url: "/v1/auth/oauth",
+      payload: { provider: "google", idToken: "google-token-password-reset" },
+    });
+    expect(signIn.statusCode).toBe(200);
+    expect(signIn.json().profile).toMatchObject({
+      authMethod: "google",
+      email: "oauth-reset@example.com",
+    });
+
+    const request = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/password-reset/request",
+      payload: { email: "oauth-reset@example.com" },
+    });
+    expect(request.statusCode).toBe(202);
+    expect(passwordResetEmailSender.deliveries).toHaveLength(1);
+
+    const confirmed = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/password-reset/confirm",
+      payload: {
+        email: "oauth-reset@example.com",
+        code: passwordResetEmailSender.deliveries[0].code,
+        password: "secret2",
+      },
+    });
+    expect(confirmed.statusCode).toBe(200);
+    expect(confirmed.json().profile).toMatchObject({
+      authMethod: "email",
+      email: "oauth-reset@example.com",
+    });
+
+    const emailLogin = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/login",
+      payload: { email: "oauth-reset@example.com", password: "secret2" },
+    });
+    expect(emailLogin.statusCode).toBe(200);
     await app.close();
   });
 

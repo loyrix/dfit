@@ -33,6 +33,10 @@ export type ApiConfig = {
     rewardedSsvPublicKeysUrl: string;
     rewardedSsvKeyCacheTtlMs: number;
   };
+  email: {
+    resendApiKey?: string;
+    passwordResetFrom: string;
+  };
   gemini: {
     apiKey?: string;
     model: string;
@@ -83,6 +87,11 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
         env.ADMOB_REWARDED_SSV_PUBLIC_KEYS_URL ??
         "https://www.gstatic.com/admob/reward/verifier-keys.json",
       rewardedSsvKeyCacheTtlMs: Number(env.ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS ?? 86_400_000),
+    },
+    email: {
+      resendApiKey: emptyToUndefined(env.RESEND_API_KEY),
+      passwordResetFrom:
+        emptyToUndefined(env.PASSWORD_RESET_EMAIL_FROM) ?? "LogMyPlate <no-reply@logmyplate.com>",
     },
     gemini: {
       apiKey: env.GEMINI_API_KEY,
@@ -153,6 +162,14 @@ export const validateApiConfig = (candidate: ApiConfig): void => {
     candidate.adMob.rewardedSsvKeyCacheTtlMs <= 0
   ) {
     throw new Error("ADMOB_REWARDED_SSV_KEY_CACHE_TTL_MS must be a positive number.");
+  }
+
+  if (!candidate.email.passwordResetFrom.trim()) {
+    throw new Error("PASSWORD_RESET_EMAIL_FROM cannot be empty.");
+  }
+
+  if (candidate.nodeEnv === "production" && !candidate.email.resendApiKey?.trim()) {
+    throw new Error("RESEND_API_KEY is required when NODE_ENV=production.");
   }
 
   for (const clientId of candidate.auth.googleClientIds) {

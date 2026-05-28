@@ -51,6 +51,16 @@ export class InMemoryStore implements AppRepository {
   private readonly deactivatedProfiles = new Set<string>();
   private readonly installProfiles = new Map<string, string>();
   private readonly credentials = new Map<string, { profileId: string; password: string }>();
+  private readonly passwordResetCodes = new Map<
+    string,
+    {
+      profileId: string;
+      code: string;
+      expiresAt: string;
+      consumed: boolean;
+      attempts: number;
+    }
+  >();
   private readonly oauthIdentities = new Map<
     string,
     {
@@ -183,6 +193,91 @@ export class InMemoryStore implements AppRepository {
     this.bindInstall(currentRequestIdentity().installId, accountProfile.id);
     this.transferCurrentInstallQuotaToProfile(accountProfile.id);
     return this.createSession(accountProfile);
+  }
+
+  async requestPasswordReset(input: { email: string }) {
+    const email = normalizeEmail(input.email);
+    const profile = [...this.profiles.values()].find(
+      (candidate) =>
+        candidate.email === email &&
+        candidate.authMethod !== "anonymous" &&
+        !this.deactivatedProfiles.has(candidate.id),
+    );
+    if (!profile) return undefined;
+
+    const code = randomPasswordResetCode();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    this.passwordResetCodes.set(email, {
+      profileId: profile.id,
+      code,
+      expiresAt,
+      consumed: false,
+      attempts: 0,
+    });
+    return { email, code, expiresAt };
+  }
+
+  async resetPasswordWithCode(input: {
+    email: string;
+    code: string;
+    password: string;
+  }): Promise<AccountSession> {
+    const email = normalizeEmail(input.email);
+    const reset = this.passwordResetCodes.get(email);
+
+    if (
+      !reset ||
+      reset.consumed ||
+      reset.attempts >= 5 ||
+      reset.expiresAt <= new Date().toISOString() ||
+      input.code.trim() !== reset.code
+    ) {
+      if (reset) reset.attempts += 1;
+      throw new AuthError(
+        "invalid_password_reset_code",
+        "Password reset code is invalid or expired.",
+        400,
+      );
+    }
+
+    if (input.password.length < 6 || input.password.length > 128) {
+      throw new AuthError(
+        "invalid_password",
+        "Password must be between 6 and 128 characters.",
+        400,
+      );
+    }
+
+    const profile = this.profiles.get(reset.profileId);
+    if (!profile || this.deactivatedProfiles.has(profile.id)) {
+      throw new AuthError(
+        "invalid_password_reset_code",
+        "Password reset code is invalid or expired.",
+        400,
+      );
+    }
+
+    reset.consumed = true;
+    reset.attempts += 1;
+    const linkedProfile = {
+      ...profile,
+      authMethod: "email" as const,
+      email,
+      linkedAt: profile.linkedAt ?? new Date().toISOString(),
+    };
+    this.profiles.set(linkedProfile.id, linkedProfile);
+    this.credentials.set(email, { profileId: linkedProfile.id, password: input.password });
+    this.oauthIdentities.set(identityKey("email", email), {
+      profileId: linkedProfile.id,
+      email,
+      emailVerified: true,
+    });
+    for (const [token, profileId] of this.sessions) {
+      if (profileId === linkedProfile.id) this.sessions.delete(token);
+    }
+    this.bindInstall(currentRequestIdentity().installId, linkedProfile.id);
+    this.transferCurrentInstallQuotaToProfile(linkedProfile.id);
+    return this.createSession(linkedProfile);
   }
 
   async signInWithOAuth(input: OAuthAccountInput): Promise<AccountSession> {
@@ -828,3 +923,8 @@ const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
 const identityKey = (provider: OAuthAccountInput["provider"] | "email", subject: string): string =>
   `${provider}:${subject}`;
+
+const randomPasswordResetCode = (): string =>
+  Math.floor(Math.random() * 1_000_000)
+    .toString()
+    .padStart(6, "0");

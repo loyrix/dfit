@@ -99,6 +99,62 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<bool> requestPasswordReset({required String email}) async {
+    if (_loading) return false;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _gateway.requestPasswordReset(email: email);
+      return true;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'auth.password_reset_request',
+        error,
+        stackTrace: stackTrace,
+      );
+      _error = _passwordResetErrorMessage(error);
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<AuthSession?> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    if (_loading) return null;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final session = await _gateway.confirmPasswordReset(
+        email: email,
+        code: code,
+        password: password,
+      );
+      await _store.save(session);
+      _session = session;
+      return session;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'auth.password_reset_confirm',
+        error,
+        stackTrace: stackTrace,
+      );
+      _error = _passwordResetErrorMessage(error);
+      return null;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> signOut() async {
     await _gateway.signOut();
     await _oauthSignInService.signOut();
@@ -245,11 +301,41 @@ String _profileLifecycleErrorMessage(Object error, String fallbackMessage) {
   return fallbackMessage;
 }
 
+String _passwordResetErrorMessage(Object error) {
+  if (error is LogMyPlateApiException) {
+    switch (error.errorCode) {
+      case 'invalid_password_reset_request':
+        return 'Enter a valid email address.';
+      case 'invalid_password_reset_confirm':
+        return 'Enter the reset code and a password with 6 or more characters.';
+      case 'invalid_password_reset_code':
+        return 'Reset code is invalid or expired.';
+      case 'invalid_password':
+        return 'Password must have at least 6 characters.';
+    }
+
+    if (error.statusCode >= 500 || error.retryable) {
+      return 'LogMyPlate is taking longer than expected. Try again.';
+    }
+
+    final message = error.message;
+    if (message != null && message.trim().isNotEmpty) return message.trim();
+  }
+
+  return 'Could not reset your password. Please try again.';
+}
+
 abstract class AccountAuthGateway {
   Future<AuthSession> signIn(OAuthProviderCredential credential);
   Future<AuthSession> signInWithEmail({
     required EmailAuthMode mode,
     required String email,
+    required String password,
+  });
+  Future<void> requestPasswordReset({required String email});
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
     required String password,
   });
   Future<void> signOut();
@@ -283,6 +369,24 @@ class LogMyPlateAccountAuthGateway implements AccountAuthGateway {
     return mode == EmailAuthMode.signUp
         ? _apiClient.signUpWithEmail(email: email, password: password)
         : _apiClient.loginWithEmail(email: email, password: password);
+  }
+
+  @override
+  Future<void> requestPasswordReset({required String email}) {
+    return _apiClient.requestPasswordReset(email: email);
+  }
+
+  @override
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) {
+    return _apiClient.confirmPasswordReset(
+      email: email,
+      code: code,
+      password: password,
+    );
   }
 
   @override

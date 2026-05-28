@@ -8,9 +8,23 @@ import {
   OAuthVerificationError,
   type OAuthIdentityVerifier,
 } from "../services/oauth-identity-verifier.js";
+import type { PasswordResetEmailSender } from "../services/password-reset-email.js";
 
 const emailAuthSchema = z.object({
   email: z.string().trim().email().max(254),
+  password: z.string().min(6).max(128),
+});
+
+const passwordResetRequestSchema = z.object({
+  email: z.string().trim().email().max(254),
+});
+
+const passwordResetConfirmSchema = z.object({
+  email: z.string().trim().email().max(254),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/),
   password: z.string().min(6).max(128),
 });
 
@@ -27,6 +41,7 @@ export const registerProfileRoutes = async (
   repository: AppRepository,
   mealImageStorage: MealImageStorage,
   oauthVerifier: OAuthIdentityVerifier,
+  passwordResetEmailSender: PasswordResetEmailSender,
 ): Promise<void> => {
   app.post("/v1/auth/anonymous", async () => ({
     profile: await repository.getProfile(),
@@ -154,6 +169,52 @@ export const registerProfileRoutes = async (
 
     try {
       return await repository.loginWithEmail(parsed.data);
+    } catch (error) {
+      if (error instanceof AccountAuthError) {
+        return reply.status(error.statusCode).send({
+          error: error.code,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+  });
+
+  app.post("/v1/auth/email/password-reset/request", async (request, reply) => {
+    const parsed = passwordResetRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_password_reset_request",
+        issues: parsed.error.issues,
+      });
+    }
+
+    const resetRequest = await repository.requestPasswordReset(parsed.data);
+    if (resetRequest) {
+      try {
+        await passwordResetEmailSender.sendPasswordResetCode(resetRequest);
+      } catch (error) {
+        app.log.error(
+          { err: error, email: resetRequest.email },
+          "failed to send password reset email",
+        );
+      }
+    }
+
+    return reply.status(202).send({ status: "accepted" });
+  });
+
+  app.post("/v1/auth/email/password-reset/confirm", async (request, reply) => {
+    const parsed = passwordResetConfirmSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_password_reset_confirm",
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      return await repository.resetPasswordWithCode(parsed.data);
     } catch (error) {
       if (error instanceof AccountAuthError) {
         return reply.status(error.statusCode).send({

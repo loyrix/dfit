@@ -268,6 +268,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorWithMessage"
 
+  /v1/auth/email/password-reset/request:
+    post:
+      tags: [Auth]
+      summary: Request password reset code
+      description: |
+        Requests a short-lived password reset code. The response is always accepted
+        for valid email-shaped input so account existence is not exposed.
+      security:
+        - installId: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+      responses:
+        "202":
+          description: Password reset request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptedResponse"
+        "400":
+          description: Invalid password reset request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
+  /v1/auth/email/password-reset/confirm:
+    post:
+      tags: [Auth]
+      summary: Reset password with code
+      description: |
+        Confirms a password reset code, sets the new password, revokes prior sessions,
+        and returns a fresh account session.
+      security:
+        - installId: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetConfirmRequest"
+      responses:
+        "200":
+          description: Password reset and session issued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountSession"
+        "400":
+          description: Invalid or expired reset code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
   /v1/auth/oauth:
     post:
       tags: [Auth]
@@ -1196,6 +1256,39 @@ components:
           type: string
           minLength: 6
           maxLength: 128
+
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+
+    PasswordResetConfirmRequest:
+      type: object
+      required: [email, code, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        code:
+          type: string
+          pattern: "^\\d{6}$"
+        password:
+          type: string
+          minLength: 6
+          maxLength: 128
+
+    AcceptedResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
 
     OAuthAuthRequest:
       type: object

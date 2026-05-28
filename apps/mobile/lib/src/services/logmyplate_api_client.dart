@@ -141,6 +141,31 @@ class LogMyPlateApiClient {
     return _emailAuth('/v1/auth/email/login', email: email, password: password);
   }
 
+  Future<void> requestPasswordReset({required String email}) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/auth/email/password-reset/request'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode({'email': email}),
+    );
+    _throwIfBad(response);
+  }
+
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/auth/email/password-reset/confirm'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode({'email': email, 'code': code, 'password': password}),
+    );
+    _throwIfBad(response);
+    return AuthSession.fromApiJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<AuthSession> signInWithOAuth({
     required AuthProvider provider,
     required String idToken,

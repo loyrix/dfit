@@ -1,6 +1,7 @@
 import {
   createHash,
   randomBytes,
+  randomInt,
   randomUUID,
   scrypt as scryptCallback,
   timingSafeEqual,
@@ -29,6 +30,7 @@ import type {
   ListMealsInput,
   MealDeletionPlan,
   OAuthAccountInput,
+  PasswordResetRequest,
   Profile,
   ProfileDeletionPlan,
   ProfileHealthTarget,
@@ -137,6 +139,8 @@ const toJsonValue = (value: unknown): postgres.JSONValue =>
 
 const scrypt = promisify(scryptCallback);
 const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
+const passwordResetDurationMs = 15 * 60 * 1000;
+const maxPasswordResetAttempts = 5;
 const lifetimeFreeScanAllowance = 3;
 const lifetimeQuotaDate = "1970-01-01";
 
@@ -587,6 +591,169 @@ export class PostgresStore implements AppRepository {
     await this.attachInstallToProfile(credential.profile_id);
     await this.transferCurrentInstallQuotaToProfile(credential.profile_id);
     return this.createSession(credential.profile_id);
+  }
+
+  async requestPasswordReset(input: { email: string }): Promise<PasswordResetRequest | undefined> {
+    const email = normalizeEmail(input.email);
+    const profile = await this.findPasswordResetProfileByEmail(email);
+    if (!profile) return undefined;
+
+    const code = randomPasswordResetCode();
+    const codeHash = await hashPassword(code);
+    const expiresAt = new Date(Date.now() + passwordResetDurationMs).toISOString();
+
+    await this.sql.begin(async (tx) => {
+      await tx`
+        update account_password_reset_codes
+        set consumed_at = now()
+        where lower(email) = lower(${email})
+          and consumed_at is null
+      `;
+
+      await tx`
+        insert into account_password_reset_codes (
+          profile_id,
+          email,
+          code_salt,
+          code_hash,
+          expires_at
+        )
+        values (
+          ${profile.id},
+          ${email},
+          ${codeHash.salt},
+          ${codeHash.hash},
+          ${expiresAt}
+        )
+      `;
+    });
+
+    return { email, code, expiresAt };
+  }
+
+  async resetPasswordWithCode(input: {
+    email: string;
+    code: string;
+    password: string;
+  }): Promise<AccountSession> {
+    const email = normalizeEmail(input.email);
+    const code = input.code.trim();
+    validatePassword(input.password);
+
+    if (!/^\d{6}$/.test(code)) {
+      throw new AccountAuthError(
+        "invalid_password_reset_code",
+        "Password reset code is invalid or expired.",
+        400,
+      );
+    }
+
+    const reset = await this.findOpenPasswordResetCode(email);
+    if (!reset || reset.attempt_count >= maxPasswordResetAttempts) {
+      throw new AccountAuthError(
+        "invalid_password_reset_code",
+        "Password reset code is invalid or expired.",
+        400,
+      );
+    }
+
+    const matches = await verifyPassword(code, reset.code_salt, reset.code_hash);
+    if (!matches) {
+      await this.sql`
+        update account_password_reset_codes
+        set attempt_count = attempt_count + 1
+        where id = ${reset.id}
+      `;
+      throw new AccountAuthError(
+        "invalid_password_reset_code",
+        "Password reset code is invalid or expired.",
+        400,
+      );
+    }
+
+    const passwordHash = await hashPassword(input.password);
+
+    await this.sql.begin(async (tx) => {
+      await tx`
+        update account_password_reset_codes
+        set
+          consumed_at = now(),
+          attempt_count = attempt_count + 1
+        where id = ${reset.id}
+          and consumed_at is null
+      `;
+
+      await tx`
+        update profiles
+        set
+          auth_method = 'email',
+          email = ${email},
+          provider_subject = ${`email:${email}`},
+          linked_at = coalesce(linked_at, now()),
+          updated_at = now()
+        where id = ${reset.profile_id}
+      `;
+
+      await tx`
+        insert into account_password_credentials (
+          profile_id,
+          email,
+          password_salt,
+          password_hash,
+          password_params
+        )
+        values (
+          ${reset.profile_id},
+          ${email},
+          ${passwordHash.salt},
+          ${passwordHash.hash},
+          ${tx.json({ algorithm: "scrypt", keyLength: 64 })}
+        )
+        on conflict (profile_id) do update
+        set
+          email = excluded.email,
+          password_salt = excluded.password_salt,
+          password_hash = excluded.password_hash,
+          password_params = excluded.password_params,
+          updated_at = now()
+      `;
+
+      await tx`
+        insert into account_identities (
+          profile_id,
+          provider,
+          provider_subject,
+          email,
+          email_verified,
+          display_name
+        )
+        values (
+          ${reset.profile_id},
+          'email',
+          ${email},
+          ${email},
+          true,
+          null
+        )
+        on conflict (profile_id, provider) do update
+        set
+          provider_subject = excluded.provider_subject,
+          email = excluded.email,
+          email_verified = true,
+          updated_at = now()
+      `;
+
+      await tx`
+        update account_sessions
+        set revoked_at = now()
+        where profile_id = ${reset.profile_id}
+          and revoked_at is null
+      `;
+    });
+
+    await this.attachInstallToProfile(reset.profile_id);
+    await this.transferCurrentInstallQuotaToProfile(reset.profile_id);
+    return this.createSession(reset.profile_id);
   }
 
   async signInWithOAuth(input: OAuthAccountInput): Promise<AccountSession> {
@@ -1903,6 +2070,46 @@ export class PostgresStore implements AppRepository {
     return profile;
   }
 
+  private async findPasswordResetProfileByEmail(email: string) {
+    const [profile] = await this.sql<{ id: string; email: string }[]>`
+      select id::text, email
+      from profiles
+      where lower(email) = lower(${email})
+        and auth_method <> 'anonymous'
+        and deactivated_at is null
+      limit 1
+    `;
+    return profile;
+  }
+
+  private async findOpenPasswordResetCode(email: string) {
+    const [reset] = await this.sql<
+      {
+        id: string;
+        profile_id: string;
+        code_salt: string;
+        code_hash: string;
+        attempt_count: number;
+      }[]
+    >`
+      select
+        account_password_reset_codes.id::text,
+        account_password_reset_codes.profile_id::text,
+        account_password_reset_codes.code_salt,
+        account_password_reset_codes.code_hash,
+        account_password_reset_codes.attempt_count
+      from account_password_reset_codes
+      inner join profiles on profiles.id = account_password_reset_codes.profile_id
+      where lower(account_password_reset_codes.email) = lower(${email})
+        and account_password_reset_codes.consumed_at is null
+        and account_password_reset_codes.expires_at > now()
+        and profiles.deactivated_at is null
+      order by account_password_reset_codes.created_at desc
+      limit 1
+    `;
+    return reset;
+  }
+
   private async updateOAuthIdentitySnapshot(
     identityId: string,
     input: Pick<OAuthAccountInput, "displayName" | "email" | "emailVerified">,
@@ -2632,3 +2839,5 @@ const verifyPassword = async (
 };
 
 const hashToken = (token: string): string => createHash("sha256").update(token).digest("hex");
+
+const randomPasswordResetCode = (): string => randomInt(0, 1_000_000).toString().padStart(6, "0");

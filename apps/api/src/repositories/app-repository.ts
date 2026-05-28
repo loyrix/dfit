@@ -30,6 +30,12 @@ export type AccountSession = {
   expiresAt: string;
 };
 
+export type PasswordResetRequest = {
+  email: string;
+  code: string;
+  expiresAt: string;
+};
+
 export type OAuthAccountInput = {
   provider: "apple" | "google";
   providerSubject: string;
@@ -204,6 +210,12 @@ export interface AppRepository {
   upsertHealthTarget(input: UpsertProfileHealthTargetInput): Promise<ProfileHealthTarget>;
   signUpWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
   loginWithEmail(input: { email: string; password: string }): Promise<AccountSession>;
+  requestPasswordReset(input: { email: string }): Promise<PasswordResetRequest | undefined>;
+  resetPasswordWithCode(input: {
+    email: string;
+    code: string;
+    password: string;
+  }): Promise<AccountSession>;
   signInWithOAuth(input: OAuthAccountInput): Promise<AccountSession>;
   revokeSession(token: string): Promise<void>;
   searchFoods(query: string): Promise<FoodSearchResult[]>;

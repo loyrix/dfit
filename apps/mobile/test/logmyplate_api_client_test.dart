@@ -553,6 +553,55 @@ void main() {
     expect(session.accessToken, 'token_created');
   });
 
+  test('sends password reset request and confirmation payloads', () async {
+    var requestCount = 0;
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        requestCount += 1;
+
+        if (requestCount == 1) {
+          expect(request.url.path, '/v1/auth/email/password-reset/request');
+          expect(jsonDecode(request.body), {'email': 'friend@test.com'});
+          return http.Response(jsonEncode({'status': 'accepted'}), 202);
+        }
+
+        expect(request.url.path, '/v1/auth/email/password-reset/confirm');
+        expect(jsonDecode(request.body), {
+          'email': 'friend@test.com',
+          'code': '123456',
+          'password': 'secret2',
+        });
+        return http.Response(
+          jsonEncode({
+            'profile': {
+              'id': 'profile_2',
+              'authMethod': 'email',
+              'email': 'friend@test.com',
+              'timezone': 'Asia/Kolkata',
+              'linkedAt': '2026-05-28T10:00:00.000Z',
+              'createdAt': '2026-05-13T10:00:00.000Z',
+            },
+            'accessToken': 'token_reset',
+            'expiresAt': '2026-06-27T10:00:00.000Z',
+          }),
+          200,
+        );
+      }),
+    );
+
+    await client.requestPasswordReset(email: 'friend@test.com');
+    final session = await client.confirmPasswordReset(
+      email: 'friend@test.com',
+      code: '123456',
+      password: 'secret2',
+    );
+
+    expect(requestCount, 2);
+    expect(session.accessToken, 'token_reset');
+  });
+
   test('fetches seven day journal range', () async {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',

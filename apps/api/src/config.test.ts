@@ -35,6 +35,7 @@ describe("API config", () => {
         NODE_ENV: "production",
         AI_PROVIDER: "gemini",
         GEMINI_API_KEY: "test-key",
+        RESEND_API_KEY: "re_test",
       }).aiProvider,
     ).toBe("gemini");
   });
@@ -52,6 +53,37 @@ describe("API config", () => {
       rewardedSsvPublicKeysUrl: "https://keys.test/verifier-keys.json",
       rewardedSsvKeyCacheTtlMs: 60000,
     });
+  });
+
+  it("reads password reset email settings", () => {
+    const config = buildApiConfig({
+      NODE_ENV: "development",
+      RESEND_API_KEY: "re_test",
+      PASSWORD_RESET_EMAIL_FROM: "LogMyPlate <reset@test.logmyplate.com>",
+    });
+
+    expect(config.email).toMatchObject({
+      resendApiKey: "re_test",
+      passwordResetFrom: "LogMyPlate <reset@test.logmyplate.com>",
+    });
+  });
+
+  it("defaults password reset emails to no-reply", () => {
+    const config = buildApiConfig({
+      NODE_ENV: "development",
+    });
+
+    expect(config.email.passwordResetFrom).toBe("LogMyPlate <no-reply@logmyplate.com>");
+  });
+
+  it("requires password reset email delivery in production", () => {
+    expect(() =>
+      buildApiConfig({
+        NODE_ENV: "production",
+        AI_PROVIDER: "gemini",
+        GEMINI_API_KEY: "test-key",
+      }),
+    ).toThrow(/RESEND_API_KEY/);
   });
 
   it("reads OAuth provider settings", () => {
@@ -116,6 +148,7 @@ describe("API config", () => {
       VERTEX_AI_MODEL: "gemini-2.5-flash",
       GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64: "eyJjbGllbnRfZW1haWwiOiJzYSJ9",
       VERTEX_AI_MAX_OUTPUT_TOKENS: "3072",
+      RESEND_API_KEY: "re_test",
     });
 
     expect(config.aiProvider).toBe("vertex");

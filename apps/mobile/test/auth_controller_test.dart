@@ -90,6 +90,51 @@ void main() {
     expect(controller.error, 'User does not exist.');
   });
 
+  test('shows invalid password reset code message', () async {
+    final controller = AuthController(
+      gateway: _FailingAuthGateway(
+        error: LogMyPlateApiException(
+          400,
+          jsonEncode({
+            'error': 'invalid_password_reset_code',
+            'message': 'Password reset code is invalid or expired.',
+          }),
+        ),
+      ),
+      store: AccountSessionStore(),
+    );
+
+    final session = await controller.confirmPasswordReset(
+      email: 'friend@test.com',
+      code: '111111',
+      password: 'secret2',
+    );
+
+    expect(session, isNull);
+    expect(controller.error, 'Reset code is invalid or expired.');
+  });
+
+  test('password reset confirmation stores the new account session', () async {
+    final store = AccountSessionStore();
+    final gateway = _PasswordResetAuthGateway();
+    final controller = AuthController(gateway: gateway, store: store);
+
+    final requested = await controller.requestPasswordReset(
+      email: 'friend@test.com',
+    );
+    final session = await controller.confirmPasswordReset(
+      email: 'friend@test.com',
+      code: '123456',
+      password: 'secret2',
+    );
+
+    expect(requested, isTrue);
+    expect(gateway.resetRequestedEmail, 'friend@test.com');
+    expect(gateway.resetConfirmedCode, '123456');
+    expect(session?.accessToken, 'token_reset');
+    expect((await store.load())?.accessToken, 'token_reset');
+  });
+
   test('shows provider-specific OAuth failure copy', () async {
     final controller = AuthController(
       gateway: _FailingAuthGateway(error: UnsupportedError('not wired')),
@@ -195,6 +240,20 @@ class _FailingAuthGateway implements AccountAuthGateway {
   }
 
   @override
+  Future<void> requestPasswordReset({required String email}) async {
+    throw error;
+  }
+
+  @override
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    throw error;
+  }
+
+  @override
   Future<void> signOut() async {}
 
   @override
@@ -226,6 +285,20 @@ class _LifecycleAuthGateway implements AccountAuthGateway {
   }
 
   @override
+  Future<void> requestPasswordReset({required String email}) async {
+    throw UnsupportedError('unused');
+  }
+
+  @override
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    throw UnsupportedError('unused');
+  }
+
+  @override
   Future<void> signOut() async {}
 
   @override
@@ -235,6 +308,55 @@ class _LifecycleAuthGateway implements AccountAuthGateway {
   Future<void> deleteProfile() async {
     deleteCount += 1;
   }
+}
+
+class _PasswordResetAuthGateway implements AccountAuthGateway {
+  String? resetRequestedEmail;
+  String? resetConfirmedCode;
+
+  @override
+  Future<AuthSession> signIn(OAuthProviderCredential credential) async {
+    throw UnsupportedError('unused');
+  }
+
+  @override
+  Future<AuthSession> signInWithEmail({
+    required EmailAuthMode mode,
+    required String email,
+    required String password,
+  }) async {
+    throw UnsupportedError('unused');
+  }
+
+  @override
+  Future<void> requestPasswordReset({required String email}) async {
+    resetRequestedEmail = email;
+  }
+
+  @override
+  Future<AuthSession> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String password,
+  }) async {
+    resetConfirmedCode = code;
+    return AuthSession(
+      provider: AuthProvider.email,
+      displayName: email,
+      linkedAt: DateTime(2026, 5, 28),
+      profileId: 'profile_reset',
+      accessToken: 'token_reset',
+    );
+  }
+
+  @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<void> deactivateProfile() async {}
+
+  @override
+  Future<void> deleteProfile() async {}
 }
 
 class _FailingOAuthSignInService implements OAuthSignInService {

@@ -98,6 +98,8 @@ NODE_ENV=production
 AI_PROVIDER=gemini
 GEMINI_API_KEY
 GEMINI_MODEL=gemini-2.5-flash
+RESEND_API_KEY
+PASSWORD_RESET_EMAIL_FROM=LogMyPlate <no-reply@logmyplate.com>
 ```
 
 The root `api/index.js` function forwards all routes to the compiled Fastify

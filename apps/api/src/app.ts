@@ -30,6 +30,10 @@ import {
 import { MockAiProvider } from "./services/mock-ai-provider.js";
 import { registerBootstrapRoutes } from "./routes/bootstrap.js";
 import { createMealImageStorage, type MealImageStorage } from "./services/meal-image-storage.js";
+import {
+  createPasswordResetEmailSender,
+  type PasswordResetEmailSender,
+} from "./services/password-reset-email.js";
 
 export type BuildAppOptions = {
   repository?: AppRepository;
@@ -39,6 +43,7 @@ export type BuildAppOptions = {
   requireRewardedAdServerVerification?: boolean;
   oauthVerifier?: OAuthIdentityVerifier;
   mealImageStorage?: MealImageStorage;
+  passwordResetEmailSender?: PasswordResetEmailSender;
 };
 
 export const buildApp = async (options: BuildAppOptions = {}) => {
@@ -61,6 +66,8 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
     (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config, sql));
   const mealImageStorage = options.mealImageStorage ?? createMealImageStorage(config);
   const oauthVerifier = options.oauthVerifier ?? new ConfiguredOAuthIdentityVerifier(config.auth);
+  const passwordResetEmailSender =
+    options.passwordResetEmailSender ?? createPasswordResetEmailSender(config);
   const rewardedAdVerifier =
     options.rewardedAdVerifier ??
     new GoogleAdMobRewardedAdVerifier({
@@ -88,7 +95,13 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
       options.requireRewardedAdServerVerification ?? config.adMob.rewardedSsvRequired,
   });
   await registerFoodRoutes(app, repository);
-  await registerProfileRoutes(app, repository, mealImageStorage, oauthVerifier);
+  await registerProfileRoutes(
+    app,
+    repository,
+    mealImageStorage,
+    oauthVerifier,
+    passwordResetEmailSender,
+  );
   await registerBootstrapRoutes(app, repository, mealImageStorage);
   await registerJournalRoutes(app, repository, mealImageStorage);
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);

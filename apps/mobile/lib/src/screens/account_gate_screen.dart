@@ -16,6 +16,8 @@ class AccountGateScreen extends StatelessWidget {
     this.error,
     required this.onSignIn,
     required this.onEmailAuth,
+    required this.onPasswordResetRequest,
+    required this.onPasswordResetConfirm,
     required this.onManualLog,
     this.onClearError,
   });
@@ -30,6 +32,13 @@ class AccountGateScreen extends StatelessWidget {
     String password,
   )
   onEmailAuth;
+  final Future<bool> Function(String email) onPasswordResetRequest;
+  final Future<AuthSession?> Function(
+    String email,
+    String code,
+    String password,
+  )
+  onPasswordResetConfirm;
   final VoidCallback onManualLog;
   final VoidCallback? onClearError;
 
@@ -115,6 +124,8 @@ class AccountGateScreen extends StatelessWidget {
               _EmailAuthPanel(
                 loading: loading,
                 onEmailAuth: onEmailAuth,
+                onPasswordResetRequest: onPasswordResetRequest,
+                onPasswordResetConfirm: onPasswordResetConfirm,
                 onClearError: onClearError,
               ),
               const SizedBox(height: 12),
@@ -188,6 +199,8 @@ class _EmailAuthPanel extends StatefulWidget {
   const _EmailAuthPanel({
     required this.loading,
     required this.onEmailAuth,
+    required this.onPasswordResetRequest,
+    required this.onPasswordResetConfirm,
     this.onClearError,
   });
 
@@ -198,6 +211,13 @@ class _EmailAuthPanel extends StatefulWidget {
     String password,
   )
   onEmailAuth;
+  final Future<bool> Function(String email) onPasswordResetRequest;
+  final Future<AuthSession?> Function(
+    String email,
+    String code,
+    String password,
+  )
+  onPasswordResetConfirm;
   final VoidCallback? onClearError;
 
   @override
@@ -207,13 +227,18 @@ class _EmailAuthPanel extends StatefulWidget {
 class _EmailAuthPanelState extends State<_EmailAuthPanel> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _resetCodeController = TextEditingController();
+  final _newPasswordController = TextEditingController();
   EmailAuthMode _mode = EmailAuthMode.signUp;
   String? _validation;
+  String? _resetEmail;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _resetCodeController.dispose();
+    _newPasswordController.dispose();
     super.dispose();
   }
 
@@ -221,6 +246,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final isSignUp = _mode == EmailAuthMode.signUp;
+    final isResetting = _resetEmail != null;
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -232,55 +258,106 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: colors.mutedFill,
-              borderRadius: BorderRadius.circular(12),
+          if (!isResetting) ...[
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: colors.mutedFill,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  _ModeTab(
+                    label: 'Sign up',
+                    selected: isSignUp,
+                    onTap: widget.loading
+                        ? null
+                        : () => setState(() {
+                            _mode = EmailAuthMode.signUp;
+                            _validation = null;
+                            widget.onClearError?.call();
+                          }),
+                  ),
+                  _ModeTab(
+                    label: 'Log in',
+                    selected: !isSignUp,
+                    onTap: widget.loading
+                        ? null
+                        : () => setState(() {
+                            _mode = EmailAuthMode.logIn;
+                            _validation = null;
+                            widget.onClearError?.call();
+                          }),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                _ModeTab(
-                  label: 'Sign up',
-                  selected: isSignUp,
-                  onTap: widget.loading
-                      ? null
-                      : () => setState(() {
-                          _mode = EmailAuthMode.signUp;
-                          _validation = null;
-                          widget.onClearError?.call();
-                        }),
-                ),
-                _ModeTab(
-                  label: 'Log in',
-                  selected: !isSignUp,
-                  onTap: widget.loading
-                      ? null
-                      : () => setState(() {
-                          _mode = EmailAuthMode.logIn;
-                          _validation = null;
-                          widget.onClearError?.call();
-                        }),
-                ),
-              ],
+            const SizedBox(height: 10),
+          ] else ...[
+            Text(
+              'Reset password',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: colors.textPrimary,
+                letterSpacing: 0,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 4),
+            Text(
+              'Enter the 6-digit code sent to $_resetEmail.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textSecondary,
+                height: 1.25,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           _AuthTextField(
             controller: _emailController,
             hint: 'Email',
             keyboardType: TextInputType.emailAddress,
-            enabled: !widget.loading,
+            enabled: !widget.loading && !isResetting,
             onChanged: _clearValidation,
           ),
           const SizedBox(height: 8),
-          _AuthTextField(
-            controller: _passwordController,
-            hint: 'Password',
-            obscureText: true,
-            enabled: !widget.loading,
-            onChanged: _clearValidation,
-          ),
+          if (isResetting) ...[
+            _AuthTextField(
+              controller: _resetCodeController,
+              hint: 'Reset code',
+              keyboardType: TextInputType.number,
+              enabled: !widget.loading,
+              onChanged: _clearValidation,
+            ),
+            const SizedBox(height: 8),
+            _AuthTextField(
+              controller: _newPasswordController,
+              hint: 'New password',
+              obscureText: true,
+              enabled: !widget.loading,
+              onChanged: _clearValidation,
+            ),
+          ] else ...[
+            _AuthTextField(
+              controller: _passwordController,
+              hint: 'Password',
+              obscureText: true,
+              enabled: !widget.loading,
+              onChanged: _clearValidation,
+            ),
+            if (!isSignUp)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: widget.loading ? null : _requestReset,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('Forgot password?'),
+                ),
+              ),
+          ],
           if (_validation != null) ...[
             const SizedBox(height: 6),
             _InlineAuthError(message: _validation!),
@@ -299,15 +376,41 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              child: Text(isSignUp ? 'Create account' : 'Log in'),
+              child: Text(
+                isResetting
+                    ? 'Reset password'
+                    : isSignUp
+                    ? 'Create account'
+                    : 'Log in',
+              ),
             ),
           ),
+          if (isResetting) ...[
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: widget.loading
+                  ? null
+                  : () => setState(() {
+                      _resetEmail = null;
+                      _resetCodeController.clear();
+                      _newPasswordController.clear();
+                      _validation = null;
+                      widget.onClearError?.call();
+                    }),
+              child: const Text('Back to login'),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Future<void> _submit() async {
+    if (_resetEmail != null) {
+      await _submitReset();
+      return;
+    }
+
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text;
     final error = _validate(email, password);
@@ -322,17 +425,63 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
     Navigator.of(context).pop(session);
   }
 
+  Future<void> _requestReset() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final error = _validateEmail(email);
+    if (error != null) {
+      setState(() => _validation = error);
+      return;
+    }
+
+    setState(() => _validation = null);
+    final accepted = await widget.onPasswordResetRequest(email);
+    if (!accepted || !mounted) return;
+    setState(() {
+      _resetEmail = email;
+      _resetCodeController.clear();
+      _newPasswordController.clear();
+    });
+  }
+
+  Future<void> _submitReset() async {
+    final email = _resetEmail!;
+    final code = _resetCodeController.text.trim();
+    final password = _newPasswordController.text;
+    final error = _validateReset(code, password);
+    if (error != null) {
+      setState(() => _validation = error);
+      return;
+    }
+
+    setState(() => _validation = null);
+    final session = await widget.onPasswordResetConfirm(email, code, password);
+    if (session == null || !mounted) return;
+    Navigator.of(context).pop(session);
+  }
+
   String? _validate(String email, String password) {
-    if (email.isEmpty) {
-      return 'Enter your email address.';
-    }
-    if (!_emailPattern.hasMatch(email)) {
-      return 'Enter a valid email address.';
-    }
+    final emailError = _validateEmail(email);
+    if (emailError != null) return emailError;
     if (password.isEmpty) {
       return _mode == EmailAuthMode.signUp
           ? 'Create a password with at least 6 characters.'
           : 'Enter your password.';
+    }
+    if (password.length < 6) {
+      return 'Password must have at least 6 characters.';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String email) {
+    if (email.isEmpty) return 'Enter your email address.';
+    if (!_emailPattern.hasMatch(email)) return 'Enter a valid email address.';
+    return null;
+  }
+
+  String? _validateReset(String code, String password) {
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      return 'Enter the 6-digit reset code.';
     }
     if (password.length < 6) {
       return 'Password must have at least 6 characters.';
