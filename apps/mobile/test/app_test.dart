@@ -924,6 +924,46 @@ void main() {
     expect(accountOpened, isTrue);
   });
 
+  testWidgets('analysis server failures hide raw backend internals', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.light(),
+        home: AnalyzingScreen(
+          photo: CapturedMealPhoto(
+            bytes: Uint8List.fromList([1, 2, 3]),
+            mimeType: 'image/jpeg',
+            fileName: 'plate.jpg',
+            userHint: 'test',
+          ),
+          onAnalyze: (_) async {
+            throw LogMyPlateApiException(
+              500,
+              jsonEncode({
+                'message':
+                    'duplicate key value violates unique constraint "devices_install_id_unique_idx"',
+              }),
+            );
+          },
+          onAnalyzed: (_) {},
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Still thinking'), findsOneWidget);
+    expect(
+      find.text(
+        'LogMyPlate is taking longer than expected. Retry in a moment.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('devices_install_id_unique_idx'), findsNothing);
+  });
+
   testWidgets('account gate offers Google and email auth on Android', (
     tester,
   ) async {

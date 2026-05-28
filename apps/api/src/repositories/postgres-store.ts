@@ -1997,6 +1997,11 @@ export class PostgresStore implements AppRepository {
     const installId = currentRequestIdentity().installId;
     if (!installId) return undefined;
 
+    const profile = await this.getProfileForInstall(installId);
+    return profile?.authMethod === "anonymous" ? profile : undefined;
+  }
+
+  private async getProfileForInstall(installId: string): Promise<Profile | undefined> {
     const [profile] = await this.sql<Profile[]>`
       select
         profiles.id::text,
@@ -2008,7 +2013,6 @@ export class PostgresStore implements AppRepository {
       from devices
       inner join profiles on profiles.id = devices.profile_id
       where devices.install_id = ${installId}
-        and profiles.auth_method = 'anonymous'
       limit 1
     `;
     return profile;
@@ -2055,12 +2059,12 @@ export class PostgresStore implements AppRepository {
     `;
   }
 
-  private async resetCurrentInstallToAnonymousProfile(): Promise<void> {
+  private async resetCurrentInstallToAnonymousProfile(): Promise<Profile | undefined> {
     const identity = currentRequestIdentity();
     const installId = identity.installId;
-    if (!installId) return;
+    if (!installId) return undefined;
 
-    await this.sql.begin(async (tx) => {
+    return this.sql.begin(async (tx) => {
       const [profile] = await tx<Profile[]>`
         insert into profiles (timezone, provider_subject)
         values (
@@ -2120,6 +2124,8 @@ export class PostgresStore implements AppRepository {
           last_seen_at = now(),
           updated_at = now()
       `;
+
+      return profile;
     });
   }
 
@@ -2387,21 +2393,7 @@ export class PostgresStore implements AppRepository {
   private async getOrCreateProfileForInstall(installId: string): Promise<Profile> {
     const identity = currentRequestIdentity();
 
-    const [existing] = await this.sql<Profile[]>`
-      select
-        profiles.id::text,
-        profiles.auth_method as "authMethod",
-        profiles.email,
-        profiles.timezone,
-        profiles.linked_at::text as "linkedAt",
-        profiles.created_at::text as "createdAt"
-      from devices
-      inner join profiles on profiles.id = devices.profile_id
-      where devices.install_id = ${installId}
-        and profiles.auth_method = 'anonymous'
-      limit 1
-    `;
-
+    const existing = await this.getProfileForInstall(installId);
     if (existing) {
       await this.sql`
         update devices
@@ -2413,10 +2405,13 @@ export class PostgresStore implements AppRepository {
           last_seen_at = now()
         where install_id = ${installId}
       `;
-      return existing;
+      if (existing.authMethod === "anonymous") return existing;
+
+      const anonymousProfile = await this.resetCurrentInstallToAnonymousProfile();
+      if (anonymousProfile) return anonymousProfile;
     }
 
-    return this.sql.begin(async (tx) => {
+    const created = await this.sql.begin(async (tx) => {
       const [profile] = await tx<Profile[]>`
         insert into profiles (timezone, provider_subject)
         values (${identity.timezone ?? "Asia/Kolkata"}, ${`install:${installId}`})
@@ -2446,7 +2441,24 @@ export class PostgresStore implements AppRepository {
           ${identity.region ?? null},
           ${identity.timezone ?? null}
         )
+        on conflict (install_id) do nothing
+        returning profile_id::text
       `;
+
+      const [linkedDevice] = await tx<{ profile_id: string }[]>`
+        select profile_id::text
+        from devices
+        where install_id = ${installId}
+        limit 1
+      `;
+
+      if (linkedDevice?.profile_id !== profile.id) {
+        await tx`
+          delete from profiles
+          where id = ${profile.id}
+        `;
+        return undefined;
+      }
 
       await tx`
         insert into install_scan_credits (
@@ -2468,6 +2480,16 @@ export class PostgresStore implements AppRepository {
 
       return profile;
     });
+
+    if (created) return created;
+
+    const linkedProfile = await this.getProfileForInstall(installId);
+    if (linkedProfile?.authMethod === "anonymous") return linkedProfile;
+
+    const anonymousProfile = await this.resetCurrentInstallToAnonymousProfile();
+    if (anonymousProfile) return anonymousProfile;
+
+    throw new Error("Could not create anonymous profile for install.");
   }
 
   private scanFromRow(row: ScanRow): ScanSession {

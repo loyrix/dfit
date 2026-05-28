@@ -1706,6 +1706,53 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("returns to an anonymous profile when an account-bound install has no session token", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-missing-session",
+      "x-logmyplate-platform": "ios",
+    };
+
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "missing-session@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const accountMeal = await app.inject({
+      method: "POST",
+      url: "/v1/meals",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "idempotency-key": "missing-session-account-meal",
+      },
+      payload: mealPayload(new Date().toISOString()),
+    });
+    expect(accountMeal.statusCode).toBe(201);
+
+    const anonymousBootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers: installHeaders,
+    });
+    expect(anonymousBootstrap.statusCode).toBe(200);
+    expect(anonymousBootstrap.json()).toMatchObject({
+      profile: { authMethod: "anonymous" },
+      today: { meals: [] },
+    });
+
+    const prepare = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { ...installHeaders, "idempotency-key": "missing-session-prepare" },
+    });
+    expect(prepare.statusCode).toBe(201);
+    await app.close();
+  });
+
   it("does not refresh the lifetime install scan quota after logout", async () => {
     const app = await testApp();
     const installHeaders = {

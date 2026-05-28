@@ -277,12 +277,11 @@ class _AnalysisFailure {
         );
       }
       if (error.retryable || error.statusCode >= 500) {
-        return _AnalysisFailure(
+        return const _AnalysisFailure(
           kind: _AnalysisFailureKind.provider,
           title: 'Still thinking',
           subtitle: 'The AI took too long',
           message:
-              error.message ??
               'LogMyPlate is taking longer than expected. Retry in a moment.',
         );
       }
