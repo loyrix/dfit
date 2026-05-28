@@ -28,8 +28,10 @@ import type {
   RewardedAdProgressState,
   RewardedAdServerVerification,
   RewardedAdServerVerificationInput,
+  ScanAnalysisCacheRecord,
   ScanSession,
   UpdateMealInput,
+  UpsertScanAnalysisCacheInput,
   UpsertProfileHealthTargetInput,
 } from "./app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
@@ -64,6 +66,7 @@ export class InMemoryStore implements AppRepository {
   private readonly mealProfiles = new Map<string, string>();
   private readonly mealScanSessions = new Map<string, string>();
   private readonly scans = new Map<string, ScanSession>();
+  private readonly scanAnalysisCache = new Map<string, ScanAnalysisCacheRecord>();
   private readonly idempotency = new Map<string, IdempotencyRecord>();
   private readonly quotas = new Map<string, ScanCreditState>();
   private readonly rewardedAdProgress = new Map<
@@ -591,6 +594,30 @@ export class InMemoryStore implements AppRepository {
     this.scans.set(scan.id, scan);
   }
 
+  async findScanAnalysisCache(input: {
+    profileId: string;
+    imageHash: string;
+    hashAlgorithm: "sha256:v1";
+  }) {
+    const cached = this.scanAnalysisCache.get(
+      this.scanAnalysisCacheKey(input.profileId, input.hashAlgorithm, input.imageHash),
+    );
+    return cached ? { ...cached } : undefined;
+  }
+
+  async upsertScanAnalysisCache(input: UpsertScanAnalysisCacheInput) {
+    const key = this.scanAnalysisCacheKey(input.profileId, input.hashAlgorithm, input.imageHash);
+    const existing = this.scanAnalysisCache.get(key);
+    const now = new Date().toISOString();
+    const cached: ScanAnalysisCacheRecord = {
+      ...input,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    this.scanAnalysisCache.set(key, cached);
+    return { ...cached };
+  }
+
   async countNoFoodScanAttemptsSince(sinceIso: string) {
     const profile = await this.getProfile();
     const sinceTime = Date.parse(sinceIso);
@@ -779,6 +806,14 @@ export class InMemoryStore implements AppRepository {
     quota.rewardedRemaining = 0;
     quota.premiumRemaining = 0;
     this.quotas.set(key, quota);
+  }
+
+  private scanAnalysisCacheKey(
+    profileId: string,
+    hashAlgorithm: ScanAnalysisCacheRecord["hashAlgorithm"],
+    imageHash: string,
+  ): string {
+    return `${profileId}:${hashAlgorithm}:${imageHash}`;
   }
 }
 

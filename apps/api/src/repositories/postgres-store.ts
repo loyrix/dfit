@@ -37,9 +37,11 @@ import type {
   RewardedAdProgressState,
   RewardedAdServerVerification,
   RewardedAdServerVerificationInput,
+  ScanAnalysisCacheRecord,
   ScanSession,
   UpdateMealInput,
   UpsertProfileHealthTargetInput,
+  UpsertScanAnalysisCacheInput,
 } from "./app-repository.js";
 import { AccountAuthError } from "./app-repository.js";
 
@@ -113,8 +115,21 @@ type ScanRow = {
   image_byte_size: number | null;
   image_bucket: string | null;
   image_object_key: string | null;
+  image_hash: string | null;
+  image_hash_algorithm: ScanSession["imageHashAlgorithm"] | null;
   created_at: string;
   analyzed_response: unknown | null;
+};
+
+type ScanAnalysisCacheRow = {
+  profile_id: string;
+  image_hash: string;
+  hash_algorithm: ScanAnalysisCacheRecord["hashAlgorithm"];
+  image_mime_type: string | null;
+  image_byte_size: number | null;
+  analyzed_response: unknown;
+  created_at: string;
+  updated_at: string;
 };
 
 const toJsonValue = (value: unknown): postgres.JSONValue =>
@@ -1517,6 +1532,8 @@ export class PostgresStore implements AppRepository {
         scan_sessions.image_byte_size,
         scan_sessions.image_bucket,
         scan_sessions.image_object_key,
+        scan_sessions.image_hash,
+        scan_sessions.image_hash_algorithm,
         scan_sessions.created_at::text,
         case
           when ai_predictions.raw_ai_json ? 'analysis'
@@ -1550,45 +1567,61 @@ export class PostgresStore implements AppRepository {
           image_byte_size = coalesce(${scan.imageByteSize ?? null}, image_byte_size),
           image_bucket = coalesce(${scan.imageBucket ?? null}, image_bucket),
           image_object_key = coalesce(${scan.imageObjectKey ?? null}, image_object_key),
+          image_hash = coalesce(${scan.imageHash ?? null}, image_hash),
+          image_hash_algorithm = coalesce(${scan.imageHashAlgorithm ?? null}, image_hash_algorithm),
           updated_at = now()
         where id = ${scan.id}
       `;
 
+      let shouldPersistPrediction = false;
       if (scan.analyzedResponse && scan.aiProviderRun) {
+        shouldPersistPrediction = true;
+      } else if (scan.analyzedResponse) {
+        const [existingPrediction] = await tx<{ exists: boolean }[]>`
+          select true as exists
+          from ai_predictions
+          where scan_session_id = ${scan.id}
+          limit 1
+        `;
+        shouldPersistPrediction = !existingPrediction;
+      }
+
+      if (scan.analyzedResponse && shouldPersistPrediction) {
         await tx`
           delete from ai_predictions
           where scan_session_id = ${scan.id}
         `;
 
         const providerRun = scan.aiProviderRun;
-
-        const [run] = await tx<{ id: string }[]>`
-          insert into ai_provider_runs (
-            scan_session_id,
-            provider,
-            model,
-            prompt_version,
-            schema_version,
-            input_token_estimate,
-            output_token_estimate,
-            estimated_cost_usd,
-            latency_ms,
-            success
-          )
-          values (
-            ${scan.id},
-            ${providerRun.provider},
-            ${providerRun.model},
-            ${providerRun.promptVersion},
-            ${providerRun.schemaVersion},
-            ${providerRun.inputTokenEstimate ?? null},
-            ${providerRun.outputTokenEstimate ?? null},
-            ${providerRun.estimatedCostUsd ?? null},
-            ${providerRun.latencyMs ?? null},
-            true
-          )
-          returning id::text
-        `;
+        const [run] = providerRun
+          ? await tx<{ id: string | null }[]>`
+              insert into ai_provider_runs (
+                scan_session_id,
+                provider,
+                model,
+                prompt_version,
+                schema_version,
+                input_token_estimate,
+                output_token_estimate,
+                estimated_cost_usd,
+                latency_ms,
+                success
+              )
+              values (
+                ${scan.id},
+                ${providerRun.provider},
+                ${providerRun.model},
+                ${providerRun.promptVersion},
+                ${providerRun.schemaVersion},
+                ${providerRun.inputTokenEstimate ?? null},
+                ${providerRun.outputTokenEstimate ?? null},
+                ${providerRun.estimatedCostUsd ?? null},
+                ${providerRun.latencyMs ?? null},
+                true
+              )
+              returning id::text
+            `
+          : [{ id: null }];
 
         const response = scan.analyzedResponse as {
           detectedLanguage?: string;
@@ -1601,7 +1634,7 @@ export class PostgresStore implements AppRepository {
             confidence: number;
           }>;
         };
-        const rawAiJson = providerRun.rawResponse
+        const rawAiJson = providerRun?.rawResponse
           ? {
               analysis: scan.analyzedResponse,
               providerResponse: providerRun.rawResponse,
@@ -1655,6 +1688,67 @@ export class PostgresStore implements AppRepository {
         }
       }
     });
+  }
+
+  async findScanAnalysisCache(input: {
+    profileId: string;
+    imageHash: string;
+    hashAlgorithm: ScanAnalysisCacheRecord["hashAlgorithm"];
+  }) {
+    const [cached] = await this.sql<ScanAnalysisCacheRow[]>`
+      select
+        profile_id::text,
+        image_hash,
+        hash_algorithm,
+        image_mime_type,
+        image_byte_size,
+        analyzed_response,
+        created_at::text,
+        updated_at::text
+      from scan_analysis_cache
+      where profile_id = ${input.profileId}
+        and hash_algorithm = ${input.hashAlgorithm}
+        and image_hash = ${input.imageHash}
+      limit 1
+    `;
+    return cached ? this.scanAnalysisCacheFromRow(cached) : undefined;
+  }
+
+  async upsertScanAnalysisCache(input: UpsertScanAnalysisCacheInput) {
+    const [cached] = await this.sql<ScanAnalysisCacheRow[]>`
+      insert into scan_analysis_cache (
+        profile_id,
+        image_hash,
+        hash_algorithm,
+        image_mime_type,
+        image_byte_size,
+        analyzed_response
+      )
+      values (
+        ${input.profileId},
+        ${input.imageHash},
+        ${input.hashAlgorithm},
+        ${input.imageMimeType ?? null},
+        ${input.imageByteSize ?? null},
+        ${this.sql.json(toJsonValue(input.analyzedResponse))}
+      )
+      on conflict (profile_id, hash_algorithm, image_hash) do update
+      set
+        image_mime_type = excluded.image_mime_type,
+        image_byte_size = excluded.image_byte_size,
+        analyzed_response = excluded.analyzed_response,
+        updated_at = now()
+      returning
+        profile_id::text,
+        image_hash,
+        hash_algorithm,
+        image_mime_type,
+        image_byte_size,
+        analyzed_response,
+        created_at::text,
+        updated_at::text
+    `;
+    return this.scanAnalysisCacheFromRow(cached);
   }
 
   async countNoFoodScanAttemptsSince(sinceIso: string) {
@@ -2388,7 +2482,22 @@ export class PostgresStore implements AppRepository {
       imageByteSize: row.image_byte_size ?? undefined,
       imageBucket: row.image_bucket ?? undefined,
       imageObjectKey: row.image_object_key ?? undefined,
+      imageHash: row.image_hash ?? undefined,
+      imageHashAlgorithm: row.image_hash_algorithm ?? undefined,
       createdAt: row.created_at,
+    };
+  }
+
+  private scanAnalysisCacheFromRow(row: ScanAnalysisCacheRow): ScanAnalysisCacheRecord {
+    return {
+      profileId: row.profile_id,
+      imageHash: row.image_hash,
+      hashAlgorithm: row.hash_algorithm,
+      imageMimeType: row.image_mime_type ?? undefined,
+      imageByteSize: row.image_byte_size ?? undefined,
+      analyzedResponse: row.analyzed_response,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 

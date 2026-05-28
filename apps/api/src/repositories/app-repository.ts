@@ -61,8 +61,23 @@ export type ScanSession = {
   imageByteSize?: number;
   imageBucket?: string;
   imageObjectKey?: string;
+  imageHash?: string;
+  imageHashAlgorithm?: "sha256:v1";
   createdAt: string;
 };
+
+export type ScanAnalysisCacheRecord = {
+  profileId: string;
+  imageHash: string;
+  hashAlgorithm: "sha256:v1";
+  imageMimeType?: string;
+  imageByteSize?: number;
+  analyzedResponse: unknown;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpsertScanAnalysisCacheInput = Omit<ScanAnalysisCacheRecord, "createdAt" | "updatedAt">;
 
 export type IdempotencyRecord = {
   responseStatus: number;
@@ -216,6 +231,12 @@ export interface AppRepository {
   prepareScan(profileId?: string): Promise<ScanSession>;
   getScan(scanId: string): Promise<ScanSession | undefined>;
   updateScan(scan: ScanSession): Promise<void>;
+  findScanAnalysisCache(input: {
+    profileId: string;
+    imageHash: string;
+    hashAlgorithm: "sha256:v1";
+  }): Promise<ScanAnalysisCacheRecord | undefined>;
+  upsertScanAnalysisCache(input: UpsertScanAnalysisCacheInput): Promise<ScanAnalysisCacheRecord>;
   countNoFoodScanAttemptsSince(sinceIso: string): Promise<number>;
   getIdempotent(key: string): Promise<IdempotencyRecord | undefined>;
   setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">): Promise<void>;

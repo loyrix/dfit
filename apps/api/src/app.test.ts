@@ -394,6 +394,276 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("reuses exact scan analysis for the same profile image", async () => {
+    let calls = 0;
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        calls += 1;
+        return {
+          analysis: analyzeWithMockProvider(input.scanId),
+          providerRun: {
+            provider: "mock",
+            model: "test-cache-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+    const image = {
+      mimeType: "image/jpeg" as const,
+      base64: "AQID",
+      byteSize: 3,
+    };
+    const analyze = async (key: string) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": `cache-prepare-${key}` },
+      });
+      const scanId = prepared.json().scanId as string;
+      const analyzed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/analyze`,
+        headers: { "idempotency-key": `cache-analyze-${key}` },
+        payload: {
+          hint: "dal rice",
+          image,
+        },
+      });
+      return { scanId, analyzed };
+    };
+
+    const first = await analyze("first");
+    const quotaAfterFirst = await app.inject({ method: "GET", url: "/v1/quota" });
+    const second = await analyze("second");
+    const quotaAfterSecond = await app.inject({ method: "GET", url: "/v1/quota" });
+
+    expect(first.analyzed.statusCode).toBe(200);
+    expect(second.analyzed.statusCode).toBe(200);
+    expect(calls).toBe(1);
+    expect(second.analyzed.json()).toMatchObject({
+      scanId: second.scanId,
+      mealName: first.analyzed.json().mealName,
+      imageStored: false,
+    });
+    expect(second.analyzed.json().scanId).not.toBe(first.scanId);
+    expect(quotaAfterSecond.json()).toEqual(quotaAfterFirst.json());
+    await app.close();
+  });
+
+  it("reuses exact scan analysis even when the plate note changes", async () => {
+    let calls = 0;
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        calls += 1;
+        return {
+          analysis: analyzeWithMockProvider(input.scanId),
+          providerRun: {
+            provider: "mock",
+            model: "test-cache-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+    const image = {
+      mimeType: "image/jpeg" as const,
+      base64: "AQID",
+      byteSize: 3,
+    };
+    const analyze = async (key: string, hint: string) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": `note-cache-prepare-${key}` },
+      });
+      return app.inject({
+        method: "POST",
+        url: `/v1/scans/${prepared.json().scanId}/analyze`,
+        headers: { "idempotency-key": `note-cache-analyze-${key}` },
+        payload: {
+          hint,
+          image,
+        },
+      });
+    };
+
+    expect((await analyze("first", "dal rice")).statusCode).toBe(200);
+    expect((await analyze("second", "dal rice with solkadhi")).statusCode).toBe(200);
+    expect(calls).toBe(1);
+    await app.close();
+  });
+
+  it("updates exact scan analysis cache from reviewed confirmation", async () => {
+    let calls = 0;
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        calls += 1;
+        return {
+          analysis: analyzeWithMockProvider(input.scanId),
+          providerRun: {
+            provider: "mock",
+            model: "test-cache-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+    const image = {
+      mimeType: "image/jpeg" as const,
+      base64: "AQID",
+      byteSize: 3,
+    };
+    const analyze = async (key: string) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": `review-cache-prepare-${key}` },
+      });
+      const scanId = prepared.json().scanId as string;
+      const analyzed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/analyze`,
+        headers: { "idempotency-key": `review-cache-analyze-${key}` },
+        payload: {
+          hint: "dal rice",
+          image,
+        },
+      });
+      return { scanId, analyzed };
+    };
+    const confirm = async (
+      key: string,
+      scanId: string,
+      analysis: {
+        mealType: string;
+        mealName: string;
+        items: Array<{
+          name: string;
+          quantity: number;
+          unit: string;
+          estimatedGrams: number;
+          nutrition: unknown;
+        }>;
+      },
+      title = analysis.mealName,
+    ) =>
+      app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/confirm`,
+        headers: { "idempotency-key": `review-cache-confirm-${key}` },
+        payload: {
+          mealType: analysis.mealType,
+          title,
+          items: analysis.items.map((item, index) => ({
+            name: index === 0 && key === "edited" ? "Solkadhi" : item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          })),
+        },
+      });
+
+    const first = await analyze("first");
+    expect(first.analyzed.statusCode).toBe(200);
+    expect(await confirm("first", first.scanId, first.analyzed.json())).toMatchObject({
+      statusCode: 201,
+    });
+
+    const second = await analyze("second");
+    expect(second.analyzed.statusCode).toBe(200);
+    const edited = await confirm(
+      "edited",
+      second.scanId,
+      second.analyzed.json(),
+      "Chicken thali with solkadhi",
+    );
+    expect(edited.statusCode).toBe(201);
+
+    const third = await analyze("third");
+    const thirdAnalysis = third.analyzed.json();
+
+    expect(third.analyzed.statusCode).toBe(200);
+    expect(calls).toBe(1);
+    expect(thirdAnalysis).toMatchObject({
+      mealName: "Chicken thali with solkadhi",
+    });
+    expect(thirdAnalysis.items[0]).toMatchObject({ name: "Solkadhi", confidence: 1 });
+    await app.close();
+  });
+
+  it("does not reuse scan analysis across profiles", async () => {
+    let calls = 0;
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        calls += 1;
+        return {
+          analysis: analyzeWithMockProvider(input.scanId),
+          providerRun: {
+            provider: "mock",
+            model: "test-cache-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+    const image = {
+      mimeType: "image/jpeg" as const,
+      base64: "AQID",
+      byteSize: 3,
+    };
+    const analyze = async (installId: string, key: string) => {
+      const identityHeaders = {
+        "x-logmyplate-install-id": installId,
+        "x-logmyplate-platform": "ios",
+      };
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...identityHeaders, "idempotency-key": `profile-cache-prepare-${key}` },
+      });
+      return app.inject({
+        method: "POST",
+        url: `/v1/scans/${prepared.json().scanId}/analyze`,
+        headers: { ...identityHeaders, "idempotency-key": `profile-cache-analyze-${key}` },
+        payload: {
+          hint: "dal rice",
+          image,
+        },
+      });
+    };
+
+    expect((await analyze("install-cache-one", "first")).statusCode).toBe(200);
+    expect((await analyze("install-cache-two", "second")).statusCode).toBe(200);
+    expect(calls).toBe(2);
+    await app.close();
+  });
+
   it("stores a confirmed scan image and returns a signed image URL", async () => {
     const mealImageStorage = new TestMealImageStorage();
     const app = await buildApp({
@@ -1443,6 +1713,7 @@ describe("LogMyPlate API", () => {
       "x-logmyplate-platform": "ios",
     };
     const analyzeScan = async (key: string) => {
+      const imageBytes = Buffer.from(`quota-scan-${key}`);
       const prepared = await app.inject({
         method: "POST",
         url: "/v1/scans/prepare",
@@ -1458,8 +1729,8 @@ describe("LogMyPlate API", () => {
           hint: "dal rice",
           image: {
             mimeType: "image/jpeg",
-            base64: "AQID",
-            byteSize: 3,
+            base64: imageBytes.toString("base64"),
+            byteSize: imageBytes.byteLength,
           },
         },
       });
@@ -1768,6 +2039,7 @@ describe("LogMyPlate API", () => {
     };
 
     for (let index = 1; index <= 3; index += 1) {
+      const imageBytes = Buffer.from(`logout-reward-scan-${index}`);
       const prepared = await app.inject({
         method: "POST",
         url: "/v1/scans/prepare",
@@ -1783,8 +2055,8 @@ describe("LogMyPlate API", () => {
           hint: "dal rice",
           image: {
             mimeType: "image/jpeg",
-            base64: "AQID",
-            byteSize: 3,
+            base64: imageBytes.toString("base64"),
+            byteSize: imageBytes.byteLength,
           },
         },
       });

@@ -1,6 +1,11 @@
+import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { analyzeScanRequestSchema, confirmScanRequestSchema } from "@logmyplate/contracts";
-import { decideScanQuota } from "@logmyplate/domain";
+import {
+  analyzeScanRequestSchema,
+  confirmScanRequestSchema,
+  type ConfirmScanRequestContract,
+} from "@logmyplate/contracts";
+import { decideScanQuota, sumTotals } from "@logmyplate/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";
@@ -13,6 +18,42 @@ const isStoredImageMimeType = (value: string | undefined): value is StoredMealIm
 
 const noFoodScanWindowMs = 24 * 60 * 60 * 1_000;
 const defaultNoFoodScanLimit = 5;
+const scanImageHashAlgorithm = "sha256:v1" as const;
+
+const sha256Hex = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
+
+const analysisForScan = (analysis: unknown, scanId: string) => ({
+  ...(analysis as Record<string, unknown>),
+  scanId,
+  status: "ready_for_review",
+});
+
+const reviewedAnalysisForScan = (
+  scan: NonNullable<Awaited<ReturnType<AppRepository["getScan"]>>>,
+  confirmation: ConfirmScanRequestContract,
+) => ({
+  scanId: scan.id,
+  status: "ready_for_review",
+  mealType: confirmation.mealType,
+  mealName: confirmation.title,
+  detectedLanguage:
+    typeof (scan.analyzedResponse as { detectedLanguage?: unknown } | undefined)
+      ?.detectedLanguage === "string"
+      ? (scan.analyzedResponse as { detectedLanguage: string }).detectedLanguage
+      : "en",
+  items: confirmation.items.map((item, index) => ({
+    id: `reviewed_${index + 1}`,
+    name: item.name,
+    aliases: [],
+    quantity: item.quantity,
+    unit: item.unit,
+    estimatedGrams: item.estimatedGrams,
+    preparation: "unknown",
+    confidence: 1,
+    nutrition: item.nutrition,
+  })),
+  totals: sumTotals(confirmation.items.map((item) => item.nutrition)),
+});
 
 const imageFromScan = (
   scan: Awaited<ReturnType<AppRepository["getScan"]>>,
@@ -115,6 +156,54 @@ export const registerScanRoutes = async (
       return reply.status(400).send({ error: "scan_image_size_mismatch" });
     }
 
+    const userHint = parsed.data.hint?.trim() || undefined;
+    const imageHash = imageBytes ? sha256Hex(imageBytes) : undefined;
+    if (imageHash) {
+      try {
+        const cachedAnalysis = await timer.measure("scanAnalysisCacheLookup", () =>
+          repository.findScanAnalysisCache({
+            profileId: scan.profileId,
+            imageHash,
+            hashAlgorithm: scanImageHashAlgorithm,
+          }),
+        );
+
+        if (cachedAnalysis && !isNoFoodAnalysis(cachedAnalysis.analyzedResponse)) {
+          const response = analysisForScan(cachedAnalysis.analyzedResponse, scan.id);
+          await timer.measure("scanMarkCachedReady", () =>
+            repository.updateScan({
+              ...scan,
+              status: "ready_for_review",
+              userHint,
+              imageMimeType: image?.mimeType,
+              imageByteSize: image?.byteSize,
+              imageHash,
+              imageHashAlgorithm: scanImageHashAlgorithm,
+              analyzedResponse: response,
+            }),
+          );
+
+          request.log.info(
+            {
+              route: "/v1/scans/:id/analyze",
+              scanId: scan.id,
+              hasImage: true,
+              cached: true,
+              timings: timer.snapshot(),
+            },
+            "scan analyze timings",
+          );
+
+          return {
+            ...response,
+            imageStored: false,
+          };
+        }
+      } catch (error) {
+        request.log.error({ err: error, scanId: scan.id }, "scan analysis cache lookup failed");
+      }
+    }
+
     const quota = await timer.measure("quota", () => repository.getQuota());
     const decision = decideScanQuota(quota);
     if (!decision.allowed) {
@@ -137,13 +226,14 @@ export const registerScanRoutes = async (
       }
     }
 
-    const userHint = parsed.data.hint?.trim() || undefined;
     const scanWithRequestContext = {
       ...scan,
       status: "analyzing" as const,
       userHint,
       imageMimeType: image?.mimeType,
       imageByteSize: image?.byteSize,
+      imageHash,
+      imageHashAlgorithm: imageHash ? scanImageHashAlgorithm : undefined,
     };
     await timer.measure("scanMarkAnalyzing", () => repository.updateScan(scanWithRequestContext));
 
@@ -230,6 +320,23 @@ export const registerScanRoutes = async (
         imageObjectKey: storedScanImage?.objectKey,
       }),
     );
+
+    if (hasFoodItems && imageHash) {
+      try {
+        await timer.measure("scanAnalysisCacheStore", () =>
+          repository.upsertScanAnalysisCache({
+            profileId: scan.profileId,
+            imageHash,
+            hashAlgorithm: scanImageHashAlgorithm,
+            imageMimeType: image?.mimeType,
+            imageByteSize: image?.byteSize,
+            analyzedResponse: analyzedResult.analysis,
+          }),
+        );
+      } catch (error) {
+        request.log.error({ err: error, scanId: scan.id }, "scan analysis cache store failed");
+      }
+    }
 
     const response = {
       ...analyzedResult.analysis,
@@ -330,6 +437,27 @@ export const registerScanRoutes = async (
         (await timer.measure("imageAttach", () =>
           repository.attachMealImage(meal.mealId, imageToAttach),
         )) ?? meal;
+    }
+
+    const confirmedImageHash = scan.imageHash;
+    if (confirmedImageHash && scan.imageHashAlgorithm === scanImageHashAlgorithm) {
+      try {
+        await timer.measure("scanAnalysisCacheStoreReviewed", () =>
+          repository.upsertScanAnalysisCache({
+            profileId: scan.profileId,
+            imageHash: confirmedImageHash,
+            hashAlgorithm: scanImageHashAlgorithm,
+            imageMimeType: scan.imageMimeType ?? image?.mimeType,
+            imageByteSize: scan.imageByteSize ?? image?.byteSize,
+            analyzedResponse: reviewedAnalysisForScan(scan, parsed.data),
+          }),
+        );
+      } catch (error) {
+        request.log.error(
+          { err: error, mealId: meal.mealId, scanId: scan.id },
+          "scan analysis cache reviewed store failed",
+        );
+      }
     }
 
     await timer.measure("scanMarkConfirmed", () =>
