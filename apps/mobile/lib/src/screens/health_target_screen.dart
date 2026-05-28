@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
@@ -190,14 +191,6 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
               const SizedBox(height: 16),
               _HealthError(message: _error!),
             ],
-            const SizedBox(height: 16),
-            Text(
-              'BMI is a screening estimate, not medical advice.',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textTertiary,
-                letterSpacing: 0,
-              ),
-            ),
           ],
         ),
       ),
@@ -353,12 +346,18 @@ class _TargetPreviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'BMI overview',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: surface.textSecondary,
-              letterSpacing: 1.4,
-            ),
+          Row(
+            children: [
+              Text(
+                'BMI overview',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: surface.textSecondary,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const Spacer(),
+              _HealthSourcesButton(surface: surface),
+            ],
           ),
           const SizedBox(height: 14),
           Row(
@@ -425,6 +424,163 @@ class _TargetPreviewCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HealthSourcesButton extends StatelessWidget {
+  const _HealthSourcesButton({required this.surface});
+
+  final LogMyPlateHeroSurfaceStyle surface;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: () => _showHealthSources(context),
+      style: TextButton.styleFrom(
+        foregroundColor: surface.accentText,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        textStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+          letterSpacing: 0,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      icon: const Icon(Icons.open_in_new_rounded, size: 13),
+      label: const Text('Sources'),
+    );
+  }
+}
+
+class _HealthSourcesSheet extends StatelessWidget {
+  const _HealthSourcesSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Calculation sources',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: colors.textPrimary,
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Close sources',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                  color: colors.textSecondary,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: colors.accent.withValues(alpha: 0.16),
+                  width: 0.7,
+                ),
+              ),
+              child: Text(
+                'Review the public references used for BMI ranges and calorie-target math.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Open source',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textSecondary,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final source in _healthSources)
+                  _HealthSourceButton(source: source, accent: colors.accent),
+              ],
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showHealthSources(BuildContext context) {
+  final colors = context.logmyplate;
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: colors.surfaceCard,
+    barrierColor: Colors.black.withValues(alpha: 0.48),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => const _HealthSourcesSheet(),
+  );
+}
+
+class _HealthSourceButton extends StatelessWidget {
+  const _HealthSourceButton({required this.source, required this.accent});
+
+  final _HealthSource source;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      label: Text(source.label),
+      onPressed: () => _openHealthSource(context, source.url),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      side: BorderSide(color: accent.withValues(alpha: 0.26), width: 0.7),
+      backgroundColor: accent.withValues(alpha: 0.10),
+      labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: accent,
+        letterSpacing: 0,
+        height: 1,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
+      avatar: Icon(
+        Icons.open_in_new_rounded,
+        size: 13,
+        color: accent.withValues(alpha: 0.86),
+      ),
+    );
+  }
+}
+
+class _HealthSource {
+  const _HealthSource(this.label, this.url);
+
+  final String label;
+  final Uri url;
 }
 
 class _BmiLegend extends StatelessWidget {
@@ -683,6 +839,32 @@ const _bmiSegments = [
   _BmiSegment((25 - 16) / (34 - 16), (30 - 16) / (34 - 16), _bmiAboveColor),
   _BmiSegment((30 - 16) / (34 - 16), 1, _bmiHighColor),
 ];
+
+final _healthSources = [
+  _HealthSource(
+    'CDC BMI ranges',
+    Uri.parse('https://www.cdc.gov/bmi/adult-calculator/bmi-categories.html'),
+  ),
+  _HealthSource(
+    'CDC BMI guide',
+    Uri.parse('https://www.cdc.gov/bmi/adult-calculator/index.html'),
+  ),
+  _HealthSource(
+    'Calorie formula',
+    Uri.parse('https://pubmed.ncbi.nlm.nih.gov/2305711/'),
+  ),
+];
+
+Future<void> _openHealthSource(BuildContext context, Uri url) async {
+  final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+  if (opened || !context.mounted) return;
+
+  await Clipboard.setData(ClipboardData(text: url.toString()));
+  if (!context.mounted) return;
+
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  messenger?.showSnackBar(const SnackBar(content: Text('Source link copied')));
+}
 
 class _BmiSegment {
   const _BmiSegment(this.start, this.end, this.color);

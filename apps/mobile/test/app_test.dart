@@ -1109,12 +1109,24 @@ void main() {
     expect(find.text('Balanced 18.5-24.9'), findsOneWidget);
     expect(find.text('Above 25-29.9'), findsOneWidget);
     expect(find.text('High 30+'), findsOneWidget);
+    expect(find.text('Sources'), findsOneWidget);
+    await tester.tap(find.text('Sources'));
+    await tester.pumpAndSettle();
+    expect(find.text('Calculation sources'), findsOneWidget);
+    expect(find.text('CDC BMI ranges'), findsOneWidget);
+    expect(find.text('Calorie formula'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close sources'));
+    await tester.pumpAndSettle();
     expect(find.text('Save target'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -280));
+    final weightInput = find.byKey(const ValueKey('metric-input-weight'));
+    await tester.scrollUntilVisible(
+      weightInput,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
-    final weightInput = find.byKey(const ValueKey('metric-input-weight'));
     await tester.enterText(weightInput, '64.5');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
