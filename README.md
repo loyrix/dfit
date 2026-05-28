@@ -95,6 +95,7 @@ Set production environment variables in Vercel:
 ```txt
 DATABASE_URL
 NODE_ENV=production
+API_DOCS_ENABLED=false
 AI_PROVIDER=gemini
 GEMINI_API_KEY
 GEMINI_MODEL=gemini-2.5-flash

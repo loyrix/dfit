@@ -1114,13 +1114,16 @@ void main() {
 
     expect(requestedEmail, 'friend@test.com');
     expect(find.text('Reset password'), findsWidgets);
-    expect(
-      find.text('Enter the 6-digit code sent to friend@test.com.'),
-      findsOneWidget,
-    );
+    expect(find.text('Save your journal'), findsNothing);
+    expect(find.text('Google'), findsNothing);
+    expect(find.text('Maybe later'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).at(1), '123456');
-    await tester.enterText(find.byType(TextField).at(2), 'newpass1');
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Code sent to friend@test.com'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), '123456');
+    await tester.enterText(find.byType(TextField).at(1), 'newpass1');
     await tester.drag(find.byType(ListView), const Offset(0, -180));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.widgetWithText(FilledButton, 'Reset password'));

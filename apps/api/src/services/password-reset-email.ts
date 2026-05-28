@@ -60,64 +60,59 @@ export const createPasswordResetEmailSender = (config: ApiConfig): PasswordReset
   return new DisabledPasswordResetEmailSender();
 };
 
-const passwordResetText = (input: PasswordResetEmailInput): string =>
+export const passwordResetText = (input: PasswordResetEmailInput): string =>
   [
-    "Your LogMyPlate password reset code is:",
+    "LogMyPlate password reset",
     "",
+    "Use this code to reset your password:",
     input.code,
     "",
-    `This code expires at ${formatExpiry(input.expiresAt)}.`,
+    "This code expires in 15 minutes.",
     "If you did not request this, you can ignore this email.",
   ].join("\n");
 
-const passwordResetHtml = (input: PasswordResetEmailInput): string => `
-  <div style="margin:0;background:#f7f4eb;padding:32px 16px;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#18201c">
-    <div style="margin:0 auto;max-width:520px">
-      <div style="padding:0 0 18px;text-align:center">
-        <div style="display:inline-block;border-radius:22px;background:#18201c;padding:14px 18px;color:#f0bd45;font-size:22px;font-weight:800;letter-spacing:.08em">
-          LogMyPlate
-        </div>
+const logMyPlateLogoUrl = "https://logmyplate.com/icon-192.png";
+
+export const passwordResetHtml = (input: PasswordResetEmailInput): string => `
+  <div style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#17201b">
+    <div style="max-width:520px;margin:0 auto;padding:28px 20px">
+      <div style="margin:0 0 22px">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+          <tr>
+            <td style="padding:0 10px 0 0;vertical-align:middle">
+              <img src="${logMyPlateLogoUrl}" width="40" height="40" alt="LogMyPlate" style="display:block;border:0;border-radius:9px;outline:none;text-decoration:none" />
+            </td>
+            <td style="padding:0;vertical-align:middle;font-size:20px;font-weight:700;line-height:1.2;color:#17201b">
+              LogMyPlate
+            </td>
+          </tr>
+        </table>
       </div>
-      <div style="overflow:hidden;border:1px solid #eadfbd;border-radius:26px;background:#fffdf7;box-shadow:0 18px 48px rgba(86,67,27,.12)">
-        <div style="padding:34px 30px 30px">
-          <p style="margin:0 0 8px;color:#7a756c;font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase">
-            Password reset
-          </p>
-          <h1 style="margin:0;color:#18201c;font-size:30px;line-height:1.15;font-weight:800">
-            Use this code to get back in
-          </h1>
-          <p style="margin:16px 0 0;color:#6f746e;font-size:16px;line-height:1.55">
-            Enter the code below in LogMyPlate to reset your password.
-          </p>
-          <div style="margin:26px 0;border-radius:20px;background:#f5ead0;padding:22px 18px;text-align:center">
-            <div style="color:#18201c;font-size:36px;font-weight:800;letter-spacing:.24em;line-height:1">
-              ${escapeHtml(input.code)}
-            </div>
+      <div style="border:1px solid #e7e3da;border-radius:12px;padding:26px;background:#ffffff">
+        <h1 style="margin:0 0 10px;font-size:22px;line-height:1.25;font-weight:700;color:#17201b">
+          Password reset code
+        </h1>
+        <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#5f6862">
+          Use this code to reset your LogMyPlate password.
+        </p>
+        <div style="margin:0 0 20px;padding:16px 18px;border:1px solid #e4d7b7;border-radius:10px;background:#fbf8ef;text-align:center">
+          <div style="font-size:30px;font-weight:700;letter-spacing:7px;line-height:1;color:#17201b">
+            ${escapeHtml(input.code)}
           </div>
-          <p style="margin:0;color:#6f746e;font-size:14px;line-height:1.55">
-            This code expires at <strong style="color:#3f3520">${escapeHtml(formatExpiry(input.expiresAt))}</strong>.
-          </p>
-          <p style="margin:18px 0 0;color:#9a9489;font-size:13px;line-height:1.55">
-            If you did not request a password reset, you can safely ignore this email.
-          </p>
         </div>
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#5f6862">
+          This code expires in 15 minutes.
+        </p>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:#5f6862">
+          If you did not request a password reset, you can ignore this email.
+        </p>
       </div>
-      <p style="margin:18px 0 0;text-align:center;color:#9a9489;font-size:12px;line-height:1.5">
-        Photos are analyzed and saved with your meal logs.
+      <p style="margin:16px 0 0;font-size:12px;line-height:1.5;color:#8a928d">
+        LogMyPlate account security
       </p>
     </div>
   </div>
 `;
-
-const formatExpiry = (value: string): string => {
-  const expiry = new Date(value);
-  if (Number.isNaN(expiry.getTime())) return value;
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(expiry);
-};
 
 const escapeHtml = (value: string): string =>
   value

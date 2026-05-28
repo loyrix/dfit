@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import Fastify, { type FastifyInstance } from "fastify";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSqlClient, type SqlClient } from "./db/client.js";
@@ -115,6 +116,15 @@ const repoRoot = path.resolve(currentDir, "../../..");
 const openApiSpecPath = path.join(repoRoot, "docs/openapi.yaml");
 
 const registerApiDocumentation = async (app: FastifyInstance) => {
+  app.get("/openapi.yaml", async (_request, reply) => {
+    const specification = await readFile(openApiSpecPath, "utf8");
+    return reply.type("application/yaml").send(specification);
+  });
+
+  if (!isInteractiveApiDocumentationEnabled()) {
+    return;
+  }
+
   await app.register(swagger, {
     mode: "static",
     specification: {
@@ -131,9 +141,13 @@ const registerApiDocumentation = async (app: FastifyInstance) => {
     },
     staticCSP: true,
   });
+};
 
-  app.get("/openapi.yaml", async (_request, reply) => {
-    const specification = app.swagger({ yaml: true });
-    return reply.type("application/yaml").send(specification);
-  });
+const isInteractiveApiDocumentationEnabled = () => {
+  const configured = process.env.API_DOCS_ENABLED?.trim().toLowerCase();
+  if (configured) {
+    return ["1", "true", "yes", "on"].includes(configured);
+  }
+
+  return process.env.NODE_ENV !== "production";
 };

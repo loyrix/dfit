@@ -153,6 +153,27 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("can disable interactive API documentation while serving the raw OpenAPI document", async () => {
+    const previousApiDocsEnabled = process.env.API_DOCS_ENABLED;
+    process.env.API_DOCS_ENABLED = "false";
+
+    const app = await testApp();
+    const docs = await app.inject({ method: "GET", url: "/docs" });
+    const spec = await app.inject({ method: "GET", url: "/openapi.yaml" });
+
+    expect(docs.statusCode).toBe(404);
+    expect(spec.statusCode).toBe(200);
+    expect(spec.headers["content-type"]).toContain("application/yaml");
+    expect(spec.body).toContain("title: LogMyPlate API");
+
+    if (previousApiDocsEnabled === undefined) {
+      delete process.env.API_DOCS_ENABLED;
+    } else {
+      process.env.API_DOCS_ENABLED = previousApiDocsEnabled;
+    }
+    await app.close();
+  });
+
   it("keeps the admin AI cost dashboard disabled until admin credentials are configured", async () => {
     const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
     const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;

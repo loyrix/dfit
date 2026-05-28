@@ -8,7 +8,7 @@ import '../widgets/app_brand_mark.dart';
 import '../widgets/logmyplate_background.dart';
 import '../widgets/primitive_icons.dart';
 
-class AccountGateScreen extends StatelessWidget {
+class AccountGateScreen extends StatefulWidget {
   const AccountGateScreen({
     super.key,
     required this.reason,
@@ -43,9 +43,18 @@ class AccountGateScreen extends StatelessWidget {
   final VoidCallback? onClearError;
 
   @override
+  State<AccountGateScreen> createState() => _AccountGateScreenState();
+}
+
+class _AccountGateScreenState extends State<AccountGateScreen> {
+  bool _passwordResetMode = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final copy = _AccountGateCopy.forReason(reason);
+    final copy = _passwordResetMode
+        ? _AccountGateCopy.passwordReset()
+        : _AccountGateCopy.forReason(widget.reason);
     final showAppleSignIn = Theme.of(context).platform == TargetPlatform.iOS;
 
     return Scaffold(
@@ -58,7 +67,7 @@ class AccountGateScreen extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    onPressed: loading
+                    onPressed: widget.loading
                         ? null
                         : () => Navigator.of(context).pop(),
                     icon: const BackMark(),
@@ -68,7 +77,7 @@ class AccountGateScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 26),
-              Center(child: _AccountMark(loading: loading)),
+              Center(child: _AccountMark(loading: widget.loading)),
               const SizedBox(height: 12),
               Text(
                 'LogMyPlate',
@@ -97,63 +106,73 @@ class AccountGateScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 22),
-              Row(
-                children: [
-                  if (showAppleSignIn) ...[
+              if (!_passwordResetMode) ...[
+                Row(
+                  children: [
+                    if (showAppleSignIn) ...[
+                      Expanded(
+                        child: _ProviderButton(
+                          label: 'Apple',
+                          provider: AuthProvider.apple,
+                          loading: widget.loading,
+                          onTap: () => _signIn(context, AuthProvider.apple),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
                     Expanded(
                       child: _ProviderButton(
-                        label: 'Apple',
-                        provider: AuthProvider.apple,
-                        loading: loading,
-                        onTap: () => _signIn(context, AuthProvider.apple),
+                        label: 'Google',
+                        provider: AuthProvider.google,
+                        loading: widget.loading,
+                        onTap: () => _signIn(context, AuthProvider.google),
                       ),
                     ),
-                    const SizedBox(width: 10),
                   ],
-                  Expanded(
-                    child: _ProviderButton(
-                      label: 'Google',
-                      provider: AuthProvider.google,
-                      loading: loading,
-                      onTap: () => _signIn(context, AuthProvider.google),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
+                ),
+                const SizedBox(height: 10),
+              ],
               _EmailAuthPanel(
-                loading: loading,
-                onEmailAuth: onEmailAuth,
-                onPasswordResetRequest: onPasswordResetRequest,
-                onPasswordResetConfirm: onPasswordResetConfirm,
-                onClearError: onClearError,
+                key: const ValueKey('account-email-auth-panel'),
+                loading: widget.loading,
+                onEmailAuth: widget.onEmailAuth,
+                onPasswordResetRequest: widget.onPasswordResetRequest,
+                onPasswordResetConfirm: widget.onPasswordResetConfirm,
+                onPasswordResetModeChanged: (value) {
+                  if (_passwordResetMode != value) {
+                    setState(() => _passwordResetMode = value);
+                  }
+                },
+                onClearError: widget.onClearError,
               ),
               const SizedBox(height: 12),
-              if (error != null) ...[
-                _InlineAuthError(message: error!),
+              if (widget.error != null) ...[
+                _InlineAuthError(message: widget.error!),
                 const SizedBox(height: 8),
               ],
-              TextButton(
-                onPressed: loading
-                    ? null
-                    : reason == AccountGateReason.quotaExhausted
-                    ? onManualLog
-                    : () => Navigator.of(context).pop(),
-                child: Text(
-                  reason == AccountGateReason.quotaExhausted
-                      ? 'Log manually instead'
-                      : 'Maybe later',
+              if (!_passwordResetMode) ...[
+                TextButton(
+                  onPressed: widget.loading
+                      ? null
+                      : widget.reason == AccountGateReason.quotaExhausted
+                      ? widget.onManualLog
+                      : () => Navigator.of(context).pop(),
+                  child: Text(
+                    widget.reason == AccountGateReason.quotaExhausted
+                        ? 'Log manually instead'
+                        : 'Maybe later',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Your photos are analyzed and saved with your meal logs.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textTertiary,
-                  letterSpacing: 0,
+                const SizedBox(height: 6),
+                Text(
+                  'Your photos are analyzed and saved with your meal logs.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textTertiary,
+                    letterSpacing: 0,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -162,7 +181,7 @@ class AccountGateScreen extends StatelessWidget {
   }
 
   Future<void> _signIn(BuildContext context, AuthProvider provider) async {
-    final session = await onSignIn(provider);
+    final session = await widget.onSignIn(provider);
     if (session == null || !context.mounted) return;
     Navigator.of(context).pop(session);
   }
@@ -197,10 +216,12 @@ class _GatePill extends StatelessWidget {
 
 class _EmailAuthPanel extends StatefulWidget {
   const _EmailAuthPanel({
+    super.key,
     required this.loading,
     required this.onEmailAuth,
     required this.onPasswordResetRequest,
     required this.onPasswordResetConfirm,
+    required this.onPasswordResetModeChanged,
     this.onClearError,
   });
 
@@ -218,6 +239,7 @@ class _EmailAuthPanel extends StatefulWidget {
     String password,
   )
   onPasswordResetConfirm;
+  final ValueChanged<bool> onPasswordResetModeChanged;
   final VoidCallback? onClearError;
 
   @override
@@ -294,36 +316,23 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             ),
             const SizedBox(height: 10),
           ] else ...[
-            Text(
-              'Reset password',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: colors.textPrimary,
-                letterSpacing: 0,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Enter the 6-digit code sent to $_resetEmail.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-                height: 1.25,
-                letterSpacing: 0,
-              ),
-            ),
-            const SizedBox(height: 10),
+            _ResetEmailNote(email: _resetEmail!),
+            const SizedBox(height: 12),
           ],
-          _AuthTextField(
-            controller: _emailController,
-            hint: 'Email',
-            keyboardType: TextInputType.emailAddress,
-            enabled: !widget.loading && !isResetting,
-            onChanged: _clearValidation,
-          ),
-          const SizedBox(height: 8),
+          if (!isResetting) ...[
+            _AuthTextField(
+              controller: _emailController,
+              hint: 'Email',
+              keyboardType: TextInputType.emailAddress,
+              enabled: !widget.loading,
+              onChanged: _clearValidation,
+            ),
+            const SizedBox(height: 8),
+          ],
           if (isResetting) ...[
             _AuthTextField(
               controller: _resetCodeController,
-              hint: 'Reset code',
+              hint: '6-digit code',
               keyboardType: TextInputType.number,
               enabled: !widget.loading,
               onChanged: _clearValidation,
@@ -390,13 +399,16 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             TextButton(
               onPressed: widget.loading
                   ? null
-                  : () => setState(() {
-                      _resetEmail = null;
-                      _resetCodeController.clear();
-                      _newPasswordController.clear();
-                      _validation = null;
+                  : () {
+                      setState(() {
+                        _resetEmail = null;
+                        _resetCodeController.clear();
+                        _newPasswordController.clear();
+                        _validation = null;
+                      });
+                      widget.onPasswordResetModeChanged(false);
                       widget.onClearError?.call();
-                    }),
+                    },
               child: const Text('Back to login'),
             ),
           ],
@@ -441,6 +453,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
       _resetCodeController.clear();
       _newPasswordController.clear();
     });
+    widget.onPasswordResetModeChanged(true);
   }
 
   Future<void> _submitReset() async {
@@ -496,6 +509,34 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
 }
 
 final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+
+class _ResetEmailNote extends StatelessWidget {
+  const _ResetEmailNote({required this.email});
+
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: colors.mutedFill,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        'Code sent to $email',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: colors.textSecondary,
+          height: 1.25,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+}
 
 class _InlineAuthError extends StatelessWidget {
   const _InlineAuthError({required this.message});
@@ -678,6 +719,14 @@ class _AccountGateCopy {
   final String eyebrow;
   final String title;
   final String subtitle;
+
+  factory _AccountGateCopy.passwordReset() {
+    return const _AccountGateCopy(
+      eyebrow: 'account',
+      title: 'Reset password',
+      subtitle: 'Enter the code from your email and choose a new password.',
+    );
+  }
 
   factory _AccountGateCopy.forReason(AccountGateReason reason) {
     switch (reason) {
