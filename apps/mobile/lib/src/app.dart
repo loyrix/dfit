@@ -388,7 +388,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     await _navigatorKey.currentState!.push<void>(
       logmyplatePageRoute<void>(
         builder: (_) => ReviewMealScreen(
-          initialItems: sampleDetectedItems().take(2).toList(),
+          initialItems: const [],
           initialMealType: mealTypeForLocalTime(DateTime.now()),
           onConfirm: _saveMeal,
         ),

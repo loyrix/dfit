@@ -115,7 +115,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ),
               const SizedBox(height: 16),
               OutlinedButton(
-                onPressed: _openAddItemSheet,
+                onPressed: _openAddCustomItemSheet,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: primaryText,
                   side: BorderSide(color: borderColor),
@@ -124,7 +124,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('Add item'),
+                child: const Text('Add custom item'),
               ),
               const SizedBox(height: 10),
               if (_error != null) ...[
@@ -198,15 +198,6 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     setState(() => _mealType = MealType.values[nextIndex]);
   }
 
-  void _changeQuantity(int index, int delta) {
-    final entry = _entries[index];
-    final item = entry.item;
-    final next = (item.quantity + delta).clamp(0.5, 12.0);
-    setState(() {
-      _entries[index] = entry.copyWith(item: item.scaledToQuantity(next));
-    });
-  }
-
   Future<void> _openEditItemSheet(int index) async {
     final result = await showModalBottomSheet<MealItemEditResult>(
       context: context,
@@ -229,45 +220,13 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     setState(() => _entries[index] = _entries[index].copyWith(item: item));
   }
 
-  Future<void> _openAddItemSheet() async {
-    final choice = await showModalBottomSheet<_AddItemChoice>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AddItemSheet(
-        items: sampleDetectedItems()
-            .where(
-              (item) =>
-                  !_entries.any((current) => current.item.name == item.name),
-            )
-            .toList(),
-      ),
+  Future<void> _openAddCustomItemSheet() async {
+    final item = await _openNewItemSheet(_emptyCustomMealItem);
+    if (item == null || !mounted) return;
+    setState(
+      () =>
+          _entries.add(_ReviewMealEntry(item: item, lockedFromAnalysis: false)),
     );
-    if (choice == null || !mounted) return;
-
-    if (choice.editImmediately) {
-      final item = await _openNewItemSheet(choice.item);
-      if (item == null || !mounted) return;
-      setState(
-        () => _entries.add(
-          _ReviewMealEntry(item: item, lockedFromAnalysis: false),
-        ),
-      );
-      return;
-    }
-
-    final selected = choice.item;
-    final existingIndex = _entries.indexWhere(
-      (entry) => entry.item.name == selected.name,
-    );
-    if (existingIndex == -1) {
-      setState(
-        () => _entries.add(
-          _ReviewMealEntry(item: selected, lockedFromAnalysis: false),
-        ),
-      );
-    } else {
-      _changeQuantity(existingIndex, 1);
-    }
   }
 
   Future<MealItem?> _openNewItemSheet(MealItem item) async {
@@ -401,13 +360,6 @@ class _ReviewSummaryCard extends StatelessWidget {
   }
 }
 
-class _AddItemChoice {
-  const _AddItemChoice(this.item, {this.editImmediately = false});
-
-  final MealItem item;
-  final bool editImmediately;
-}
-
 class _ReviewMealEntry {
   const _ReviewMealEntry({
     required this.item,
@@ -425,87 +377,13 @@ class _ReviewMealEntry {
   }
 }
 
-class _AddItemSheet extends StatelessWidget {
-  const _AddItemSheet({required this.items});
-
-  final List<MealItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Add item', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(
-                const _AddItemChoice(
-                  MealItem(
-                    name: 'Custom item',
-                    quantity: 1,
-                    unit: 'serving',
-                    grams: 100,
-                    nutrition: MacroTotals(
-                      calories: 100,
-                      proteinG: 0,
-                      carbsG: 0,
-                      fatG: 0,
-                    ),
-                  ),
-                  editImmediately: true,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colors.textPrimary,
-                side: BorderSide(color: colors.border),
-                minimumSize: const Size.fromHeight(44),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Custom item'),
-            ),
-            const SizedBox(height: 8),
-            if (items.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                child: Text(
-                  'All quick items are already included.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: _reviewSecondaryText(context),
-                  ),
-                ),
-              )
-            else
-              for (final item in items)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(item.name),
-                  subtitle: Text(
-                    '${item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 1)} ${item.unit} - ${item.grams}g',
-                  ),
-                  trailing: Text('${item.nutrition.calories} kCal'),
-                  onTap: () => Navigator.of(context).pop(_AddItemChoice(item)),
-                ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+const _emptyCustomMealItem = MealItem(
+  name: '',
+  quantity: 1,
+  unit: 'serving',
+  grams: 100,
+  nutrition: MacroTotals(calories: 0, proteinG: 0, carbsG: 0, fatG: 0),
+);
 
 class _MealTypePill extends StatelessWidget {
   const _MealTypePill({required this.type, required this.onTap});

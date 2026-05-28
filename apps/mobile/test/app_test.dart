@@ -116,22 +116,36 @@ void main() {
     expect(find.text('Missing configuration'), findsOneWidget);
   });
 
-  testWidgets('adds a quick item during meal review', (tester) async {
+  testWidgets('custom item editor does not show seeded quick items', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: ReviewMealScreen(
-          initialItems: sampleDetectedItems().take(1).toList(),
+          initialItems: const [],
           onConfirm: (_, _) async {},
         ),
       ),
     );
 
-    await tester.tap(find.text('Add item'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Rice'));
+    await tester.tap(find.text('Add custom item'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Lunch - 2 items'), findsOneWidget);
+    expect(find.text('Edit item'), findsOneWidget);
+    expect(find.text('Dal'), findsNothing);
+    expect(find.text('Rice'), findsNothing);
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('edit-item-name')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller
+          ?.text,
+      isEmpty,
+    );
   });
 
   testWidgets('adds a custom review item only after editor save', (
@@ -146,9 +160,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Add item'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Custom item'));
+    await tester.tap(find.text('Add custom item'));
     await tester.pumpAndSettle();
 
     expect(find.text('Edit item'), findsOneWidget);
@@ -159,9 +171,7 @@ void main() {
     expect(find.text('Lunch - 1 item'), findsOneWidget);
     expect(find.text('Custom item'), findsNothing);
 
-    await tester.tap(find.text('Add item'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Custom item'));
+    await tester.tap(find.text('Add custom item'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('edit-item-name')),
@@ -174,9 +184,7 @@ void main() {
     expect(find.text('Paneer tikka'), findsOneWidget);
   });
 
-  testWidgets('shows the captured meal photo during scan review', (
-    tester,
-  ) async {
+  testWidgets('captured meal review can add a custom item', (tester) async {
     final photo = CapturedMealPhoto(
       bytes: base64Decode(
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -190,6 +198,7 @@ void main() {
         theme: LogMyPlateTheme.dark(),
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().take(1).toList(),
+          lockInitialItems: true,
           photo: photo,
           onConfirm: (_, _) async {},
         ),
@@ -198,6 +207,19 @@ void main() {
 
     expect(find.text('Review estimate'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
+    expect(find.text('Add custom item'), findsOneWidget);
+
+    await tester.tap(find.text('Add custom item'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-name')),
+      'Solkadhi',
+    );
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lunch - 2 items'), findsOneWidget);
+    expect(find.text('Solkadhi'), findsOneWidget);
   });
 
   testWidgets('scales AI review item details from portion changes', (
@@ -255,7 +277,7 @@ void main() {
     expect(find.text('Lunch'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -420));
     await tester.pumpAndSettle();
-    expect(find.text('Add item'), findsOneWidget);
+    expect(find.text('Add custom item'), findsOneWidget);
     expect(find.text('Confirm meal'), findsOneWidget);
   });
 
@@ -275,13 +297,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ReviewMealScreen), findsOneWidget);
+    expect(find.textContaining(' - 0 items'), findsOneWidget);
+    expect(find.text('Dal'), findsNothing);
+    expect(find.text('Rice'), findsNothing);
 
+    await tester.tap(find.text('Add custom item'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-name')),
+      'Paneer tikka',
+    );
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm meal'));
     await tester.pump();
     await tester.pumpAndSettle();
 
     expect(find.byType(MealDetailScreen), findsOneWidget);
-    expect(find.text('Dal, Rice'), findsOneWidget);
+    expect(find.text('Paneer tikka'), findsWidgets);
 
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
