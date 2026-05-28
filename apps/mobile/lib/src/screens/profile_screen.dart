@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
+import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 
@@ -62,10 +63,51 @@ class ProfileScreen extends StatelessWidget {
             _ProfileSection(
               title: 'Privacy',
               child: Column(
-                children: const [
-                  _StaticRow(label: 'Food photos are saved with meal logs'),
-                  _StaticRow(label: 'Nutrition estimates are approximate'),
-                  _StaticRow(label: 'Delete profile removes stored app data'),
+                children: [
+                  _LinkRow(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy policy',
+                    onTap: () => openLogMyPlateLink(
+                      context,
+                      LogMyPlateLinks.privacy,
+                      copiedMessage: 'Privacy link copied',
+                    ),
+                  ),
+                  const _StaticRow(
+                    label: 'Food photos are saved with meal logs',
+                  ),
+                  const _StaticRow(
+                    label: 'Nutrition estimates are approximate',
+                  ),
+                  const _StaticRow(
+                    label: 'Delete profile removes stored app data',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _ProfileSection(
+              title: 'Support',
+              child: Column(
+                children: [
+                  _LinkRow(
+                    icon: Icons.support_agent_rounded,
+                    label: 'Contact support',
+                    onTap: () => openLogMyPlateLink(
+                      context,
+                      LogMyPlateLinks.support,
+                      copiedMessage: 'Support link copied',
+                    ),
+                  ),
+                  _LinkRow(
+                    icon: Icons.description_outlined,
+                    label: 'Legal terms',
+                    onTap: () => openLogMyPlateLink(
+                      context,
+                      LogMyPlateLinks.terms,
+                      copiedMessage: 'Terms link copied',
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -330,6 +372,58 @@ class _StaticRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LinkRow extends StatelessWidget {
+  const _LinkRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: LogMyPlateColors.accent.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: colors.accentText, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textPrimary,
+                  height: 1.25,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.open_in_new_rounded,
+              color: colors.textTertiary,
+              size: 17,
+            ),
+          ],
+        ),
       ),
     );
   }

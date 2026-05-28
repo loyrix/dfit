@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
+import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
@@ -354,6 +355,8 @@ class _InlineAuthError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showSupportAction = message.toLowerCase().contains('deactivated');
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
@@ -364,27 +367,53 @@ class _InlineAuthError extends StatelessWidget {
           width: 0.6,
         ),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 16,
-            color: LogMyPlateColors.destructive,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 16,
+                color: LogMyPlateColors.destructive,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFFFA3A3)
+                        : LogMyPlateColors.destructiveDeep,
+                    height: 1.25,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFFFFA3A3)
-                    : LogMyPlateColors.destructiveDeep,
-                height: 1.25,
-                letterSpacing: 0,
+          if (showSupportAction) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => openLogMyPlateLink(
+                  context,
+                  LogMyPlateLinks.accountSupport,
+                  copiedMessage: 'Support link copied',
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: LogMyPlateColors.destructiveDeep,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 34),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: const Icon(Icons.support_agent_rounded, size: 16),
+                label: const Text('Contact support'),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -18,8 +18,8 @@ const faqs = [
     a: "Yes. After the AI returns its analysis, you can edit any item's name, portion, or quantity before saving to your journal. Changes are saved with your meal.",
   },
   {
-    q: "How many scans can I do per day?",
-    a: "You get a set number of free scans daily. Watch a short rewarded ad to unlock additional scans at any time.",
+    q: "How many free scans do I get?",
+    a: "LogMyPlate includes 3 one-time free scans so you can try the flow before creating an account. Signed-in users may be able to unlock additional scans with rewarded ads when available.",
   },
   {
     q: "Does it work for Indian food?",
@@ -31,7 +31,7 @@ const faqs = [
   },
   {
     q: "How do I delete my account?",
-    a: "Open the app, go to Settings, and choose 'Delete Account'. This permanently removes your profile, journal, and stored photos. The action is irreversible.",
+    a: "Open the app, go to Profile, and choose 'Delete profile'. This permanently removes your profile, journal, and stored photos. The action is irreversible.",
   },
   {
     q: "Do I need an account to use the app?",
@@ -64,11 +64,11 @@ export default function SupportPage() {
           <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             Common questions about LogMyPlate. Can&apos;t find what you need?{" "}
             <a
-              href={`mailto:${APP_CONFIG.supportEmail}`}
+              href={`mailto:${APP_CONFIG.supportEmail}?subject=LogMyPlate%20support%20request`}
               className="underline underline-offset-4 font-medium"
               style={{ color: "#f5a623" }}
             >
-              Email us
+              Create a support request
             </a>
             .
           </p>
@@ -103,15 +103,15 @@ export default function SupportPage() {
             Still need help?
           </h2>
           <p className="text-[14px]" style={{ color: "var(--text-secondary)" }}>
-            Send us an email and we&apos;ll respond as soon as possible.
+            Create a support request and we&apos;ll respond as soon as possible.
           </p>
           <a
             id="support-email-link"
-            href={`mailto:${APP_CONFIG.supportEmail}`}
+            href={`mailto:${APP_CONFIG.supportEmail}?subject=LogMyPlate%20support%20request`}
             className="inline-flex items-center gap-2 text-[14px] font-semibold underline underline-offset-4"
             style={{ color: "#f5a623" }}
           >
-            {APP_CONFIG.supportEmail}
+            Create support request
           </a>
 
           <div

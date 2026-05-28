@@ -1030,6 +1030,33 @@ void main() {
     );
   });
 
+  testWidgets('account gate offers support for deactivated profiles', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: AccountGateScreen(
+          reason: AccountGateReason.saveJournal,
+          loading: false,
+          error:
+              'This profile is deactivated. Contact support to reactivate it.',
+          onSignIn: (_) async => null,
+          onEmailAuth: (_, _, _) async => null,
+          onManualLog: () {},
+        ),
+      ),
+    );
+
+    expect(
+      find.text(
+        'This profile is deactivated. Contact support to reactivate it.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Contact support'), findsOneWidget);
+  });
+
   testWidgets('email auth from profile returns to the main journal', (
     tester,
   ) async {
@@ -1119,7 +1146,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Save target'), findsOneWidget);
 
-    final weightInput = find.byKey(const ValueKey('metric-input-weight'));
+    await tester.tap(find.byKey(const ValueKey('height-unit-imperial')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('target-height-feet-input')),
+      '5',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('target-height-inches-input')),
+      '8',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    final weightInput = find.byKey(const ValueKey('target-weight-input'));
     await tester.scrollUntilVisible(
       weightInput,
       300,
@@ -1131,11 +1171,23 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
+    final ageInput = find.byKey(const ValueKey('target-age-input'));
+    await tester.scrollUntilVisible(
+      ageInput,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(ageInput, '31');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
     await tester.tap(find.text('Save target'));
     await tester.pumpAndSettle();
 
-    expect(submitted?.heightCm, 170);
+    expect(submitted?.heightCm, closeTo(172.7, 0.1));
     expect(submitted?.weightKg, 64.5);
+    expect(submitted?.ageYears, 31);
   });
 
   testWidgets('health target edit enables save only after changes', (
@@ -1192,13 +1244,52 @@ void main() {
     await tester.pump();
     expect(saveCount, 0);
 
-    await tester.drag(find.byType(Slider).first, const Offset(180, 0));
+    final ageInput = find.byKey(const ValueKey('target-age-input'));
+    await tester.scrollUntilVisible(
+      ageInput,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(ageInput, '31');
     await tester.pump();
 
     saveButton = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Save target'),
     );
     expect(saveButton.onPressed, isNotNull);
+  });
+
+  testWidgets('health target save surfaces API messages', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: HealthTargetScreen(
+          onSave: (_) async {
+            throw LogMyPlateApiException(
+              401,
+              jsonEncode({
+                'error': 'account_required',
+                'message': 'Create an account to save a daily target.',
+              }),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Save target'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Create an account to save a daily target.'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.text('Create an account to save a daily target.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('profile keeps target editing in the dedicated target tab', (
@@ -1223,6 +1314,11 @@ void main() {
 
     expect(find.text('friend@test.com'), findsOneWidget);
     expect(find.text('Theme'), findsOneWidget);
+    expect(find.text('Privacy'), findsOneWidget);
+    expect(find.text('Support'), findsOneWidget);
+    expect(find.text('Contact support'), findsOneWidget);
+    expect(find.text('Privacy policy'), findsOneWidget);
+    expect(find.text('Legal terms'), findsOneWidget);
     expect(find.text('Daily target'), findsNothing);
     expect(find.text('2124 kCal'), findsNothing);
   });

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/meal.dart';
+import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
@@ -24,6 +25,15 @@ class HealthTargetScreen extends StatefulWidget {
   State<HealthTargetScreen> createState() => _HealthTargetScreenState();
 }
 
+enum _HeightUnit { metric, imperial }
+
+const _minHealthHeightCm = 90.0;
+const _maxHealthHeightCm = 250.0;
+const _minHealthWeightKg = 25.0;
+const _maxHealthWeightKg = 300.0;
+const _minHealthAgeYears = 18;
+const _maxHealthAgeYears = 90;
+
 class _HealthTargetScreenState extends State<HealthTargetScreen> {
   double _heightCm = 170;
   double _weightKg = 70;
@@ -33,14 +43,21 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
   HealthGoal _goal = HealthGoal.maintain;
   bool _saving = false;
   String? _error;
-  late final TextEditingController _heightController;
+  _HeightUnit _heightUnit = _HeightUnit.metric;
+  late final TextEditingController _heightCmController;
+  late final TextEditingController _heightFeetController;
+  late final TextEditingController _heightInchesController;
   late final TextEditingController _weightController;
+  late final TextEditingController _ageController;
 
   @override
   void initState() {
     super.initState();
-    _heightController = TextEditingController();
+    _heightCmController = TextEditingController();
+    _heightFeetController = TextEditingController();
+    _heightInchesController = TextEditingController();
     _weightController = TextEditingController();
+    _ageController = TextEditingController();
     final target = widget.initialTarget;
     if (target != null) {
       _heightCm = target.heightCm;
@@ -50,14 +67,18 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       _activityLevel = target.activityLevel;
       _goal = target.goal;
     }
-    _heightController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+    _syncHeightText();
     _weightController.text = _formatMetric(_weightKg, decimalPlaces: 1);
+    _ageController.text = _ageYears.toString();
   }
 
   @override
   void dispose() {
-    _heightController.dispose();
+    _heightCmController.dispose();
+    _heightFeetController.dispose();
+    _heightInchesController.dispose();
     _weightController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
@@ -117,45 +138,39 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
             const SizedBox(height: 18),
             _TargetPreviewCard(preview: preview),
             const SizedBox(height: 16),
-            _MetricSlider(
-              label: 'Height',
-              value: _heightCm,
-              min: 130,
-              max: 210,
-              unit: 'cm',
-              controller: _heightController,
-              decimalPlaces: 0,
-              onChanged: _saving
-                  ? null
-                  : (value) => _setHeight(value.roundToDouble()),
-              onTextChanged: _saving
-                  ? null
-                  : (value) => _setHeight(value, syncText: false),
-              onTextComplete: _saving ? null : _normalizeHeightInput,
+            _HeightInputCard(
+              unit: _heightUnit,
+              cmController: _heightCmController,
+              feetController: _heightFeetController,
+              inchesController: _heightInchesController,
+              enabled: !_saving,
+              onUnitChanged: _setHeightUnit,
+              onCmChanged: _setHeightFromCentimeters,
+              onCmComplete: _normalizeMetricHeightInput,
+              onImperialChanged: _setHeightFromImperialText,
+              onImperialComplete: _normalizeImperialHeightInput,
             ),
             const SizedBox(height: 10),
-            _MetricSlider(
+            _NumberInputCard(
               label: 'Weight',
-              value: _weightKg,
-              min: 35,
-              max: 160,
-              unit: 'kg',
               controller: _weightController,
-              decimalPlaces: 1,
-              onChanged: _saving
-                  ? null
-                  : (value) => _setWeight(_roundTo(value, 1)),
-              onTextChanged: _saving
-                  ? null
-                  : (value) => _setWeight(value, syncText: false),
-              onTextComplete: _saving ? null : _normalizeWeightInput,
+              fieldKey: const ValueKey('target-weight-input'),
+              suffix: 'kg',
+              decimal: true,
+              enabled: !_saving,
+              onTextChanged: (value) => _setWeight(value, syncText: false),
+              onTextComplete: _normalizeWeightInput,
             ),
             const SizedBox(height: 10),
-            _AgeStepper(
-              age: _ageYears,
-              onChanged: _saving
-                  ? null
-                  : (value) => setState(() => _ageYears = value),
+            _NumberInputCard(
+              label: 'Age',
+              controller: _ageController,
+              fieldKey: const ValueKey('target-age-input'),
+              suffix: 'years',
+              decimal: false,
+              enabled: !_saving,
+              onTextChanged: (value) => _setAge(value.round(), syncText: false),
+              onTextComplete: _normalizeAgeInput,
             ),
             const SizedBox(height: 18),
             _ChoiceGroup<HealthSex>(
@@ -243,35 +258,120 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
     );
   }
 
-  void _setHeight(double value, {bool syncText = true}) {
+  void _setHeightUnit(_HeightUnit unit) {
+    if (_heightUnit == unit) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _heightUnit = unit);
+  }
+
+  void _setHeightFromCentimeters(double value, {bool syncText = false}) {
     setState(() {
-      _heightCm = _clampMetric(value, 130, 210);
+      _heightCm = _roundTo(
+        _clampMetric(value, _minHealthHeightCm, _maxHealthHeightCm),
+        1,
+      );
       if (syncText) {
-        _heightController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+        _heightCmController.text = _formatMetric(_heightCm, decimalPlaces: 0);
       }
+      _syncImperialHeightText();
     });
   }
 
   void _setWeight(double value, {bool syncText = true}) {
     setState(() {
-      _weightKg = _roundTo(_clampMetric(value, 35, 160), 1);
+      _weightKg = _roundTo(
+        _clampMetric(value, _minHealthWeightKg, _maxHealthWeightKg),
+        1,
+      );
       if (syncText) {
         _weightController.text = _formatMetric(_weightKg, decimalPlaces: 1);
       }
     });
   }
 
-  void _normalizeHeightInput() {
-    _setHeight(double.tryParse(_heightController.text) ?? _heightCm);
+  void _setAge(int value, {bool syncText = true}) {
+    setState(() {
+      _ageYears = value.clamp(_minHealthAgeYears, _maxHealthAgeYears);
+      if (syncText) {
+        _ageController.text = _ageYears.toString();
+      }
+    });
+  }
+
+  void _setHeightFromImperialText({bool syncText = false}) {
+    if (_heightFeetController.text.isEmpty) return;
+    final feet = int.tryParse(_heightFeetController.text);
+    final inches = int.tryParse(_heightInchesController.text);
+    if (feet == null) return;
+
+    _setHeightFromTotalInches(
+      (feet * 12 + (inches ?? 0)).toDouble(),
+      syncText: syncText,
+    );
+  }
+
+  void _setHeightFromTotalInches(double totalInches, {bool syncText = true}) {
+    if (totalInches <= 0) return;
+    setState(() {
+      _heightCm = _roundTo(
+        _clampMetric(
+          totalInches * 2.54,
+          _minHealthHeightCm,
+          _maxHealthHeightCm,
+        ),
+        1,
+      );
+      _heightCmController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+      if (syncText) {
+        _syncImperialHeightText();
+      }
+    });
+  }
+
+  void _normalizeMetricHeightInput() {
+    final parsed = double.tryParse(_heightCmController.text);
+    if (parsed == null) {
+      _heightCmController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+      return;
+    }
+    _setHeightFromCentimeters(parsed.roundToDouble(), syncText: true);
+  }
+
+  void _normalizeImperialHeightInput() {
+    final feet = int.tryParse(_heightFeetController.text);
+    if (feet == null) {
+      _syncImperialHeightText();
+      return;
+    }
+    final inches = int.tryParse(_heightInchesController.text) ?? 0;
+    _setHeightFromTotalInches((feet * 12 + inches).toDouble(), syncText: true);
   }
 
   void _normalizeWeightInput() {
     _setWeight(double.tryParse(_weightController.text) ?? _weightKg);
   }
 
+  void _normalizeAgeInput() {
+    _setAge(int.tryParse(_ageController.text) ?? _ageYears);
+  }
+
+  void _syncHeightText() {
+    _heightCmController.text = _formatMetric(_heightCm, decimalPlaces: 0);
+    _syncImperialHeightText();
+  }
+
+  void _syncImperialHeightText() {
+    final totalInches = math.max(1, (_heightCm / 2.54).round());
+    final feet = totalInches ~/ 12;
+    final inches = totalInches % 12;
+    _heightFeetController.text = feet.toString();
+    _heightInchesController.text = inches.toString();
+  }
+
   Future<void> _save() async {
-    if (!_canSave) return;
     FocusScope.of(context).unfocus();
+    _normalizeCurrentInputs();
+    if (!_canSave) return;
 
     setState(() {
       _saving = true;
@@ -291,14 +391,24 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pop(target);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not save your target. Check connection and try again.';
+        _error = _saveErrorMessage(error);
       });
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _normalizeCurrentInputs() {
+    if (_heightUnit == _HeightUnit.metric) {
+      _normalizeMetricHeightInput();
+    } else {
+      _normalizeImperialHeightInput();
+    }
+    _normalizeWeightInput();
+    _normalizeAgeInput();
   }
 
   bool get _canSave {
@@ -327,6 +437,17 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       return value.round().toString();
     }
     return value.toStringAsFixed(decimalPlaces);
+  }
+
+  static String _saveErrorMessage(Object error) {
+    if (error is LogMyPlateApiException) {
+      final message = error.message;
+      if (message != null && message.trim().isNotEmpty) return message.trim();
+      if (error.errorCode == 'invalid_health_target') {
+        return 'Check height, weight and age values, then try again.';
+      }
+    }
+    return 'Could not save your target. Check connection and try again.';
   }
 }
 
@@ -893,36 +1014,312 @@ String _bmiShortLabel(double bmi) {
   return 'HIGH';
 }
 
-class _MetricSlider extends StatelessWidget {
-  const _MetricSlider({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
+class _HeightInputCard extends StatelessWidget {
+  const _HeightInputCard({
     required this.unit,
-    required this.controller,
-    required this.decimalPlaces,
+    required this.cmController,
+    required this.feetController,
+    required this.inchesController,
+    required this.enabled,
+    required this.onUnitChanged,
+    required this.onCmChanged,
+    required this.onCmComplete,
+    required this.onImperialChanged,
+    required this.onImperialComplete,
+  });
+
+  final _HeightUnit unit;
+  final TextEditingController cmController;
+  final TextEditingController feetController;
+  final TextEditingController inchesController;
+  final bool enabled;
+  final ValueChanged<_HeightUnit> onUnitChanged;
+  final ValueChanged<double> onCmChanged;
+  final VoidCallback onCmComplete;
+  final VoidCallback onImperialChanged;
+  final VoidCallback onImperialComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InputSurface(
+      enabled: enabled,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Height', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 10),
+                _HeightUnitSegment(
+                  unit: unit,
+                  enabled: enabled,
+                  onChanged: onUnitChanged,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 160),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: unit == _HeightUnit.metric
+                ? SizedBox(
+                    key: const ValueKey('height-metric-field'),
+                    width: 148,
+                    child: _TargetTextField(
+                      fieldKey: const ValueKey('target-height-cm-input'),
+                      controller: cmController,
+                      suffix: 'cm',
+                      decimal: false,
+                      maxLength: 3,
+                      enabled: enabled,
+                      onTextChanged: onCmChanged,
+                      onTextComplete: onCmComplete,
+                    ),
+                  )
+                : SizedBox(
+                    key: const ValueKey('height-imperial-field'),
+                    width: 180,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _TargetTextField(
+                            fieldKey: const ValueKey(
+                              'target-height-feet-input',
+                            ),
+                            controller: feetController,
+                            suffix: 'ft',
+                            decimal: false,
+                            maxLength: 1,
+                            enabled: enabled,
+                            onTextChanged: (_) => onImperialChanged(),
+                            onTextComplete: onImperialComplete,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _TargetTextField(
+                            fieldKey: const ValueKey(
+                              'target-height-inches-input',
+                            ),
+                            controller: inchesController,
+                            suffix: 'in',
+                            decimal: false,
+                            maxLength: 2,
+                            enabled: enabled,
+                            onTextChanged: (_) => onImperialChanged(),
+                            onTextComplete: onImperialComplete,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeightUnitSegment extends StatelessWidget {
+  const _HeightUnitSegment({
+    required this.unit,
+    required this.enabled,
     required this.onChanged,
+  });
+
+  final _HeightUnit unit;
+  final bool enabled;
+  final ValueChanged<_HeightUnit> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: colors.mutedFill,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _HeightUnitPill(
+            key: const ValueKey('height-unit-metric'),
+            label: 'cm',
+            selected: unit == _HeightUnit.metric,
+            enabled: enabled,
+            onTap: () => onChanged(_HeightUnit.metric),
+          ),
+          _HeightUnitPill(
+            key: const ValueKey('height-unit-imperial'),
+            label: 'ft',
+            selected: unit == _HeightUnit.imperial,
+            enabled: enabled,
+            onTap: () => onChanged(_HeightUnit.imperial),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeightUnitPill extends StatelessWidget {
+  const _HeightUnitPill({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(9),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        constraints: const BoxConstraints(minWidth: 44),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? LogMyPlateColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.18),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: selected
+                ? LogMyPlateColors.accentDeep
+                : colors.textSecondary,
+            letterSpacing: 0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NumberInputCard extends StatelessWidget {
+  const _NumberInputCard({
+    required this.label,
+    required this.controller,
+    required this.fieldKey,
+    required this.suffix,
+    required this.decimal,
+    required this.enabled,
     required this.onTextChanged,
     required this.onTextComplete,
   });
 
   final String label;
-  final double value;
-  final double min;
-  final double max;
-  final String unit;
   final TextEditingController controller;
-  final int decimalPlaces;
-  final ValueChanged<double>? onChanged;
-  final ValueChanged<double>? onTextChanged;
-  final VoidCallback? onTextComplete;
+  final Key fieldKey;
+  final String suffix;
+  final bool decimal;
+  final bool enabled;
+  final ValueChanged<double> onTextChanged;
+  final VoidCallback onTextComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InputSurface(
+      enabled: enabled,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+          ),
+          SizedBox(
+            width: label == 'Age' ? 132 : 148,
+            child: _TargetTextField(
+              fieldKey: fieldKey,
+              controller: controller,
+              suffix: suffix,
+              decimal: decimal,
+              maxLength: decimal ? 5 : 3,
+              enabled: enabled,
+              onTextChanged: onTextChanged,
+              onTextComplete: onTextComplete,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InputSurface extends StatelessWidget {
+  const _InputSurface({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final enabled = onChanged != null;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: enabled
+            ? colors.surfaceCard
+            : colors.surfaceCard.withValues(alpha: isDark ? 0.82 : 0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border, width: 0.6),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _TargetTextField extends StatelessWidget {
+  const _TargetTextField({
+    required this.fieldKey,
+    required this.controller,
+    required this.suffix,
+    required this.decimal,
+    required this.maxLength,
+    required this.enabled,
+    required this.onTextChanged,
+    required this.onTextComplete,
+  });
+
+  final Key fieldKey;
+  final TextEditingController controller;
+  final String suffix;
+  final bool decimal;
+  final int maxLength;
+  final bool enabled;
+  final ValueChanged<double> onTextChanged;
+  final VoidCallback onTextComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final fieldFill = enabled
         ? colors.mutedFill
         : LogMyPlateColors.accent.withValues(alpha: isDark ? 0.10 : 0.14);
@@ -930,195 +1327,61 @@ class _MetricSlider extends StatelessWidget {
         ? colors.border
         : LogMyPlateColors.accent.withValues(alpha: isDark ? 0.18 : 0.26);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-      decoration: BoxDecoration(
-        color: enabled
-            ? colors.surfaceCard
-            : colors.surfaceCard.withValues(alpha: isDark ? 0.82 : 0.92),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: fieldBorder, width: 0.6),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(label, style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              SizedBox(
-                width: 128,
-                child: IgnorePointer(
-                  ignoring: !enabled,
-                  child: TextField(
-                    key: ValueKey('metric-input-${label.toLowerCase()}'),
-                    controller: controller,
-                    readOnly: !enabled,
-                    enableInteractiveSelection: enabled,
-                    textAlign: TextAlign.right,
-                    keyboardType: TextInputType.numberWithOptions(
-                      decimal: decimalPlaces > 0,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        decimalPlaces > 0
-                            ? RegExp(r'[0-9.]')
-                            : RegExp(r'[0-9]'),
-                      ),
-                      LengthLimitingTextInputFormatter(
-                        decimalPlaces > 0 ? 5 : 3,
-                      ),
-                    ],
-                    onChanged: enabled
-                        ? (text) {
-                            final parsed = double.tryParse(text);
-                            if (parsed == null) return;
-                            onTextChanged?.call(parsed);
-                          }
-                        : null,
-                    onEditingComplete: onTextComplete,
-                    onSubmitted: (_) => onTextComplete?.call(),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: enabled
-                          ? colors.accentText
-                          : colors.accentText.withValues(alpha: 0.78),
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      suffixText: unit,
-                      suffixStyle: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: colors.textSecondary),
-                      filled: true,
-                      fillColor: fieldFill,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
-                        borderSide: BorderSide(color: fieldBorder, width: 0.6),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
-                        borderSide: BorderSide(color: fieldBorder, width: 0.6),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(13),
-                        borderSide: BorderSide(
-                          color: colors.accent,
-                          width: 1.1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+    return IgnorePointer(
+      ignoring: !enabled,
+      child: TextField(
+        key: fieldKey,
+        controller: controller,
+        readOnly: !enabled,
+        enableInteractiveSelection: enabled,
+        textAlign: TextAlign.right,
+        textInputAction: TextInputAction.done,
+        keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(
+            decimal ? RegExp(r'[0-9.]') : RegExp(r'[0-9]'),
           ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: LogMyPlateColors.accent,
-              inactiveTrackColor: colors.mutedFill,
-              disabledActiveTrackColor: LogMyPlateColors.accent.withValues(
-                alpha: isDark ? 0.34 : 0.44,
-              ),
-              disabledInactiveTrackColor: colors.mutedFill.withValues(
-                alpha: 0.62,
-              ),
-              disabledThumbColor: LogMyPlateColors.accent.withValues(
-                alpha: isDark ? 0.44 : 0.56,
-              ),
-              thumbColor: LogMyPlateColors.accent,
-              overlayColor: LogMyPlateColors.accent.withValues(alpha: 0.12),
-              trackHeight: 5,
-            ),
-            child: Slider(
-              min: min,
-              max: max,
-              value: value.clamp(min, max),
-              onChanged: onChanged,
-            ),
-          ),
+          LengthLimitingTextInputFormatter(maxLength),
         ],
-      ),
-    );
-  }
-}
-
-class _AgeStepper extends StatelessWidget {
-  const _AgeStepper({required this.age, required this.onChanged});
-
-  final int age;
-  final ValueChanged<int>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
-      child: Row(
-        children: [
-          Text('Age', style: Theme.of(context).textTheme.titleMedium),
-          const Spacer(),
-          _RoundIconButton(
-            icon: Icons.remove_rounded,
-            onTap: onChanged == null || age <= 18
-                ? null
-                : () => onChanged!(age - 1),
-          ),
-          SizedBox(
-            width: 58,
-            child: Text(
-              '$age',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          _RoundIconButton(
-            icon: Icons.add_rounded,
-            onTap: onChanged == null || age >= 90
-                ? null
-                : () => onChanged!(age + 1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({required this.icon, this.onTap});
-
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(99),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: colors.mutedFill,
-          shape: BoxShape.circle,
+        onChanged: enabled
+            ? (text) {
+                final parsed = double.tryParse(text);
+                if (parsed == null) return;
+                onTextChanged(parsed);
+              }
+            : null,
+        onEditingComplete: onTextComplete,
+        onSubmitted: (_) => onTextComplete(),
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: enabled
+              ? colors.accentText
+              : colors.accentText.withValues(alpha: 0.78),
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
-        child: Icon(
-          icon,
-          color: onTap == null ? colors.textTertiary : colors.textPrimary,
-          size: 20,
+        decoration: InputDecoration(
+          isDense: true,
+          suffixText: suffix,
+          suffixStyle: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+          filled: true,
+          fillColor: fieldFill,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: fieldBorder, width: 0.6),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: fieldBorder, width: 0.6),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(13),
+            borderSide: BorderSide(color: colors.accent, width: 1.1),
+          ),
         ),
       ),
     );
