@@ -25,6 +25,7 @@ class JournalController extends ChangeNotifier {
   ScanQuota? _quota;
   RewardedAdProgress _rewardedAdProgress = RewardedAdProgress.initial();
   HealthTarget? _healthTarget;
+  AppUpdatePolicy _updatePolicy = AppUpdatePolicy.current();
   JournalRangeData? _weeklyRange;
   DateTime? _lastLoadedAt;
 
@@ -35,6 +36,7 @@ class JournalController extends ChangeNotifier {
   ScanQuota? get quota => _quota;
   RewardedAdProgress get rewardedAdProgress => _rewardedAdProgress;
   HealthTarget? get healthTarget => _healthTarget;
+  AppUpdatePolicy get updatePolicy => _updatePolicy;
   MacroTotals? get dailyTarget =>
       _healthTarget?.dailyTargetTotals ?? _weeklyRange?.target;
   JournalRangeData? get weeklyRange => _weeklyRange;
@@ -50,6 +52,7 @@ class JournalController extends ChangeNotifier {
     _quota = null;
     _rewardedAdProgress = RewardedAdProgress.initial();
     _healthTarget = null;
+    _updatePolicy = AppUpdatePolicy.current();
     _weeklyRange = null;
     _lastLoadedAt = null;
     notifyListeners();
@@ -274,6 +277,7 @@ class JournalController extends ChangeNotifier {
     _meals = bootstrap.today.meals;
     _totals = bootstrap.today.totals;
     _healthTarget = bootstrap.healthTarget;
+    _updatePolicy = bootstrap.updatePolicy;
     _weeklyRange = bootstrap.weeklyRange;
     _quota = bootstrap.quota;
     _rewardedAdProgress = bootstrap.rewardedAdProgress;

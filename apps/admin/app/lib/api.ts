@@ -150,6 +150,23 @@ export type AppNotice = {
   updatedAt: string;
 };
 
+export type AppUpdatePlatformPolicy = {
+  latestBuild: number;
+  minSupportedBuild: number;
+  latestVersion: string | null;
+  storeUrl: string | null;
+  optionalTitle: string;
+  optionalMessage: string;
+  mandatoryTitle: string;
+  mandatoryMessage: string;
+};
+
+export type AppUpdatePolicy = {
+  enabled: boolean;
+  ios: AppUpdatePlatformPolicy;
+  android: AppUpdatePlatformPolicy;
+};
+
 export type AuditEntry = {
   id: string;
   actor: string;

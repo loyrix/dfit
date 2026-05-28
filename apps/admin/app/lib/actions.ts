@@ -171,6 +171,22 @@ export async function updateNoticeAction(formData: FormData) {
   redirect("/flags");
 }
 
+export async function updateAppUpdatePolicyAction(formData: FormData) {
+  await requireAdminSession();
+  await adminSend(
+    "/admin/app-update-policy",
+    {
+      enabled: formData.get("enabled") === "on",
+      ios: readPlatformPolicy(formData, "ios"),
+      android: readPlatformPolicy(formData, "android"),
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData), method: "PUT" },
+  );
+  revalidatePath("/versions");
+  redirect("/versions");
+}
+
 const stringValue = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
 
 const optionalStringValue = (formData: FormData, key: string) => {
@@ -179,3 +195,14 @@ const optionalStringValue = (formData: FormData, key: string) => {
 };
 
 const numberValue = (formData: FormData, key: string) => Number(formData.get(key) ?? 0);
+
+const readPlatformPolicy = (formData: FormData, platform: "ios" | "android") => ({
+  latestBuild: numberValue(formData, `${platform}.latestBuild`),
+  minSupportedBuild: numberValue(formData, `${platform}.minSupportedBuild`),
+  latestVersion: optionalStringValue(formData, `${platform}.latestVersion`),
+  storeUrl: optionalStringValue(formData, `${platform}.storeUrl`),
+  optionalTitle: stringValue(formData, `${platform}.optionalTitle`),
+  optionalMessage: stringValue(formData, `${platform}.optionalMessage`),
+  mandatoryTitle: stringValue(formData, `${platform}.mandatoryTitle`),
+  mandatoryMessage: stringValue(formData, `${platform}.mandatoryMessage`),
+});

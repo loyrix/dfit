@@ -8,6 +8,7 @@ const navItems = [
   ["/scans", "Scans"],
   ["/ai", "AI Controls"],
   ["/flags", "Flags & Notices"],
+  ["/versions", "App Versions"],
   ["/audit", "Audit Log"],
 ] as const;
 

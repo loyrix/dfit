@@ -91,6 +91,8 @@ paths:
         - {}
       parameters:
         - $ref: "#/components/parameters/PlatformHeader"
+        - $ref: "#/components/parameters/AppVersionHeader"
+        - $ref: "#/components/parameters/AppBuildHeader"
         - $ref: "#/components/parameters/LocaleHeader"
         - $ref: "#/components/parameters/RegionHeader"
         - $ref: "#/components/parameters/TimezoneHeader"
@@ -1016,6 +1018,23 @@ components:
       schema:
         type: string
         enum: [ios, android]
+    AppVersionHeader:
+      name: x-logmyplate-app-version
+      in: header
+      required: false
+      description: Installed mobile app version name, such as `1.0.0`.
+      schema:
+        type: string
+      example: 1.0.0
+    AppBuildHeader:
+      name: x-logmyplate-app-build
+      in: header
+      required: false
+      description: Installed mobile app build number used for optional and mandatory update prompts.
+      schema:
+        type: integer
+        minimum: 0
+      example: 12
     LocaleHeader:
       name: x-logmyplate-locale
       in: header
@@ -1869,7 +1888,7 @@ components:
 
     BootstrapResponse:
       type: object
-      required: [serverTime, profile, quota, today, weeklySummary]
+      required: [serverTime, profile, updatePolicy, quota, today, weeklySummary]
       properties:
         serverTime:
           type: string
@@ -1879,6 +1898,8 @@ components:
         healthTarget:
           nullable: true
           $ref: "#/components/schemas/HealthTarget"
+        updatePolicy:
+          $ref: "#/components/schemas/AppUpdatePolicy"
         quota:
           $ref: "#/components/schemas/Quota"
         today:
@@ -1887,6 +1908,39 @@ components:
           $ref: "#/components/schemas/JournalRangeResponse"
         weeklyRange:
           $ref: "#/components/schemas/JournalRangeResponse"
+
+    AppUpdatePolicy:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [current, optional, mandatory]
+        platform:
+          type: string
+          enum: [ios, android]
+        currentBuild:
+          type: integer
+          minimum: 0
+        currentVersion:
+          type: string
+        latestBuild:
+          type: integer
+          minimum: 0
+        latestVersion:
+          type: string
+          nullable: true
+        minSupportedBuild:
+          type: integer
+          minimum: 0
+        storeUrl:
+          type: string
+          format: uri
+          nullable: true
+        title:
+          type: string
+        message:
+          type: string
 
     SimpleError:
       type: object

@@ -2,6 +2,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import postgres from "postgres";
 import { z } from "zod";
 import type { SqlClient } from "../db/client.js";
+import {
+  APP_UPDATE_POLICY_KEY,
+  appUpdatePolicyConfigSchema,
+  loadAppUpdatePolicyConfig,
+  parseAppUpdatePolicyConfig,
+} from "../services/app-update-policy.js";
 
 const usdToInr = Number(process.env.AI_COST_USD_TO_INR ?? 95.4);
 
@@ -253,6 +259,18 @@ export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient)
     return { notice };
   });
 
+  app.get("/admin/app-update-policy", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { policy: await loadAppUpdatePolicyConfig(sql) };
+  });
+
+  app.put("/admin/app-update-policy", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = updateAppUpdatePolicySchema.parse(request.body ?? {});
+    const policy = await updateAppUpdatePolicy(sql, request, body);
+    return { policy };
+  });
+
   app.get("/admin/audit-log", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const query = adminLimitQuerySchema.parse(request.query ?? {});
@@ -344,6 +362,10 @@ const updateNoticeSchema = z.object({
   active: z.boolean().optional(),
   ctaLabel: z.string().trim().max(80).nullable().optional(),
   ctaUrl: z.string().trim().url().max(500).nullable().optional(),
+  reason: requiredReasonSchema,
+});
+
+const updateAppUpdatePolicySchema = appUpdatePolicyConfigSchema.extend({
   reason: requiredReasonSchema,
 });
 
@@ -1170,6 +1192,8 @@ type FeatureFlagRow = {
   updated_at: string;
 };
 
+type AppRuntimeConfigRow = FeatureFlagRow;
+
 const listFeatureFlags = async (sql: SqlClient) => {
   const rows = await sql<FeatureFlagRow[]>`
     select key, value, description, updated_by, updated_at::text
@@ -1186,6 +1210,61 @@ const mapFeatureFlagRow = (row: FeatureFlagRow) => ({
   updatedBy: row.updated_by ?? undefined,
   updatedAt: row.updated_at,
 });
+
+const mapAppRuntimeConfigRow = (row: AppRuntimeConfigRow) => ({
+  key: row.key,
+  value: row.value,
+  description: row.description ?? undefined,
+  updatedBy: row.updated_by ?? undefined,
+  updatedAt: row.updated_at,
+});
+
+const updateAppUpdatePolicy = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof updateAppUpdatePolicySchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const { reason, ...policyInput } = input;
+    const nextPolicy = appUpdatePolicyConfigSchema.parse(policyInput);
+    const [before] = await tx<AppRuntimeConfigRow[]>`
+      select key, value, description, updated_by, updated_at::text
+      from app_runtime_config
+      where key = ${APP_UPDATE_POLICY_KEY}
+      limit 1
+    `;
+
+    const [row] = await tx<AppRuntimeConfigRow[]>`
+      insert into app_runtime_config (key, value, description, updated_by)
+      values (
+        ${APP_UPDATE_POLICY_KEY},
+        ${tx.json(nextPolicy)},
+        'Controls optional and mandatory mobile update prompts by platform build number.',
+        ${actor}
+      )
+      on conflict (key) do update
+      set
+        value = excluded.value,
+        description = excluded.description,
+        updated_by = excluded.updated_by,
+        updated_at = now()
+      returning key, value, description, updated_by, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_app_update_policy",
+      targetType: "app_runtime_config",
+      targetId: APP_UPDATE_POLICY_KEY,
+      reason,
+      before: before
+        ? { ...mapAppRuntimeConfigRow(before), value: parseAppUpdatePolicyConfig(before.value) }
+        : null,
+      after: { ...mapAppRuntimeConfigRow(row), value: parseAppUpdatePolicyConfig(row.value) },
+    });
+
+    return parseAppUpdatePolicyConfig(row.value);
+  });
 
 const updateFeatureFlag = async (
   sql: SqlClient,

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:logmyplate_mobile/src/models/captured_meal_photo.dart';
 import 'package:logmyplate_mobile/src/models/auth_session.dart';
 import 'package:logmyplate_mobile/src/models/meal.dart';
+import 'package:logmyplate_mobile/src/services/app_build_info.dart';
 import 'package:logmyplate_mobile/src/services/device_identity_store.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,8 @@ void main() {
     region: 'IN',
     timezone: 'Asia/Kolkata',
   );
+  Future<AppBuildInfo> testBuildInfo() async =>
+      const AppBuildInfo(platform: 'ios', version: '1.0.0', buildNumber: '12');
 
   group('LogMyPlateApiConfig', () {
     test('uses explicit dart define value first', () {
@@ -67,9 +70,12 @@ void main() {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
+      loadAppBuildInfo: testBuildInfo,
       httpClient: MockClient((request) async {
         requests.add(request);
         expect(request.headers['x-logmyplate-install-id'], 'test-install');
+        expect(request.headers['x-logmyplate-app-version'], '1.0.0');
+        expect(request.headers['x-logmyplate-app-build'], '12');
         if (request.url.path == '/v1/scans/prepare') {
           return http.Response(
             jsonEncode({
@@ -229,9 +235,12 @@ void main() {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',
       loadDeviceIdentity: testIdentity,
+      loadAppBuildInfo: testBuildInfo,
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/app/bootstrap');
         expect(request.headers['x-logmyplate-install-id'], 'test-install');
+        expect(request.headers['x-logmyplate-app-version'], '1.0.0');
+        expect(request.headers['x-logmyplate-app-build'], '12');
         return http.Response(
           jsonEncode({
             'serverTime': '2026-05-12T10:00:00.000Z',
@@ -259,6 +268,17 @@ void main() {
               'bmrCalories': 1628,
               'dailyCalorieTarget': 2238,
               'formula': 'mifflin_st_jeor_v1',
+            },
+            'updatePolicy': {
+              'status': 'optional',
+              'platform': 'ios',
+              'currentBuild': 12,
+              'latestBuild': 14,
+              'minSupportedBuild': 10,
+              'latestVersion': '1.0.1',
+              'storeUrl': 'https://apps.apple.com/app/id6770872606',
+              'title': 'Update available',
+              'message': 'A newer LogMyPlate version is ready.',
             },
             'today': {
               'date': '2026-05-12',
@@ -343,6 +363,8 @@ void main() {
     expect(bootstrap.profile.authMethod, 'anonymous');
     expect(bootstrap.quota.totalRemaining, 3);
     expect(bootstrap.healthTarget?.dailyCalorieTarget, 2238);
+    expect(bootstrap.updatePolicy.status, AppUpdateStatus.optional);
+    expect(bootstrap.updatePolicy.latestBuild, 14);
     expect(bootstrap.today.target?.calories, 2238);
     expect(bootstrap.weeklyRange.target?.calories, 2238);
     expect(bootstrap.today.meals.single.title, 'Dal rice');

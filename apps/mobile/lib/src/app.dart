@@ -22,6 +22,7 @@ import 'screens/review_meal_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'services/app_links.dart';
 import 'services/rewarded_ad_service.dart';
 import 'services/logmyplate_api_client.dart';
 import 'state/auth_controller.dart';
@@ -67,6 +68,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   bool _openingWeeklyJournal = false;
   bool _openingHealthTargetSetup = false;
   bool _loadingJournalTab = false;
+  String? _dismissedOptionalUpdateKey;
   String? _journalTabError;
   JournalRangeData? _journalTabRange;
 
@@ -97,8 +99,23 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       darkTheme: LogMyPlateTheme.dark(),
       themeMode: _themeMode,
       navigatorKey: _navigatorKey,
-      builder: (context, child) =>
-          _KeyboardDismissScope(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) {
+        final content = _KeyboardDismissScope(
+          child: child ?? const SizedBox.shrink(),
+        );
+        return AnimatedBuilder(
+          animation: _journalController,
+          builder: (context, _) => _AppUpdateGate(
+            policy: _journalController.updatePolicy,
+            dismissedOptionalKey: _dismissedOptionalUpdateKey,
+            onDismissOptional: (key) {
+              if (!mounted) return;
+              setState(() => _dismissedOptionalUpdateKey = key);
+            },
+            child: content,
+          ),
+        );
+      },
       home: !_welcomeStateLoaded
           ? const _LaunchScreen()
           : _hasSeenWelcome
@@ -1772,6 +1789,170 @@ class _RewardedAdLoadingOverlay extends StatelessWidget {
                       height: 1.35,
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppUpdateGate extends StatelessWidget {
+  const _AppUpdateGate({
+    required this.policy,
+    required this.dismissedOptionalKey,
+    required this.onDismissOptional,
+    required this.child,
+  });
+
+  final AppUpdatePolicy policy;
+  final String? dismissedOptionalKey;
+  final ValueChanged<String> onDismissOptional;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final shouldShow =
+        policy.isPromptable &&
+        (policy.isMandatory || dismissedOptionalKey != policy.promptKey);
+
+    return Stack(
+      children: [
+        child,
+        if (shouldShow)
+          Positioned.fill(
+            child: PopScope(
+              canPop: !policy.isMandatory,
+              child: _AppUpdateOverlay(
+                policy: policy,
+                onDismissOptional: () => onDismissOptional(policy.promptKey),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AppUpdateOverlay extends StatelessWidget {
+  const _AppUpdateOverlay({
+    required this.policy,
+    required this.onDismissOptional,
+  });
+
+  final AppUpdatePolicy policy;
+  final VoidCallback onDismissOptional;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final storeUrl = policy.storeUrl == null
+        ? null
+        : Uri.tryParse(policy.storeUrl!);
+
+    return Material(
+      color: Colors.black.withValues(alpha: 0.54),
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Container(
+              margin: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+              decoration: BoxDecoration(
+                color: colors.surfaceCard,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 28,
+                    offset: const Offset(0, 18),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: LogMyPlateColors.accent.withValues(
+                            alpha: 0.16,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          policy.isMandatory
+                              ? Icons.system_update_alt_rounded
+                              : Icons.new_releases_rounded,
+                          color: colors.accentText,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              policy.displayTitle,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            if (policy.latestVersion != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Version ${policy.latestVersion}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    policy.displayMessage,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colors.textSecondary,
+                      height: 1.42,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: storeUrl == null
+                        ? null
+                        : () => openLogMyPlateLink(
+                            context,
+                            storeUrl,
+                            copiedMessage: 'Store link copied',
+                          ),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                    label: const Text('Update app'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primaryAction,
+                      foregroundColor: colors.primaryActionText,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                  if (!policy.isMandatory) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: onDismissOptional,
+                      child: const Text('Later'),
+                    ),
+                  ],
                 ],
               ),
             ),

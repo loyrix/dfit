@@ -7,6 +7,7 @@ import '../models/captured_meal_photo.dart';
 import '../models/auth_session.dart';
 import '../models/meal.dart';
 import 'account_session_store.dart';
+import 'app_build_info.dart';
 import 'device_identity_store.dart';
 
 class LogMyPlateApiClient {
@@ -14,9 +15,11 @@ class LogMyPlateApiClient {
     http.Client? httpClient,
     String? baseUrl,
     Future<DeviceIdentity> Function()? loadDeviceIdentity,
+    Future<AppBuildInfo> Function()? loadAppBuildInfo,
     Future<AuthSession?> Function()? loadAuthSession,
   }) : _httpClient = httpClient ?? http.Client(),
        _loadDeviceIdentity = loadDeviceIdentity ?? DeviceIdentityStore().load,
+       _loadAppBuildInfo = loadAppBuildInfo ?? AppBuildInfoStore().load,
        _loadAuthSession = loadAuthSession ?? AccountSessionStore().load,
        baseUrl = LogMyPlateApiConfig.normalizeBaseUrl(
          baseUrl ?? LogMyPlateApiConfig.defaultBaseUrl,
@@ -24,6 +27,7 @@ class LogMyPlateApiClient {
 
   final http.Client _httpClient;
   final Future<DeviceIdentity> Function() _loadDeviceIdentity;
+  final Future<AppBuildInfo> Function() _loadAppBuildInfo;
   final Future<AuthSession?> Function() _loadAuthSession;
   final String baseUrl;
 
@@ -414,9 +418,11 @@ class LogMyPlateApiClient {
     String? idempotencyKey,
   }) async {
     final identity = await _loadDeviceIdentity();
+    final appBuild = await _loadAppBuildInfo();
     final session = await _loadAuthSession();
     final headers = {
       ...identity.toHeaders(),
+      ...appBuild.toHeaders(),
       if (session?.accessToken != null)
         'authorization': 'Bearer ${session!.accessToken}',
       if (contentTypeJson) 'content-type': 'application/json',

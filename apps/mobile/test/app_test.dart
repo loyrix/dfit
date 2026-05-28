@@ -58,7 +58,7 @@ void main() {
 
     await tester.tap(find.text('Start first scan'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await _pumpAppFrame(tester);
 
     expect(find.text('AI Meal Scan'), findsOneWidget);
     expect(find.byType(TodayScreen, skipOffstage: false), findsNothing);
@@ -91,7 +91,7 @@ void main() {
     await tester.pumpWidget(
       LogMyPlateApp(journalController: _testJournalController()),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     final scanAction = find.byKey(const ValueKey('shell-scan-action'));
     final profileNavLabel = find.text('Profile');
@@ -102,7 +102,7 @@ void main() {
     expect(find.byType(TodayScreen), findsOneWidget);
 
     await tester.tap(profileNavLabel);
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     expect(find.byType(ProfileScreen), findsOneWidget);
   });
@@ -114,6 +114,79 @@ void main() {
 
     expect(find.text('LogMyPlate paused'), findsOneWidget);
     expect(find.text('Missing configuration'), findsOneWidget);
+  });
+
+  testWidgets('optional app update prompt can be dismissed for the session', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+    });
+
+    final journalController = _testJournalController(
+      updatePolicy: {
+        'status': 'optional',
+        'platform': 'ios',
+        'currentBuild': 12,
+        'latestBuild': 14,
+        'minSupportedBuild': 10,
+        'title': 'Update available',
+        'message': 'A newer LogMyPlate version is ready.',
+        'storeUrl': 'https://apps.apple.com/app/id6770872606',
+      },
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(journalController: journalController),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    });
+    await tester.pump();
+
+    expect(journalController.updatePolicy.status, AppUpdateStatus.optional);
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.text('Later'), findsOneWidget);
+
+    await tester.tap(find.text('Later'));
+    await tester.pump();
+
+    expect(find.text('Update available'), findsNothing);
+  });
+
+  testWidgets('mandatory app update prompt blocks dismissal', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+    });
+
+    final journalController = _testJournalController(
+      updatePolicy: {
+        'status': 'mandatory',
+        'platform': 'android',
+        'currentBuild': 11,
+        'latestBuild': 14,
+        'minSupportedBuild': 12,
+        'title': 'Update required',
+        'message': 'Please update LogMyPlate to continue.',
+        'storeUrl':
+            'https://play.google.com/store/apps/details?id=com.logmyplate.app',
+      },
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(journalController: journalController),
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    });
+    await tester.pump();
+
+    expect(journalController.updatePolicy.status, AppUpdateStatus.mandatory);
+    expect(find.text('Update required'), findsOneWidget);
+    expect(find.text('Update app'), findsOneWidget);
+    expect(find.text('Later'), findsNothing);
   });
 
   testWidgets('custom item editor does not show seeded quick items', (
@@ -291,10 +364,10 @@ void main() {
     await tester.pumpWidget(
       LogMyPlateApp(journalController: _testJournalController()),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.text('Add manually'));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     expect(find.byType(ReviewMealScreen), findsOneWidget);
     expect(find.textContaining(' - 0 items'), findsOneWidget);
@@ -311,15 +384,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Confirm meal'));
     await tester.pump();
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     expect(find.byType(MealDetailScreen), findsOneWidget);
     expect(find.text('Paneer tikka'), findsWidgets);
 
     await tester.pump(const Duration(seconds: 4));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Back'));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
+    await tester.tap(find.byTooltip('Back').last);
+    await _pumpAppFrame(tester);
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.byType(TodayScreen), findsOneWidget);
     expect(find.byType(MealDetailScreen), findsNothing);
@@ -1208,10 +1282,10 @@ void main() {
         journalController: _testJournalController(),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.text('Profile').last);
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
     expect(find.byType(ProfileScreen), findsOneWidget);
 
     await tester.tap(find.text('Save your journal'));
@@ -1229,7 +1303,7 @@ void main() {
     expect(authGateway.emailAuthCount, 1);
     expect(find.byType(HealthTargetScreen), findsOneWidget);
     await tester.tap(find.text('Set later'));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     expect(find.byType(TodayScreen), findsOneWidget);
     expect(find.byType(AccountGateScreen), findsNothing);
@@ -1482,17 +1556,17 @@ void main() {
         journalController: _testJournalController(),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     expect(find.byType(TodayScreen), findsOneWidget);
 
     await tester.tap(find.text('Profile').last);
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.drag(find.byType(ListView), const Offset(0, -360));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Log out'));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     expect(find.byType(TodayScreen), findsOneWidget);
     expect(find.byType(AccountProfileScreen), findsNothing);
@@ -1520,7 +1594,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await _pumpAppFrame(tester);
 
       expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('Start first scan'), findsNothing);
@@ -1590,10 +1664,10 @@ void main() {
         journalController: controller,
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
     expect(find.text('Watch ad'), findsOneWidget);
 
     await tester.tap(find.text('Watch ad'));
@@ -1664,10 +1738,10 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
     expect(find.text('Watch ad'), findsOneWidget);
 
     await tester.tap(find.text('Watch ad'));
@@ -1737,10 +1811,10 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.text('Watch ad'));
     await tester.pump();
@@ -1812,10 +1886,10 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
 
     await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
-    await tester.pumpAndSettle();
+    await _pumpAppFrame(tester);
     await tester.tap(find.text('Watch ad'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
@@ -2055,12 +2129,22 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
   Future<void> deleteProfile() async {}
 }
 
+Future<void> _pumpAppFrame(WidgetTester tester) async {
+  await tester.pump();
+  await tester.runAsync(() async {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  });
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 450));
+}
+
 JournalController _testJournalController({
   Map<String, int>? quota,
   Map<String, dynamic>? rewardedAdResponse,
   List<Map<String, dynamic>>? rewardedAdResponses,
   List<http.Response>? rewardedAdHttpResponses,
   Map<String, int>? rewardedAdProgress,
+  Map<String, dynamic>? updatePolicy,
 }) {
   final quotaPayload =
       quota ??
@@ -2082,6 +2166,7 @@ JournalController _testJournalController({
               _emptyBootstrapPayload(
                 quota: quotaPayload,
                 rewardedAdProgress: rewardedAdProgress,
+                updatePolicy: updatePolicy,
               ),
             ),
             200,
@@ -2152,13 +2237,14 @@ JournalController _testJournalController({
 Map<String, dynamic> _emptyBootstrapPayload({
   Map<String, int>? quota,
   Map<String, int>? rewardedAdProgress,
+  Map<String, dynamic>? updatePolicy,
 }) {
   final zeroTotals = {'calories': 0, 'proteinG': 0, 'carbsG': 0, 'fatG': 0};
   final quotaPayload =
       quota ??
       const {'freeRemaining': 3, 'rewardedRemaining': 0, 'premiumRemaining': 0};
 
-  return {
+  final payload = {
     'serverTime': '2026-05-19T10:00:00.000Z',
     'profile': {
       'id': 'profile_test',
@@ -2193,4 +2279,7 @@ Map<String, dynamic> _emptyBootstrapPayload({
       },
     },
   };
+
+  if (updatePolicy != null) payload['updatePolicy'] = updatePolicy;
+  return payload;
 }

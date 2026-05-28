@@ -711,11 +711,95 @@ class AppProfile {
   }
 }
 
+enum AppUpdateStatus { current, optional, mandatory }
+
+class AppUpdatePolicy {
+  const AppUpdatePolicy({
+    required this.status,
+    this.platform,
+    this.currentBuild,
+    this.currentVersion,
+    this.latestBuild,
+    this.latestVersion,
+    this.minSupportedBuild,
+    this.storeUrl,
+    this.title,
+    this.message,
+  });
+
+  final AppUpdateStatus status;
+  final String? platform;
+  final int? currentBuild;
+  final String? currentVersion;
+  final int? latestBuild;
+  final String? latestVersion;
+  final int? minSupportedBuild;
+  final String? storeUrl;
+  final String? title;
+  final String? message;
+
+  bool get isPromptable =>
+      status == AppUpdateStatus.optional || status == AppUpdateStatus.mandatory;
+
+  bool get isMandatory => status == AppUpdateStatus.mandatory;
+
+  String get displayTitle => title?.trim().isNotEmpty == true
+      ? title!.trim()
+      : isMandatory
+      ? 'Update required'
+      : 'Update available';
+
+  String get displayMessage => message?.trim().isNotEmpty == true
+      ? message!.trim()
+      : isMandatory
+      ? 'Please update LogMyPlate to continue.'
+      : 'A newer LogMyPlate version is available.';
+
+  String get promptKey =>
+      '${status.name}:${platform ?? 'unknown'}:${latestBuild ?? 0}:${minSupportedBuild ?? 0}';
+
+  factory AppUpdatePolicy.current() {
+    return const AppUpdatePolicy(status: AppUpdateStatus.current);
+  }
+
+  factory AppUpdatePolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return AppUpdatePolicy.current();
+    return AppUpdatePolicy(
+      status: _appUpdateStatusFromApi(json['status'] as String?),
+      platform: json['platform'] as String?,
+      currentBuild: _nullableInt(json['currentBuild']),
+      currentVersion: json['currentVersion'] as String?,
+      latestBuild: _nullableInt(json['latestBuild']),
+      latestVersion: json['latestVersion'] as String?,
+      minSupportedBuild: _nullableInt(json['minSupportedBuild']),
+      storeUrl: json['storeUrl'] as String?,
+      title: json['title'] as String?,
+      message: json['message'] as String?,
+    );
+  }
+}
+
+AppUpdateStatus _appUpdateStatusFromApi(String? value) {
+  return switch (value) {
+    'optional' => AppUpdateStatus.optional,
+    'mandatory' => AppUpdateStatus.mandatory,
+    _ => AppUpdateStatus.current,
+  };
+}
+
+int? _nullableInt(Object? value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value.toString());
+}
+
 class AppBootstrapData {
   const AppBootstrapData({
     required this.serverTime,
     required this.profile,
     this.healthTarget,
+    required this.updatePolicy,
     required this.quota,
     required this.rewardedAdProgress,
     required this.today,
@@ -725,6 +809,7 @@ class AppBootstrapData {
   final String serverTime;
   final AppProfile profile;
   final HealthTarget? healthTarget;
+  final AppUpdatePolicy updatePolicy;
   final ScanQuota quota;
   final RewardedAdProgress rewardedAdProgress;
   final TodayJournalData today;
@@ -737,6 +822,9 @@ class AppBootstrapData {
       healthTarget: json['healthTarget'] == null
           ? null
           : HealthTarget.fromJson(json['healthTarget'] as Map<String, dynamic>),
+      updatePolicy: AppUpdatePolicy.fromJson(
+        json['updatePolicy'] as Map<String, dynamic>?,
+      ),
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
       rewardedAdProgress: json['rewardedAdProgress'] == null
           ? RewardedAdProgress.initial()
