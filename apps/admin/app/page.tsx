@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AdminShell } from "./components/shell";
 import { Metric, PageHeader, formatDate, formatInr, formatNumber } from "./components/ui";
 import { adminGet, type AdminOverview, type AiCostData } from "./lib/api";
@@ -33,14 +34,105 @@ export default async function DashboardPage() {
         <Metric label="AI cost" value={formatInr(cost.overall.costInr)} sub="last 30 days" />
       </section>
 
+      <section className="grid metrics mt-4">
+        <Metric
+          label="Installs"
+          value={formatNumber(overview.installs ?? 0)}
+          sub={`${formatNumber(overview.newInstallsToday ?? 0)} new today`}
+        />
+        <Metric
+          label="Active installs"
+          value={formatNumber(overview.activeInstalls24h ?? 0)}
+          sub={`${formatNumber(overview.activeInstalls7d ?? 0)} in last 7 days`}
+        />
+        <Metric
+          label="Scan-active profiles"
+          value={formatNumber(overview.scanActiveProfilesToday ?? 0)}
+          sub={`${formatNumber(overview.mealActiveProfilesToday ?? 0)} meal-active today`}
+        />
+        <Metric
+          label="Inactive estimate"
+          value={formatNumber(overview.inactiveInstalls30d ?? 0)}
+          sub="30d without server activity"
+        />
+      </section>
+
       <section className="grid two-col mt-4">
+        <div className="panel">
+          <h2 className="text-xl font-bold">Operational queues</h2>
+          <div className="table-wrap mt-4">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Queue</th>
+                  <th>Why it matters</th>
+                  <th>Open</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="font-semibold">Failed scans</td>
+                  <td className="muted">Inspect model errors and compensate affected users.</td>
+                  <td>
+                    <Link
+                      className="badge"
+                      href="/scans?status=failed&sort=createdAt&direction=desc"
+                    >
+                      Review
+                    </Link>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Ready for review</td>
+                  <td className="muted">
+                    Check scans that reached estimate review but were not confirmed.
+                  </td>
+                  <td>
+                    <Link
+                      className="badge"
+                      href="/scans?status=ready_for_review&sort=createdAt&direction=desc"
+                    >
+                      Review
+                    </Link>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Inactive users</td>
+                  <td className="muted">Reactivate profiles after support validation.</td>
+                  <td>
+                    <Link className="badge" href="/users?status=inactive">
+                      Review
+                    </Link>
+                  </td>
+                </tr>
+                <tr>
+                  <td className="font-semibold">Runtime changes</td>
+                  <td className="muted">
+                    Audit model, prompt, flag, notice, and version-policy changes.
+                  </td>
+                  <td>
+                    <Link className="badge" href="/audit">
+                      Audit
+                    </Link>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className="panel">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold">AI cost summary</h2>
               <p className="muted text-sm">Updated {formatDate(cost.generatedAt)}</p>
             </div>
-            <div className="badge">{formatNumber(cost.overall.scansPerTenInr)} scans / Rs 10</div>
+            <div className="inline-controls">
+              <div className="badge">{formatNumber(cost.overall.scansPerTenInr)} scans / Rs 10</div>
+              <Link className="badge" href="/cost">
+                Full usage
+              </Link>
+            </div>
           </div>
           <table className="table mt-4">
             <thead>
@@ -68,6 +160,39 @@ export default async function DashboardPage() {
         </div>
 
         <div className="panel">
+          <div className="section-head">
+            <div>
+              <h2 className="text-xl font-bold">Daily activity</h2>
+              <p className="muted text-sm">IST, from scans and meal logs</p>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Active profiles</th>
+                  <th>Scans</th>
+                  <th>Meal profiles</th>
+                  <th>Meals</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(overview.dailyActivity ?? []).slice(0, 7).map((day) => (
+                  <tr key={day.date}>
+                    <td>{formatActivityDate(day.date)}</td>
+                    <td>{formatNumber(day.activeProfiles)}</td>
+                    <td>{formatNumber(day.scans)}</td>
+                    <td>{formatNumber(day.mealProfiles)}</td>
+                    <td>{formatNumber(day.meals)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="panel">
           <h2 className="text-xl font-bold">Recent runs</h2>
           <div className="mt-4 grid gap-3">
             {cost.recentRuns.slice(0, 8).map((run) => (
@@ -88,4 +213,12 @@ export default async function DashboardPage() {
       </section>
     </AdminShell>
   );
+}
+
+function formatActivityDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(`${value}T00:00:00+05:30`));
 }

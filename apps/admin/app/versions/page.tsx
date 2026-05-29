@@ -43,6 +43,24 @@ export default async function VersionsPage() {
             <span className="badge">Build below latest = optional</span>
             <span className="badge">Build below minimum = mandatory</span>
           </div>
+          <div className="table-wrap mt-4">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Platform</th>
+                  <th>Latest build</th>
+                  <th>Minimum build</th>
+                  <th>Version</th>
+                  <th>Store URL</th>
+                  <th>Prompt behavior</th>
+                </tr>
+              </thead>
+              <tbody>
+                <PolicySummaryRow platform="iOS" policy={policy.ios} />
+                <PolicySummaryRow platform="Android" policy={policy.android} />
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="grid two-col">
@@ -70,6 +88,28 @@ export default async function VersionsPage() {
         </section>
       </form>
     </AdminShell>
+  );
+}
+
+function PolicySummaryRow({
+  platform,
+  policy,
+}: {
+  platform: string;
+  policy: AppUpdatePlatformPolicy;
+}) {
+  return (
+    <tr>
+      <td className="font-semibold">{platform}</td>
+      <td>{policy.latestBuild}</td>
+      <td>{policy.minSupportedBuild}</td>
+      <td>{policy.latestVersion ?? "Not set"}</td>
+      <td className="break-cell">{policy.storeUrl ?? "Not set"}</td>
+      <td>
+        <div className="badge">Below latest: optional</div>
+        <div className="badge mt-1">Below minimum: mandatory</div>
+      </td>
+    </tr>
   );
 }
 

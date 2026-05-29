@@ -9,6 +9,32 @@ export type AdminOverview = {
   failedScans: number;
   meals: number;
   activeNotices: number;
+  installs?: number;
+  newInstallsToday?: number;
+  activeInstalls24h?: number;
+  activeInstalls7d?: number;
+  inactiveInstalls30d?: number;
+  scanActiveProfilesToday?: number;
+  mealActiveProfilesToday?: number;
+  dailyActivity?: Array<{
+    date: string;
+    activeProfiles: number;
+    scans: number;
+    mealProfiles: number;
+    meals: number;
+  }>;
+};
+
+export type PageInfo = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  sort: string;
+  direction: "asc" | "desc";
+  isClientFallback?: boolean;
 };
 
 export type AiCostData = {
@@ -34,6 +60,8 @@ export type AiCostData = {
     provider: string;
     model: string;
     scans: number;
+    inputTokens: number;
+    outputTokens: number;
     costInr: number;
     averageCostInr: number;
     scansPerTenInr: number;
@@ -42,7 +70,11 @@ export type AiCostData = {
     createdAt: string;
     provider: string;
     model: string;
+    inputTokens: number;
+    outputTokens: number;
     costInr: number;
+    latencyMs: number | null;
+    confidence: number | null;
     success: boolean;
   }>;
 };
@@ -57,6 +89,7 @@ export type AdminUser = {
   deactivatedAt?: string;
   createdAt: string;
   updatedAt: string;
+  lastScanAt?: string;
   quota: { freeRemaining: number; rewardedRemaining: number; premiumRemaining: number };
   stats: { meals: number; scans: number; failedScans: number; grants: number };
   grants?: AdminGrant[];
@@ -76,6 +109,7 @@ export type AdminGrant = {
 export type AdminScan = {
   id: string;
   profileId: string;
+  profileEmail?: string;
   status: string;
   creditReason?: string;
   userHint?: string;

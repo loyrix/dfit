@@ -1,81 +1,247 @@
 import Link from "next/link";
 import { AdminShell } from "../components/shell";
-import { Badge, Metric, PageHeader, formatDate, formatNumber } from "../components/ui";
+import {
+  Badge,
+  EmptyState,
+  Metric,
+  PageHeader,
+  Pagination,
+  ResultSummary,
+  SortableHeader,
+  formatDate,
+  formatNumber,
+  hrefWithParams,
+  resolveTableState,
+  type QueryParams,
+} from "../components/ui";
 import { grantCreditsAction, reactivateUserAction } from "../lib/actions";
-import { adminGet, type AdminUser } from "../lib/api";
+import { adminGet, type AdminUser, type PageInfo } from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 
+type UsersSearchParams = {
+  query?: string;
+  profileId?: string;
+  status?: string;
+  authMethod?: string;
+  risk?: string;
+  page?: string;
+  pageSize?: string;
+  sort?: string;
+  direction?: string;
+};
+
 export default async function UsersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ query?: string; profileId?: string }>;
+  searchParams?: Promise<UsersSearchParams>;
 }) {
   const params = (await searchParams) ?? {};
-  const query = params.query ?? "";
-  const usersResponse = await adminGet<{ users: AdminUser[] }>(
-    `/admin/users?limit=25&query=${encodeURIComponent(query)}`,
+  const listParams = userListParams(params);
+  const apiQuery = toApiQuery(listParams);
+
+  const [{ users, pageInfo }, selected] = await Promise.all([
+    adminGet<{ users: AdminUser[]; pageInfo?: PageInfo }>(`/admin/users?${apiQuery}`),
+    params.profileId
+      ? adminGet<{ user: AdminUser }>(`/admin/users/${params.profileId}`)
+      : undefined,
+  ]);
+  const { rows: visibleUsers, pageInfo: effectivePageInfo } = resolveTableState(
+    users,
+    pageInfo,
+    listParams,
+    {
+      defaultPageSize: 25,
+      defaultSort: "updatedAt",
+      sorters: {
+        authMethod: (user) => user.authMethod,
+        createdAt: (user) => new Date(user.createdAt),
+        email: (user) => user.email ?? user.id,
+        failedScans: (user) => user.stats.failedScans,
+        grants: (user) => user.stats.grants,
+        lastScanAt: (user) => (user.lastScanAt ? new Date(user.lastScanAt) : null),
+        meals: (user) => user.stats.meals,
+        scans: (user) => user.stats.scans,
+        updatedAt: (user) => new Date(user.updatedAt),
+      },
+    },
   );
-  const selected = params.profileId
-    ? await adminGet<{ user: AdminUser }>(`/admin/users/${params.profileId}`)
-    : undefined;
 
   return (
     <AdminShell>
       <PageHeader
         eyebrow="Support"
         title="Users"
-        description="Search accounts, inspect quota, review recent scans, and compensate failed experiences with audited scan credits."
+        description="Search accounts, inspect quota, review scan history, reactivate profiles, and compensate failed experiences with audited scan credits."
       />
 
-      <form className="mb-4 flex gap-3" action="/users">
-        <input
-          className="input"
-          name="query"
-          placeholder="Search email, profile id, or provider subject"
-          defaultValue={query}
-        />
+      <form className="toolbar toolbar-four" action="/users">
+        <input name="page" type="hidden" value="1" />
+        <label>
+          <span className="metric-label">Search</span>
+          <input
+            className="input"
+            name="query"
+            placeholder="Email, profile id, or provider subject"
+            defaultValue={listParams.query ?? ""}
+          />
+        </label>
+        <label>
+          <span className="metric-label">Status</span>
+          <select className="select" name="status" defaultValue={listParams.status ?? "all"}>
+            <option value="all">All users</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="deletion_requested">Deletion requested</option>
+          </select>
+        </label>
+        <label>
+          <span className="metric-label">Auth</span>
+          <select
+            className="select"
+            name="authMethod"
+            defaultValue={listParams.authMethod ?? "all"}
+          >
+            <option value="all">All auth</option>
+            <option value="anonymous">Anonymous</option>
+            <option value="email">Email</option>
+            <option value="google">Google</option>
+            <option value="apple">Apple</option>
+          </select>
+        </label>
+        <label>
+          <span className="metric-label">Risk</span>
+          <select className="select" name="risk" defaultValue={listParams.risk ?? "all"}>
+            <option value="all">All risk</option>
+            <option value="failed_scans">Failed scans</option>
+            <option value="low_quota">No lifetime credits</option>
+            <option value="deactivated">Deactivated</option>
+          </select>
+        </label>
+        <label>
+          <span className="metric-label">Rows</span>
+          <select className="select" name="pageSize" defaultValue={listParams.pageSize ?? "25"}>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
         <button className="button" type="submit">
-          Search
+          Apply
         </button>
       </form>
 
       <section className="grid two-col">
         <div className="panel">
-          <h2 className="text-xl font-bold">Matching users</h2>
-          <table className="table mt-4">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Quota</th>
-                <th>Scans</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {usersResponse.users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <div className="font-semibold">{user.email ?? user.id}</div>
-                    <div className="muted text-xs">
-                      {user.authMethod} / {formatDate(user.createdAt)}
-                    </div>
-                  </td>
-                  <td>
-                    {user.quota.freeRemaining} free / {user.quota.rewardedRemaining} rewarded /{" "}
-                    {user.quota.premiumRemaining} premium
-                  </td>
-                  <td>{formatNumber(user.stats.scans)}</td>
-                  <td>
-                    <Link className="badge" href={`/users?profileId=${user.id}&query=${query}`}>
-                      Open
-                    </Link>
-                  </td>
+          <div className="section-head">
+            <h2 className="text-xl font-bold">User directory</h2>
+            <ResultSummary pageInfo={effectivePageInfo} noun="profiles" />
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>
+                    <SortableHeader
+                      basePath="/users"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="email"
+                    >
+                      User
+                    </SortableHeader>
+                  </th>
+                  <th>
+                    <SortableHeader
+                      basePath="/users"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="authMethod"
+                    >
+                      Auth
+                    </SortableHeader>
+                  </th>
+                  <th>Quota</th>
+                  <th>
+                    <SortableHeader
+                      basePath="/users"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="scans"
+                    >
+                      Scans
+                    </SortableHeader>
+                  </th>
+                  <th>
+                    <SortableHeader
+                      basePath="/users"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="lastScanAt"
+                    >
+                      Last scan
+                    </SortableHeader>
+                  </th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visibleUsers.map((user) => (
+                  <tr key={user.id}>
+                    <td>
+                      <div className="font-semibold break-cell">{user.email ?? user.id}</div>
+                      <div className="muted text-xs break-cell">{user.id}</div>
+                    </td>
+                    <td>
+                      <Badge tone={user.deactivatedAt ? "red" : "green"}>
+                        {user.deactivatedAt ? "inactive" : "active"}
+                      </Badge>
+                      <div className="muted mt-1 text-xs">{user.authMethod}</div>
+                    </td>
+                    <td>
+                      <div className="font-semibold">
+                        {user.quota.freeRemaining +
+                          user.quota.rewardedRemaining +
+                          user.quota.premiumRemaining}
+                      </div>
+                      <div className="muted text-xs">
+                        F {user.quota.freeRemaining} / R {user.quota.rewardedRemaining} / P{" "}
+                        {user.quota.premiumRemaining}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="font-semibold">{formatNumber(user.stats.scans)}</div>
+                      <div className="muted text-xs">
+                        {formatNumber(user.stats.failedScans)} failed
+                      </div>
+                    </td>
+                    <td>
+                      <div>{user.lastScanAt ? formatDate(user.lastScanAt) : "No scans yet"}</div>
+                      <div className="muted text-xs">
+                        Profile updated {formatDate(user.updatedAt)}
+                      </div>
+                    </td>
+                    <td className="table-actions">
+                      <Link
+                        className="badge"
+                        href={hrefWithParams("/users", listParams, { profileId: user.id })}
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {visibleUsers.length === 0 ? (
+              <EmptyState
+                title="No users matched"
+                body="Try removing filters or searching by the exact profile id."
+              />
+            ) : null}
+          </div>
+          <Pagination basePath="/users" params={listParams} pageInfo={effectivePageInfo} />
         </div>
 
         <div className="grid gap-4">
@@ -91,7 +257,7 @@ function EmptyUserDetail() {
     <div className="panel">
       <h2 className="text-xl font-bold">User detail</h2>
       <p className="muted mt-2">
-        Select a user to inspect quota, scan history, and support grants.
+        Select a user to inspect quota, support history, scan health, and lifecycle status.
       </p>
     </div>
   );
@@ -112,19 +278,37 @@ function UserDetail({ user }: { user: AdminUser }) {
           <div>
             <h2 className="text-xl font-bold">{user.email ?? "Anonymous profile"}</h2>
             <p className="muted mt-1 break-all text-sm">{user.id}</p>
-            {user.deactivatedAt ? (
-              <p className="muted mt-2 text-sm">Deactivated {formatDate(user.deactivatedAt)}</p>
-            ) : null}
           </div>
           <Badge tone={user.deactivatedAt ? "red" : "green"}>
             {user.deactivatedAt ? "Inactive" : "Active"}
           </Badge>
         </div>
 
+        <div className="detail-grid mt-5">
+          <Detail label="Auth method" value={user.authMethod} />
+          <Detail label="Timezone" value={user.timezone} />
+          <Detail label="Created" value={formatDate(user.createdAt)} />
+          <Detail label="Updated" value={formatDate(user.updatedAt)} />
+          <Detail
+            label="Last scan"
+            value={user.lastScanAt ? formatDate(user.lastScanAt) : "No scans yet"}
+          />
+          <Detail label="Linked" value={user.linkedAt ? formatDate(user.linkedAt) : "Not linked"} />
+          <Detail
+            label="Deletion requested"
+            value={user.deletionRequestedAt ? formatDate(user.deletionRequestedAt) : "No"}
+          />
+          <Detail
+            label="Deactivated"
+            value={user.deactivatedAt ? formatDate(user.deactivatedAt) : "No"}
+          />
+          <Detail label="Grants" value={formatNumber(user.stats.grants)} />
+        </div>
+
         {user.deactivatedAt ? (
           <form
             action={reactivateUserAction}
-            className="mt-5 grid gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
+            className="mt-5 grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
           >
             <input name="profileId" type="hidden" value={user.id} />
             <input
@@ -140,7 +324,7 @@ function UserDetail({ user }: { user: AdminUser }) {
             <div>
               <h3 className="font-semibold text-slate-950">Reactivate profile</h3>
               <p className="muted mt-1 text-sm">
-                Enables this account for future sign-in. Existing revoked sessions stay revoked.
+                Enables this profile for future app access. Existing revoked sessions stay revoked.
               </p>
             </div>
             <button className="button" type="submit">
@@ -196,43 +380,85 @@ function UserDetail({ user }: { user: AdminUser }) {
       </div>
 
       <div className="panel">
-        <h2 className="text-xl font-bold">Recent scans</h2>
-        <table className="table mt-4">
-          <tbody>
-            {(user.recentScans ?? []).map((scan) => (
-              <tr key={scan.id}>
-                <td>
-                  <Link className="font-semibold" href={`/scans?scanId=${scan.id}`}>
-                    {scan.status}
-                  </Link>
-                  <div className="muted text-xs">{formatDate(scan.createdAt)}</div>
-                </td>
-                <td>{scan.ai?.model ?? "not analyzed"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="section-head">
+          <h2 className="text-xl font-bold">Recent scans</h2>
+          <Link className="badge" href={`/scans?profileId=${user.id}`}>
+            View all
+          </Link>
+        </div>
+        <div className="table-wrap">
+          <table className="table table-compact">
+            <tbody>
+              {(user.recentScans ?? []).map((scan) => (
+                <tr key={scan.id}>
+                  <td>
+                    <Link className="font-semibold" href={`/scans?scanId=${scan.id}`}>
+                      {scan.status}
+                    </Link>
+                    <div className="muted text-xs">{formatDate(scan.createdAt)}</div>
+                  </td>
+                  <td>{scan.ai?.model ?? "not analyzed"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(user.recentScans ?? []).length === 0 ? <EmptyState title="No scans yet" /> : null}
+        </div>
       </div>
 
       <div className="panel">
         <h2 className="text-xl font-bold">Recent grants</h2>
-        <table className="table mt-4">
-          <tbody>
-            {(user.grants ?? []).map((grant) => (
-              <tr key={grant.id}>
-                <td>
-                  <div className="font-semibold">
-                    {grant.amount} {grant.creditType}
-                  </div>
-                  <div className="muted text-xs">{grant.reason}</div>
-                </td>
-                <td>{grant.actor}</td>
-                <td>{formatDate(grant.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap mt-4">
+          <table className="table table-compact">
+            <tbody>
+              {(user.grants ?? []).map((grant) => (
+                <tr key={grant.id}>
+                  <td>
+                    <div className="font-semibold">
+                      {grant.amount} {grant.creditType}
+                    </div>
+                    <div className="muted text-xs">{grant.reason}</div>
+                  </td>
+                  <td>{grant.actor}</td>
+                  <td>{formatDate(grant.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(user.grants ?? []).length === 0 ? <EmptyState title="No support grants" /> : null}
+        </div>
       </div>
     </>
   );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="metric-label">{label}</div>
+      <div className="mt-1 break-all">{value}</div>
+    </div>
+  );
+}
+
+function userListParams(params: UsersSearchParams): QueryParams {
+  return {
+    query: params.query,
+    status: params.status ?? "all",
+    authMethod: params.authMethod ?? "all",
+    risk: params.risk ?? "all",
+    page: params.page ?? "1",
+    pageSize: params.pageSize ?? "25",
+    sort: params.sort ?? "lastScanAt",
+    direction: params.direction ?? "desc",
+  };
+}
+
+function toApiQuery(params: QueryParams) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (!value) continue;
+    query.set(key, value);
+  }
+  return query;
 }

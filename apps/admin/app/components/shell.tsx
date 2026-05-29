@@ -4,6 +4,7 @@ import { requireAdminSession } from "../lib/session";
 
 const navItems = [
   ["/", "Overview"],
+  ["/cost", "AI Usage"],
   ["/users", "Users"],
   ["/scans", "Scans"],
   ["/ai", "AI Controls"],
