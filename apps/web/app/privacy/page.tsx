@@ -73,7 +73,7 @@ export default function PrivacyPage() {
             }}
           >
             This policy explains what LogMyPlate collects, why it is used, when it may be shared,
-            and how you can request deletion of your app data.
+            and how you can delete your account and app data.
           </div>
         </header>
 
@@ -218,7 +218,8 @@ export default function PrivacyPage() {
         <Section title="7. Data retention">
           <p>
             Meal journal data, health targets, and stored meal photos are retained while your
-            account or app installation remains active, unless you delete them or request deletion.
+            account or app installation remains active, unless you delete them in the app or request
+            deletion when you cannot access the app.
           </p>
           <p>
             Technical logs are retained for a limited operational period, typically up to 90 days,
@@ -229,9 +230,12 @@ export default function PrivacyPage() {
 
         <Section title="8. Deletion and account removal">
           <p>
-            You can request deletion of your account and associated app data. Deletion removes
-            account profile data, meal logs, health targets, stored meal photos, and active sign-in
-            records associated with your account.
+            You can permanently delete your account and associated app data directly in the app from{" "}
+            <strong style={{ color: "var(--text-primary)" }}>
+              Profile &gt; Privacy &amp; legal &gt; Delete account and data
+            </strong>
+            . Deletion removes account profile data, meal logs, health targets, stored meal photos,
+            and active sign-in records associated with your account from active app systems.
           </p>
           <p>
             Read the{" "}

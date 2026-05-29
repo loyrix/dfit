@@ -12,6 +12,7 @@ class ProfileScreen extends StatelessWidget {
     required this.onThemeChanged,
     required this.session,
     required this.onOpenAccount,
+    required this.onDeleteAccount,
     required this.onSignOut,
     this.bottomPadding = 188,
   });
@@ -20,6 +21,7 @@ class ProfileScreen extends StatelessWidget {
   final ValueChanged<ThemeMode> onThemeChanged;
   final AuthSession? session;
   final VoidCallback onOpenAccount;
+  final Future<bool> Function() onDeleteAccount;
   final Future<void> Function() onSignOut;
   final double bottomPadding;
 
@@ -61,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _ProfileSection(
-              title: 'Privacy',
+              title: 'Privacy & legal',
               child: Column(
                 children: [
                   _LinkRow(
@@ -73,14 +75,27 @@ class ProfileScreen extends StatelessWidget {
                       copiedMessage: 'Privacy link copied',
                     ),
                   ),
-                  const _StaticRow(
-                    label: 'Food photos are saved with meal logs',
+                  const _ProfileRowDivider(),
+                  _LinkRow(
+                    icon: Icons.description_outlined,
+                    label: 'Legal terms',
+                    onTap: () => openLogMyPlateLink(
+                      context,
+                      LogMyPlateLinks.terms,
+                      copiedMessage: 'Terms link copied',
+                    ),
                   ),
-                  const _StaticRow(
-                    label: 'Nutrition estimates are approximate',
-                  ),
-                  const _StaticRow(
-                    label: 'Delete profile removes stored app data',
+                  const _ProfileRowDivider(),
+                  _LinkRow(
+                    icon: Icons.delete_outline_rounded,
+                    label: signedIn
+                        ? 'Delete account and data'
+                        : 'Data deletion',
+                    color: signedIn ? LogMyPlateColors.destructive : null,
+                    trailingIcon: signedIn
+                        ? Icons.chevron_right_rounded
+                        : Icons.open_in_new_rounded,
+                    onTap: () => _requestAccountDeletion(context),
                   ),
                 ],
               ),
@@ -97,15 +112,6 @@ class ProfileScreen extends StatelessWidget {
                       context,
                       LogMyPlateLinks.support,
                       copiedMessage: 'Support link copied',
-                    ),
-                  ),
-                  _LinkRow(
-                    icon: Icons.description_outlined,
-                    label: 'Legal terms',
-                    onTap: () => openLogMyPlateLink(
-                      context,
-                      LogMyPlateLinks.terms,
-                      copiedMessage: 'Terms link copied',
                     ),
                   ),
                 ],
@@ -132,6 +138,27 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _requestAccountDeletion(BuildContext context) async {
+    if (session == null) {
+      await openLogMyPlateLink(
+        context,
+        LogMyPlateLinks.dataDeletion,
+        copiedMessage: 'Data deletion link copied',
+      );
+      return;
+    }
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _DeleteAccountSheet(),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    await onDeleteAccount();
   }
 }
 
@@ -335,62 +362,26 @@ class _ThemePill extends StatelessWidget {
   }
 }
 
-class _StaticRow extends StatelessWidget {
-  const _StaticRow({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      child: Row(
-        children: [
-          Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.check_rounded,
-              color: colors.accentText,
-              size: 14,
-            ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textPrimary,
-                height: 1.28,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _LinkRow extends StatelessWidget {
   const _LinkRow({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.color,
+    this.trailingIcon = Icons.open_in_new_rounded,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? color;
+  final IconData trailingIcon;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final rowColor = color ?? colors.textPrimary;
+    final iconColor = color ?? colors.accentText;
 
     return InkWell(
       onTap: onTap,
@@ -402,27 +393,113 @@ class _LinkRow extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: LogMyPlateColors.accent.withValues(alpha: 0.12),
+                color: iconColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: colors.accentText, size: 16),
+              child: Icon(icon, color: iconColor, size: 16),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textPrimary,
-                  height: 1.25,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: rowColor, height: 1.25),
               ),
             ),
-            Icon(
-              Icons.open_in_new_rounded,
-              color: colors.textTertiary,
-              size: 17,
-            ),
+            Icon(trailingIcon, color: color ?? colors.textTertiary, size: 17),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileRowDivider extends StatelessWidget {
+  const _ProfileRowDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 54),
+      child: Divider(height: 1, thickness: 0.5, color: colors.border),
+    );
+  }
+}
+
+class _DeleteAccountSheet extends StatelessWidget {
+  const _DeleteAccountSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
+          decoration: BoxDecoration(
+            color: colors.surfaceCard,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: colors.border, width: 0.6),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: colors.textTertiary.withValues(alpha: 0.36),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Delete account and data?',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: colors.textPrimary),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'This permanently deletes your account, journal, saved photos, targets, and sign-in access from active systems. This cannot be undone.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                height: 54,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: LogMyPlateColors.destructive,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                  ),
+                  child: const Text('Delete account'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 50,
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Keep account'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

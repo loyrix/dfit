@@ -170,6 +170,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           bottomPadding: useTabletLayout ? 32 : 188,
                           onThemeChanged: _setThemeMode,
                           onOpenAccount: _openProfileAccount,
+                          onDeleteAccount: _deleteProfileFromAccount,
                           onSignOut: _signOutFromProfile,
                         ),
                 );
@@ -745,8 +746,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     final completed = await _authController.deleteProfile();
     if (!completed) return false;
     await _finishAccountLifecycle(
-      title: 'Profile deleted',
-      message: 'Stored account data was removed.',
+      title: 'Account deleted',
+      message: 'Your account, journal, saved photos, and targets were deleted.',
     );
     return true;
   }

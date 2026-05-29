@@ -31,7 +31,7 @@ const faqs = [
   },
   {
     q: "How do I delete my account?",
-    a: "Open the app, go to Profile, and choose 'Delete profile'. This permanently removes your profile, journal, and stored photos. The action is irreversible.",
+    a: "Open the app and go to Profile > Privacy & legal > Delete account and data. This permanently deletes your account, journal, saved photos, targets, and sign-in access from active systems. The action is irreversible.",
   },
   {
     q: "Do I need an account to use the app?",

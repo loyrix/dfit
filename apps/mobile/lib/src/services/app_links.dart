@@ -9,6 +9,7 @@ class LogMyPlateLinks {
   static final accountSupport = Uri.parse(
     'https://logmyplate.com/support?reason=account',
   );
+  static final dataDeletion = Uri.parse('https://logmyplate.com/data-deletion');
   static final privacy = Uri.parse('https://logmyplate.com/privacy');
   static final terms = Uri.parse('https://logmyplate.com/terms');
 }

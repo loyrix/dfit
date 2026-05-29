@@ -1518,6 +1518,7 @@ void main() {
           ),
           onThemeChanged: (_) {},
           onOpenAccount: () {},
+          onDeleteAccount: () async => false,
           onSignOut: () async {},
         ),
       ),
@@ -1525,13 +1526,53 @@ void main() {
 
     expect(find.text('friend@test.com'), findsOneWidget);
     expect(find.text('Theme'), findsOneWidget);
-    expect(find.text('Privacy'), findsOneWidget);
+    expect(find.text('Privacy & legal'), findsOneWidget);
     expect(find.text('Support'), findsOneWidget);
     expect(find.text('Contact support'), findsOneWidget);
     expect(find.text('Privacy policy'), findsOneWidget);
+    expect(find.text('Delete account and data'), findsOneWidget);
     expect(find.text('Legal terms'), findsOneWidget);
+    expect(find.text('Food photos are saved with meal logs'), findsNothing);
+    expect(find.text('Nutrition estimates are approximate'), findsNothing);
     expect(find.text('Daily target'), findsNothing);
     expect(find.text('2124 kCal'), findsNothing);
+  });
+
+  testWidgets('profile tab deletes signed-in account data in app', (
+    tester,
+  ) async {
+    var deleted = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: ProfileScreen(
+          themeMode: ThemeMode.dark,
+          session: AuthSession(
+            provider: AuthProvider.email,
+            displayName: 'friend@test.com',
+            linkedAt: DateTime(2026, 5, 12),
+          ),
+          onThemeChanged: (_) {},
+          onOpenAccount: () {},
+          onDeleteAccount: () async {
+            deleted = true;
+            return true;
+          },
+          onSignOut: () async {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Delete account and data'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete account and data?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete account'));
+    await tester.pumpAndSettle();
+
+    expect(deleted, isTrue);
   });
 
   testWidgets('logout returns the user to the anonymous dashboard', (
@@ -2030,12 +2071,12 @@ void main() {
 
     await tester.drag(find.byType(ListView), const Offset(0, -360));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('Delete profile'));
+    await tester.tap(find.text('Delete account and data'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Delete profile?'), findsOneWidget);
+    expect(find.text('Delete account and data?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete profile'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete account'));
     await tester.pumpAndSettle();
 
     expect(deleted, isTrue);

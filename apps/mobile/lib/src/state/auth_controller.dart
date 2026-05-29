@@ -175,7 +175,7 @@ class AuthController extends ChangeNotifier {
     return _runProfileLifecycleAction(
       actionName: 'auth.delete_profile',
       operation: _gateway.deleteProfile,
-      fallbackMessage: 'Could not delete this profile. Please try again.',
+      fallbackMessage: 'Could not delete this account. Please try again.',
     );
   }
 

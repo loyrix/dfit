@@ -109,7 +109,7 @@ class AccountProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 _ProfileSection(
-                  title: 'Profile control',
+                  title: 'Account control',
                   children: [
                     _ProfileActionRow(
                       label: 'Deactivate profile',
@@ -122,8 +122,8 @@ class AccountProfileScreen extends StatelessWidget {
                       ),
                     ),
                     _ProfileActionRow(
-                      label: 'Delete profile',
-                      value: 'Remove data',
+                      label: 'Delete account and data',
+                      value: 'Permanent',
                       color: LogMyPlateColors.destructive,
                       enabled: !loading,
                       onTap: () => _requestLifecycleAction(
@@ -423,7 +423,7 @@ class _ProfileLifecycleSheet extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                isDelete ? 'Delete profile?' : 'Deactivate profile?',
+                isDelete ? 'Delete account and data?' : 'Deactivate profile?',
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(color: colors.textPrimary),
@@ -431,7 +431,7 @@ class _ProfileLifecycleSheet extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 isDelete
-                    ? 'This permanently removes meals, scans, photos, targets and account access. This cannot be undone.'
+                    ? 'This permanently deletes your account, journal, saved photos, targets, and sign-in access from active systems. This cannot be undone.'
                     : 'This signs you out and pauses account access. Your saved meals and photos stay stored.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: colors.textSecondary,
@@ -453,7 +453,7 @@ class _ProfileLifecycleSheet extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    isDelete ? 'Delete profile' : 'Deactivate profile',
+                    isDelete ? 'Delete account' : 'Deactivate profile',
                   ),
                 ),
               ),

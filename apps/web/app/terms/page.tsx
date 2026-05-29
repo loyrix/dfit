@@ -227,7 +227,9 @@ export default function TermsPage() {
 
         <Section title="14. Termination and deletion">
           <p>
-            You may stop using the app at any time. You may request account and data deletion as
+            You may stop using the app at any time. If you created an account, you may permanently
+            delete your account and associated app data directly in the app from Profile &gt;
+            Privacy &amp; legal &gt; Delete account and data. The current deletion process is
             described on the{" "}
             <Link
               href="/data-deletion"

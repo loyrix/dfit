@@ -4,7 +4,7 @@ import { APP_CONFIG } from "@/config/app";
 export const metadata: Metadata = {
   title: "Data Deletion",
   description:
-    "How to delete your LogMyPlate account, meal journal, health targets, stored meal photos, and app data.",
+    "How to permanently delete your LogMyPlate account, meal journal, health targets, stored meal photos, and app data.",
   alternates: { canonical: "/data-deletion" },
 };
 
@@ -38,8 +38,9 @@ export default function DataDeletionPage() {
             Data Deletion
           </h1>
           <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            You can request deletion of your LogMyPlate account and associated app data from inside
-            the app or by contacting support.
+            You can permanently delete your LogMyPlate account and associated app data directly
+            inside the app. No separate web account, phone call, or support-only process is required
+            when you can access the app.
           </p>
         </header>
 
@@ -74,9 +75,12 @@ export default function DataDeletionPage() {
             style={{ color: "var(--text-secondary)" }}
           >
             <p>
-              In the app, open Profile or Settings and use the account deletion option when
-              available. Confirming permanent deletion removes the associated app data from active
-              systems.
+              Open LogMyPlate and go to{" "}
+              <strong style={{ color: "var(--text-primary)" }}>
+                Profile &gt; Privacy &amp; legal &gt; Delete account and data
+              </strong>
+              . Confirm the deletion sheet to permanently delete the account data listed above from
+              active app systems.
             </p>
             <p>
               If you cannot access the app, email{" "}
@@ -87,8 +91,9 @@ export default function DataDeletionPage() {
               >
                 {APP_CONFIG.supportEmail}
               </a>{" "}
-              with the email address used for your LogMyPlate account. We may ask for enough
-              information to verify ownership before deleting data.
+              with the email address used for your LogMyPlate account and include “Account deletion”
+              in the subject. We may ask for enough information to verify ownership before deleting
+              account data.
             </p>
           </div>
         </section>
@@ -101,9 +106,10 @@ export default function DataDeletionPage() {
             What may be retained
           </h2>
           <p className="text-[15px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            We may retain limited technical logs, security records, fraud-prevention records, or
-            legal compliance records for a limited period where required or permitted by law. These
-            retained records are not used to rebuild your meal journal.
+            LogMyPlate may retain limited technical logs, security records, fraud-prevention
+            records, legal compliance records, and de-identified operational analytics for a limited
+            period where required or permitted by law. These retained records are not used to
+            restore your account or rebuild your meal journal.
           </p>
         </section>
       </div>
