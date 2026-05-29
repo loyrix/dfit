@@ -340,6 +340,24 @@ export class PostgresStore implements AppRepository {
         where profile_id = ${profile.id}
       `;
 
+      await tx`
+        update scan_sessions
+        set
+          profile_id = null,
+          consumed_credit_reason = null,
+          user_hint = null,
+          image_width = null,
+          image_height = null,
+          image_mime_type = null,
+          image_byte_size = null,
+          image_bucket = null,
+          image_object_key = null,
+          image_hash = null,
+          image_hash_algorithm = null,
+          updated_at = now()
+        where profile_id = ${profile.id}
+      `;
+
       const [deletedProfile] = await tx<{ id: string }[]>`
         delete from profiles
         where id = ${profile.id}
@@ -1595,56 +1613,46 @@ export class PostgresStore implements AppRepository {
       {
         meal_id: string;
         scan_session_id: string | null;
-        image_id: string | null;
-        bucket: string | null;
-        object_key: string | null;
-        mime_type: MealImageRow["mime_type"] | null;
-        byte_size: number | null;
-        width: number | null;
-        height: number | null;
-        created_at: string | null;
       }[]
     >`
       select
         meals.id::text as meal_id,
-        meals.scan_session_id::text,
-        meal_images.id::text as image_id,
-        meal_images.bucket,
-        meal_images.object_key,
-        meal_images.mime_type,
-        meal_images.byte_size,
-        meal_images.width,
-        meal_images.height,
-        meal_images.created_at::text
+        meals.scan_session_id::text
       from meals
-      left join meal_images on meal_images.meal_id = meals.id
       where meals.id = ${mealId}
         and meals.profile_id = ${profile.id}
       limit 1
     `;
     if (!row) return undefined;
 
+    const storedObjects = await this.sql<{ bucket: string; object_key: string }[]>`
+      select distinct bucket, object_key
+      from (
+        select meal_images.bucket, meal_images.object_key
+        from meal_images
+        where meal_images.meal_id = ${row.meal_id}
+          and meal_images.profile_id = ${profile.id}
+
+        union all
+
+        select scan_sessions.image_bucket as bucket, scan_sessions.image_object_key as object_key
+        from scan_sessions
+        where scan_sessions.id = ${row.scan_session_id}::uuid
+          and scan_sessions.profile_id = ${profile.id}
+          and scan_sessions.image_bucket is not null
+          and scan_sessions.image_object_key is not null
+      ) meal_objects
+      where bucket is not null
+        and object_key is not null
+    `;
+
     return {
       mealId: row.meal_id,
       scanSessionId: row.scan_session_id ?? undefined,
-      image:
-        row.image_id &&
-        row.bucket &&
-        row.object_key &&
-        row.mime_type &&
-        row.byte_size &&
-        row.created_at
-          ? {
-              imageId: row.image_id,
-              bucket: row.bucket,
-              objectKey: row.object_key,
-              mimeType: row.mime_type,
-              byteSize: row.byte_size,
-              width: row.width ?? undefined,
-              height: row.height ?? undefined,
-              createdAt: row.created_at,
-            }
-          : undefined,
+      storedObjects: storedObjects.map((object) => ({
+        bucket: object.bucket,
+        objectKey: object.object_key,
+      })),
     };
   }
 
@@ -1661,7 +1669,20 @@ export class PostgresStore implements AppRepository {
 
       if (deleted.scan_session_id) {
         await tx`
-          delete from scan_sessions
+          update scan_sessions
+          set
+            profile_id = null,
+            consumed_credit_reason = null,
+            user_hint = null,
+            image_width = null,
+            image_height = null,
+            image_mime_type = null,
+            image_byte_size = null,
+            image_bucket = null,
+            image_object_key = null,
+            image_hash = null,
+            image_hash_algorithm = null,
+            updated_at = now()
           where id = ${deleted.scan_session_id}
             and profile_id = ${profile.id}
         `;

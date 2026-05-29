@@ -766,7 +766,7 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
-  it("deletes meals with their stored image and linked scan history", async () => {
+  it("deletes meals with their stored image and unlinks linked scan history", async () => {
     const repository = new InMemoryStore();
     const mealImageStorage = new TestMealImageStorage();
     const app = await buildApp({ repository, mealImageStorage });

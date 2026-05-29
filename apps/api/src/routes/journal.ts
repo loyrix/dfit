@@ -179,7 +179,7 @@ export const registerJournalRoutes = async (
     const deletionPlan = await repository.getMealDeletionPlan(params.id);
     if (!deletionPlan) return reply.status(404).send({ error: "meal_not_found" });
 
-    if (deletionPlan.image) {
+    if (deletionPlan.storedObjects.length > 0) {
       if (!mealImageStorage.enabled) {
         return reply.status(503).send({
           error: "meal_image_delete_unavailable",
@@ -188,12 +188,11 @@ export const registerJournalRoutes = async (
       }
 
       try {
-        await mealImageStorage.deleteMealImage(deletionPlan.image);
+        for (const target of deletionPlan.storedObjects) {
+          await mealImageStorage.deleteStoredObject(target);
+        }
       } catch (error) {
-        request.log.error(
-          { err: error, mealId: params.id, imageId: deletionPlan.image.imageId },
-          "meal image delete failed",
-        );
+        request.log.error({ err: error, mealId: params.id }, "meal image delete failed");
         return reply.status(502).send({
           error: "meal_image_delete_failed",
           message: "Could not delete the stored meal image.",

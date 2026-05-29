@@ -434,8 +434,8 @@ export class InMemoryStore implements AppRepository {
       this.mealProfiles.delete(mealId);
       this.mealScanSessions.delete(mealId);
     }
-    for (const [scanId, scan] of this.scans) {
-      if (scan.profileId === profile.id) this.scans.delete(scanId);
+    for (const scan of this.scans.values()) {
+      if (scan.profileId === profile.id) this.unlinkScanFromProfile(scan);
     }
     for (const [installId, profileId] of this.installProfiles) {
       if (profileId === profile.id) this.resetInstallToAnonymous(installId);
@@ -652,7 +652,9 @@ export class InMemoryStore implements AppRepository {
     if (!meal) return undefined;
     return {
       mealId,
-      image: meal.image,
+      storedObjects: meal.image
+        ? [{ bucket: meal.image.bucket, objectKey: meal.image.objectKey }]
+        : [],
       scanSessionId: this.mealScanSessions.get(mealId),
     };
   }
@@ -661,9 +663,10 @@ export class InMemoryStore implements AppRepository {
     const profile = await this.getProfile();
     if (this.mealProfiles.get(mealId) !== profile.id) return false;
     const scanSessionId = this.mealScanSessions.get(mealId);
+    const scan = scanSessionId ? this.scans.get(scanSessionId) : undefined;
     this.mealProfiles.delete(mealId);
     this.mealScanSessions.delete(mealId);
-    if (scanSessionId) this.scans.delete(scanSessionId);
+    if (scan?.profileId === profile.id) this.unlinkScanFromProfile(scan);
     return this.meals.delete(mealId);
   }
 
@@ -855,6 +858,18 @@ export class InMemoryStore implements AppRepository {
     for (const [installId, profileId] of this.installProfiles) {
       if (profileId === sourceProfileId) this.installProfiles.set(installId, targetProfileId);
     }
+  }
+
+  private unlinkScanFromProfile(scan: ScanSession): void {
+    scan.profileId = `deleted:${scan.profileId}`;
+    scan.creditReason = undefined;
+    scan.userHint = undefined;
+    scan.imageMimeType = undefined;
+    scan.imageByteSize = undefined;
+    scan.imageBucket = undefined;
+    scan.imageObjectKey = undefined;
+    scan.imageHash = undefined;
+    scan.imageHashAlgorithm = undefined;
   }
 
   private transferCurrentInstallQuotaToProfile(profileId: string): void {

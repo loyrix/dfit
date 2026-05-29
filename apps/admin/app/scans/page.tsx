@@ -250,13 +250,19 @@ export default async function ScansPage({
                       <div className="muted text-xs">{formatDate(scan.createdAt)}</div>
                     </td>
                     <td>
-                      <Link
-                        className="font-semibold break-cell"
-                        href={`/users?profileId=${scan.profileId}`}
-                      >
-                        {scan.profileEmail ?? scan.profileId}
-                      </Link>
-                      <div className="muted text-xs break-cell">{scan.profileId}</div>
+                      {scan.profileId ? (
+                        <Link
+                          className="font-semibold break-cell"
+                          href={`/users?profileId=${scan.profileId}`}
+                        >
+                          {scan.profileEmail ?? scan.profileId}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold">Unlinked profile</span>
+                      )}
+                      <div className="muted text-xs break-cell">
+                        {scan.profileId ?? "AI retained after user deletion"}
+                      </div>
                     </td>
                     <td>
                       <div>{scan.ai?.model ?? "not analyzed"}</div>
@@ -347,7 +353,7 @@ function ScanDetail({ scan }: { scan?: AdminScan }) {
 
       <div className="detail-grid mt-5">
         <Detail label="Scan id" value={scan.id} />
-        <Detail label="Profile" value={scan.profileId} />
+        <Detail label="Profile" value={scan.profileId ?? "Unlinked profile"} />
         <Detail label="Created" value={formatDate(scan.createdAt)} />
         <Detail label="Updated" value={formatDate(scan.updatedAt)} />
         <Detail label="User note" value={scan.userHint ?? "None"} />

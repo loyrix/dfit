@@ -995,7 +995,7 @@ const mapProfileLifecycleSnapshot = (row: AdminProfileLifecycleRow) => ({
 
 type AdminScanRow = {
   id: string;
-  profile_id: string;
+  profile_id: string | null;
   profile_email: string | null;
   status: string;
   consumed_credit_reason: string | null;
@@ -1190,7 +1190,7 @@ const loadAdminScan = async (sql: SqlClient, scanId: string) => {
 
 const mapAdminScanRow = (row: AdminScanRow) => ({
   id: row.id,
-  profileId: row.profile_id,
+  profileId: row.profile_id ?? undefined,
   profileEmail: row.profile_email ?? undefined,
   status: row.status,
   creditReason: row.consumed_credit_reason ?? undefined,

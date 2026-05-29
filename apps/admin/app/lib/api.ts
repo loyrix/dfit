@@ -108,7 +108,7 @@ export type AdminGrant = {
 
 export type AdminScan = {
   id: string;
-  profileId: string;
+  profileId?: string;
   profileEmail?: string;
   status: string;
   creditReason?: string;

@@ -110,7 +110,7 @@ export type AttachMealImageInput = Omit<MealImageSummary, "imageId" | "createdAt
 
 export type MealDeletionPlan = {
   mealId: string;
-  image?: MealImageSummary;
+  storedObjects: StoredObjectDeletionTarget[];
   scanSessionId?: string;
 };
 
