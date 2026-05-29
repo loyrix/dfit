@@ -154,7 +154,7 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _DeleteAccountSheet(),
+      builder: (_) => const DeleteAccountSheet(),
     );
     if (confirmed != true || !context.mounted) return;
 
@@ -429,8 +429,8 @@ class _ProfileRowDivider extends StatelessWidget {
   }
 }
 
-class _DeleteAccountSheet extends StatelessWidget {
-  const _DeleteAccountSheet();
+class DeleteAccountSheet extends StatelessWidget {
+  const DeleteAccountSheet({super.key});
 
   @override
   Widget build(BuildContext context) {

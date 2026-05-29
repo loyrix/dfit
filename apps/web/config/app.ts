@@ -28,6 +28,7 @@ export const APP_CONFIG = {
   websiteUrl: "https://logmyplate.com",
   apiDomain: "api.logmyplate.com",
   supportEmail: "support@logmyplate.com",
+  deleteAccountDeepLink: "logmyplate://delete-account",
 
   // ── AdMob ──────────────────────────────────────────────────────────────────
   admobPublisherId: "pub-6936425975956435",

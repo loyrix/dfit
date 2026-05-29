@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:logmyplate_mobile/src/app.dart';
 import 'package:logmyplate_mobile/src/models/auth_session.dart';
@@ -18,6 +17,7 @@ import 'package:logmyplate_mobile/src/screens/startup_error_screen.dart';
 import 'package:logmyplate_mobile/src/screens/today_screen.dart';
 import 'package:logmyplate_mobile/src/screens/weekly_journal_screen.dart';
 import 'package:logmyplate_mobile/src/services/account_session_store.dart';
+import 'package:logmyplate_mobile/src/services/app_links.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
 import 'package:logmyplate_mobile/src/services/oauth_sign_in_service.dart';
@@ -27,15 +27,26 @@ import 'package:logmyplate_mobile/src/state/journal_controller.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/primitive_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+  const appLinksEvents = EventChannel('com.llfbandit.app_links/events');
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     AppDiagnostics.instance.clear();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockStreamHandler(
+          appLinksEvents,
+          MockStreamHandler.inline(onListen: (_, _) {}),
+        );
   });
 
   testWidgets('renders LogMyPlate welcome screen', (tester) async {
@@ -48,6 +59,27 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Start first scan'), findsOneWidget);
+  });
+
+  test('parses LogMyPlate account deletion deep links', () {
+    expect(
+      parseLogMyPlateDeepLink(Uri.parse('logmyplate://delete-account')),
+      LogMyPlateDeepLink.deleteAccount,
+    );
+    expect(
+      parseLogMyPlateDeepLink(Uri.parse('logmyplate:///account/delete')),
+      LogMyPlateDeepLink.deleteAccount,
+    );
+    expect(
+      parseLogMyPlateDeepLink(
+        Uri.parse('https://www.logmyplate.com/delete-account'),
+      ),
+      LogMyPlateDeepLink.deleteAccount,
+    );
+    expect(
+      parseLogMyPlateDeepLink(Uri.parse('https://example.com/delete-account')),
+      isNull,
+    );
   });
 
   testWidgets('enters camera flow from welcome', (tester) async {

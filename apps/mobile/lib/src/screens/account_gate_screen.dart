@@ -165,7 +165,9 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Your photos are analyzed and saved with your meal logs.',
+                  widget.reason == AccountGateReason.accountDeletion
+                      ? 'Deletion starts only after your confirmation.'
+                      : 'Your photos are analyzed and saved with your meal logs.',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.textTertiary,
@@ -707,7 +709,7 @@ class _AuthTextField extends StatelessWidget {
   }
 }
 
-enum AccountGateReason { quotaExhausted, saveJournal }
+enum AccountGateReason { quotaExhausted, saveJournal, accountDeletion }
 
 class _AccountGateCopy {
   const _AccountGateCopy({
@@ -741,6 +743,13 @@ class _AccountGateCopy {
           eyebrow: 'account',
           title: 'Save your journal',
           subtitle: 'Link once to protect your meals and future progress.',
+        );
+      case AccountGateReason.accountDeletion:
+        return const _AccountGateCopy(
+          eyebrow: 'account control',
+          title: 'Sign in to delete account',
+          subtitle:
+              'Use the account you want to delete. The delete confirmation opens next.',
         );
     }
   }

@@ -71,6 +71,38 @@ export default function DataDeletionPage() {
             How to delete your data
           </h2>
           <div
+            className="rounded-[24px] border p-5"
+            style={{
+              borderColor: "var(--border)",
+              background: "linear-gradient(135deg, rgba(239, 189, 68, 0.12), var(--app-card))",
+            }}
+          >
+            <p
+              className="text-[12px] font-semibold uppercase tracking-[0.26em]"
+              style={{ color: "var(--app-amber)" }}
+            >
+              App installed?
+            </p>
+            <p
+              className="mt-3 text-[15px] leading-relaxed"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Open the deletion confirmation directly in LogMyPlate. If the app does not open, use
+              the manual steps below.
+            </p>
+            <a
+              href={APP_CONFIG.deleteAccountDeepLink}
+              className="mt-5 inline-flex rounded-full px-5 py-3 text-[14px] font-semibold transition hover:scale-[1.01]"
+              style={{
+                background: "var(--app-amber)",
+                color: "#2b210a",
+                boxShadow: "0 18px 34px rgba(239, 189, 68, 0.22)",
+              }}
+            >
+              Open delete account in app
+            </a>
+          </div>
+          <div
             className="flex flex-col gap-3 text-[15px] leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >

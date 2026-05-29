@@ -28,6 +28,16 @@
 				<string>com.googleusercontent.apps.214310664631-m5a1spfqnuqfbct7lb72lafgs42fbocn</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.logmyplate.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>logmyplate</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>

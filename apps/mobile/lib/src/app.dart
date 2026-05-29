@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:app_links/app_links.dart' as platform_links;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -61,9 +62,13 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._journalController ?? JournalController();
   late final RewardedAdGateway _rewardedAds =
       widget._rewardedAdGateway ?? GoogleRewardedAdService();
+  late final platform_links.AppLinks _incomingLinks = platform_links.AppLinks();
+  StreamSubscription<Uri>? _incomingLinkSubscription;
   ThemeMode _themeMode = ThemeMode.dark;
   bool _hasSeenWelcome = false;
   bool _welcomeStateLoaded = false;
+  bool _appInitialized = false;
+  bool _openingDeleteAccountLink = false;
   int _selectedTab = 0;
   bool _openingWeeklyJournal = false;
   bool _openingHealthTargetSetup = false;
@@ -78,10 +83,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     _authController.addListener(_handleAccessStateChanged);
     _journalController.addListener(_handleAccessStateChanged);
     _initializeApp();
+    _initializeDeepLinks();
   }
 
   @override
   void dispose() {
+    _incomingLinkSubscription?.cancel();
     _authController.removeListener(_handleAccessStateChanged);
     _journalController.removeListener(_handleAccessStateChanged);
     _rewardedAds.dispose();
@@ -132,6 +139,34 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
     await _journalController.loadToday();
     _handleAccessStateChanged();
+    if (mounted) setState(() => _appInitialized = true);
+  }
+
+  void _initializeDeepLinks() {
+    try {
+      _incomingLinkSubscription = _incomingLinks.uriLinkStream.listen(
+        _handleIncomingLink,
+        onError: (_) {},
+      );
+      unawaited(_handleInitialLink());
+    } catch (_) {
+      // Deep links are best-effort; normal app launch should continue even
+      // when a platform does not expose link delivery in tests or previews.
+    }
+  }
+
+  Future<void> _handleInitialLink() async {
+    try {
+      final uri = await _incomingLinks.getInitialLink();
+      if (uri != null) await _handleIncomingLink(uri);
+    } catch (_) {}
+  }
+
+  Future<void> _handleIncomingLink(Uri uri) async {
+    final link = parseLogMyPlateDeepLink(uri);
+    if (link == LogMyPlateDeepLink.deleteAccount) {
+      await _openAccountDeletionFromLink();
+    }
   }
 
   Widget _mainShell() {
@@ -679,7 +714,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  Future<AuthSession?> _openAccountHome(AccountGateReason reason) async {
+  Future<AuthSession?> _openAccountHome(
+    AccountGateReason reason, {
+    bool promptForHealthTarget = true,
+  }) async {
     final existing = _authController.session;
     if (existing != null) {
       setState(() => _selectedTab = 2);
@@ -696,9 +734,60 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       });
       _navigatorKey.currentState!.popUntil((route) => route.isFirst);
       await _journalController.loadToday();
-      await _promptForHealthTargetIfNeeded();
+      if (promptForHealthTarget) await _promptForHealthTargetIfNeeded();
     }
     return session;
+  }
+
+  Future<void> _openAccountDeletionFromLink() async {
+    if (_openingDeleteAccountLink) return;
+
+    _openingDeleteAccountLink = true;
+    try {
+      await _waitForNavigationReady();
+      if (!mounted) return;
+
+      if (!_hasSeenWelcome) await _markWelcomeSeen();
+
+      var session = _authController.session;
+      if (session == null) {
+        session = await _openAccountHome(
+          AccountGateReason.accountDeletion,
+          promptForHealthTarget: false,
+        );
+        if (session == null || !mounted) return;
+      }
+
+      final navigator = _navigatorKey.currentState;
+      navigator?.popUntil((route) => route.isFirst);
+      if (!mounted) return;
+
+      setState(() => _selectedTab = 2);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+
+      final context = _navigatorKey.currentContext;
+      if (context == null || !context.mounted) return;
+      final confirmed = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const DeleteAccountSheet(),
+      );
+      if (confirmed == true && mounted) {
+        await _deleteProfileFromAccount();
+      }
+    } finally {
+      _openingDeleteAccountLink = false;
+    }
+  }
+
+  Future<void> _waitForNavigationReady() async {
+    while (mounted &&
+        (!_appInitialized || _navigatorKey.currentState == null)) {
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    }
+    await WidgetsBinding.instance.endOfFrame;
   }
 
   Future<void> _openProfileAccount() async {
