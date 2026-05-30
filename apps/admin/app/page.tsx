@@ -57,6 +57,27 @@ export default async function DashboardPage() {
         />
       </section>
 
+      <section className="grid metrics mt-4">
+        {(overview.platforms ?? []).map((platform) => (
+          <Metric
+            key={platform.platform}
+            label={`${platformLabel(platform.platform)} installs`}
+            value={formatNumber(platform.installs)}
+            sub={`${formatNumber(platform.activeInstallsToday)} active today · ${formatNumber(
+              platform.activeInstalls7d,
+            )} active 7d`}
+          />
+        ))}
+        {(overview.platforms ?? []).map((platform) => (
+          <Metric
+            key={`${platform.platform}-ai`}
+            label={`${platformLabel(platform.platform)} AI runs`}
+            value={formatNumber(platform.aiRuns)}
+            sub={`${formatNumber(platform.scans)} scans · ${formatInr(platform.aiCostInr)}`}
+          />
+        ))}
+      </section>
+
       <section className="grid two-col mt-4">
         <div className="panel">
           <h2 className="text-xl font-bold">Operational queues</h2>
@@ -193,6 +214,41 @@ export default async function DashboardPage() {
         </div>
 
         <div className="panel">
+          <div className="section-head">
+            <div>
+              <h2 className="text-xl font-bold">Platform activity</h2>
+              <p className="muted text-sm">Daily installs, active installs, scans, and AI runs</p>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Platform</th>
+                  <th>Active</th>
+                  <th>Installs</th>
+                  <th>Scans</th>
+                  <th>AI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(overview.dailyPlatformActivity ?? []).slice(0, 14).map((day) => (
+                  <tr key={`${day.date}-${day.platform}`}>
+                    <td>{formatActivityDate(day.date)}</td>
+                    <td>{platformLabel(day.platform)}</td>
+                    <td>{formatNumber(day.activeInstalls)}</td>
+                    <td>{formatNumber(day.installs)}</td>
+                    <td>{formatNumber(day.scans)}</td>
+                    <td>{formatNumber(day.aiRuns)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="panel">
           <h2 className="text-xl font-bold">Recent runs</h2>
           <div className="mt-4 grid gap-3">
             {cost.recentRuns.slice(0, 8).map((run) => (
@@ -210,9 +266,49 @@ export default async function DashboardPage() {
             ))}
           </div>
         </div>
+
+        <div className="panel">
+          <div className="section-head">
+            <h2 className="text-xl font-bold">App build mix</h2>
+            <span className="muted text-sm">Current installs by version</span>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Build</th>
+                  <th>Platform</th>
+                  <th>Installs</th>
+                  <th>Active 7d</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(overview.appBuilds ?? []).map((build) => (
+                  <tr key={`${build.platform}-${build.appVersion}-${build.appBuild}`}>
+                    <td>
+                      <div className="font-semibold">{build.appVersion}</div>
+                      <div className="muted text-xs">Build {build.appBuild}</div>
+                    </td>
+                    <td>{platformLabel(build.platform)}</td>
+                    <td>{formatNumber(build.installs)}</td>
+                    <td>{formatNumber(build.activeInstalls7d)}</td>
+                    <td>{build.lastSeenAt ? formatDate(build.lastSeenAt) : "None"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </AdminShell>
   );
+}
+
+function platformLabel(value: string | undefined) {
+  if (value === "ios") return "iOS";
+  if (value === "android") return "Android";
+  return "Unknown";
 }
 
 function formatActivityDate(value: string) {

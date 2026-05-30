@@ -672,9 +672,14 @@ export class InMemoryStore implements AppRepository {
 
   async prepareScan(profileId?: string) {
     const profile = await this.getProfile();
+    const identity = currentRequestIdentity();
     const scan: ScanSession = {
       id: randomUUID(),
       profileId: profileId ?? profile.id,
+      installId: identity.installId,
+      platform: identity.platform,
+      appVersion: identity.appVersion,
+      appBuild: identity.appBuild,
       status: "prepared",
       createdAt: new Date().toISOString(),
     };

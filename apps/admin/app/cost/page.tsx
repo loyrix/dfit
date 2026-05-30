@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 type CostSearchParams = {
   days?: string;
+  platform?: string;
 };
 
 export default async function CostPage({
@@ -16,7 +17,8 @@ export default async function CostPage({
 }) {
   const params = (await searchParams) ?? {};
   const days = clampDays(params.days);
-  const cost = await adminGet<AiCostData>(`/admin/ai-cost/data?days=${days}`);
+  const platform = normalizePlatform(params.platform);
+  const cost = await adminGet<AiCostData>(`/admin/ai-cost/data?days=${days}&platform=${platform}`);
   const totalTokens = cost.overall.inputTokens + cost.overall.outputTokens;
   const dailyAverage = cost.daily.length > 0 ? cost.overall.costInr / cost.daily.length : 0;
   const maxDailyCost = Math.max(0.01, ...cost.daily.map((day) => day.costInr));
@@ -28,7 +30,7 @@ export default async function CostPage({
         title="AI usage and scan health"
         description="Cost, latency, confidence, model mix, and recent AI runs in one place, with shortcuts to the operational queues."
         action={
-          <form action="/cost">
+          <form className="inline-controls" action="/cost">
             <select className="select" name="days" defaultValue={String(days)}>
               <option value="7">Last 7 days</option>
               <option value="30">Last 30 days</option>
@@ -36,6 +38,14 @@ export default async function CostPage({
               <option value="180">Last 180 days</option>
               <option value="365">Last 365 days</option>
             </select>
+            <select className="select" name="platform" defaultValue={platform}>
+              <option value="all">All platforms</option>
+              <option value="ios">iOS</option>
+              <option value="android">Android</option>
+            </select>
+            <button className="button button-secondary" type="submit">
+              Apply
+            </button>
           </form>
         }
       />
@@ -180,6 +190,71 @@ export default async function CostPage({
       <section className="usage-split mt-4">
         <div className="panel">
           <div className="section-head">
+            <h2 className="text-xl font-bold">Platform mix</h2>
+            <span className="muted text-sm">AI runs by app platform</span>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Platform</th>
+                  <th>Runs</th>
+                  <th>Cost</th>
+                  <th>Avg</th>
+                  <th>Rs 10</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cost.platforms.map((item) => (
+                  <tr key={item.platform}>
+                    <td className="font-semibold">{platformLabel(item.platform)}</td>
+                    <td>{formatNumber(item.scans)}</td>
+                    <td>{formatInr(item.costInr)}</td>
+                    <td>{formatInr(item.averageCostInr)}</td>
+                    <td>{formatNumber(item.scansPerTenInr)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="section-head">
+            <h2 className="text-xl font-bold">App builds</h2>
+            <span className="muted text-sm">Version/build from current app headers</span>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Build</th>
+                  <th>Platform</th>
+                  <th>Runs</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cost.appBuilds.map((item) => (
+                  <tr key={`${item.platform}-${item.appVersion}-${item.appBuild}`}>
+                    <td>
+                      <div className="font-semibold">{item.appVersion}</div>
+                      <div className="muted text-xs">Build {item.appBuild}</div>
+                    </td>
+                    <td>{platformLabel(item.platform)}</td>
+                    <td>{formatNumber(item.scans)}</td>
+                    <td>{formatInr(item.costInr)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section className="usage-split mt-4">
+        <div className="panel">
+          <div className="section-head">
             <h2 className="text-xl font-bold">Recent AI runs</h2>
             <span className="muted text-sm">Updated {formatDate(cost.generatedAt)}</span>
           </div>
@@ -188,6 +263,7 @@ export default async function CostPage({
               <thead>
                 <tr>
                   <th>Time</th>
+                  <th>Platform</th>
                   <th>Model</th>
                   <th>Tokens</th>
                   <th>Confidence</th>
@@ -200,6 +276,12 @@ export default async function CostPage({
                 {cost.recentRuns.map((run) => (
                   <tr key={`${run.createdAt}-${run.provider}-${run.model}`}>
                     <td>{formatDate(run.createdAt)}</td>
+                    <td>
+                      <Badge>{platformLabel(run.platform)}</Badge>
+                      <div className="muted mt-1 text-xs">
+                        {run.appVersion} ({run.appBuild})
+                      </div>
+                    </td>
                     <td>
                       <div className="font-semibold">{run.model}</div>
                       <Badge tone={run.success ? "green" : "red"}>
@@ -286,6 +368,16 @@ function clampDays(value: string | undefined) {
   const parsed = Number(value ?? 30);
   if (!Number.isFinite(parsed)) return 30;
   return Math.max(1, Math.min(365, Math.floor(parsed)));
+}
+
+function normalizePlatform(value: string | undefined) {
+  return value === "ios" || value === "android" ? value : "all";
+}
+
+function platformLabel(value: string | undefined) {
+  if (value === "ios") return "iOS";
+  if (value === "android") return "Android";
+  return "Unknown";
 }
 
 function formatPercent(value: number | null) {

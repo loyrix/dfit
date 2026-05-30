@@ -20,6 +20,9 @@ export const dynamic = "force-dynamic";
 type ScansSearchParams = {
   query?: string;
   profileId?: string;
+  platform?: string;
+  appVersion?: string;
+  appBuild?: string;
   status?: string;
   model?: string;
   promptVersion?: string;
@@ -57,8 +60,10 @@ export default async function ScansPage({
       sorters: {
         confidence: (scan) => scan.ai?.confidence,
         createdAt: (scan) => new Date(scan.createdAt),
+        appVersion: (scan) => scan.appVersion,
         latencyMs: (scan) => scan.ai?.latencyMs,
         model: (scan) => scan.ai?.model,
+        platform: (scan) => scan.platform,
         status: (scan) => scan.status,
         updatedAt: (scan) => new Date(scan.updatedAt),
       },
@@ -106,6 +111,14 @@ export default async function ScansPage({
           </select>
         </label>
         <label>
+          <span className="metric-label">Platform</span>
+          <select className="select" name="platform" defaultValue={listParams.platform ?? "all"}>
+            <option value="all">All platforms</option>
+            <option value="ios">iOS</option>
+            <option value="android">Android</option>
+          </select>
+        </label>
+        <label>
           <span className="metric-label">AI state</span>
           <select className="select" name="aiState" defaultValue={listParams.aiState ?? "all"}>
             <option value="all">All AI states</option>
@@ -132,6 +145,8 @@ export default async function ScansPage({
         {hiddenFilters(listParams, [
           "model",
           "promptVersion",
+          "appVersion",
+          "appBuild",
           "from",
           "to",
           "page",
@@ -155,6 +170,24 @@ export default async function ScansPage({
             name="promptVersion"
             placeholder="gemini_food_photo_v5"
             defaultValue={listParams.promptVersion ?? ""}
+          />
+        </label>
+        <label>
+          <span className="metric-label">App version</span>
+          <input
+            className="input"
+            name="appVersion"
+            placeholder="1.0.0"
+            defaultValue={listParams.appVersion ?? ""}
+          />
+        </label>
+        <label>
+          <span className="metric-label">Build</span>
+          <input
+            className="input"
+            name="appBuild"
+            placeholder="12"
+            defaultValue={listParams.appBuild ?? ""}
           />
         </label>
         <label>
@@ -199,6 +232,16 @@ export default async function ScansPage({
                     </SortableHeader>
                   </th>
                   <th>User</th>
+                  <th>
+                    <SortableHeader
+                      basePath="/scans"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="platform"
+                    >
+                      Platform
+                    </SortableHeader>
+                  </th>
                   <th>
                     <SortableHeader
                       basePath="/scans"
@@ -262,6 +305,12 @@ export default async function ScansPage({
                       )}
                       <div className="muted text-xs break-cell">
                         {scan.profileId ?? "AI retained after user deletion"}
+                      </div>
+                    </td>
+                    <td>
+                      <Badge>{platformLabel(scan.platform)}</Badge>
+                      <div className="muted mt-1 text-xs">
+                        {scan.appVersion ?? "unknown"} ({scan.appBuild ?? 0})
                       </div>
                     </td>
                     <td>
@@ -354,6 +403,9 @@ function ScanDetail({ scan }: { scan?: AdminScan }) {
       <div className="detail-grid mt-5">
         <Detail label="Scan id" value={scan.id} />
         <Detail label="Profile" value={scan.profileId ?? "Unlinked profile"} />
+        <Detail label="Install" value={scan.installId ?? "Unknown"} />
+        <Detail label="Platform" value={platformLabel(scan.platform)} />
+        <Detail label="App" value={`${scan.appVersion ?? "unknown"} (${scan.appBuild ?? 0})`} />
         <Detail label="Created" value={formatDate(scan.createdAt)} />
         <Detail label="Updated" value={formatDate(scan.updatedAt)} />
         <Detail label="User note" value={scan.userHint ?? "None"} />
@@ -392,6 +444,9 @@ function scanListParams(params: ScansSearchParams): QueryParams {
   return {
     query: params.query,
     profileId: params.profileId,
+    platform: params.platform ?? "all",
+    appVersion: params.appVersion,
+    appBuild: params.appBuild,
     status: params.status ?? "all",
     model: params.model,
     promptVersion: params.promptVersion,
@@ -404,6 +459,12 @@ function scanListParams(params: ScansSearchParams): QueryParams {
     sort: params.sort ?? "createdAt",
     direction: params.direction ?? "desc",
   };
+}
+
+function platformLabel(value: string | undefined) {
+  if (value === "ios") return "iOS";
+  if (value === "android") return "Android";
+  return "Unknown";
 }
 
 function toScanApiQuery(params: QueryParams) {

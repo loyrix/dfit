@@ -23,6 +23,34 @@ export type AdminOverview = {
     mealProfiles: number;
     meals: number;
   }>;
+  platforms?: Array<{
+    platform: "ios" | "android";
+    installs: number;
+    newInstallsToday: number;
+    activeInstallsToday: number;
+    activeInstalls24h: number;
+    activeInstalls7d: number;
+    scans: number;
+    aiRuns: number;
+    aiCostInr: number;
+  }>;
+  dailyPlatformActivity?: Array<{
+    date: string;
+    platform: "ios" | "android";
+    activeInstalls: number;
+    installs: number;
+    scans: number;
+    aiRuns: number;
+    aiCostInr: number;
+  }>;
+  appBuilds?: Array<{
+    platform: "ios" | "android";
+    appVersion: string;
+    appBuild: number;
+    installs: number;
+    activeInstalls7d: number;
+    lastSeenAt?: string;
+  }>;
 };
 
 export type PageInfo = {
@@ -56,6 +84,26 @@ export type AiCostData = {
     averageConfidence: number | null;
   };
   daily: Array<{ date: string; scans: number; costInr: number; averageCostInr: number }>;
+  platforms: Array<{
+    platform: "ios" | "android" | "unknown";
+    scans: number;
+    inputTokens: number;
+    outputTokens: number;
+    costInr: number;
+    averageCostInr: number;
+    scansPerTenInr: number;
+  }>;
+  appBuilds: Array<{
+    platform: "ios" | "android" | "unknown";
+    appVersion: string;
+    appBuild: number;
+    scans: number;
+    inputTokens: number;
+    outputTokens: number;
+    costInr: number;
+    averageCostInr: number;
+    scansPerTenInr: number;
+  }>;
   models: Array<{
     provider: string;
     model: string;
@@ -68,6 +116,9 @@ export type AiCostData = {
   }>;
   recentRuns: Array<{
     createdAt: string;
+    platform: "ios" | "android" | "unknown";
+    appVersion: string;
+    appBuild: number;
     provider: string;
     model: string;
     inputTokens: number;
@@ -109,6 +160,10 @@ export type AdminGrant = {
 export type AdminScan = {
   id: string;
   profileId?: string;
+  installId?: string;
+  platform?: string;
+  appVersion?: string;
+  appBuild?: number;
   profileEmail?: string;
   status: string;
   creditReason?: string;

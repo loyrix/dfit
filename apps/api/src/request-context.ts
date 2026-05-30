@@ -5,6 +5,8 @@ export type RequestIdentity = {
   installId?: string;
   sessionToken?: string;
   platform?: "ios" | "android";
+  appVersion?: string;
+  appBuild?: number;
   locale?: string;
   region?: string;
   timezone?: string;
@@ -23,7 +25,11 @@ export const currentRequestIdentity = (): RequestIdentity => identityStorage.get
 const readIdentity = (request: FastifyRequest): RequestIdentity => ({
   installId: cleanHeader(request.headers["x-logmyplate-install-id"], 128),
   sessionToken: cleanBearerToken(request.headers.authorization),
-  platform: cleanPlatform(request.headers["x-logmyplate-platform"]),
+  platform:
+    cleanPlatform(request.headers["x-logmyplate-platform"]) ??
+    cleanPlatform(request.headers["x-logmyplate-app-platform"]),
+  appVersion: cleanHeader(request.headers["x-logmyplate-app-version"], 32),
+  appBuild: cleanIntegerHeader(request.headers["x-logmyplate-app-build"]),
   locale: cleanHeader(request.headers["x-logmyplate-locale"], 32),
   region: cleanHeader(request.headers["x-logmyplate-region"], 16),
   timezone: cleanHeader(request.headers["x-logmyplate-timezone"], 64),
@@ -40,6 +46,13 @@ const cleanHeader = (value: unknown, maxLength: number): string | undefined => {
 const cleanPlatform = (value: unknown): RequestIdentity["platform"] => {
   const platform = cleanHeader(value, 16);
   return platform === "ios" || platform === "android" ? platform : undefined;
+};
+
+const cleanIntegerHeader = (value: unknown): number | undefined => {
+  const raw = cleanHeader(value, 16);
+  if (!raw || !/^\d+$/.test(raw)) return undefined;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
 };
 
 const cleanBearerToken = (value: unknown): string | undefined => {

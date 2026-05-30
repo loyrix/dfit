@@ -110,6 +110,10 @@ type DailyMealAggregateRow = {
 type ScanRow = {
   id: string;
   profile_id: string;
+  install_id: string | null;
+  platform: ScanSession["platform"] | null;
+  app_version: string | null;
+  app_build: number | null;
   status: ScanSession["status"];
   consumed_credit_reason: ScanSession["creditReason"] | null;
   user_hint: string | null;
@@ -185,6 +189,8 @@ const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
 });
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+type AppPlatform = NonNullable<ScanSession["platform"]>;
+type SqlExecutor = postgres.Sql | postgres.TransactionSql;
 
 const rewardedVerificationFromRow = (row: RewardedAdCallbackRow): RewardedAdServerVerification => {
   const rawQuery = row.raw_query ?? {};
@@ -202,6 +208,14 @@ const parseInteger = (value: string | undefined): number | undefined => {
   if (!value || !/^\d+$/.test(value)) return undefined;
   return Number(value);
 };
+
+const metricAppVersion = (value: string | null | undefined): string => {
+  const version = value?.trim();
+  return version ? version.slice(0, 32) : "unknown";
+};
+
+const metricAppBuild = (value: number | null | undefined): number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0;
 
 const healthTargetFromRow = (row: HealthTargetRow): ProfileHealthTarget => ({
   profileId: row.profile_id,
@@ -222,6 +236,132 @@ const healthTargetFromRow = (row: HealthTargetRow): ProfileHealthTarget => ({
 
 export class PostgresStore implements AppRepository {
   constructor(private readonly sql: SqlClient) {}
+
+  private async recordInstallPlatformActivity(
+    sql: SqlExecutor,
+    input: {
+      installId?: string;
+      platform?: AppPlatform | null;
+      appVersion?: string | null;
+      appBuild?: number | null;
+      isNewInstall?: boolean;
+    },
+  ): Promise<void> {
+    if (!input.installId || !input.platform) return;
+    const appVersion = metricAppVersion(input.appVersion);
+    const appBuild = metricAppBuild(input.appBuild);
+
+    await sql`
+      insert into platform_daily_active_installs (
+        local_date,
+        platform,
+        install_id,
+        app_version,
+        app_build
+      )
+      values (
+        (now() at time zone 'Asia/Kolkata')::date,
+        ${input.platform},
+        ${input.installId},
+        ${appVersion},
+        ${appBuild}
+      )
+      on conflict (local_date, platform, install_id) do update
+      set
+        app_version = excluded.app_version,
+        app_build = excluded.app_build,
+        last_seen_at = now()
+    `;
+
+    if (input.isNewInstall) {
+      await this.incrementPlatformDailyMetrics(sql, {
+        platform: input.platform,
+        appVersion,
+        appBuild,
+        installs: 1,
+      });
+    }
+  }
+
+  private async incrementPlatformDailyMetrics(
+    sql: SqlExecutor,
+    input: {
+      platform?: AppPlatform | null;
+      appVersion?: string | null;
+      appBuild?: number | null;
+      localDate?: string | null;
+      sourceTimestamp?: string | null;
+      installs?: number;
+      scansPrepared?: number;
+      scansReadyForReview?: number;
+      scansConfirmed?: number;
+      scansFailed?: number;
+      aiRuns?: number;
+      aiSuccess?: number;
+      aiFailed?: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      estimatedCostUsd?: number;
+    },
+  ): Promise<void> {
+    if (!input.platform) return;
+    await sql`
+      insert into platform_daily_metrics (
+        local_date,
+        platform,
+        app_version,
+        app_build,
+        installs,
+        scans_prepared,
+        scans_ready_for_review,
+        scans_confirmed,
+        scans_failed,
+        ai_runs,
+        ai_success,
+        ai_failed,
+        input_tokens,
+        output_tokens,
+        estimated_cost_usd
+      )
+      values (
+        coalesce(
+          ${input.localDate ?? null}::date,
+          (${input.sourceTimestamp ?? null}::timestamptz at time zone 'Asia/Kolkata')::date,
+          (now() at time zone 'Asia/Kolkata')::date
+        ),
+        ${input.platform},
+        ${metricAppVersion(input.appVersion)},
+        ${metricAppBuild(input.appBuild)},
+        ${input.installs ?? 0},
+        ${input.scansPrepared ?? 0},
+        ${input.scansReadyForReview ?? 0},
+        ${input.scansConfirmed ?? 0},
+        ${input.scansFailed ?? 0},
+        ${input.aiRuns ?? 0},
+        ${input.aiSuccess ?? 0},
+        ${input.aiFailed ?? 0},
+        ${input.inputTokens ?? 0},
+        ${input.outputTokens ?? 0},
+        ${input.estimatedCostUsd ?? 0}
+      )
+      on conflict (local_date, platform, app_version, app_build) do update
+      set
+        installs = platform_daily_metrics.installs + excluded.installs,
+        scans_prepared = platform_daily_metrics.scans_prepared + excluded.scans_prepared,
+        scans_ready_for_review =
+          platform_daily_metrics.scans_ready_for_review + excluded.scans_ready_for_review,
+        scans_confirmed = platform_daily_metrics.scans_confirmed + excluded.scans_confirmed,
+        scans_failed = platform_daily_metrics.scans_failed + excluded.scans_failed,
+        ai_runs = platform_daily_metrics.ai_runs + excluded.ai_runs,
+        ai_success = platform_daily_metrics.ai_success + excluded.ai_success,
+        ai_failed = platform_daily_metrics.ai_failed + excluded.ai_failed,
+        input_tokens = platform_daily_metrics.input_tokens + excluded.input_tokens,
+        output_tokens = platform_daily_metrics.output_tokens + excluded.output_tokens,
+        estimated_cost_usd =
+          platform_daily_metrics.estimated_cost_usd + excluded.estimated_cost_usd,
+        updated_at = now()
+    `;
+  }
 
   async getProfile(): Promise<Profile> {
     const identity = currentRequestIdentity();
@@ -1694,16 +1834,41 @@ export class PostgresStore implements AppRepository {
 
   async prepareScan(profileId?: string) {
     const profile = await this.getProfile();
+    const identity = currentRequestIdentity();
     const [scan] = await this.sql<ScanSession[]>`
-      insert into scan_sessions (profile_id, status)
-      values (${profileId ?? profile.id}, 'prepared')
+      insert into scan_sessions (
+        profile_id,
+        install_id,
+        platform,
+        app_version,
+        app_build,
+        status
+      )
+      values (
+        ${profileId ?? profile.id},
+        ${identity.installId ?? null},
+        ${identity.platform ?? null},
+        ${identity.appVersion ?? null},
+        ${identity.appBuild ?? null},
+        'prepared'
+      )
       returning
         id::text,
         profile_id::text as "profileId",
+        install_id as "installId",
+        platform,
+        app_version as "appVersion",
+        app_build as "appBuild",
         status,
         consumed_credit_reason as "creditReason",
         created_at::text as "createdAt"
     `;
+    await this.incrementPlatformDailyMetrics(this.sql, {
+      platform: identity.platform,
+      appVersion: identity.appVersion,
+      appBuild: identity.appBuild,
+      scansPrepared: 1,
+    });
     return scan;
   }
 
@@ -1713,6 +1878,10 @@ export class PostgresStore implements AppRepository {
       select
         scan_sessions.id::text,
         scan_sessions.profile_id::text,
+        scan_sessions.install_id,
+        scan_sessions.platform,
+        scan_sessions.app_version,
+        scan_sessions.app_build,
         scan_sessions.status,
         scan_sessions.consumed_credit_reason,
         scan_sessions.user_hint,
@@ -1745,10 +1914,41 @@ export class PostgresStore implements AppRepository {
 
   async updateScan(scan: ScanSession) {
     await this.sql.begin(async (tx) => {
+      const [existing] = await tx<
+        {
+          status: ScanSession["status"];
+          install_id: string | null;
+          platform: AppPlatform | null;
+          app_version: string | null;
+          app_build: number | null;
+          created_at: string;
+        }[]
+      >`
+        select
+          status,
+          install_id,
+          platform,
+          app_version,
+          app_build,
+          created_at::text
+        from scan_sessions
+        where id = ${scan.id}
+        for update
+      `;
+      if (!existing) return;
+
+      const scanPlatform = scan.platform ?? existing.platform;
+      const scanAppVersion = scan.appVersion ?? existing.app_version;
+      const scanAppBuild = scan.appBuild ?? existing.app_build;
+
       await tx`
         update scan_sessions
         set
           status = ${scan.status},
+          install_id = coalesce(${scan.installId ?? null}, install_id),
+          platform = coalesce(${scanPlatform ?? null}, platform),
+          app_version = coalesce(${scanAppVersion ?? null}, app_version),
+          app_build = coalesce(${scanAppBuild ?? null}, app_build),
           consumed_credit_reason = ${scan.creditReason ?? null},
           user_hint = coalesce(${scan.userHint ?? null}, user_hint),
           image_mime_type = coalesce(${scan.imageMimeType ?? null}, image_mime_type),
@@ -1785,6 +1985,11 @@ export class PostgresStore implements AppRepository {
           ? await tx<{ id: string | null }[]>`
               insert into ai_provider_runs (
                 scan_session_id,
+                install_id,
+                platform,
+                app_version,
+                app_build,
+                local_date,
                 provider,
                 model,
                 prompt_version,
@@ -1797,6 +2002,11 @@ export class PostgresStore implements AppRepository {
               )
               values (
                 ${scan.id},
+                ${scan.installId ?? existing.install_id},
+                ${scanPlatform ?? null},
+                ${scanAppVersion ?? null},
+                ${scanAppBuild ?? null},
+                (now() at time zone 'Asia/Kolkata')::date,
                 ${providerRun.provider},
                 ${providerRun.model},
                 ${providerRun.promptVersion},
@@ -1810,6 +2020,19 @@ export class PostgresStore implements AppRepository {
               returning id::text
             `
           : [{ id: null }];
+
+        if (providerRun) {
+          await this.incrementPlatformDailyMetrics(tx, {
+            platform: scanPlatform,
+            appVersion: scanAppVersion,
+            appBuild: scanAppBuild,
+            aiRuns: 1,
+            aiSuccess: 1,
+            inputTokens: providerRun.inputTokenEstimate ?? 0,
+            outputTokens: providerRun.outputTokenEstimate ?? 0,
+            estimatedCostUsd: providerRun.estimatedCostUsd ?? 0,
+          });
+        }
 
         const response = scan.analyzedResponse as {
           detectedLanguage?: string;
@@ -1874,6 +2097,18 @@ export class PostgresStore implements AppRepository {
             )
           `;
         }
+      }
+
+      if (existing.status !== scan.status) {
+        await this.incrementPlatformDailyMetrics(tx, {
+          platform: scanPlatform,
+          appVersion: scanAppVersion,
+          appBuild: scanAppBuild,
+          sourceTimestamp: existing.created_at,
+          scansReadyForReview: scan.status === "ready_for_review" ? 1 : 0,
+          scansConfirmed: scan.status === "confirmed" ? 1 : 0,
+          scansFailed: scan.status === "failed" ? 1 : 0,
+        });
       }
     });
   }
@@ -2259,32 +2494,67 @@ export class PostgresStore implements AppRepository {
     const identity = currentRequestIdentity();
     if (!identity.installId) return;
 
-    await this.sql`
-      insert into devices (
-        profile_id,
-        install_id,
-        platform,
-        locale,
-        region,
-        timezone
+    const [device] = await this.sql<
+      {
+        platform: AppPlatform;
+        app_version: string | null;
+        app_build: number | null;
+        is_new_install: boolean;
+      }[]
+    >`
+      with existing as (
+        select install_id
+        from devices
+        where install_id = ${identity.installId}
+      ),
+      upserted as (
+        insert into devices (
+          profile_id,
+          install_id,
+          platform,
+          locale,
+          region,
+          timezone,
+          app_version,
+          app_build
+        )
+        values (
+          ${profileId},
+          ${identity.installId},
+          ${identity.platform ?? "ios"},
+          ${identity.locale ?? null},
+          ${identity.region ?? null},
+          ${identity.timezone ?? null},
+          ${identity.appVersion ?? null},
+          ${identity.appBuild ?? null}
+        )
+        on conflict (install_id) do update
+        set
+          profile_id = excluded.profile_id,
+          platform = excluded.platform,
+          locale = excluded.locale,
+          region = excluded.region,
+          timezone = excluded.timezone,
+          app_version = coalesce(excluded.app_version, devices.app_version),
+          app_build = coalesce(excluded.app_build, devices.app_build),
+          last_seen_at = now()
+        returning platform, app_version, app_build
       )
-      values (
-        ${profileId},
-        ${identity.installId},
-        ${identity.platform ?? "ios"},
-        ${identity.locale ?? null},
-        ${identity.region ?? null},
-        ${identity.timezone ?? null}
-      )
-      on conflict (install_id) do update
-      set
-        profile_id = excluded.profile_id,
-        platform = excluded.platform,
-        locale = excluded.locale,
-        region = excluded.region,
-        timezone = excluded.timezone,
-        last_seen_at = now()
+      select
+        upserted.platform,
+        upserted.app_version,
+        upserted.app_build,
+        not exists (select 1 from existing) as is_new_install
+      from upserted
     `;
+
+    await this.recordInstallPlatformActivity(this.sql, {
+      installId: identity.installId,
+      platform: device?.platform,
+      appVersion: device?.app_version,
+      appBuild: device?.app_build,
+      isNewInstall: device?.is_new_install,
+    });
   }
 
   private async resetCurrentInstallToAnonymousProfile(): Promise<Profile | undefined> {
@@ -2315,7 +2585,9 @@ export class PostgresStore implements AppRepository {
           platform,
           locale,
           region,
-          timezone
+          timezone,
+          app_version,
+          app_build
         )
         values (
           ${profile.id},
@@ -2323,7 +2595,9 @@ export class PostgresStore implements AppRepository {
           ${identity.platform ?? "ios"},
           ${identity.locale ?? null},
           ${identity.region ?? null},
-          ${identity.timezone ?? null}
+          ${identity.timezone ?? null},
+          ${identity.appVersion ?? null},
+          ${identity.appBuild ?? null}
         )
         on conflict (install_id) do update
         set
@@ -2332,8 +2606,17 @@ export class PostgresStore implements AppRepository {
           locale = excluded.locale,
           region = excluded.region,
           timezone = excluded.timezone,
+          app_version = coalesce(excluded.app_version, devices.app_version),
+          app_build = coalesce(excluded.app_build, devices.app_build),
           last_seen_at = now()
       `;
+
+      await this.recordInstallPlatformActivity(tx, {
+        installId,
+        platform: identity.platform ?? "ios",
+        appVersion: identity.appVersion,
+        appBuild: identity.appBuild,
+      });
 
       await tx`
         insert into install_scan_credits (
@@ -2623,16 +2906,27 @@ export class PostgresStore implements AppRepository {
 
     const existing = await this.getProfileForInstall(installId);
     if (existing) {
-      await this.sql`
+      const [device] = await this.sql<
+        { platform: AppPlatform; app_version: string | null; app_build: number | null }[]
+      >`
         update devices
         set
           platform = coalesce(${identity.platform ?? null}, platform),
           locale = coalesce(${identity.locale ?? null}, locale),
           region = coalesce(${identity.region ?? null}, region),
           timezone = coalesce(${identity.timezone ?? null}, timezone),
+          app_version = coalesce(${identity.appVersion ?? null}, app_version),
+          app_build = coalesce(${identity.appBuild ?? null}, app_build),
           last_seen_at = now()
         where install_id = ${installId}
+        returning platform, app_version, app_build
       `;
+      await this.recordInstallPlatformActivity(this.sql, {
+        installId,
+        platform: device?.platform,
+        appVersion: device?.app_version,
+        appBuild: device?.app_build,
+      });
       if (existing.authMethod === "anonymous") return existing;
 
       const anonymousProfile = await this.resetCurrentInstallToAnonymousProfile();
@@ -2659,7 +2953,9 @@ export class PostgresStore implements AppRepository {
           platform,
           locale,
           region,
-          timezone
+          timezone,
+          app_version,
+          app_build
         )
         values (
           ${profile.id},
@@ -2667,7 +2963,9 @@ export class PostgresStore implements AppRepository {
           ${identity.platform ?? "ios"},
           ${identity.locale ?? null},
           ${identity.region ?? null},
-          ${identity.timezone ?? null}
+          ${identity.timezone ?? null},
+          ${identity.appVersion ?? null},
+          ${identity.appBuild ?? null}
         )
         on conflict (install_id) do nothing
         returning profile_id::text
@@ -2687,6 +2985,14 @@ export class PostgresStore implements AppRepository {
         `;
         return undefined;
       }
+
+      await this.recordInstallPlatformActivity(tx, {
+        installId,
+        platform: identity.platform ?? "ios",
+        appVersion: identity.appVersion,
+        appBuild: identity.appBuild,
+        isNewInstall: true,
+      });
 
       await tx`
         insert into install_scan_credits (
@@ -2724,6 +3030,10 @@ export class PostgresStore implements AppRepository {
     return {
       id: row.id,
       profileId: row.profile_id,
+      installId: row.install_id ?? undefined,
+      platform: row.platform ?? undefined,
+      appVersion: row.app_version ?? undefined,
+      appBuild: row.app_build ?? undefined,
       status: row.status,
       creditReason: row.consumed_credit_reason ?? undefined,
       analyzedResponse: row.analyzed_response ?? undefined,

@@ -58,6 +58,10 @@ export class AccountAuthError extends Error {
 export type ScanSession = {
   id: string;
   profileId: string;
+  installId?: string;
+  platform?: "ios" | "android";
+  appVersion?: string;
+  appBuild?: number;
   status: "prepared" | "analyzing" | "ready_for_review" | "confirmed" | "cancelled" | "failed";
   creditReason?: "free" | "rewarded" | "premium";
   analyzedResponse?: unknown;

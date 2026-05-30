@@ -18,6 +18,8 @@ type AiCostData = {
   pricingSource: string;
   overall: AiCostOverall;
   daily: DailyAiCost[];
+  platforms: PlatformAiCost[];
+  appBuilds: AppBuildAiCost[];
   models: ModelAiCost[];
   recentRuns: RecentAiRun[];
 };
@@ -46,6 +48,21 @@ type DailyAiCost = {
   averageCostInr: number;
 };
 
+type PlatformAiCost = {
+  platform: "ios" | "android" | "unknown";
+  scans: number;
+  inputTokens: number;
+  outputTokens: number;
+  costInr: number;
+  averageCostInr: number;
+  scansPerTenInr: number;
+};
+
+type AppBuildAiCost = PlatformAiCost & {
+  appVersion: string;
+  appBuild: number;
+};
+
 type ModelAiCost = {
   provider: string;
   model: string;
@@ -59,6 +76,9 @@ type ModelAiCost = {
 
 type RecentAiRun = {
   createdAt: string;
+  platform: "ios" | "android" | "unknown";
+  appVersion: string;
+  appBuild: number;
   provider: string;
   model: string;
   inputTokens: number;
@@ -93,8 +113,17 @@ type ModelRow = DailyRow & {
   model: string;
 };
 
+type PlatformAiCostRow = DailyRow & {
+  platform: string | null;
+  app_version?: string | null;
+  app_build?: number | string | null;
+};
+
 type RecentRunRow = {
   created_at: string;
+  platform: string | null;
+  app_version: string | null;
+  app_build: number | string | null;
   provider: string;
   model: string;
   input_tokens: number | string | null;
@@ -125,9 +154,9 @@ export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient)
       return reply.status(503).send({ error: "database_unavailable" });
     }
 
-    const query = request.query as { days?: string };
+    const query = aiCostQuerySchema.parse(request.query ?? {});
     const days = clampDays(query.days);
-    const data = await loadAiCostData(sql, days);
+    const data = await loadAiCostData(sql, days, query.platform);
     return reply.send(data);
   });
 
@@ -281,6 +310,12 @@ export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient)
 const uuidSchema = z.string().uuid();
 
 const directionSchema = z.enum(["asc", "desc"]).default("desc");
+const platformQuerySchema = z.enum(["all", "ios", "android"]).default("all");
+
+const aiCostQuerySchema = z.object({
+  days: z.string().optional(),
+  platform: platformQuerySchema,
+});
 
 const adminPaginationQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
@@ -311,6 +346,9 @@ const adminUserSearchQuerySchema = adminPaginationQuerySchema.extend({
 
 const adminScanQuerySchema = adminPaginationQuerySchema.extend({
   profileId: uuidSchema.optional(),
+  platform: platformQuerySchema,
+  appVersion: z.string().trim().max(32).optional(),
+  appBuild: z.coerce.number().int().min(0).optional(),
   status: z
     .enum(["prepared", "analyzing", "ready_for_review", "confirmed", "cancelled", "failed"])
     .optional(),
@@ -328,7 +366,16 @@ const adminScanQuerySchema = adminPaginationQuerySchema.extend({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   sort: z
-    .enum(["createdAt", "updatedAt", "status", "model", "latencyMs", "confidence"])
+    .enum([
+      "createdAt",
+      "updatedAt",
+      "platform",
+      "appVersion",
+      "status",
+      "model",
+      "latencyMs",
+      "confidence",
+    ])
     .default("createdAt"),
 });
 
@@ -506,6 +553,37 @@ type AdminDailyActivityRow = {
   meals: number | string;
 };
 
+type AdminPlatformOverviewRow = {
+  platform: "ios" | "android";
+  installs: number | string;
+  new_installs_today: number | string;
+  active_installs_today: number | string;
+  active_installs_24h: number | string;
+  active_installs_7d: number | string;
+  scans: number | string;
+  ai_runs: number | string;
+  ai_cost_usd: number | string | null;
+};
+
+type AdminDailyPlatformActivityRow = {
+  local_date: string;
+  platform: "ios" | "android";
+  active_installs: number | string;
+  installs: number | string;
+  scans: number | string;
+  ai_runs: number | string;
+  ai_cost_usd: number | string | null;
+};
+
+type AdminAppBuildOverviewRow = {
+  platform: "ios" | "android";
+  app_version: string;
+  app_build: number | string;
+  installs: number | string;
+  active_installs_7d: number | string;
+  last_seen_at: string | null;
+};
+
 const loadAdminOverview = async (sql: SqlClient) => {
   const [row] = await sql<AdminOverviewRow[]>`
     select
@@ -515,26 +593,26 @@ const loadAdminOverview = async (sql: SqlClient) => {
       (select count(*) from scan_sessions where status = 'failed')::int as failed_scans,
       (select count(*) from meals)::int as meals,
       (select count(*) from app_notices where active)::int as active_notices,
-      (select count(*) from install_scan_credits)::int as installs,
+      (select count(*) from devices)::int as installs,
       (
         select count(*)
-        from install_scan_credits
+        from devices
         where (first_seen_at at time zone 'Asia/Kolkata')::date =
           (now() at time zone 'Asia/Kolkata')::date
       )::int as new_installs_today,
       (
         select count(*)
-        from install_scan_credits
+        from devices
         where last_seen_at >= now() - interval '24 hours'
       )::int as active_installs_24h,
       (
         select count(*)
-        from install_scan_credits
+        from devices
         where last_seen_at >= now() - interval '7 days'
       )::int as active_installs_7d,
       (
         select count(*)
-        from install_scan_credits
+        from devices
         where last_seen_at < now() - interval '30 days'
       )::int as inactive_installs_30d,
       (
@@ -585,6 +663,115 @@ const loadAdminOverview = async (sql: SqlClient) => {
     order by days.local_date desc
   `;
 
+  const platformRows = await sql<AdminPlatformOverviewRow[]>`
+    with platforms(platform) as (
+      values ('ios'::text), ('android'::text)
+    ),
+    metric_rollup as (
+      select
+        platform,
+        coalesce(sum(scans_prepared), 0)::int as scans,
+        coalesce(sum(ai_runs), 0)::int as ai_runs,
+        coalesce(sum(estimated_cost_usd), 0)::numeric as ai_cost_usd
+      from platform_daily_metrics
+      where local_date >= (now() at time zone 'Asia/Kolkata')::date - 29
+      group by platform
+    ),
+    active_today as (
+      select platform, count(distinct install_id)::int as active_installs_today
+      from platform_daily_active_installs
+      where local_date = (now() at time zone 'Asia/Kolkata')::date
+      group by platform
+    )
+    select
+      platforms.platform,
+      count(devices.install_id)::int as installs,
+      count(devices.install_id) filter (
+        where (devices.first_seen_at at time zone 'Asia/Kolkata')::date =
+          (now() at time zone 'Asia/Kolkata')::date
+      )::int as new_installs_today,
+      coalesce(active_today.active_installs_today, 0)::int as active_installs_today,
+      count(devices.install_id) filter (
+        where devices.last_seen_at >= now() - interval '24 hours'
+      )::int as active_installs_24h,
+      count(devices.install_id) filter (
+        where devices.last_seen_at >= now() - interval '7 days'
+      )::int as active_installs_7d,
+      coalesce(metric_rollup.scans, 0)::int as scans,
+      coalesce(metric_rollup.ai_runs, 0)::int as ai_runs,
+      coalesce(metric_rollup.ai_cost_usd, 0)::numeric as ai_cost_usd
+    from platforms
+    left join devices on devices.platform = platforms.platform
+    left join metric_rollup on metric_rollup.platform = platforms.platform
+    left join active_today on active_today.platform = platforms.platform
+    group by
+      platforms.platform,
+      active_today.active_installs_today,
+      metric_rollup.scans,
+      metric_rollup.ai_runs,
+      metric_rollup.ai_cost_usd
+    order by platforms.platform
+  `;
+
+  const dailyPlatformActivity = await sql<AdminDailyPlatformActivityRow[]>`
+    with days as (
+      select (now() at time zone 'Asia/Kolkata')::date - offsets.day as local_date
+      from generate_series(0, 13) as offsets(day)
+    ),
+    platforms(platform) as (
+      values ('ios'::text), ('android'::text)
+    ),
+    metric_rollup as (
+      select
+        local_date,
+        platform,
+        coalesce(sum(installs), 0)::int as installs,
+        coalesce(sum(scans_prepared), 0)::int as scans,
+        coalesce(sum(ai_runs), 0)::int as ai_runs,
+        coalesce(sum(estimated_cost_usd), 0)::numeric as ai_cost_usd
+      from platform_daily_metrics
+      where local_date >= (now() at time zone 'Asia/Kolkata')::date - 13
+      group by local_date, platform
+    ),
+    active_rollup as (
+      select local_date, platform, count(distinct install_id)::int as active_installs
+      from platform_daily_active_installs
+      where local_date >= (now() at time zone 'Asia/Kolkata')::date - 13
+      group by local_date, platform
+    )
+    select
+      days.local_date::text,
+      platforms.platform,
+      coalesce(active_rollup.active_installs, 0)::int as active_installs,
+      coalesce(metric_rollup.installs, 0)::int as installs,
+      coalesce(metric_rollup.scans, 0)::int as scans,
+      coalesce(metric_rollup.ai_runs, 0)::int as ai_runs,
+      coalesce(metric_rollup.ai_cost_usd, 0)::numeric as ai_cost_usd
+    from days
+    cross join platforms
+    left join metric_rollup
+      on metric_rollup.local_date = days.local_date
+      and metric_rollup.platform = platforms.platform
+    left join active_rollup
+      on active_rollup.local_date = days.local_date
+      and active_rollup.platform = platforms.platform
+    order by days.local_date desc, platforms.platform
+  `;
+
+  const appBuildRows = await sql<AdminAppBuildOverviewRow[]>`
+    select
+      platform,
+      coalesce(nullif(app_version, ''), 'unknown') as app_version,
+      coalesce(app_build, 0)::int as app_build,
+      count(*)::int as installs,
+      count(*) filter (where last_seen_at >= now() - interval '7 days')::int as active_installs_7d,
+      max(last_seen_at)::text as last_seen_at
+    from devices
+    group by platform, coalesce(nullif(app_version, ''), 'unknown'), coalesce(app_build, 0)
+    order by active_installs_7d desc, installs desc, last_seen_at desc nulls last
+    limit 20
+  `;
+
   return {
     profiles: numberValue(row?.profiles),
     accountProfiles: numberValue(row?.account_profiles),
@@ -605,6 +792,34 @@ const loadAdminOverview = async (sql: SqlClient) => {
       scans: numberValue(day.scans),
       mealProfiles: numberValue(day.meal_profiles),
       meals: numberValue(day.meals),
+    })),
+    platforms: platformRows.map((platform) => ({
+      platform: platform.platform,
+      installs: numberValue(platform.installs),
+      newInstallsToday: numberValue(platform.new_installs_today),
+      activeInstallsToday: numberValue(platform.active_installs_today),
+      activeInstalls24h: numberValue(platform.active_installs_24h),
+      activeInstalls7d: numberValue(platform.active_installs_7d),
+      scans: numberValue(platform.scans),
+      aiRuns: numberValue(platform.ai_runs),
+      aiCostInr: numberValue(platform.ai_cost_usd) * usdToInr,
+    })),
+    dailyPlatformActivity: dailyPlatformActivity.map((day) => ({
+      date: day.local_date,
+      platform: day.platform,
+      activeInstalls: numberValue(day.active_installs),
+      installs: numberValue(day.installs),
+      scans: numberValue(day.scans),
+      aiRuns: numberValue(day.ai_runs),
+      aiCostInr: numberValue(day.ai_cost_usd) * usdToInr,
+    })),
+    appBuilds: appBuildRows.map((build) => ({
+      platform: build.platform,
+      appVersion: build.app_version,
+      appBuild: numberValue(build.app_build),
+      installs: numberValue(build.installs),
+      activeInstalls7d: numberValue(build.active_installs_7d),
+      lastSeenAt: build.last_seen_at ?? undefined,
     })),
   };
 };
@@ -996,6 +1211,10 @@ const mapProfileLifecycleSnapshot = (row: AdminProfileLifecycleRow) => ({
 type AdminScanRow = {
   id: string;
   profile_id: string | null;
+  install_id: string | null;
+  platform: string | null;
+  app_version: string | null;
+  app_build: number | string | null;
   profile_email: string | null;
   status: string;
   consumed_credit_reason: string | null;
@@ -1029,6 +1248,9 @@ const listAdminScans = async (
 ) => {
   const profileId = "profileId" in query ? query.profileId : undefined;
   const status = "status" in query ? query.status : undefined;
+  const platform = "platform" in query ? query.platform : "all";
+  const appVersion = "appVersion" in query ? (query.appVersion?.trim() ?? "") : "";
+  const appBuild = "appBuild" in query ? query.appBuild : undefined;
   const normalized = "query" in query ? (query.query?.trim() ?? "") : "";
   const pattern = `%${normalized}%`;
   const model = "model" in query ? (query.model?.trim() ?? "") : "";
@@ -1045,6 +1267,10 @@ const listAdminScans = async (
       select
         scan_sessions.id::text,
         scan_sessions.profile_id::text,
+        scan_sessions.install_id,
+        scan_sessions.platform,
+        scan_sessions.app_version,
+        scan_sessions.app_build,
         profiles.email as profile_email,
         scan_sessions.status::text,
         scan_sessions.consumed_credit_reason,
@@ -1086,10 +1312,14 @@ const listAdminScans = async (
     from scan_rollup
     where (${profileId ?? null}::uuid is null or profile_id = ${profileId ?? null})
       and (${status ?? null}::text is null or status = ${status ?? null})
+      and (${platform} = 'all' or platform = ${platform})
+      and (${appVersion} = '' or app_version = ${appVersion})
+      and (${appBuild ?? null}::int is null or app_build = ${appBuild ?? null})
       and (
         ${normalized} = ''
         or id = ${normalized}
         or profile_id = ${normalized}
+        or install_id = ${normalized}
         or profile_email ilike ${pattern}
         or user_hint ilike ${pattern}
         or meal_title ilike ${pattern}
@@ -1114,6 +1344,10 @@ const listAdminScans = async (
       case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at end desc nulls last,
       case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at end asc nulls last,
       case when ${sort} = 'updatedAt' and ${direction} = 'desc' then updated_at end desc nulls last,
+      case when ${sort} = 'platform' and ${direction} = 'asc' then platform end asc nulls last,
+      case when ${sort} = 'platform' and ${direction} = 'desc' then platform end desc nulls last,
+      case when ${sort} = 'appVersion' and ${direction} = 'asc' then app_version end asc nulls last,
+      case when ${sort} = 'appVersion' and ${direction} = 'desc' then app_version end desc nulls last,
       case when ${sort} = 'status' and ${direction} = 'asc' then status end asc nulls last,
       case when ${sort} = 'status' and ${direction} = 'desc' then status end desc nulls last,
       case when ${sort} = 'model' and ${direction} = 'asc' then model end asc nulls last,
@@ -1139,6 +1373,10 @@ const loadAdminScan = async (sql: SqlClient, scanId: string) => {
     select
       scan_sessions.id::text,
       scan_sessions.profile_id::text,
+      scan_sessions.install_id,
+      scan_sessions.platform,
+      scan_sessions.app_version,
+      scan_sessions.app_build,
       profiles.email as profile_email,
       scan_sessions.status::text,
       scan_sessions.consumed_credit_reason,
@@ -1191,6 +1429,10 @@ const loadAdminScan = async (sql: SqlClient, scanId: string) => {
 const mapAdminScanRow = (row: AdminScanRow) => ({
   id: row.id,
   profileId: row.profile_id ?? undefined,
+  installId: row.install_id ?? undefined,
+  platform: row.platform ?? undefined,
+  appVersion: row.app_version ?? undefined,
+  appBuild: nullableNumberValue(row.app_build) ?? undefined,
   profileEmail: row.profile_email ?? undefined,
   status: row.status,
   creditReason: row.consumed_credit_reason ?? undefined,
@@ -1970,11 +2212,16 @@ const clampDays = (value: string | undefined): number => {
   return Math.max(1, Math.min(366, Math.floor(parsed)));
 };
 
-const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData> => {
+const loadAiCostData = async (
+  sql: SqlClient,
+  days: number,
+  platformFilter: z.infer<typeof platformQuerySchema> = "all",
+): Promise<AiCostData> => {
   const [overall] = await sql<OverallRow[]>`
     with priced_runs as (
       select
         run.*,
+        coalesce(run.platform, scan_sessions.platform) as resolved_platform,
         coalesce(prediction.total_confidence, null) as confidence,
         coalesce(
           run.estimated_cost_usd,
@@ -1984,6 +2231,7 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
           ) / 1000000.0
         ) as calculated_cost_usd
       from ai_provider_runs run
+      left join scan_sessions on scan_sessions.id = run.scan_session_id
       left join lateral (
         select total_confidence
         from ai_predictions
@@ -1992,6 +2240,10 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
         limit 1
       ) prediction on true
       where run.created_at >= now() - (${days}::int * interval '1 day')
+        and (
+          ${platformFilter} = 'all'
+          or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+        )
     )
     select
       count(*)::int as scans,
@@ -2008,18 +2260,23 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
   const dailyRows = await sql<DailyRow[]>`
     with priced_runs as (
       select
-        date_trunc('day', created_at)::date as date,
-        input_token_estimate,
-        output_token_estimate,
+        (run.created_at at time zone 'Asia/Kolkata')::date as date,
+        run.input_token_estimate,
+        run.output_token_estimate,
         coalesce(
-          estimated_cost_usd,
+          run.estimated_cost_usd,
           (
-            coalesce(input_token_estimate, 0) * ${inputRateSql(sql)} +
-            coalesce(output_token_estimate, 0) * ${outputRateSql(sql)}
+            coalesce(run.input_token_estimate, 0) * ${inputRateSql(sql)} +
+            coalesce(run.output_token_estimate, 0) * ${outputRateSql(sql)}
           ) / 1000000.0
         ) as calculated_cost_usd
-      from ai_provider_runs
-      where created_at >= now() - (${days}::int * interval '1 day')
+      from ai_provider_runs run
+      left join scan_sessions on scan_sessions.id = run.scan_session_id
+      where run.created_at >= now() - (${days}::int * interval '1 day')
+        and (
+          ${platformFilter} = 'all'
+          or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+        )
     )
     select
       date::text,
@@ -2035,19 +2292,24 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
   const modelRows = await sql<ModelRow[]>`
     with priced_runs as (
       select
-        provider,
-        model,
-        input_token_estimate,
-        output_token_estimate,
+        run.provider,
+        run.model,
+        run.input_token_estimate,
+        run.output_token_estimate,
         coalesce(
-          estimated_cost_usd,
+          run.estimated_cost_usd,
           (
-            coalesce(input_token_estimate, 0) * ${inputRateSql(sql)} +
-            coalesce(output_token_estimate, 0) * ${outputRateSql(sql)}
+            coalesce(run.input_token_estimate, 0) * ${inputRateSql(sql)} +
+            coalesce(run.output_token_estimate, 0) * ${outputRateSql(sql)}
           ) / 1000000.0
         ) as calculated_cost_usd
-      from ai_provider_runs
-      where created_at >= now() - (${days}::int * interval '1 day')
+      from ai_provider_runs run
+      left join scan_sessions on scan_sessions.id = run.scan_session_id
+      where run.created_at >= now() - (${days}::int * interval '1 day')
+        and (
+          ${platformFilter} = 'all'
+          or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+        )
     )
     select
       provider,
@@ -2062,9 +2324,85 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
     order by cost_usd desc
   `;
 
+  const platformRows = await sql<PlatformAiCostRow[]>`
+    with priced_runs as (
+      select
+        coalesce(run.platform, scan_sessions.platform, 'unknown') as platform,
+        run.input_token_estimate,
+        run.output_token_estimate,
+        coalesce(
+          run.estimated_cost_usd,
+          (
+            coalesce(run.input_token_estimate, 0) * ${inputRateSql(sql)} +
+            coalesce(run.output_token_estimate, 0) * ${outputRateSql(sql)}
+          ) / 1000000.0
+        ) as calculated_cost_usd
+      from ai_provider_runs run
+      left join scan_sessions on scan_sessions.id = run.scan_session_id
+      where run.created_at >= now() - (${days}::int * interval '1 day')
+        and (
+          ${platformFilter} = 'all'
+          or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+        )
+    )
+    select
+      platform,
+      count(*)::int as scans,
+      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+      coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
+      coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd,
+      current_date::text as date
+    from priced_runs
+    group by platform
+    order by cost_usd desc
+  `;
+
+  const appBuildRows = await sql<PlatformAiCostRow[]>`
+    with priced_runs as (
+      select
+        coalesce(run.platform, scan_sessions.platform, 'unknown') as platform,
+        coalesce(nullif(run.app_version, ''), nullif(scan_sessions.app_version, ''), 'unknown')
+          as app_version,
+        coalesce(run.app_build, scan_sessions.app_build, 0) as app_build,
+        run.input_token_estimate,
+        run.output_token_estimate,
+        coalesce(
+          run.estimated_cost_usd,
+          (
+            coalesce(run.input_token_estimate, 0) * ${inputRateSql(sql)} +
+            coalesce(run.output_token_estimate, 0) * ${outputRateSql(sql)}
+          ) / 1000000.0
+        ) as calculated_cost_usd
+      from ai_provider_runs run
+      left join scan_sessions on scan_sessions.id = run.scan_session_id
+      where run.created_at >= now() - (${days}::int * interval '1 day')
+        and (
+          ${platformFilter} = 'all'
+          or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+        )
+    )
+    select
+      platform,
+      app_version,
+      app_build,
+      count(*)::int as scans,
+      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+      coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
+      coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd,
+      current_date::text as date
+    from priced_runs
+    group by platform, app_version, app_build
+    order by cost_usd desc, scans desc
+    limit 20
+  `;
+
   const recentRows = await sql<RecentRunRow[]>`
     select
       run.created_at::text,
+      coalesce(run.platform, scan_sessions.platform, 'unknown') as platform,
+      coalesce(nullif(run.app_version, ''), nullif(scan_sessions.app_version, ''), 'unknown')
+        as app_version,
+      coalesce(run.app_build, scan_sessions.app_build, 0)::int as app_build,
       run.provider,
       run.model,
       coalesce(run.input_token_estimate, 0)::bigint as input_tokens,
@@ -2080,6 +2418,7 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
       prediction.total_confidence as confidence,
       run.success
     from ai_provider_runs run
+    left join scan_sessions on scan_sessions.id = run.scan_session_id
     left join lateral (
       select total_confidence
       from ai_predictions
@@ -2087,6 +2426,10 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
       order by ai_predictions.created_at desc
       limit 1
     ) prediction on true
+    where (
+      ${platformFilter} = 'all'
+      or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+    )
     order by run.created_at desc
     limit 20
   `;
@@ -2101,6 +2444,8 @@ const loadAiCostData = async (sql: SqlClient, days: number): Promise<AiCostData>
       "Gemini token pricing catalog in API route, falling back to stored estimated_cost_usd when present.",
     overall: mappedOverall,
     daily: dailyRows.map(mapDailyRow),
+    platforms: platformRows.map(mapPlatformAiCostRow),
+    appBuilds: appBuildRows.map(mapAppBuildAiCostRow),
     models: modelRows.map(mapModelRow),
     recentRuns: recentRows.map(mapRecentRunRow),
   };
@@ -2161,6 +2506,28 @@ const mapDailyRow = (row: DailyRow): DailyAiCost => {
   };
 };
 
+const mapPlatformAiCostRow = (row: PlatformAiCostRow): PlatformAiCost => {
+  const scans = numberValue(row.scans);
+  const costInr = numberValue(row.cost_usd) * usdToInr;
+  const averageCostInr = scans === 0 ? 0 : costInr / scans;
+  const platform = row.platform === "ios" || row.platform === "android" ? row.platform : "unknown";
+  return {
+    platform,
+    scans,
+    inputTokens: numberValue(row.input_tokens),
+    outputTokens: numberValue(row.output_tokens),
+    costInr,
+    averageCostInr,
+    scansPerTenInr: averageCostInr === 0 ? 0 : 10 / averageCostInr,
+  };
+};
+
+const mapAppBuildAiCostRow = (row: PlatformAiCostRow): AppBuildAiCost => ({
+  ...mapPlatformAiCostRow(row),
+  appVersion: row.app_version ?? "unknown",
+  appBuild: numberValue(row.app_build),
+});
+
 const mapModelRow = (row: ModelRow): ModelAiCost => {
   const scans = numberValue(row.scans);
   const costInr = numberValue(row.cost_usd) * usdToInr;
@@ -2179,6 +2546,9 @@ const mapModelRow = (row: ModelRow): ModelAiCost => {
 
 const mapRecentRunRow = (row: RecentRunRow): RecentAiRun => ({
   createdAt: row.created_at,
+  platform: row.platform === "ios" || row.platform === "android" ? row.platform : "unknown",
+  appVersion: row.app_version ?? "unknown",
+  appBuild: numberValue(row.app_build),
   provider: row.provider,
   model: row.model,
   inputTokens: numberValue(row.input_tokens),

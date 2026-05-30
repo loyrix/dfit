@@ -343,7 +343,9 @@ describe("LogMyPlate API", () => {
       url: "/v1/journal/today",
       headers: {
         "x-logmyplate-install-id": "install-test",
-        "x-logmyplate-platform": "ios",
+        "x-logmyplate-app-platform": "ios",
+        "x-logmyplate-app-version": "1.0.0",
+        "x-logmyplate-app-build": "7",
         "x-logmyplate-locale": "en-IN",
       },
     });
@@ -352,6 +354,8 @@ describe("LogMyPlate API", () => {
     expect(seenIdentity).toMatchObject({
       installId: "install-test",
       platform: "ios",
+      appVersion: "1.0.0",
+      appBuild: 7,
       locale: "en-IN",
     });
     await app.close();
