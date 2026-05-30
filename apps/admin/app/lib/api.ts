@@ -70,7 +70,9 @@ export type AiCostData = {
   days: number;
   usdToInr: number;
   overall: {
+    runs: number;
     scans: number;
+    successfulRuns: number;
     successfulScans: number;
     failedRuns: number;
     inputTokens: number;
@@ -78,40 +80,58 @@ export type AiCostData = {
     totalTokens: number;
     costUsd: number;
     costInr: number;
+    averageRunCostInr: number;
     averageCostInr: number;
+    runsPerTenInr: number;
     scansPerTenInr: number;
     averageLatencyMs: number | null;
     averageConfidence: number | null;
   };
-  daily: Array<{ date: string; scans: number; costInr: number; averageCostInr: number }>;
+  daily: Array<{
+    date: string;
+    runs: number;
+    scans: number;
+    costInr: number;
+    averageRunCostInr: number;
+    averageCostInr: number;
+  }>;
   platforms: Array<{
     platform: "ios" | "android" | "unknown";
+    runs: number;
     scans: number;
     inputTokens: number;
     outputTokens: number;
     costInr: number;
+    averageRunCostInr: number;
     averageCostInr: number;
+    runsPerTenInr: number;
     scansPerTenInr: number;
   }>;
   appBuilds: Array<{
     platform: "ios" | "android" | "unknown";
     appVersion: string;
     appBuild: number;
+    runs: number;
     scans: number;
     inputTokens: number;
     outputTokens: number;
     costInr: number;
+    averageRunCostInr: number;
     averageCostInr: number;
+    runsPerTenInr: number;
     scansPerTenInr: number;
   }>;
   models: Array<{
     provider: string;
     model: string;
+    runs: number;
     scans: number;
     inputTokens: number;
     outputTokens: number;
     costInr: number;
+    averageRunCostInr: number;
     averageCostInr: number;
+    runsPerTenInr: number;
     scansPerTenInr: number;
   }>;
   recentRuns: Array<{

@@ -27,7 +27,9 @@ type AiCostData = {
 };
 
 type AiCostOverall = {
+  runs: number;
   scans: number;
+  successfulRuns: number;
   successfulScans: number;
   failedRuns: number;
   inputTokens: number;
@@ -35,7 +37,9 @@ type AiCostOverall = {
   totalTokens: number;
   costUsd: number;
   costInr: number;
+  averageRunCostInr: number;
   averageCostInr: number;
+  runsPerTenInr: number;
   scansPerTenInr: number;
   averageLatencyMs: number | null;
   averageConfidence: number | null;
@@ -43,20 +47,25 @@ type AiCostOverall = {
 
 type DailyAiCost = {
   date: string;
+  runs: number;
   scans: number;
   inputTokens: number;
   outputTokens: number;
   costInr: number;
+  averageRunCostInr: number;
   averageCostInr: number;
 };
 
 type PlatformAiCost = {
   platform: "ios" | "android" | "unknown";
+  runs: number;
   scans: number;
   inputTokens: number;
   outputTokens: number;
   costInr: number;
+  averageRunCostInr: number;
   averageCostInr: number;
+  runsPerTenInr: number;
   scansPerTenInr: number;
 };
 
@@ -68,11 +77,14 @@ type AppBuildAiCost = PlatformAiCost & {
 type ModelAiCost = {
   provider: string;
   model: string;
+  runs: number;
   scans: number;
   inputTokens: number;
   outputTokens: number;
   costInr: number;
+  averageRunCostInr: number;
   averageCostInr: number;
+  runsPerTenInr: number;
   scansPerTenInr: number;
 };
 
@@ -92,7 +104,9 @@ type RecentAiRun = {
 };
 
 type OverallRow = {
+  runs: number | string | null;
   scans: number | string | null;
+  successful_runs: number | string | null;
   successful_scans: number | string | null;
   failed_runs: number | string | null;
   input_tokens: number | string | null;
@@ -104,6 +118,7 @@ type OverallRow = {
 
 type DailyRow = {
   date: string;
+  runs: number | string | null;
   scans: number | string | null;
   input_tokens: number | string | null;
   output_tokens: number | string | null;
@@ -673,14 +688,28 @@ const loadAdminOverview = async (sql: SqlClient) => {
     with platforms(platform) as (
       values ('ios'::text), ('android'::text)
     ),
-    metric_rollup as (
+    scan_rollup as (
       select
         platform,
-        coalesce(sum(scans_prepared), 0)::int as scans,
-        coalesce(sum(ai_runs), 0)::int as ai_runs,
-        coalesce(sum(estimated_cost_usd), 0)::numeric as ai_cost_usd
-      from platform_daily_metrics
-      where local_date >= (now() at time zone 'Asia/Kolkata')::date - 29
+        count(*)::int as scans
+      from scan_sessions
+      where created_at >= now() - interval '30 days'
+      group by platform
+    ),
+    ai_rollup as (
+      select
+        coalesce(ai_provider_runs.platform, scan_sessions.platform) as platform,
+        count(*)::int as ai_runs,
+        coalesce(sum(coalesce(
+          ai_provider_runs.estimated_cost_usd,
+          (
+            coalesce(ai_provider_runs.input_token_estimate, 0) * ${inputRateSql(sql)} +
+            coalesce(ai_provider_runs.output_token_estimate, 0) * ${outputRateSql(sql)}
+          ) / 1000000.0
+        )), 0)::numeric as ai_cost_usd
+      from ai_provider_runs
+      left join scan_sessions on scan_sessions.id = ai_provider_runs.scan_session_id
+      where ai_provider_runs.created_at >= now() - interval '30 days'
       group by platform
     ),
     active_today as (
@@ -703,19 +732,20 @@ const loadAdminOverview = async (sql: SqlClient) => {
       count(devices.install_id) filter (
         where devices.last_seen_at >= now() - interval '7 days'
       )::int as active_installs_7d,
-      coalesce(metric_rollup.scans, 0)::int as scans,
-      coalesce(metric_rollup.ai_runs, 0)::int as ai_runs,
-      coalesce(metric_rollup.ai_cost_usd, 0)::numeric as ai_cost_usd
+      coalesce(scan_rollup.scans, 0)::int as scans,
+      coalesce(ai_rollup.ai_runs, 0)::int as ai_runs,
+      coalesce(ai_rollup.ai_cost_usd, 0)::numeric as ai_cost_usd
     from platforms
     left join devices on devices.platform = platforms.platform
-    left join metric_rollup on metric_rollup.platform = platforms.platform
+    left join scan_rollup on scan_rollup.platform = platforms.platform
+    left join ai_rollup on ai_rollup.platform = platforms.platform
     left join active_today on active_today.platform = platforms.platform
     group by
       platforms.platform,
       active_today.active_installs_today,
-      metric_rollup.scans,
-      metric_rollup.ai_runs,
-      metric_rollup.ai_cost_usd
+      scan_rollup.scans,
+      ai_rollup.ai_runs,
+      ai_rollup.ai_cost_usd
     order by platforms.platform
   `;
 
@@ -727,17 +757,43 @@ const loadAdminOverview = async (sql: SqlClient) => {
     platforms(platform) as (
       values ('ios'::text), ('android'::text)
     ),
-    metric_rollup as (
+    install_rollup as (
       select
-        local_date,
+        (first_seen_at at time zone 'Asia/Kolkata')::date as local_date,
         platform,
-        coalesce(sum(installs), 0)::int as installs,
-        coalesce(sum(scans_prepared), 0)::int as scans,
-        coalesce(sum(ai_runs), 0)::int as ai_runs,
-        coalesce(sum(estimated_cost_usd), 0)::numeric as ai_cost_usd
-      from platform_daily_metrics
-      where local_date >= (now() at time zone 'Asia/Kolkata')::date - 13
-      group by local_date, platform
+        count(*)::int as installs
+      from devices
+      where (first_seen_at at time zone 'Asia/Kolkata')::date >=
+        (now() at time zone 'Asia/Kolkata')::date - 13
+      group by (first_seen_at at time zone 'Asia/Kolkata')::date, platform
+    ),
+    scan_rollup as (
+      select
+        (created_at at time zone 'Asia/Kolkata')::date as local_date,
+        platform,
+        count(*)::int as scans
+      from scan_sessions
+      where created_at >= now() - interval '15 days'
+      group by (created_at at time zone 'Asia/Kolkata')::date, platform
+    ),
+    ai_rollup as (
+      select
+        (ai_provider_runs.created_at at time zone 'Asia/Kolkata')::date as local_date,
+        coalesce(ai_provider_runs.platform, scan_sessions.platform) as platform,
+        count(*)::int as ai_runs,
+        coalesce(sum(coalesce(
+          ai_provider_runs.estimated_cost_usd,
+          (
+            coalesce(ai_provider_runs.input_token_estimate, 0) * ${inputRateSql(sql)} +
+            coalesce(ai_provider_runs.output_token_estimate, 0) * ${outputRateSql(sql)}
+          ) / 1000000.0
+        )), 0)::numeric as ai_cost_usd
+      from ai_provider_runs
+      left join scan_sessions on scan_sessions.id = ai_provider_runs.scan_session_id
+      where ai_provider_runs.created_at >= now() - interval '15 days'
+      group by
+        (ai_provider_runs.created_at at time zone 'Asia/Kolkata')::date,
+        coalesce(ai_provider_runs.platform, scan_sessions.platform)
     ),
     active_rollup as (
       select local_date, platform, count(distinct install_id)::int as active_installs
@@ -749,15 +805,21 @@ const loadAdminOverview = async (sql: SqlClient) => {
       days.local_date::text,
       platforms.platform,
       coalesce(active_rollup.active_installs, 0)::int as active_installs,
-      coalesce(metric_rollup.installs, 0)::int as installs,
-      coalesce(metric_rollup.scans, 0)::int as scans,
-      coalesce(metric_rollup.ai_runs, 0)::int as ai_runs,
-      coalesce(metric_rollup.ai_cost_usd, 0)::numeric as ai_cost_usd
+      coalesce(install_rollup.installs, 0)::int as installs,
+      coalesce(scan_rollup.scans, 0)::int as scans,
+      coalesce(ai_rollup.ai_runs, 0)::int as ai_runs,
+      coalesce(ai_rollup.ai_cost_usd, 0)::numeric as ai_cost_usd
     from days
     cross join platforms
-    left join metric_rollup
-      on metric_rollup.local_date = days.local_date
-      and metric_rollup.platform = platforms.platform
+    left join install_rollup
+      on install_rollup.local_date = days.local_date
+      and install_rollup.platform = platforms.platform
+    left join scan_rollup
+      on scan_rollup.local_date = days.local_date
+      and scan_rollup.platform = platforms.platform
+    left join ai_rollup
+      on ai_rollup.local_date = days.local_date
+      and ai_rollup.platform = platforms.platform
     left join active_rollup
       on active_rollup.local_date = days.local_date
       and active_rollup.platform = platforms.platform
@@ -879,12 +941,15 @@ const searchAdminUsers = async (
         profiles.email,
         profiles.provider_subject,
         profiles.timezone,
-        profiles.linked_at::text,
-        profiles.deletion_requested_at::text,
-        profiles.deactivated_at::text,
-        profiles.created_at::text,
-        profiles.updated_at::text,
-        max(scan_sessions.created_at)::text as last_scan_at,
+	        profiles.linked_at::text,
+	        profiles.deletion_requested_at::text,
+	        profiles.deactivated_at::text,
+	        profiles.created_at as created_at_sort,
+	        profiles.updated_at as updated_at_sort,
+	        max(scan_sessions.created_at) as last_scan_at_sort,
+	        profiles.created_at::text,
+	        profiles.updated_at::text,
+	        max(scan_sessions.created_at)::text as last_scan_at,
         coalesce(scan_credits.free_remaining, 0)::int as free_remaining,
         coalesce(scan_credits.rewarded_remaining, 0)::int as rewarded_remaining,
         coalesce(scan_credits.premium_remaining, 0)::int as premium_remaining,
@@ -928,12 +993,12 @@ const searchAdminUsers = async (
       case when ${sort} = 'email' and ${direction} = 'desc' then email end desc nulls last,
       case when ${sort} = 'authMethod' and ${direction} = 'asc' then auth_method end asc nulls last,
       case when ${sort} = 'authMethod' and ${direction} = 'desc' then auth_method end desc nulls last,
-      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at end asc nulls last,
-      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at end desc nulls last,
-      case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at end asc nulls last,
-      case when ${sort} = 'updatedAt' and ${direction} = 'desc' then updated_at end desc nulls last,
-      case when ${sort} = 'lastScanAt' and ${direction} = 'asc' then last_scan_at end asc nulls last,
-      case when ${sort} = 'lastScanAt' and ${direction} = 'desc' then last_scan_at end desc nulls last,
+	      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at_sort end asc nulls last,
+	      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at_sort end desc nulls last,
+	      case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at_sort end asc nulls last,
+	      case when ${sort} = 'updatedAt' and ${direction} = 'desc' then updated_at_sort end desc nulls last,
+	      case when ${sort} = 'lastScanAt' and ${direction} = 'asc' then last_scan_at_sort end asc nulls last,
+	      case when ${sort} = 'lastScanAt' and ${direction} = 'desc' then last_scan_at_sort end desc nulls last,
       case when ${sort} = 'scans' and ${direction} = 'asc' then scans end asc nulls last,
       case when ${sort} = 'scans' and ${direction} = 'desc' then scans end desc nulls last,
       case when ${sort} = 'failedScans' and ${direction} = 'asc' then failed_scans end asc nulls last,
@@ -942,8 +1007,8 @@ const searchAdminUsers = async (
       case when ${sort} = 'meals' and ${direction} = 'desc' then meals end desc nulls last,
       case when ${sort} = 'grants' and ${direction} = 'asc' then grants end asc nulls last,
       case when ${sort} = 'grants' and ${direction} = 'desc' then grants end desc nulls last,
-      last_scan_at desc nulls last,
-      updated_at desc
+	      last_scan_at_sort desc nulls last,
+	      updated_at_sort desc
     limit ${pageSize}
     offset ${offset}
   `;
@@ -1281,13 +1346,15 @@ const listAdminScans = async (
         scan_sessions.status::text,
         scan_sessions.consumed_credit_reason,
         scan_sessions.user_hint,
-        scan_sessions.image_mime_type,
-        scan_sessions.image_byte_size,
-        scan_sessions.image_bucket,
-        scan_sessions.image_object_key,
-        scan_sessions.created_at::text,
-        scan_sessions.updated_at::text,
-        provider_run.provider,
+	        scan_sessions.image_mime_type,
+	        scan_sessions.image_byte_size,
+	        scan_sessions.image_bucket,
+	        scan_sessions.image_object_key,
+	        scan_sessions.created_at as created_at_sort,
+	        scan_sessions.updated_at as updated_at_sort,
+	        scan_sessions.created_at::text,
+	        scan_sessions.updated_at::text,
+	        provider_run.provider,
         provider_run.model,
         provider_run.prompt_version,
         provider_run.latency_ms,
@@ -1297,20 +1364,20 @@ const listAdminScans = async (
         meals.id::text as meal_id,
         meals.title as meal_title
       from scan_sessions
-      left join profiles on profiles.id = scan_sessions.profile_id
-      left join lateral (
-        select provider, model, prompt_version, latency_ms, success, error_code
-        from ai_provider_runs
-        where ai_provider_runs.scan_session_id = scan_sessions.id
-        order by created_at desc
+	      left join profiles on profiles.id = scan_sessions.profile_id
+	      left join lateral (
+	        select id, provider, model, prompt_version, latency_ms, success, error_code
+	        from ai_provider_runs
+	        where ai_provider_runs.scan_session_id = scan_sessions.id
+	        order by created_at desc
         limit 1
       ) provider_run on true
-      left join lateral (
-        select total_confidence
-        from ai_predictions
-        where ai_predictions.scan_session_id = scan_sessions.id
-        order by created_at desc
-        limit 1
+	      left join lateral (
+	        select total_confidence
+	        from ai_predictions
+	        where ai_predictions.provider_run_id = provider_run.id
+	        order by created_at desc
+	        limit 1
       ) prediction on true
       left join meals on meals.scan_session_id = scan_sessions.id
     )
@@ -1343,13 +1410,19 @@ const listAdminScans = async (
         or (${image} = 'has_image' and image_object_key is not null)
         or (${image} = 'no_image' and image_object_key is null)
       )
-      and (${from ?? null}::date is null or created_at::timestamptz >= ${from ?? null}::date)
-      and (${to ?? null}::date is null or created_at::timestamptz < (${to ?? null}::date + interval '1 day'))
-    order by
-      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at end asc nulls last,
-      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at end desc nulls last,
-      case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at end asc nulls last,
-      case when ${sort} = 'updatedAt' and ${direction} = 'desc' then updated_at end desc nulls last,
+	      and (
+	        ${from ?? null}::date is null
+	        or (created_at_sort at time zone 'Asia/Kolkata')::date >= ${from ?? null}::date
+	      )
+	      and (
+	        ${to ?? null}::date is null
+	        or (created_at_sort at time zone 'Asia/Kolkata')::date <= ${to ?? null}::date
+	      )
+	    order by
+	      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at_sort end asc nulls last,
+	      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at_sort end desc nulls last,
+	      case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at_sort end asc nulls last,
+	      case when ${sort} = 'updatedAt' and ${direction} = 'desc' then updated_at_sort end desc nulls last,
       case when ${sort} = 'platform' and ${direction} = 'asc' then platform end asc nulls last,
       case when ${sort} = 'platform' and ${direction} = 'desc' then platform end desc nulls last,
       case when ${sort} = 'appVersion' and ${direction} = 'asc' then app_version end asc nulls last,
@@ -1362,7 +1435,7 @@ const listAdminScans = async (
       case when ${sort} = 'latencyMs' and ${direction} = 'desc' then latency_ms end desc nulls last,
       case when ${sort} = 'confidence' and ${direction} = 'asc' then total_confidence end asc nulls last,
       case when ${sort} = 'confidence' and ${direction} = 'desc' then total_confidence end desc nulls last,
-      created_at desc
+	      created_at_sort desc
     limit ${pageSize}
     offset ${offset}
   `;
@@ -1391,9 +1464,9 @@ const loadAdminScan = async (
       scan_sessions.status::text,
       scan_sessions.consumed_credit_reason,
       scan_sessions.user_hint,
-      scan_sessions.image_mime_type,
-      scan_sessions.image_byte_size,
-      scan_sessions.image_bucket,
+	      scan_sessions.image_mime_type,
+	      scan_sessions.image_byte_size,
+	      scan_sessions.image_bucket,
       scan_sessions.image_object_key,
       scan_sessions.created_at::text,
       scan_sessions.updated_at::text,
@@ -1408,19 +1481,19 @@ const loadAdminScan = async (
       meals.id::text as meal_id,
       meals.title as meal_title
     from scan_sessions
-    left join profiles on profiles.id = scan_sessions.profile_id
-    left join lateral (
-      select provider, model, prompt_version, latency_ms, success, error_code
-      from ai_provider_runs
-      where ai_provider_runs.scan_session_id = scan_sessions.id
+	    left join profiles on profiles.id = scan_sessions.profile_id
+	    left join lateral (
+	      select id, provider, model, prompt_version, latency_ms, success, error_code
+	      from ai_provider_runs
+	      where ai_provider_runs.scan_session_id = scan_sessions.id
       order by created_at desc
       limit 1
     ) provider_run on true
-    left join lateral (
-      select raw_ai_json, total_confidence
-      from ai_predictions
-      where ai_predictions.scan_session_id = scan_sessions.id
-      order by created_at desc
+	    left join lateral (
+	      select raw_ai_json, total_confidence
+	      from ai_predictions
+	      where ai_predictions.provider_run_id = provider_run.id
+	      order by created_at desc
       limit 1
     ) prediction on true
     left join meals on meals.scan_session_id = scan_sessions.id
@@ -2134,8 +2207,14 @@ const listAuditLog = async (sql: SqlClient, query: z.infer<typeof adminAuditQuer
       and (${actor} = '' or actor ilike ${actorPattern})
       and (${action} = '' or action ilike ${actionPattern})
       and (${targetType} = '' or target_type ilike ${targetPattern})
-      and (${query.from ?? null}::date is null or created_at >= ${query.from ?? null}::date)
-      and (${query.to ?? null}::date is null or created_at < (${query.to ?? null}::date + interval '1 day'))
+	      and (
+	        ${query.from ?? null}::date is null
+	        or (created_at at time zone 'Asia/Kolkata')::date >= ${query.from ?? null}::date
+	      )
+	      and (
+	        ${query.to ?? null}::date is null
+	        or (created_at at time zone 'Asia/Kolkata')::date <= ${query.to ?? null}::date
+	      )
     order by
       case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at end asc nulls last,
       case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at end desc nulls last,
@@ -2295,12 +2374,14 @@ const loadAiCostData = async (
           ${platformFilter} = 'all'
           or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
         )
-    )
-    select
-      count(*)::int as scans,
-      count(*) filter (where success)::int as successful_scans,
-      count(*) filter (where not success)::int as failed_runs,
-      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+	    )
+	    select
+	      count(*)::int as runs,
+	      count(distinct scan_session_id)::int as scans,
+	      count(*) filter (where success)::int as successful_runs,
+	      count(distinct scan_session_id) filter (where success)::int as successful_scans,
+	      count(*) filter (where not success)::int as failed_runs,
+	      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
       coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
       coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd,
       avg(latency_ms)::numeric as average_latency_ms,
@@ -2310,9 +2391,10 @@ const loadAiCostData = async (
 
   const dailyRows = await sql<DailyRow[]>`
     with priced_runs as (
-      select
-        (run.created_at at time zone 'Asia/Kolkata')::date as date,
-        run.input_token_estimate,
+	      select
+	        (run.created_at at time zone 'Asia/Kolkata')::date as date,
+	        run.scan_session_id,
+	        run.input_token_estimate,
         run.output_token_estimate,
         coalesce(
           run.estimated_cost_usd,
@@ -2329,10 +2411,11 @@ const loadAiCostData = async (
           or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
         )
     )
-    select
-      date::text,
-      count(*)::int as scans,
-      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+	    select
+	      date::text,
+	      count(*)::int as runs,
+	      count(distinct scan_session_id)::int as scans,
+	      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
       coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
       coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd
     from priced_runs
@@ -2342,10 +2425,11 @@ const loadAiCostData = async (
 
   const modelRows = await sql<ModelRow[]>`
     with priced_runs as (
-      select
-        run.provider,
-        run.model,
-        run.input_token_estimate,
+	      select
+	        run.provider,
+	        run.model,
+	        run.scan_session_id,
+	        run.input_token_estimate,
         run.output_token_estimate,
         coalesce(
           run.estimated_cost_usd,
@@ -2362,11 +2446,12 @@ const loadAiCostData = async (
           or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
         )
     )
-    select
-      provider,
-      model,
-      count(*)::int as scans,
-      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+	    select
+	      provider,
+	      model,
+	      count(*)::int as runs,
+	      count(distinct scan_session_id)::int as scans,
+	      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
       coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
       coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd,
       current_date::text as date
@@ -2377,9 +2462,10 @@ const loadAiCostData = async (
 
   const platformRows = await sql<PlatformAiCostRow[]>`
     with priced_runs as (
-      select
-        coalesce(run.platform, scan_sessions.platform, 'unknown') as platform,
-        run.input_token_estimate,
+	      select
+	        coalesce(run.platform, scan_sessions.platform, 'unknown') as platform,
+	        run.scan_session_id,
+	        run.input_token_estimate,
         run.output_token_estimate,
         coalesce(
           run.estimated_cost_usd,
@@ -2396,10 +2482,11 @@ const loadAiCostData = async (
           or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
         )
     )
-    select
-      platform,
-      count(*)::int as scans,
-      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+	    select
+	      platform,
+	      count(*)::int as runs,
+	      count(distinct scan_session_id)::int as scans,
+	      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
       coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
       coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd,
       current_date::text as date
@@ -2412,10 +2499,11 @@ const loadAiCostData = async (
     with priced_runs as (
       select
         coalesce(run.platform, scan_sessions.platform, 'unknown') as platform,
-        coalesce(nullif(run.app_version, ''), nullif(scan_sessions.app_version, ''), 'unknown')
-          as app_version,
-        coalesce(run.app_build, scan_sessions.app_build, 0) as app_build,
-        run.input_token_estimate,
+	        coalesce(nullif(run.app_version, ''), nullif(scan_sessions.app_version, ''), 'unknown')
+	          as app_version,
+	        coalesce(run.app_build, scan_sessions.app_build, 0) as app_build,
+	        run.scan_session_id,
+	        run.input_token_estimate,
         run.output_token_estimate,
         coalesce(
           run.estimated_cost_usd,
@@ -2432,18 +2520,19 @@ const loadAiCostData = async (
           or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
         )
     )
-    select
-      platform,
-      app_version,
-      app_build,
-      count(*)::int as scans,
-      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
+	    select
+	      platform,
+	      app_version,
+	      app_build,
+	      count(*)::int as runs,
+	      count(distinct scan_session_id)::int as scans,
+	      coalesce(sum(input_token_estimate), 0)::bigint as input_tokens,
       coalesce(sum(output_token_estimate), 0)::bigint as output_tokens,
       coalesce(sum(calculated_cost_usd), 0)::numeric as cost_usd,
       current_date::text as date
     from priced_runs
     group by platform, app_version, app_build
-    order by cost_usd desc, scans desc
+	    order by cost_usd desc, runs desc
     limit 20
   `;
 
@@ -2477,11 +2566,12 @@ const loadAiCostData = async (
       order by ai_predictions.created_at desc
       limit 1
     ) prediction on true
-    where (
-      ${platformFilter} = 'all'
-      or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
-    )
-    order by run.created_at desc
+	    where (
+	      ${platformFilter} = 'all'
+	      or coalesce(run.platform, scan_sessions.platform) = ${platformFilter}
+	    )
+	      and run.created_at >= now() - (${days}::int * interval '1 day')
+	    order by run.created_at desc
     limit 20
   `;
 
@@ -2521,15 +2611,18 @@ const outputRateSql = (sql: SqlClient) => sql`
 `;
 
 const mapOverall = (row: OverallRow | undefined): AiCostOverall => {
+  const runs = numberValue(row?.runs);
   const scans = numberValue(row?.scans);
   const costUsd = numberValue(row?.cost_usd);
   const inputTokens = numberValue(row?.input_tokens);
   const outputTokens = numberValue(row?.output_tokens);
   const costInr = costUsd * usdToInr;
-  const averageCostInr = scans === 0 ? 0 : costInr / scans;
+  const averageRunCostInr = runs === 0 ? 0 : costInr / runs;
 
   return {
+    runs,
     scans,
+    successfulRuns: numberValue(row?.successful_runs),
     successfulScans: numberValue(row?.successful_scans),
     failedRuns: numberValue(row?.failed_runs),
     inputTokens,
@@ -2537,39 +2630,49 @@ const mapOverall = (row: OverallRow | undefined): AiCostOverall => {
     totalTokens: inputTokens + outputTokens,
     costUsd,
     costInr,
-    averageCostInr,
-    scansPerTenInr: averageCostInr === 0 ? 0 : 10 / averageCostInr,
+    averageRunCostInr,
+    averageCostInr: averageRunCostInr,
+    runsPerTenInr: averageRunCostInr === 0 ? 0 : 10 / averageRunCostInr,
+    scansPerTenInr: averageRunCostInr === 0 ? 0 : 10 / averageRunCostInr,
     averageLatencyMs: nullableNumberValue(row?.average_latency_ms),
     averageConfidence: nullableNumberValue(row?.average_confidence),
   };
 };
 
 const mapDailyRow = (row: DailyRow): DailyAiCost => {
+  const runs = numberValue(row.runs);
   const scans = numberValue(row.scans);
   const costInr = numberValue(row.cost_usd) * usdToInr;
+  const averageRunCostInr = runs === 0 ? 0 : costInr / runs;
   return {
     date: row.date,
+    runs,
     scans,
     inputTokens: numberValue(row.input_tokens),
     outputTokens: numberValue(row.output_tokens),
     costInr,
-    averageCostInr: scans === 0 ? 0 : costInr / scans,
+    averageRunCostInr,
+    averageCostInr: averageRunCostInr,
   };
 };
 
 const mapPlatformAiCostRow = (row: PlatformAiCostRow): PlatformAiCost => {
+  const runs = numberValue(row.runs);
   const scans = numberValue(row.scans);
   const costInr = numberValue(row.cost_usd) * usdToInr;
-  const averageCostInr = scans === 0 ? 0 : costInr / scans;
+  const averageRunCostInr = runs === 0 ? 0 : costInr / runs;
   const platform = row.platform === "ios" || row.platform === "android" ? row.platform : "unknown";
   return {
     platform,
+    runs,
     scans,
     inputTokens: numberValue(row.input_tokens),
     outputTokens: numberValue(row.output_tokens),
     costInr,
-    averageCostInr,
-    scansPerTenInr: averageCostInr === 0 ? 0 : 10 / averageCostInr,
+    averageRunCostInr,
+    averageCostInr: averageRunCostInr,
+    runsPerTenInr: averageRunCostInr === 0 ? 0 : 10 / averageRunCostInr,
+    scansPerTenInr: averageRunCostInr === 0 ? 0 : 10 / averageRunCostInr,
   };
 };
 
@@ -2580,18 +2683,22 @@ const mapAppBuildAiCostRow = (row: PlatformAiCostRow): AppBuildAiCost => ({
 });
 
 const mapModelRow = (row: ModelRow): ModelAiCost => {
+  const runs = numberValue(row.runs);
   const scans = numberValue(row.scans);
   const costInr = numberValue(row.cost_usd) * usdToInr;
-  const averageCostInr = scans === 0 ? 0 : costInr / scans;
+  const averageRunCostInr = runs === 0 ? 0 : costInr / runs;
   return {
     provider: row.provider,
     model: row.model,
+    runs,
     scans,
     inputTokens: numberValue(row.input_tokens),
     outputTokens: numberValue(row.output_tokens),
     costInr,
-    averageCostInr,
-    scansPerTenInr: averageCostInr === 0 ? 0 : 10 / averageCostInr,
+    averageRunCostInr,
+    averageCostInr: averageRunCostInr,
+    runsPerTenInr: averageRunCostInr === 0 ? 0 : 10 / averageRunCostInr,
+    scansPerTenInr: averageRunCostInr === 0 ? 0 : 10 / averageRunCostInr,
   };
 };
 
@@ -2762,10 +2869,10 @@ const renderAiCostDashboardHtml = () => `<!doctype html>
         const m = data.overall;
         const cards = [
           ["Total AI Cost", inr.format(m.costInr), "$" + decimal.format(m.costUsd)],
-          ["Avg Cost / Scan", inr.format(m.averageCostInr), whole.format(m.scans) + " runs"],
-          ["Scans in ₹10", decimal.format(m.scansPerTenInr), "at current avg cost"],
+	          ["Avg Cost / Run", inr.format(m.averageRunCostInr), whole.format(m.runs) + " runs · " + whole.format(m.scans) + " scans"],
+	          ["Runs in ₹10", decimal.format(m.runsPerTenInr), "at current avg cost"],
           ["Tokens Used", whole.format(m.totalTokens), whole.format(m.inputTokens) + " in · " + whole.format(m.outputTokens) + " out"],
-          ["Success", whole.format(m.successfulScans), whole.format(m.failedRuns) + " failed runs"],
+	          ["Success", whole.format(m.successfulRuns), whole.format(m.failedRuns) + " failed runs"],
           ["Avg Confidence", formatPercent(m.averageConfidence), "AI prediction score"],
           ["Avg Latency", formatMs(m.averageLatencyMs), "provider response time"],
           ["Daily Avg Cost", inr.format(m.costInr / Math.max(data.days, 1)), "selected window"],
@@ -2825,8 +2932,9 @@ const renderAiCostDashboardHtml = () => `<!doctype html>
         document.getElementById("models").innerHTML =
           '<table><thead><tr><th>Model</th><th>Runs</th><th>Avg</th><th>₹10</th></tr></thead><tbody>' +
           rows.map((row) =>
-            '<tr><td>' + row.model + '<div class="note">' + row.provider + '</div></td><td>' + whole.format(row.scans) +
-            '</td><td>' + inr.format(row.averageCostInr) + '</td><td>' + decimal.format(row.scansPerTenInr) + '</td></tr>'
+	            '<tr><td>' + row.model + '<div class="note">' + row.provider + '</div></td><td>' + whole.format(row.runs) +
+	            '<div class="note">' + whole.format(row.scans) + ' scans</div></td><td>' + inr.format(row.averageRunCostInr) +
+	            '</td><td>' + decimal.format(row.runsPerTenInr) + '</td></tr>'
           ).join("") +
           '</tbody></table>';
       }

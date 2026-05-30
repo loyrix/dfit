@@ -20,7 +20,7 @@ export default async function CostPage({
   const platform = normalizePlatform(params.platform);
   const cost = await adminGet<AiCostData>(`/admin/ai-cost/data?days=${days}&platform=${platform}`);
   const totalTokens = cost.overall.inputTokens + cost.overall.outputTokens;
-  const dailyAverage = cost.daily.length > 0 ? cost.overall.costInr / cost.daily.length : 0;
+  const dailyAverage = cost.overall.costInr / days;
   const maxDailyCost = Math.max(0.01, ...cost.daily.map((day) => day.costInr));
 
   return (
@@ -72,14 +72,14 @@ export default async function CostPage({
           sub={`$${cost.overall.costUsd.toFixed(2)} over ${days} days`}
         />
         <Metric
-          label="Avg cost / scan"
-          value={formatInr(cost.overall.averageCostInr)}
-          sub={`${formatNumber(cost.overall.scans)} total runs`}
+          label="Avg cost / AI run"
+          value={formatInr(cost.overall.averageRunCostInr)}
+          sub={`${formatNumber(cost.overall.runs)} runs · ${formatNumber(cost.overall.scans)} scans`}
         />
         <Metric
-          label="Scans in Rs 10"
-          value={formatNumber(cost.overall.scansPerTenInr)}
-          sub="at current average cost"
+          label="AI runs in Rs 10"
+          value={formatNumber(cost.overall.runsPerTenInr)}
+          sub="at current run cost"
         />
         <Metric
           label="Tokens used"
@@ -88,7 +88,7 @@ export default async function CostPage({
         />
         <Metric
           label="Success"
-          value={formatNumber(cost.overall.successfulScans)}
+          value={formatNumber(cost.overall.successfulRuns)}
           sub={`${formatNumber(cost.overall.failedRuns)} failed runs`}
         />
         <Metric
@@ -136,6 +136,9 @@ export default async function CostPage({
                   title={`${day.date}: ${formatInr(day.costInr)}`}
                 >
                   <span className="bar-value">{formatInr(day.costInr)}</span>
+                  <span className="sr-only">
+                    {formatNumber(day.runs)} AI runs across {formatNumber(day.scans)} scans
+                  </span>
                   {index === 0 || index === cost.daily.length - 1 ? (
                     <span className="bar-label">{shortDate(day.date)}</span>
                   ) : null}
@@ -168,15 +171,18 @@ export default async function CostPage({
                       <div className="font-semibold">{model.model}</div>
                       <div className="muted text-xs">{model.provider}</div>
                     </td>
-                    <td>{formatNumber(model.scans)}</td>
-                    <td>{formatInr(model.averageCostInr)}</td>
-                    <td>{formatNumber(model.scansPerTenInr)}</td>
+                    <td>
+                      <div>{formatNumber(model.runs)}</div>
+                      <div className="muted text-xs">{formatNumber(model.scans)} scans</div>
+                    </td>
+                    <td>{formatInr(model.averageRunCostInr)}</td>
+                    <td>{formatNumber(model.runsPerTenInr)}</td>
                     <td className="table-actions">
                       <Link
                         className="badge"
                         href={`/scans?model=${encodeURIComponent(model.model)}`}
                       >
-                        Scans
+                        Runs
                       </Link>
                     </td>
                   </tr>
@@ -208,10 +214,13 @@ export default async function CostPage({
                 {cost.platforms.map((item) => (
                   <tr key={item.platform}>
                     <td className="font-semibold">{platformLabel(item.platform)}</td>
-                    <td>{formatNumber(item.scans)}</td>
+                    <td>
+                      <div>{formatNumber(item.runs)}</div>
+                      <div className="muted text-xs">{formatNumber(item.scans)} scans</div>
+                    </td>
                     <td>{formatInr(item.costInr)}</td>
-                    <td>{formatInr(item.averageCostInr)}</td>
-                    <td>{formatNumber(item.scansPerTenInr)}</td>
+                    <td>{formatInr(item.averageRunCostInr)}</td>
+                    <td>{formatNumber(item.runsPerTenInr)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -242,7 +251,10 @@ export default async function CostPage({
                       <div className="muted text-xs">Build {item.appBuild}</div>
                     </td>
                     <td>{platformLabel(item.platform)}</td>
-                    <td>{formatNumber(item.scans)}</td>
+                    <td>
+                      <div>{formatNumber(item.runs)}</div>
+                      <div className="muted text-xs">{formatNumber(item.scans)} scans</div>
+                    </td>
                     <td>{formatInr(item.costInr)}</td>
                   </tr>
                 ))}

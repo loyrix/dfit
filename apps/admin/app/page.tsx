@@ -36,12 +36,12 @@ export default async function DashboardPage() {
 
       <section className="grid metrics mt-4">
         <Metric
-          label="Installs"
+          label="Server-seen installs"
           value={formatNumber(overview.installs ?? 0)}
-          sub={`${formatNumber(overview.newInstallsToday ?? 0)} new today`}
+          sub={`${formatNumber(overview.newInstallsToday ?? 0)} first seen today`}
         />
         <Metric
-          label="Active installs"
+          label="Active devices"
           value={formatNumber(overview.activeInstalls24h ?? 0)}
           sub={`${formatNumber(overview.activeInstalls7d ?? 0)} in last 7 days`}
         />
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
           sub={`${formatNumber(overview.mealActiveProfilesToday ?? 0)} meal-active today`}
         />
         <Metric
-          label="Inactive estimate"
+          label="Inactive devices"
           value={formatNumber(overview.inactiveInstalls30d ?? 0)}
           sub="30d without server activity"
         />
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
         {(overview.platforms ?? []).map((platform) => (
           <Metric
             key={platform.platform}
-            label={`${platformLabel(platform.platform)} installs`}
+            label={`${platformLabel(platform.platform)} server-seen installs`}
             value={formatNumber(platform.installs)}
             sub={`${formatNumber(platform.activeInstallsToday)} active today · ${formatNumber(
               platform.activeInstalls7d,
@@ -73,7 +73,9 @@ export default async function DashboardPage() {
             key={`${platform.platform}-ai`}
             label={`${platformLabel(platform.platform)} AI runs`}
             value={formatNumber(platform.aiRuns)}
-            sub={`${formatNumber(platform.scans)} scans · ${formatInr(platform.aiCostInr)}`}
+            sub={`${formatNumber(platform.scans)} scans in last 30d · ${formatInr(
+              platform.aiCostInr,
+            )}`}
           />
         ))}
       </section>
@@ -149,7 +151,7 @@ export default async function DashboardPage() {
               <p className="muted text-sm">Updated {formatDate(cost.generatedAt)}</p>
             </div>
             <div className="inline-controls">
-              <div className="badge">{formatNumber(cost.overall.scansPerTenInr)} scans / Rs 10</div>
+              <div className="badge">{formatNumber(cost.overall.runsPerTenInr)} runs / Rs 10</div>
               <Link className="badge" href="/cost">
                 Full usage
               </Link>
@@ -171,9 +173,12 @@ export default async function DashboardPage() {
                     <div className="font-semibold">{model.model}</div>
                     <div className="muted text-xs">{model.provider}</div>
                   </td>
-                  <td>{formatNumber(model.scans)}</td>
+                  <td>
+                    <div>{formatNumber(model.runs)}</div>
+                    <div className="muted text-xs">{formatNumber(model.scans)} scans</div>
+                  </td>
                   <td>{formatInr(model.costInr)}</td>
-                  <td>{formatInr(model.averageCostInr)}</td>
+                  <td>{formatInr(model.averageRunCostInr)}</td>
                 </tr>
               ))}
             </tbody>
@@ -217,7 +222,9 @@ export default async function DashboardPage() {
           <div className="section-head">
             <div>
               <h2 className="text-xl font-bold">Platform activity</h2>
-              <p className="muted text-sm">Daily installs, active installs, scans, and AI runs</p>
+              <p className="muted text-sm">
+                Daily first-seen devices, active devices, scans, and AI runs
+              </p>
             </div>
           </div>
           <div className="table-wrap">
@@ -227,7 +234,7 @@ export default async function DashboardPage() {
                   <th>Date</th>
                   <th>Platform</th>
                   <th>Active</th>
-                  <th>Installs</th>
+                  <th>First seen</th>
                   <th>Scans</th>
                   <th>AI</th>
                 </tr>
@@ -270,7 +277,7 @@ export default async function DashboardPage() {
         <div className="panel">
           <div className="section-head">
             <h2 className="text-xl font-bold">App build mix</h2>
-            <span className="muted text-sm">Current installs by version</span>
+            <span className="muted text-sm">Server-seen devices by version</span>
           </div>
           <div className="table-wrap">
             <table className="table table-compact">
@@ -278,7 +285,7 @@ export default async function DashboardPage() {
                 <tr>
                   <th>Build</th>
                   <th>Platform</th>
-                  <th>Installs</th>
+                  <th>Devices</th>
                   <th>Active 7d</th>
                   <th>Last seen</th>
                 </tr>
