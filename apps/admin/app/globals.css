@@ -52,6 +52,7 @@ textarea {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   min-height: 100vh;
+  width: 100%;
 }
 
 .sidebar {
@@ -103,7 +104,10 @@ textarea {
 }
 
 .content {
-  padding: 30px;
+  margin: 0 auto;
+  max-width: 1680px;
+  min-width: 0;
+  padding: clamp(22px, 2vw, 32px);
   width: 100%;
   overflow-x: hidden;
 }
@@ -125,7 +129,7 @@ textarea {
 }
 
 .title {
-  font-size: clamp(28px, 4vw, 46px);
+  font-size: clamp(30px, 3vw, 44px);
   letter-spacing: 0;
   line-height: 1.02;
   margin: 4px 0 0;
@@ -138,14 +142,17 @@ textarea {
 .grid {
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .two-col {
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  align-items: start;
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);
 }
 
 .panel {
@@ -153,6 +160,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  min-width: 0;
   padding: 18px;
 }
 
@@ -187,6 +195,7 @@ textarea {
 
 .table {
   border-collapse: collapse;
+  min-width: 720px;
   width: 100%;
 }
 
@@ -194,6 +203,8 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  width: 100%;
 }
 
 .table-wrap .table th:first-child,
@@ -281,7 +292,7 @@ textarea {
 }
 
 .section-head {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   gap: 14px;
   justify-content: space-between;
@@ -372,6 +383,23 @@ textarea {
   grid-template-columns: minmax(180px, 1fr) auto;
 }
 
+.row-action-details {
+  min-width: 260px;
+}
+
+.row-action-details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.row-action-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.row-action-details[open] > summary {
+  margin-bottom: 10px;
+}
+
 .inline-controls {
   align-items: center;
   display: flex;
@@ -389,7 +417,7 @@ textarea {
   align-items: stretch;
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .usage-grid .panel {
@@ -397,9 +425,55 @@ textarea {
 }
 
 .usage-split {
+  align-items: start;
   display: grid;
   gap: 14px;
   grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.8fr);
+}
+
+.prompt-workspace {
+  align-items: start;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+}
+
+.prompt-preview-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.prompt-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+
+.prompt-preview[open] {
+  box-shadow: 0 10px 30px rgba(52, 43, 24, 0.06);
+}
+
+.prompt-preview-summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  list-style: none;
+  padding: 12px;
+}
+
+.prompt-preview-summary::-webkit-details-marker {
+  display: none;
+}
+
+.prompt-preview-body {
+  border-top: 1px solid var(--line);
+  padding: 0 12px 12px;
+}
+
+.prompt-code {
+  max-height: 260px;
+  overflow: auto;
 }
 
 .bar-chart {
@@ -589,5 +663,13 @@ textarea {
   .pager .button,
   .pager-count {
     flex: 1;
+  }
+}
+
+@media (max-width: 1280px) {
+  .two-col,
+  .usage-split,
+  .prompt-workspace {
+    grid-template-columns: 1fr;
   }
 }

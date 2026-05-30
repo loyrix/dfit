@@ -96,7 +96,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                 <th>Generation</th>
                 <th>Pricing</th>
                 <th>Updated</th>
-                <th>Reasoned update</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -138,92 +138,95 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                     <div className="muted text-xs">{model.updatedBy ?? "unknown"}</div>
                   </td>
                   <td>
-                    <form action={updateModelAction} className="form-grid">
-                      <input name="key" type="hidden" value={model.key} />
-                      <input
-                        name="idempotencyKey"
-                        type="hidden"
-                        value={createMutationKey(`model:${model.key}:update`)}
-                      />
-                      <label className="inline-controls text-sm">
-                        <input name="enabled" type="checkbox" defaultChecked={model.enabled} />{" "}
-                        Enabled
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <input
-                          className="input"
-                          name="maxOutputTokens"
-                          type="number"
-                          min="256"
-                          max="8192"
-                          defaultValue={model.maxOutputTokens}
-                          required
-                          aria-label="Max output tokens"
-                        />
-                        <input
-                          className="input"
-                          name="temperature"
-                          type="number"
-                          min="0"
-                          max="2"
-                          step="0.01"
-                          defaultValue={model.temperature}
-                          required
-                          aria-label="Temperature"
-                        />
-                        <input
-                          className="input"
-                          name="topP"
-                          type="number"
-                          min="0.01"
-                          max="1"
-                          step="0.01"
-                          defaultValue={model.topP}
-                          required
-                          aria-label="Top P"
-                        />
-                      </div>
-                      <input
-                        className="input"
-                        name="notes"
-                        placeholder="Notes"
-                        defaultValue={model.notes ?? ""}
-                      />
-                      <div className="mini-form">
-                        <input
-                          className="input"
-                          name="reason"
-                          placeholder="Reason for model config change"
-                          minLength={8}
-                          maxLength={500}
-                          required
-                        />
-                        <button className="button button-secondary" type="submit">
-                          Save
-                        </button>
-                      </div>
-                    </form>
-                    {!model.isDefault ? (
-                      <form action={setDefaultModelAction} className="mini-form mt-2">
+                    <details className="row-action-details">
+                      <summary className="badge">Configure</summary>
+                      <form action={updateModelAction} className="form-grid">
                         <input name="key" type="hidden" value={model.key} />
                         <input
                           name="idempotencyKey"
                           type="hidden"
-                          value={createMutationKey(`model:${model.key}:default`)}
+                          value={createMutationKey(`model:${model.key}:update`)}
                         />
+                        <label className="inline-controls text-sm">
+                          <input name="enabled" type="checkbox" defaultChecked={model.enabled} />{" "}
+                          Enabled
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            className="input"
+                            name="maxOutputTokens"
+                            type="number"
+                            min="256"
+                            max="8192"
+                            defaultValue={model.maxOutputTokens}
+                            required
+                            aria-label="Max output tokens"
+                          />
+                          <input
+                            className="input"
+                            name="temperature"
+                            type="number"
+                            min="0"
+                            max="2"
+                            step="0.01"
+                            defaultValue={model.temperature}
+                            required
+                            aria-label="Temperature"
+                          />
+                          <input
+                            className="input"
+                            name="topP"
+                            type="number"
+                            min="0.01"
+                            max="1"
+                            step="0.01"
+                            defaultValue={model.topP}
+                            required
+                            aria-label="Top P"
+                          />
+                        </div>
                         <input
                           className="input"
-                          name="reason"
-                          placeholder="Reason for switching default"
-                          minLength={8}
-                          maxLength={500}
-                          required
+                          name="notes"
+                          placeholder="Notes"
+                          defaultValue={model.notes ?? ""}
                         />
-                        <button className="button" type="submit">
-                          Default
-                        </button>
+                        <div className="mini-form">
+                          <input
+                            className="input"
+                            name="reason"
+                            placeholder="Reason for model config change"
+                            minLength={8}
+                            maxLength={500}
+                            required
+                          />
+                          <button className="button button-secondary" type="submit">
+                            Save
+                          </button>
+                        </div>
                       </form>
-                    ) : null}
+                      {!model.isDefault ? (
+                        <form action={setDefaultModelAction} className="mini-form mt-2">
+                          <input name="key" type="hidden" value={model.key} />
+                          <input
+                            name="idempotencyKey"
+                            type="hidden"
+                            value={createMutationKey(`model:${model.key}:default`)}
+                          />
+                          <input
+                            className="input"
+                            name="reason"
+                            placeholder="Reason for switching default"
+                            minLength={8}
+                            maxLength={500}
+                            required
+                          />
+                          <button className="button" type="submit">
+                            Default
+                          </button>
+                        </form>
+                      ) : null}
+                    </details>
                   </td>
                 </tr>
               ))}
@@ -233,7 +236,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
         </div>
       </section>
 
-      <section className="grid two-col mt-4">
+      <section className="grid prompt-workspace mt-4">
         <div className="panel">
           <div className="section-head">
             <h2 className="text-xl font-bold">Prompt versions</h2>
@@ -292,25 +295,28 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                     </td>
                     <td>
                       {!prompt.isActive ? (
-                        <form action={activatePromptAction} className="mini-form">
-                          <input name="id" type="hidden" value={prompt.id} />
-                          <input
-                            name="idempotencyKey"
-                            type="hidden"
-                            value={createMutationKey(`prompt:${prompt.id}:activate`)}
-                          />
-                          <input
-                            className="input"
-                            name="reason"
-                            placeholder="Activation reason"
-                            minLength={8}
-                            maxLength={500}
-                            required
-                          />
-                          <button className="button" type="submit">
-                            Activate
-                          </button>
-                        </form>
+                        <details className="row-action-details">
+                          <summary className="badge">Activate</summary>
+                          <form action={activatePromptAction} className="mini-form">
+                            <input name="id" type="hidden" value={prompt.id} />
+                            <input
+                              name="idempotencyKey"
+                              type="hidden"
+                              value={createMutationKey(`prompt:${prompt.id}:activate`)}
+                            />
+                            <input
+                              className="input"
+                              name="reason"
+                              placeholder="Activation reason"
+                              minLength={8}
+                              maxLength={500}
+                              required
+                            />
+                            <button className="button" type="submit">
+                              Activate
+                            </button>
+                          </form>
+                        </details>
                       ) : (
                         <Badge>Current</Badge>
                       )}
@@ -325,21 +331,38 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
 
         <div className="grid gap-4">
           <div className="panel">
-            <h2 className="text-xl font-bold">Active prompt preview</h2>
+            <div className="section-head">
+              <div>
+                <h2 className="text-xl font-bold">Active prompt preview</h2>
+                <p className="muted text-sm">
+                  Open one body when you need to inspect the full text.
+                </p>
+              </div>
+              <span className="badge">{activePrompts.length} active</span>
+            </div>
             {activePrompts.length > 0 ? (
-              <div className="grid gap-3 mt-4">
-                {activePrompts.map((prompt) => (
-                  <div key={prompt.id} className="rounded-md border border-[var(--border)] p-3">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold">{prompt.title}</h3>
-                      <Badge>{prompt.key}</Badge>
-                      <Badge>{prompt.version}</Badge>
+              <div className="prompt-preview-list">
+                {activePrompts.map((prompt, index) => (
+                  <details className="prompt-preview" key={prompt.id} open={index === 0}>
+                    <summary className="prompt-preview-summary">
+                      <span>
+                        <span className="font-semibold">{prompt.title}</span>
+                        <span className="muted block text-xs">
+                          {prompt.key} · {prompt.version}
+                        </span>
+                      </span>
+                      <span className="inline-controls">
+                        <Badge>Active</Badge>
+                        <span className="muted text-xs">View body</span>
+                      </span>
+                    </summary>
+                    <div className="prompt-preview-body">
+                      <p className="muted mt-3 text-sm">
+                        Updated {formatDate(prompt.updatedAt)} by {prompt.updatedBy ?? "unknown"}
+                      </p>
+                      <pre className="code-block prompt-code mt-3">{prompt.body}</pre>
                     </div>
-                    <p className="muted mt-1 text-sm">
-                      Updated {formatDate(prompt.updatedAt)} by {prompt.updatedBy ?? "unknown"}
-                    </p>
-                    <pre className="code-block mt-4 max-h-[300px] overflow-auto">{prompt.body}</pre>
-                  </div>
+                  </details>
                 ))}
               </div>
             ) : (
