@@ -710,7 +710,7 @@ const loadAdminOverview = async (sql: SqlClient) => {
       from ai_provider_runs
       left join scan_sessions on scan_sessions.id = ai_provider_runs.scan_session_id
       where ai_provider_runs.created_at >= now() - interval '30 days'
-      group by platform
+      group by coalesce(ai_provider_runs.platform, scan_sessions.platform)
     ),
     active_today as (
       select platform, count(distinct install_id)::int as active_installs_today

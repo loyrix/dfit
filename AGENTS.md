@@ -67,6 +67,9 @@ end across contracts, API, persistence, clients, docs, and tests as needed.
   controller state, UI states, and Flutter tests where the project supports it.
 - Admin changes are high impact. Preserve authentication, session handling,
   auditability, idempotency, and operator safety.
+- Admin backoffice work must not change, weaken, or break existing mobile app or
+  public API behavior unless the user explicitly requests that cross-surface
+  change and the app/API contracts are verified end to end.
 - Public website changes should preserve SEO metadata, app-store links, legal
   pages, responsive layout, and accessibility.
 - Shared business rules belong in `packages/domain` or `packages/contracts`
