@@ -226,6 +226,18 @@ textarea {
   background: #fffaf0;
 }
 
+.table tbody tr.row-selected {
+  background: #fff3ce;
+}
+
+.table tbody tr.row-selected:hover {
+  background: #ffefbd;
+}
+
+.table tbody tr.row-selected td:first-child {
+  box-shadow: inset 4px 0 0 var(--gold);
+}
+
 .table-compact th,
 .table-compact td {
   padding-bottom: 9px;

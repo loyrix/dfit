@@ -188,7 +188,11 @@ export default async function UsersPage({
               </thead>
               <tbody>
                 {visibleUsers.map((user) => (
-                  <tr key={user.id}>
+                  <tr
+                    aria-selected={params.profileId === user.id}
+                    className={params.profileId === user.id ? "row-selected" : undefined}
+                    key={user.id}
+                  >
                     <td>
                       <div className="font-semibold break-cell">{user.email ?? user.id}</div>
                       <div className="muted text-xs break-cell">{user.id}</div>

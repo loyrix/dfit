@@ -2137,8 +2137,8 @@ const listAuditLog = async (sql: SqlClient, query: z.infer<typeof adminAuditQuer
       and (${query.from ?? null}::date is null or created_at >= ${query.from ?? null}::date)
       and (${query.to ?? null}::date is null or created_at < (${query.to ?? null}::date + interval '1 day'))
     order by
-      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at::text end asc nulls last,
-      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at::text end desc nulls last,
+      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at end asc nulls last,
+      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at end desc nulls last,
       case when ${sort} = 'actor' and ${direction} = 'asc' then actor end asc nulls last,
       case when ${sort} = 'actor' and ${direction} = 'desc' then actor end desc nulls last,
       case when ${sort} = 'action' and ${direction} = 'asc' then action end asc nulls last,

@@ -228,7 +228,7 @@ export default async function ScansPage({
                       pageInfo={effectivePageInfo}
                       sort="createdAt"
                     >
-                      Scan
+                      Scan time
                     </SortableHeader>
                   </th>
                   <th>User</th>
@@ -287,7 +287,11 @@ export default async function ScansPage({
               </thead>
               <tbody>
                 {visibleScans.map((scan) => (
-                  <tr key={scan.id}>
+                  <tr
+                    aria-selected={params.scanId === scan.id}
+                    className={params.scanId === scan.id ? "row-selected" : undefined}
+                    key={scan.id}
+                  >
                     <td>
                       <div className="font-semibold break-cell">{scan.id}</div>
                       <div className="muted text-xs">{formatDate(scan.createdAt)}</div>
