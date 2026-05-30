@@ -106,7 +106,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerBootstrapRoutes(app, repository, mealImageStorage, sql);
   await registerJournalRoutes(app, repository, mealImageStorage);
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
-  await registerAdminRoutes(app, sql);
+  await registerAdminRoutes(app, sql, mealImageStorage);
 
   return app;
 };

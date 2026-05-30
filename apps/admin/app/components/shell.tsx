@@ -1,17 +1,6 @@
-import Link from "next/link";
+import { AdminNav } from "./nav";
 import { logoutAction } from "../lib/actions";
 import { requireAdminSession } from "../lib/session";
-
-const navItems = [
-  ["/", "Overview"],
-  ["/cost", "AI Usage"],
-  ["/users", "Users"],
-  ["/scans", "Scans"],
-  ["/ai", "AI Controls"],
-  ["/flags", "Flags & Notices"],
-  ["/versions", "App Versions"],
-  ["/audit", "Audit Log"],
-] as const;
 
 export async function AdminShell({ children }: { children: React.ReactNode }) {
   const session = await requireAdminSession();
@@ -27,13 +16,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="mt-8 grid gap-1">
-          {navItems.map(([href, label]) => (
-            <Link className="nav-link" href={href} key={href}>
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <AdminNav />
 
         <div className="admin-account">
           <div className="text-sm muted">Signed in as</div>

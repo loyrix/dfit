@@ -400,6 +400,41 @@ function ScanDetail({ scan }: { scan?: AdminScan }) {
         </div>
       </div>
 
+      {scan.image ? (
+        <div className="scan-image-preview mt-5">
+          <div className="section-head mb-3">
+            <div>
+              <div className="metric-label">Food photo</div>
+              <div className="muted text-sm">
+                {scan.image.mimeType ?? "image"} ·{" "}
+                {scan.image.byteSize ? formatBytes(scan.image.byteSize) : "size unknown"}
+              </div>
+            </div>
+            {scan.image.url ? (
+              <a className="badge" href={scan.image.url} rel="noreferrer" target="_blank">
+                Open original
+              </a>
+            ) : null}
+          </div>
+          {scan.image.url ? (
+            <a href={scan.image.url} rel="noreferrer" target="_blank">
+              <img
+                alt={`Food photo for scan ${scan.id}`}
+                className="scan-image"
+                src={scan.image.url}
+              />
+            </a>
+          ) : (
+            <div className="panel-light rounded-lg p-4">
+              <div className="font-semibold">Image stored, preview unavailable</div>
+              <p className="muted mt-1 text-sm">
+                The object key is present, but the admin API could not create a temporary read URL.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
+
       <div className="detail-grid mt-5">
         <Detail label="Scan id" value={scan.id} />
         <Detail label="Profile" value={scan.profileId ?? "Unlinked profile"} />

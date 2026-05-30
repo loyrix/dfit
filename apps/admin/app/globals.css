@@ -85,6 +85,17 @@ textarea {
   color: var(--text);
 }
 
+.nav-link-active {
+  background: var(--gold-soft);
+  border: 1px solid #ead489;
+  color: var(--text);
+  font-weight: 760;
+}
+
+.nav-link-active:hover {
+  background: var(--gold-soft);
+}
+
 .admin-account {
   border-top: 1px solid var(--line);
   margin-top: 32px;
@@ -311,6 +322,23 @@ textarea {
   border: 1px solid rgba(231, 224, 209, 0.75);
   border-radius: 8px;
   padding: 12px;
+}
+
+.scan-image-preview {
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.scan-image {
+  background: #171a16;
+  border-radius: 8px;
+  display: block;
+  max-height: 360px;
+  object-fit: contain;
+  width: 100%;
 }
 
 .truncate-cell {

@@ -168,7 +168,13 @@ export type AdminScan = {
   status: string;
   creditReason?: string;
   userHint?: string;
-  image?: { mimeType?: string; byteSize?: number; bucket?: string; objectKey: string };
+  image?: {
+    mimeType?: string;
+    byteSize?: number;
+    bucket?: string;
+    objectKey: string;
+    url?: string;
+  };
   ai?: {
     provider?: string;
     model: string;

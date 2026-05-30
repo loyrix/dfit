@@ -1,7 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { MealImageSummary } from "@logmyplate/domain";
 import postgres from "postgres";
 import { z } from "zod";
 import type { SqlClient } from "../db/client.js";
+import type { MealImageStorage } from "../services/meal-image-storage.js";
 import {
   APP_UPDATE_POLICY_KEY,
   appUpdatePolicyConfigSchema,
@@ -134,7 +136,11 @@ type RecentRunRow = {
   success: boolean;
 };
 
-export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient): Promise<void> => {
+export const registerAdminRoutes = async (
+  app: FastifyInstance,
+  sql?: SqlClient,
+  mealImageStorage?: MealImageStorage,
+): Promise<void> => {
   app.get("/admin/session", { preHandler: requireAdmin }, async (request) => ({
     actor: getAdminActor(request),
     enabled: true,
@@ -209,7 +215,7 @@ export const registerAdminRoutes = async (app: FastifyInstance, sql?: SqlClient)
   app.get("/admin/scans/:scanId", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const { scanId } = scanParamsSchema.parse(request.params);
-    const scan = await loadAdminScan(sql, scanId);
+    const scan = await loadAdminScan(sql, scanId, mealImageStorage);
     if (!scan) return reply.status(404).send({ error: "scan_not_found" });
     return { scan };
   });
@@ -1368,7 +1374,11 @@ const listAdminScans = async (
   };
 };
 
-const loadAdminScan = async (sql: SqlClient, scanId: string) => {
+const loadAdminScan = async (
+  sql: SqlClient,
+  scanId: string,
+  mealImageStorage?: MealImageStorage,
+) => {
   const [row] = await sql<(AdminScanRow & { raw_ai_json: unknown })[]>`
     select
       scan_sessions.id::text,
@@ -1418,12 +1428,17 @@ const loadAdminScan = async (sql: SqlClient, scanId: string) => {
     limit 1
   `;
 
-  return row
-    ? {
-        ...mapAdminScanRow(row),
-        rawAiJson: row.raw_ai_json,
-      }
-    : undefined;
+  if (!row) {
+    return undefined;
+  }
+
+  const scan = mapAdminScanRow(row);
+  const imageUrl = await createAdminScanImageUrl(row, mealImageStorage);
+  return {
+    ...scan,
+    image: scan.image && imageUrl ? { ...scan.image, url: imageUrl } : scan.image,
+    rawAiJson: row.raw_ai_json,
+  };
 };
 
 const mapAdminScanRow = (row: AdminScanRow) => ({
@@ -1460,6 +1475,42 @@ const mapAdminScanRow = (row: AdminScanRow) => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
+
+const supportedScanImageMimeTypes = new Set<MealImageSummary["mimeType"]>([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const createAdminScanImageUrl = async (
+  row: AdminScanRow,
+  mealImageStorage?: MealImageStorage,
+): Promise<string | undefined> => {
+  const byteSize = nullableNumberValue(row.image_byte_size);
+  if (
+    !mealImageStorage?.enabled ||
+    !row.image_bucket ||
+    !row.image_object_key ||
+    byteSize === null ||
+    !isSupportedScanImageMimeType(row.image_mime_type)
+  ) {
+    return undefined;
+  }
+
+  return mealImageStorage.createSignedReadUrl({
+    imageId: row.id,
+    bucket: row.image_bucket,
+    objectKey: row.image_object_key,
+    mimeType: row.image_mime_type,
+    byteSize,
+    createdAt: row.created_at,
+  });
+};
+
+const isSupportedScanImageMimeType = (
+  mimeType: string | null,
+): mimeType is MealImageSummary["mimeType"] =>
+  supportedScanImageMimeTypes.has(mimeType as MealImageSummary["mimeType"]);
 
 type AiModelRow = {
   key: string;
