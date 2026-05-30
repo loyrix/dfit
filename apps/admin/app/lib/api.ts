@@ -154,6 +154,9 @@ export type AdminUser = {
   id: string;
   authMethod: string;
   email?: string;
+  displayName?: string;
+  identityProvider?: string;
+  providerSubject?: string;
   timezone: string;
   linkedAt?: string;
   deletionRequestedAt?: string;
@@ -185,6 +188,8 @@ export type AdminScan = {
   appVersion?: string;
   appBuild?: number;
   profileEmail?: string;
+  profileDisplayName?: string;
+  profileAuthMethod?: string;
   status: string;
   creditReason?: string;
   userHint?: string;
@@ -208,6 +213,35 @@ export type AdminScan = {
   createdAt: string;
   updatedAt: string;
   rawAiJson?: unknown;
+};
+
+export type AdminConversionSummary = {
+  totalInstalls: number;
+  registeredInstalls: number;
+  anonymousInstalls: number;
+  registrationRate: number;
+};
+
+export type AdminConversionInstall = {
+  installId: string;
+  platform: string;
+  appVersion?: string;
+  appBuild?: number;
+  profileId?: string;
+  authMethod?: string;
+  email?: string;
+  displayName?: string;
+  identityProvider?: string;
+  linkedAt?: string;
+  profileCreatedAt?: string;
+  profileUpdatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  stats: {
+    scans: number;
+    failedScans: number;
+    meals: number;
+  };
 };
 
 export type AiModel = {

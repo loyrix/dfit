@@ -260,3 +260,25 @@ export const formatDate = (value: string) =>
     timeStyle: "short",
     timeZone: "Asia/Kolkata",
   }).format(new Date(value))} IST`;
+
+export function shortId(value: string | undefined, head = 8, tail = 6) {
+  if (!value) return "Unknown";
+  if (value.length <= head + tail + 3) return value;
+  return `${value.slice(0, head)}...${value.slice(-tail)}`;
+}
+
+export function personLabel({
+  displayName,
+  email,
+  fallback = "Anonymous user",
+}: {
+  displayName?: string;
+  email?: string;
+  fallback?: string;
+}) {
+  const name = displayName?.trim();
+  if (name) return name;
+  const address = email?.trim();
+  if (address) return address;
+  return fallback;
+}

@@ -10,7 +10,9 @@ import {
   formatDate,
   formatNumber,
   hrefWithParams,
+  personLabel,
   resolveTableState,
+  shortId,
   type QueryParams,
 } from "../components/ui";
 import { adminGet, type AdminScan, type PageInfo } from "../lib/api";
@@ -85,7 +87,7 @@ export default async function ScansPage({
           <input
             className="input"
             name="query"
-            placeholder="Scan id, profile id, email, meal, or note"
+            placeholder="Scan id, name, profile id, email, meal, or note"
             defaultValue={listParams.query ?? ""}
           />
         </label>
@@ -228,7 +230,7 @@ export default async function ScansPage({
                       pageInfo={effectivePageInfo}
                       sort="createdAt"
                     >
-                      Scan time
+                      Created
                     </SortableHeader>
                   </th>
                   <th>User</th>
@@ -282,6 +284,16 @@ export default async function ScansPage({
                       Conf.
                     </SortableHeader>
                   </th>
+                  <th>
+                    <SortableHeader
+                      basePath="/scans"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="updatedAt"
+                    >
+                      Updated
+                    </SortableHeader>
+                  </th>
                   <th />
                 </tr>
               </thead>
@@ -293,22 +305,32 @@ export default async function ScansPage({
                     key={scan.id}
                   >
                     <td>
-                      <div className="font-semibold break-cell">{scan.id}</div>
+                      <div className="font-semibold truncate-cell" title={scan.id}>
+                        {scan.meal?.title ?? shortId(scan.id)}
+                      </div>
                       <div className="muted text-xs">{formatDate(scan.createdAt)}</div>
+                      <div className="muted text-xs" title={scan.id}>
+                        {shortId(scan.id)}
+                      </div>
                     </td>
                     <td>
                       {scan.profileId ? (
                         <Link
-                          className="font-semibold break-cell"
+                          className="font-semibold truncate-cell"
                           href={`/users?profileId=${scan.profileId}`}
+                          title={scan.profileDisplayName ?? scan.profileEmail ?? scan.profileId}
                         >
-                          {scan.profileEmail ?? scan.profileId}
+                          {scanUserLabel(scan)}
                         </Link>
                       ) : (
                         <span className="font-semibold">Unlinked profile</span>
                       )}
-                      <div className="muted text-xs break-cell">
-                        {scan.profileId ?? "AI retained after user deletion"}
+                      <div className="muted text-xs truncate-cell" title={scan.profileId}>
+                        {scan.profileEmail && scan.profileDisplayName
+                          ? scan.profileEmail
+                          : scan.profileId
+                            ? shortId(scan.profileId)
+                            : "AI retained after deletion"}
                       </div>
                     </td>
                     <td>
@@ -335,6 +357,7 @@ export default async function ScansPage({
                         ? `${Math.round(scan.ai.confidence * 100)}%`
                         : "None"}
                     </td>
+                    <td>{formatDate(scan.updatedAt)}</td>
                     <td className="table-actions">
                       <Link
                         className="badge"
@@ -441,7 +464,9 @@ function ScanDetail({ scan }: { scan?: AdminScan }) {
 
       <div className="detail-grid mt-5">
         <Detail label="Scan id" value={scan.id} />
-        <Detail label="Profile" value={scan.profileId ?? "Unlinked profile"} />
+        <Detail label="Profile" value={scanUserLabel(scan)} />
+        <Detail label="Profile id" value={scan.profileId ?? "Unlinked profile"} />
+        <Detail label="Profile auth" value={scan.profileAuthMethod ?? "Unknown"} />
         <Detail label="Install" value={scan.installId ?? "Unknown"} />
         <Detail label="Platform" value={platformLabel(scan.platform)} />
         <Detail label="App" value={`${scan.appVersion ?? "unknown"} (${scan.appBuild ?? 0})`} />
@@ -504,6 +529,14 @@ function platformLabel(value: string | undefined) {
   if (value === "ios") return "iOS";
   if (value === "android") return "Android";
   return "Unknown";
+}
+
+function scanUserLabel(scan: Pick<AdminScan, "profileDisplayName" | "profileEmail" | "profileId">) {
+  return personLabel({
+    displayName: scan.profileDisplayName,
+    email: scan.profileEmail,
+    fallback: scan.profileId ? `Profile ${shortId(scan.profileId)}` : "Unlinked profile",
+  });
 }
 
 function toScanApiQuery(params: QueryParams) {

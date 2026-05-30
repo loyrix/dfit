@@ -11,7 +11,9 @@ import {
   formatDate,
   formatNumber,
   hrefWithParams,
+  personLabel,
   resolveTableState,
+  shortId,
   type QueryParams,
 } from "../components/ui";
 import { grantCreditsAction, reactivateUserAction } from "../lib/actions";
@@ -53,10 +55,11 @@ export default async function UsersPage({
     listParams,
     {
       defaultPageSize: 25,
-      defaultSort: "updatedAt",
+      defaultSort: "lastScanAt",
       sorters: {
         authMethod: (user) => user.authMethod,
         createdAt: (user) => new Date(user.createdAt),
+        displayName: (user) => user.displayName ?? user.email ?? user.id,
         email: (user) => user.email ?? user.id,
         failedScans: (user) => user.stats.failedScans,
         grants: (user) => user.stats.grants,
@@ -83,7 +86,7 @@ export default async function UsersPage({
           <input
             className="input"
             name="query"
-            placeholder="Email, profile id, or provider subject"
+            placeholder="Name, email, profile id, or provider subject"
             defaultValue={listParams.query ?? ""}
           />
         </label>
@@ -147,7 +150,7 @@ export default async function UsersPage({
                       basePath="/users"
                       params={listParams}
                       pageInfo={effectivePageInfo}
-                      sort="email"
+                      sort="displayName"
                     >
                       User
                     </SortableHeader>
@@ -162,7 +165,6 @@ export default async function UsersPage({
                       Auth
                     </SortableHeader>
                   </th>
-                  <th>Quota</th>
                   <th>
                     <SortableHeader
                       basePath="/users"
@@ -183,6 +185,26 @@ export default async function UsersPage({
                       Last scan
                     </SortableHeader>
                   </th>
+                  <th>
+                    <SortableHeader
+                      basePath="/users"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="createdAt"
+                    >
+                      Created
+                    </SortableHeader>
+                  </th>
+                  <th>
+                    <SortableHeader
+                      basePath="/users"
+                      params={listParams}
+                      pageInfo={effectivePageInfo}
+                      sort="updatedAt"
+                    >
+                      Updated
+                    </SortableHeader>
+                  </th>
                   <th />
                 </tr>
               </thead>
@@ -194,37 +216,48 @@ export default async function UsersPage({
                     key={user.id}
                   >
                     <td>
-                      <div className="font-semibold break-cell">{user.email ?? user.id}</div>
-                      <div className="muted text-xs break-cell">{user.id}</div>
+                      <div
+                        className="font-semibold truncate-cell"
+                        title={user.displayName ?? user.email ?? user.id}
+                      >
+                        {userLabel(user)}
+                      </div>
+                      <div className="muted text-xs truncate-cell" title={user.id}>
+                        {user.email && user.displayName ? user.email : shortId(user.id)}
+                      </div>
                     </td>
                     <td>
                       <Badge tone={user.deactivatedAt ? "red" : "green"}>
                         {user.deactivatedAt ? "inactive" : "active"}
                       </Badge>
-                      <div className="muted mt-1 text-xs">{user.authMethod}</div>
-                    </td>
-                    <td>
-                      <div className="font-semibold">
-                        {user.quota.freeRemaining +
-                          user.quota.rewardedRemaining +
-                          user.quota.premiumRemaining}
+                      <div className="muted text-xs">
+                        {user.authMethod}
+                        {user.identityProvider ? ` · ${user.identityProvider}` : ""}
                       </div>
                       <div className="muted text-xs">
-                        F {user.quota.freeRemaining} / R {user.quota.rewardedRemaining} / P{" "}
-                        {user.quota.premiumRemaining}
+                        Credits{" "}
+                        {formatNumber(
+                          user.quota.freeRemaining +
+                            user.quota.rewardedRemaining +
+                            user.quota.premiumRemaining,
+                        )}
                       </div>
                     </td>
                     <td>
                       <div className="font-semibold">{formatNumber(user.stats.scans)}</div>
                       <div className="muted text-xs">
-                        {formatNumber(user.stats.failedScans)} failed
+                        {formatNumber(user.stats.failedScans)} failed ·{" "}
+                        {formatNumber(user.stats.meals)} meals
                       </div>
                     </td>
                     <td>
                       <div>{user.lastScanAt ? formatDate(user.lastScanAt) : "No scans yet"}</div>
-                      <div className="muted text-xs">
-                        Profile updated {formatDate(user.updatedAt)}
-                      </div>
+                    </td>
+                    <td>
+                      <div>{formatDate(user.createdAt)}</div>
+                    </td>
+                    <td>
+                      <div>{formatDate(user.updatedAt)}</div>
                     </td>
                     <td className="table-actions">
                       <Link
@@ -280,8 +313,10 @@ function UserDetail({ user }: { user: AdminUser }) {
       <div className="panel">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold">{user.email ?? "Anonymous profile"}</h2>
-            <p className="muted mt-1 break-all text-sm">{user.id}</p>
+            <h2 className="text-xl font-bold">{userLabel(user)}</h2>
+            <p className="muted mt-1 text-sm" title={user.id}>
+              {user.email && user.displayName ? user.email : shortId(user.id, 10, 8)}
+            </p>
           </div>
           <Badge tone={user.deactivatedAt ? "red" : "green"}>
             {user.deactivatedAt ? "Inactive" : "Active"}
@@ -289,7 +324,11 @@ function UserDetail({ user }: { user: AdminUser }) {
         </div>
 
         <div className="detail-grid mt-5">
+          <Detail label="Display name" value={user.displayName ?? "None"} />
+          <Detail label="Email" value={user.email ?? "None"} />
           <Detail label="Auth method" value={user.authMethod} />
+          <Detail label="Identity provider" value={user.identityProvider ?? "None"} />
+          <Detail label="Profile id" value={user.id} />
           <Detail label="Timezone" value={user.timezone} />
           <Detail label="Created" value={formatDate(user.createdAt)} />
           <Detail label="Updated" value={formatDate(user.updatedAt)} />
@@ -392,16 +431,28 @@ function UserDetail({ user }: { user: AdminUser }) {
         </div>
         <div className="table-wrap">
           <table className="table table-compact">
+            <thead>
+              <tr>
+                <th>Scan</th>
+                <th>Model</th>
+                <th>Created</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
             <tbody>
               {(user.recentScans ?? []).map((scan) => (
                 <tr key={scan.id}>
                   <td>
                     <Link className="font-semibold" href={`/scans?scanId=${scan.id}`}>
-                      {scan.status}
+                      {scan.meal?.title ?? scan.status}
                     </Link>
-                    <div className="muted text-xs">{formatDate(scan.createdAt)}</div>
+                    <div className="muted text-xs" title={scan.id}>
+                      {shortId(scan.id)}
+                    </div>
                   </td>
                   <td>{scan.ai?.model ?? "not analyzed"}</td>
+                  <td>{formatDate(scan.createdAt)}</td>
+                  <td>{formatDate(scan.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -443,6 +494,14 @@ function Detail({ label, value }: { label: string; value: string }) {
       <div className="mt-1 break-all">{value}</div>
     </div>
   );
+}
+
+function userLabel(user: Pick<AdminUser, "displayName" | "email" | "authMethod">) {
+  return personLabel({
+    displayName: user.displayName,
+    email: user.email,
+    fallback: user.authMethod === "anonymous" ? "Anonymous user" : "Unnamed account",
+  });
 }
 
 function userListParams(params: UsersSearchParams): QueryParams {

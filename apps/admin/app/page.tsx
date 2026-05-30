@@ -129,6 +129,17 @@ export default async function DashboardPage() {
                   </td>
                 </tr>
                 <tr>
+                  <td className="font-semibold">Install conversion</td>
+                  <td className="muted">
+                    Review anonymous installs, registered users, and scan behavior.
+                  </td>
+                  <td>
+                    <Link className="badge" href="/conversions">
+                      Open
+                    </Link>
+                  </td>
+                </tr>
+                <tr>
                   <td className="font-semibold">Runtime changes</td>
                   <td className="muted">
                     Audit model, prompt, flag, notice, and version-policy changes.

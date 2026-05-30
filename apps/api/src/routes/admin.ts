@@ -195,6 +195,12 @@ export const registerAdminRoutes = async (
     return { user };
   });
 
+  app.get("/admin/conversions", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const query = adminConversionQuerySchema.parse(request.query ?? {});
+    return listAdminConversions(sql, query);
+  });
+
   app.post(
     "/admin/users/:profileId/grants",
     { preHandler: requireAdmin },
@@ -354,6 +360,7 @@ const adminUserSearchQuerySchema = adminPaginationQuerySchema.extend({
     .enum([
       "updatedAt",
       "createdAt",
+      "displayName",
       "email",
       "authMethod",
       "lastScanAt",
@@ -363,6 +370,25 @@ const adminUserSearchQuerySchema = adminPaginationQuerySchema.extend({
       "grants",
     ])
     .default("lastScanAt"),
+});
+
+const adminConversionQuerySchema = adminPaginationQuerySchema.extend({
+  query: z.string().trim().max(160).optional(),
+  platform: platformQuerySchema,
+  status: z.enum(["all", "registered", "anonymous"]).default("all"),
+  sort: z
+    .enum([
+      "createdAt",
+      "updatedAt",
+      "displayName",
+      "email",
+      "authMethod",
+      "platform",
+      "scans",
+      "meals",
+      "linkedAt",
+    ])
+    .default("updatedAt"),
 });
 
 const adminScanQuerySchema = adminPaginationQuerySchema.extend({
@@ -896,6 +922,9 @@ type AdminUserRow = {
   id: string;
   auth_method: string;
   email: string | null;
+  display_name: string | null;
+  identity_provider: string | null;
+  provider_subject: string | null;
   timezone: string;
   linked_at: string | null;
   deletion_requested_at: string | null;
@@ -934,14 +963,16 @@ const searchAdminUsers = async (
   const pattern = `%${normalized}%`;
   const { page, pageSize, offset, sort, direction } = normalizeAdminPagination(query, 25);
   const rows = await sql<AdminUserListRow[]>`
-    with user_rollup as (
-      select
-        profiles.id::text,
-        profiles.auth_method::text,
-        profiles.email,
-        profiles.provider_subject,
-        profiles.timezone,
-	        profiles.linked_at::text,
+	    with user_rollup as (
+	      select
+	        profiles.id::text,
+	        profiles.auth_method::text,
+	        coalesce(identity.email, profiles.email) as email,
+	        identity.display_name,
+	        identity.identity_provider,
+	        profiles.provider_subject,
+	        profiles.timezone,
+		        profiles.linked_at::text,
 	        profiles.deletion_requested_at::text,
 	        profiles.deactivated_at::text,
 	        profiles.created_at as created_at_sort,
@@ -957,24 +988,42 @@ const searchAdminUsers = async (
         count(distinct scan_sessions.id)::int as scans,
         count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
         count(distinct admin_scan_credit_grants.id)::int as grants
-      from profiles
-      left join scan_credits
-        on scan_credits.profile_id = profiles.id
-        and scan_credits.local_date = date '1970-01-01'
-      left join meals on meals.profile_id = profiles.id
-      left join scan_sessions on scan_sessions.profile_id = profiles.id
-      left join admin_scan_credit_grants on admin_scan_credit_grants.profile_id = profiles.id
-      group by profiles.id, scan_credits.free_remaining, scan_credits.rewarded_remaining, scan_credits.premium_remaining
-    )
-    select *, count(*) over()::int as total_count
-    from user_rollup
+	      from profiles
+	      left join lateral (
+	        select
+	          account_identities.email,
+	          account_identities.display_name,
+	          account_identities.provider::text as identity_provider
+	        from account_identities
+	        where account_identities.profile_id = profiles.id
+	        order by account_identities.updated_at desc, account_identities.created_at desc
+	        limit 1
+	      ) identity on true
+	      left join scan_credits
+	        on scan_credits.profile_id = profiles.id
+	        and scan_credits.local_date = date '1970-01-01'
+	      left join meals on meals.profile_id = profiles.id
+	      left join scan_sessions on scan_sessions.profile_id = profiles.id
+	      left join admin_scan_credit_grants on admin_scan_credit_grants.profile_id = profiles.id
+	      group by
+	        profiles.id,
+	        identity.email,
+	        identity.display_name,
+	        identity.identity_provider,
+	        scan_credits.free_remaining,
+	        scan_credits.rewarded_remaining,
+	        scan_credits.premium_remaining
+	    )
+	    select *, count(*) over()::int as total_count
+	    from user_rollup
     where
       (
-        ${normalized} = ''
-        or id = ${normalized}
-        or email ilike ${pattern}
-        or provider_subject ilike ${pattern}
-      )
+	        ${normalized} = ''
+	        or id = ${normalized}
+	        or email ilike ${pattern}
+	        or display_name ilike ${pattern}
+	        or provider_subject ilike ${pattern}
+	      )
       and (
         ${query.status} = 'all'
         or (${query.status} = 'active' and deactivated_at is null)
@@ -989,10 +1038,12 @@ const searchAdminUsers = async (
         or (${query.risk} = 'deactivated' and deactivated_at is not null)
       )
     order by
-      case when ${sort} = 'email' and ${direction} = 'asc' then email end asc nulls last,
-      case when ${sort} = 'email' and ${direction} = 'desc' then email end desc nulls last,
-      case when ${sort} = 'authMethod' and ${direction} = 'asc' then auth_method end asc nulls last,
-      case when ${sort} = 'authMethod' and ${direction} = 'desc' then auth_method end desc nulls last,
+	      case when ${sort} = 'email' and ${direction} = 'asc' then email end asc nulls last,
+	      case when ${sort} = 'email' and ${direction} = 'desc' then email end desc nulls last,
+	      case when ${sort} = 'displayName' and ${direction} = 'asc' then display_name end asc nulls last,
+	      case when ${sort} = 'displayName' and ${direction} = 'desc' then display_name end desc nulls last,
+	      case when ${sort} = 'authMethod' and ${direction} = 'asc' then auth_method end asc nulls last,
+	      case when ${sort} = 'authMethod' and ${direction} = 'desc' then auth_method end desc nulls last,
 	      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at_sort end asc nulls last,
 	      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at_sort end desc nulls last,
 	      case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at_sort end asc nulls last,
@@ -1022,12 +1073,15 @@ const searchAdminUsers = async (
 
 const loadAdminUser = async (sql: SqlClient, profileId: string) => {
   const [userRow] = await sql<AdminUserRow[]>`
-    select
-      profiles.id::text,
-      profiles.auth_method::text,
-      profiles.email,
-      profiles.timezone,
-      profiles.linked_at::text,
+	    select
+	      profiles.id::text,
+	      profiles.auth_method::text,
+	      coalesce(identity.email, profiles.email) as email,
+	      identity.display_name,
+	      identity.identity_provider,
+	      profiles.provider_subject,
+	      profiles.timezone,
+	      profiles.linked_at::text,
       profiles.deletion_requested_at::text,
       profiles.deactivated_at::text,
       profiles.created_at::text,
@@ -1040,17 +1094,34 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
       count(distinct scan_sessions.id)::int as scans,
       count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
       count(distinct admin_scan_credit_grants.id)::int as grants
-    from profiles
-    left join scan_credits
-      on scan_credits.profile_id = profiles.id
-      and scan_credits.local_date = date '1970-01-01'
-    left join meals on meals.profile_id = profiles.id
-    left join scan_sessions on scan_sessions.profile_id = profiles.id
-    left join admin_scan_credit_grants on admin_scan_credit_grants.profile_id = profiles.id
-    where profiles.id = ${profileId}
-    group by profiles.id, scan_credits.free_remaining, scan_credits.rewarded_remaining, scan_credits.premium_remaining
-    limit 1
-  `;
+	    from profiles
+	    left join lateral (
+	      select
+	        account_identities.email,
+	        account_identities.display_name,
+	        account_identities.provider::text as identity_provider
+	      from account_identities
+	      where account_identities.profile_id = profiles.id
+	      order by account_identities.updated_at desc, account_identities.created_at desc
+	      limit 1
+	    ) identity on true
+	    left join scan_credits
+	      on scan_credits.profile_id = profiles.id
+	      and scan_credits.local_date = date '1970-01-01'
+	    left join meals on meals.profile_id = profiles.id
+	    left join scan_sessions on scan_sessions.profile_id = profiles.id
+	    left join admin_scan_credit_grants on admin_scan_credit_grants.profile_id = profiles.id
+	    where profiles.id = ${profileId}
+	    group by
+	      profiles.id,
+	      identity.email,
+	      identity.display_name,
+	      identity.identity_provider,
+	      scan_credits.free_remaining,
+	      scan_credits.rewarded_remaining,
+	      scan_credits.premium_remaining
+	    limit 1
+	  `;
 
   if (!userRow) return undefined;
 
@@ -1082,6 +1153,9 @@ const mapAdminUserRow = (row: AdminUserRow) => ({
   id: row.id,
   authMethod: row.auth_method,
   email: row.email ?? undefined,
+  displayName: row.display_name ?? undefined,
+  identityProvider: row.identity_provider ?? undefined,
+  providerSubject: row.provider_subject ?? undefined,
   timezone: row.timezone,
   linkedAt: row.linked_at ?? undefined,
   deletionRequestedAt: row.deletion_requested_at ?? undefined,
@@ -1110,6 +1184,173 @@ const mapAdminGrantRow = (row: AdminGrantRow) => ({
   reason: row.reason,
   actor: row.actor,
   createdAt: row.created_at,
+});
+
+type AdminConversionSummaryRow = {
+  total_installs: number | string;
+  registered_installs: number | string;
+  anonymous_installs: number | string;
+};
+
+type AdminConversionRow = {
+  install_id: string;
+  platform: string;
+  app_version: string | null;
+  app_build: number | string | null;
+  profile_id: string | null;
+  auth_method: string | null;
+  email: string | null;
+  display_name: string | null;
+  identity_provider: string | null;
+  linked_at: string | null;
+  profile_created_at: string | null;
+  profile_updated_at: string | null;
+  created_at: string;
+  updated_at: string;
+  scans: number | string;
+  failed_scans: number | string;
+  meals: number | string;
+  total_count: number | string;
+};
+
+const listAdminConversions = async (
+  sql: SqlClient,
+  query: z.infer<typeof adminConversionQuerySchema>,
+) => {
+  const normalized = query.query?.trim() || "";
+  const pattern = `%${normalized}%`;
+  const { page, pageSize, offset, sort, direction } = normalizeAdminPagination(query, 50);
+
+  const [summary] = await sql<AdminConversionSummaryRow[]>`
+    select
+      count(*)::int as total_installs,
+      count(*) filter (where profiles.auth_method <> 'anonymous')::int as registered_installs,
+      count(*) filter (where profiles.auth_method = 'anonymous')::int as anonymous_installs
+    from devices
+    left join profiles on profiles.id = devices.profile_id
+  `;
+
+  const rows = await sql<AdminConversionRow[]>`
+    with conversion_rollup as (
+      select
+        devices.install_id,
+        devices.platform,
+        devices.app_version,
+        devices.app_build,
+        devices.first_seen_at as created_at_sort,
+        devices.last_seen_at as updated_at_sort,
+        devices.first_seen_at::text as created_at,
+        devices.last_seen_at::text as updated_at,
+        profiles.id::text as profile_id,
+        profiles.auth_method::text as auth_method,
+        coalesce(identity.email, profiles.email) as email,
+        identity.display_name,
+        identity.identity_provider,
+        profiles.linked_at as linked_at_sort,
+        profiles.linked_at::text as linked_at,
+        profiles.created_at::text as profile_created_at,
+        profiles.updated_at::text as profile_updated_at,
+        count(distinct scan_sessions.id)::int as scans,
+        count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
+        count(distinct meals.id)::int as meals
+      from devices
+      left join profiles on profiles.id = devices.profile_id
+      left join lateral (
+        select
+          account_identities.email,
+          account_identities.display_name,
+          account_identities.provider::text as identity_provider
+        from account_identities
+        where account_identities.profile_id = profiles.id
+        order by account_identities.updated_at desc, account_identities.created_at desc
+        limit 1
+      ) identity on true
+      left join scan_sessions on scan_sessions.install_id = devices.install_id
+      left join meals on meals.profile_id = profiles.id
+      group by
+        devices.id,
+        profiles.id,
+        identity.email,
+        identity.display_name,
+        identity.identity_provider
+    )
+    select *, count(*) over()::int as total_count
+    from conversion_rollup
+    where
+      (${query.platform} = 'all' or platform = ${query.platform})
+      and (
+        ${query.status} = 'all'
+        or (${query.status} = 'registered' and auth_method <> 'anonymous')
+        or (${query.status} = 'anonymous' and auth_method = 'anonymous')
+      )
+      and (
+        ${normalized} = ''
+        or install_id = ${normalized}
+        or profile_id = ${normalized}
+        or email ilike ${pattern}
+        or display_name ilike ${pattern}
+        or app_version ilike ${pattern}
+      )
+    order by
+      case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at_sort end asc nulls last,
+      case when ${sort} = 'createdAt' and ${direction} = 'desc' then created_at_sort end desc nulls last,
+      case when ${sort} = 'updatedAt' and ${direction} = 'asc' then updated_at_sort end asc nulls last,
+      case when ${sort} = 'updatedAt' and ${direction} = 'desc' then updated_at_sort end desc nulls last,
+      case when ${sort} = 'displayName' and ${direction} = 'asc' then display_name end asc nulls last,
+      case when ${sort} = 'displayName' and ${direction} = 'desc' then display_name end desc nulls last,
+      case when ${sort} = 'email' and ${direction} = 'asc' then email end asc nulls last,
+      case when ${sort} = 'email' and ${direction} = 'desc' then email end desc nulls last,
+      case when ${sort} = 'authMethod' and ${direction} = 'asc' then auth_method end asc nulls last,
+      case when ${sort} = 'authMethod' and ${direction} = 'desc' then auth_method end desc nulls last,
+      case when ${sort} = 'platform' and ${direction} = 'asc' then platform end asc nulls last,
+      case when ${sort} = 'platform' and ${direction} = 'desc' then platform end desc nulls last,
+      case when ${sort} = 'linkedAt' and ${direction} = 'asc' then linked_at_sort end asc nulls last,
+      case when ${sort} = 'linkedAt' and ${direction} = 'desc' then linked_at_sort end desc nulls last,
+      case when ${sort} = 'scans' and ${direction} = 'asc' then scans end asc nulls last,
+      case when ${sort} = 'scans' and ${direction} = 'desc' then scans end desc nulls last,
+      case when ${sort} = 'meals' and ${direction} = 'asc' then meals end asc nulls last,
+      case when ${sort} = 'meals' and ${direction} = 'desc' then meals end desc nulls last,
+      updated_at_sort desc
+    limit ${pageSize}
+    offset ${offset}
+  `;
+
+  const total = numberValue(rows[0]?.total_count ?? 0);
+  const totalInstalls = numberValue(summary?.total_installs);
+  const registeredInstalls = numberValue(summary?.registered_installs);
+  return {
+    summary: {
+      totalInstalls,
+      registeredInstalls,
+      anonymousInstalls: numberValue(summary?.anonymous_installs),
+      registrationRate:
+        totalInstalls > 0 ? Math.round((registeredInstalls / totalInstalls) * 10000) / 100 : 0,
+    },
+    installs: rows.map(mapAdminConversionRow),
+    pageInfo: pageInfoFrom(page, pageSize, sort, direction, total),
+  };
+};
+
+const mapAdminConversionRow = (row: AdminConversionRow) => ({
+  installId: row.install_id,
+  platform: row.platform,
+  appVersion: row.app_version ?? undefined,
+  appBuild: nullableNumberValue(row.app_build) ?? undefined,
+  profileId: row.profile_id ?? undefined,
+  authMethod: row.auth_method ?? undefined,
+  email: row.email ?? undefined,
+  displayName: row.display_name ?? undefined,
+  identityProvider: row.identity_provider ?? undefined,
+  linkedAt: row.linked_at ?? undefined,
+  profileCreatedAt: row.profile_created_at ?? undefined,
+  profileUpdatedAt: row.profile_updated_at ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  stats: {
+    scans: numberValue(row.scans),
+    failedScans: numberValue(row.failed_scans),
+    meals: numberValue(row.meals),
+  },
 });
 
 const grantScanCredits = async (
@@ -1287,6 +1528,8 @@ type AdminScanRow = {
   app_version: string | null;
   app_build: number | string | null;
   profile_email: string | null;
+  profile_display_name: string | null;
+  profile_auth_method: string | null;
   status: string;
   consumed_credit_reason: string | null;
   user_hint: string | null;
@@ -1342,8 +1585,10 @@ const listAdminScans = async (
         scan_sessions.platform,
         scan_sessions.app_version,
         scan_sessions.app_build,
-        profiles.email as profile_email,
-        scan_sessions.status::text,
+	        coalesce(identity.email, profiles.email) as profile_email,
+	        identity.display_name as profile_display_name,
+	        profiles.auth_method::text as profile_auth_method,
+	        scan_sessions.status::text,
         scan_sessions.consumed_credit_reason,
         scan_sessions.user_hint,
 	        scan_sessions.image_mime_type,
@@ -1364,7 +1609,16 @@ const listAdminScans = async (
         meals.id::text as meal_id,
         meals.title as meal_title
       from scan_sessions
-	      left join profiles on profiles.id = scan_sessions.profile_id
+		      left join profiles on profiles.id = scan_sessions.profile_id
+		      left join lateral (
+		        select
+		          account_identities.email,
+		          account_identities.display_name
+		        from account_identities
+		        where account_identities.profile_id = profiles.id
+		        order by account_identities.updated_at desc, account_identities.created_at desc
+		        limit 1
+		      ) identity on true
 	      left join lateral (
 	        select id, provider, model, prompt_version, latency_ms, success, error_code
 	        from ai_provider_runs
@@ -1391,10 +1645,11 @@ const listAdminScans = async (
       and (
         ${normalized} = ''
         or id = ${normalized}
-        or profile_id = ${normalized}
-        or install_id = ${normalized}
-        or profile_email ilike ${pattern}
-        or user_hint ilike ${pattern}
+	        or profile_id = ${normalized}
+	        or install_id = ${normalized}
+	        or profile_email ilike ${pattern}
+	        or profile_display_name ilike ${pattern}
+	        or user_hint ilike ${pattern}
         or meal_title ilike ${pattern}
       )
       and (${model} = '' or model ilike ${modelPattern})
@@ -1460,8 +1715,10 @@ const loadAdminScan = async (
       scan_sessions.platform,
       scan_sessions.app_version,
       scan_sessions.app_build,
-      profiles.email as profile_email,
-      scan_sessions.status::text,
+	      coalesce(identity.email, profiles.email) as profile_email,
+	      identity.display_name as profile_display_name,
+	      profiles.auth_method::text as profile_auth_method,
+	      scan_sessions.status::text,
       scan_sessions.consumed_credit_reason,
       scan_sessions.user_hint,
 	      scan_sessions.image_mime_type,
@@ -1481,7 +1738,16 @@ const loadAdminScan = async (
       meals.id::text as meal_id,
       meals.title as meal_title
     from scan_sessions
-	    left join profiles on profiles.id = scan_sessions.profile_id
+		    left join profiles on profiles.id = scan_sessions.profile_id
+		    left join lateral (
+		      select
+		        account_identities.email,
+		        account_identities.display_name
+		      from account_identities
+		      where account_identities.profile_id = profiles.id
+		      order by account_identities.updated_at desc, account_identities.created_at desc
+		      limit 1
+		    ) identity on true
 	    left join lateral (
 	      select id, provider, model, prompt_version, latency_ms, success, error_code
 	      from ai_provider_runs
@@ -1522,6 +1788,8 @@ const mapAdminScanRow = (row: AdminScanRow) => ({
   appVersion: row.app_version ?? undefined,
   appBuild: nullableNumberValue(row.app_build) ?? undefined,
   profileEmail: row.profile_email ?? undefined,
+  profileDisplayName: row.profile_display_name ?? undefined,
+  profileAuthMethod: row.profile_auth_method ?? undefined,
   status: row.status,
   creditReason: row.consumed_credit_reason ?? undefined,
   userHint: row.user_hint ?? undefined,
