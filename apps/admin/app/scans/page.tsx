@@ -87,7 +87,7 @@ export default async function ScansPage({
           <input
             className="input"
             name="query"
-            placeholder="Scan id, name, profile id, email, meal, or note"
+            placeholder="Scan id, name, profile id, email, meal, note, timezone, region"
             defaultValue={listParams.query ?? ""}
           />
         </label>
@@ -338,6 +338,9 @@ export default async function ScansPage({
                       <div className="muted mt-1 text-xs">
                         {scan.appVersion ?? "unknown"} ({scan.appBuild ?? 0})
                       </div>
+                      <div className="muted text-xs truncate-cell" title={scanLocationLabel(scan)}>
+                        {scanLocationLabel(scan)}
+                      </div>
                     </td>
                     <td>
                       <div>{scan.ai?.model ?? "not analyzed"}</div>
@@ -467,9 +470,13 @@ function ScanDetail({ scan }: { scan?: AdminScan }) {
         <Detail label="Profile" value={scanUserLabel(scan)} />
         <Detail label="Profile id" value={scan.profileId ?? "Unlinked profile"} />
         <Detail label="Profile auth" value={scan.profileAuthMethod ?? "Unknown"} />
+        <Detail label="Profile timezone" value={scan.profileTimezone ?? "Unknown"} />
         <Detail label="Install" value={scan.installId ?? "Unknown"} />
         <Detail label="Platform" value={platformLabel(scan.platform)} />
         <Detail label="App" value={`${scan.appVersion ?? "unknown"} (${scan.appBuild ?? 0})`} />
+        <Detail label="Device timezone" value={scan.deviceTimezone ?? "Unknown"} />
+        <Detail label="Device region" value={scan.deviceRegion ?? "Unknown"} />
+        <Detail label="Device locale" value={scan.deviceLocale ?? "Unknown"} />
         <Detail label="Created" value={formatDate(scan.createdAt)} />
         <Detail label="Updated" value={formatDate(scan.updatedAt)} />
         <Detail label="User note" value={scan.userHint ?? "None"} />
@@ -537,6 +544,11 @@ function scanUserLabel(scan: Pick<AdminScan, "profileDisplayName" | "profileEmai
     email: scan.profileEmail,
     fallback: scan.profileId ? `Profile ${shortId(scan.profileId)}` : "Unlinked profile",
   });
+}
+
+function scanLocationLabel(scan: AdminScan) {
+  const parts = [scan.deviceTimezone, scan.deviceRegion, scan.deviceLocale].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "No device location";
 }
 
 function toScanApiQuery(params: QueryParams) {

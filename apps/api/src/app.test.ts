@@ -4,6 +4,10 @@ import { currentRequestIdentity, type RequestIdentity } from "./request-context.
 import { InMemoryStore } from "./repositories/in-memory-store.js";
 import type { AdMobRewardedAdVerifier, AdMobRewardedSsvCallback } from "./services/admob-ssv.js";
 import type { AiProvider, AnalyzeMealImageInput } from "./services/ai-provider.js";
+import {
+  globalFoodPhotoPromptKey,
+  indiaFoodPhotoPromptKey,
+} from "./services/food-photo-prompt-routing.js";
 import { analyzeWithMockProvider } from "./services/mock-ai-provider.js";
 import type {
   MealImageStorage,
@@ -2391,6 +2395,94 @@ describe("LogMyPlate API", () => {
     await expect(repository.getScan(scanId)).resolves.toMatchObject({
       userHint: "dal chawal roti",
       status: "ready_for_review",
+    });
+    await app.close();
+  });
+
+  it("routes food photo prompt keys from request locale and region", async () => {
+    const seenInputs: AnalyzeMealImageInput[] = [];
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        seenInputs.push(input);
+        return {
+          analysis: analyzeWithMockProvider(input.scanId),
+          providerRun: {
+            provider: "mock",
+            model: "test-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+
+    const analyze = async ({
+      key,
+      headers,
+      imageBase64,
+    }: {
+      key: string;
+      headers: Record<string, string>;
+      imageBase64: string;
+    }) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": `prompt-route-prepare-${key}`, ...headers },
+      });
+      const scanId = prepared.json().scanId as string;
+      const analyzed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/analyze`,
+        headers: { "idempotency-key": `prompt-route-analyze-${key}`, ...headers },
+        payload: {
+          hint: "meal plate",
+          image: {
+            mimeType: "image/jpeg",
+            base64: imageBase64,
+            byteSize: Buffer.from(imageBase64, "base64").byteLength,
+          },
+        },
+      });
+      expect(analyzed.statusCode).toBe(200);
+    };
+
+    await analyze({
+      key: "india",
+      headers: {
+        "x-logmyplate-region": "IN",
+        "x-logmyplate-locale": "en-IN",
+        "x-logmyplate-timezone": "IST",
+      },
+      imageBase64: "AQID",
+    });
+    await analyze({
+      key: "global",
+      headers: {
+        "x-logmyplate-region": "US",
+        "x-logmyplate-locale": "en-US",
+        "x-logmyplate-timezone": "PST",
+      },
+      imageBase64: "BAUG",
+    });
+
+    expect(seenInputs).toHaveLength(2);
+    expect(seenInputs[0]).toMatchObject({
+      promptKey: indiaFoodPhotoPromptKey,
+      region: "IN",
+      locale: "en-IN",
+      timezone: "IST",
+    });
+    expect(seenInputs[1]).toMatchObject({
+      promptKey: globalFoodPhotoPromptKey,
+      region: "US",
+      locale: "en-US",
+      timezone: "PST",
     });
     await app.close();
   });

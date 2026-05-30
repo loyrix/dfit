@@ -7,7 +7,9 @@ import {
 } from "@logmyplate/contracts";
 import { decideScanQuota, sumTotals } from "@logmyplate/domain";
 import type { AppRepository } from "../repositories/app-repository.js";
+import { currentRequestIdentity } from "../request-context.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
+import { resolveFoodPhotoPromptKey } from "../services/food-photo-prompt-routing.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";
 import type { MealImageStorage, StoredMealImage } from "../services/meal-image-storage.js";
 import { toApiMeal } from "./journal-presenter.js";
@@ -226,6 +228,12 @@ export const registerScanRoutes = async (
       }
     }
 
+    const identity = currentRequestIdentity();
+    const promptKey = resolveFoodPhotoPromptKey({
+      region: identity.region,
+      locale: identity.locale,
+    });
+
     const scanWithRequestContext = {
       ...scan,
       status: "analyzing" as const,
@@ -243,6 +251,10 @@ export const registerScanRoutes = async (
         aiProvider.analyzeMealImage({
           scanId: scan.id,
           userHint,
+          promptKey,
+          locale: identity.locale,
+          region: identity.region,
+          timezone: identity.timezone,
           image,
         }),
       );

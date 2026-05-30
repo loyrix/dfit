@@ -96,6 +96,7 @@ export async function createPromptAction(formData: FormData) {
   await adminSend(
     "/admin/ai/prompts",
     {
+      key: stringValue(formData, "key") || "food_photo",
       version: stringValue(formData, "version"),
       title: stringValue(formData, "title"),
       body: stringValue(formData, "body"),

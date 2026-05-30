@@ -6,6 +6,7 @@ import {
   type AnalyzeMealImageInput,
   type AnalyzeMealImageResult,
 } from "./ai-provider.js";
+import { foodPhotoPromptKey } from "./food-photo-prompt-routing.js";
 import { VertexAiProvider } from "./vertex-ai-provider.js";
 
 type AiModelConfigRow = {
@@ -18,6 +19,7 @@ type AiModelConfigRow = {
 };
 
 type AiPromptVersionRow = {
+  key: string;
   version: string;
   body: string;
 };
@@ -39,7 +41,7 @@ export class RuntimeVertexAiProvider implements AiProvider {
   ) {}
 
   async analyzeMealImage(input: AnalyzeMealImageInput): Promise<AnalyzeMealImageResult> {
-    const runtime = await this.loadSettings();
+    const runtime = await this.loadSettings(input.promptKey);
 
     if (runtime.modelFamily !== "gemini") {
       throw new AiProviderError(
@@ -61,7 +63,7 @@ export class RuntimeVertexAiProvider implements AiProvider {
     }).analyzeMealImage(input);
   }
 
-  private async loadSettings(): Promise<RuntimeVertexSettings> {
+  private async loadSettings(promptKey = foodPhotoPromptKey): Promise<RuntimeVertexSettings> {
     const [model] = await this.sql<AiModelConfigRow[]>`
       select
         key,
@@ -79,12 +81,14 @@ export class RuntimeVertexAiProvider implements AiProvider {
     `;
 
     const [prompt] = await this.sql<AiPromptVersionRow[]>`
-      select version, body
+      select key, version, body
       from ai_prompt_versions
-      where key = 'food_photo'
+      where (key = ${promptKey} or key = ${foodPhotoPromptKey})
         and status = 'published'
         and is_active
-      order by updated_at desc
+      order by
+        case when key = ${promptKey} then 0 else 1 end,
+        updated_at desc
       limit 1
     `;
 
@@ -94,7 +98,7 @@ export class RuntimeVertexAiProvider implements AiProvider {
       maxOutputTokens: numberOrFallback(model?.max_output_tokens, this.config.maxOutputTokens),
       temperature: numberOrFallback(model?.temperature, 0.1),
       topP: numberOrFallback(model?.top_p, 0.8),
-      promptVersion: prompt?.version,
+      promptVersion: prompt ? `${prompt.key}:${prompt.version}` : undefined,
       promptTemplate: prompt?.body,
     };
   }

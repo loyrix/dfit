@@ -86,7 +86,7 @@ export default async function UsersPage({
           <input
             className="input"
             name="query"
-            placeholder="Name, email, profile id, or provider subject"
+            placeholder="Name, email, profile id, provider subject, timezone, region"
             defaultValue={listParams.query ?? ""}
           />
         </label>
@@ -234,6 +234,12 @@ export default async function UsersPage({
                         {user.authMethod}
                         {user.identityProvider ? ` · ${user.identityProvider}` : ""}
                       </div>
+                      <div
+                        className="muted text-xs truncate-cell"
+                        title={deviceLocationLabel(user)}
+                      >
+                        {deviceLocationLabel(user)}
+                      </div>
                       <div className="muted text-xs">
                         Credits{" "}
                         {formatNumber(
@@ -329,7 +335,15 @@ function UserDetail({ user }: { user: AdminUser }) {
           <Detail label="Auth method" value={user.authMethod} />
           <Detail label="Identity provider" value={user.identityProvider ?? "None"} />
           <Detail label="Profile id" value={user.id} />
-          <Detail label="Timezone" value={user.timezone} />
+          <Detail label="Profile timezone" value={user.timezone} />
+          <Detail label="Device timezone" value={user.device?.timezone ?? "Unknown"} />
+          <Detail label="Device region" value={user.device?.region ?? "Unknown"} />
+          <Detail label="Device locale" value={user.device?.locale ?? "Unknown"} />
+          <Detail label="Device app" value={deviceAppLabel(user)} />
+          <Detail
+            label="Device last seen"
+            value={user.device?.lastSeenAt ? formatDate(user.device.lastSeenAt) : "Unknown"}
+          />
           <Detail label="Created" value={formatDate(user.createdAt)} />
           <Detail label="Updated" value={formatDate(user.updatedAt)} />
           <Detail
@@ -502,6 +516,27 @@ function userLabel(user: Pick<AdminUser, "displayName" | "email" | "authMethod">
     email: user.email,
     fallback: user.authMethod === "anonymous" ? "Anonymous user" : "Unnamed account",
   });
+}
+
+function deviceLocationLabel(user: AdminUser) {
+  const parts = [user.device?.timezone, user.device?.region, user.device?.locale].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "No device location";
+}
+
+function deviceAppLabel(user: AdminUser) {
+  if (!user.device?.platform && !user.device?.appVersion && !user.device?.appBuild) {
+    return "Unknown";
+  }
+
+  const version = user.device?.appVersion ?? "unknown";
+  const build = user.device?.appBuild ?? 0;
+  return `${platformLabel(user.device?.platform)} ${version} (${build})`;
+}
+
+function platformLabel(value: string | undefined) {
+  if (value === "ios") return "iOS";
+  if (value === "android") return "Android";
+  return "Unknown";
 }
 
 function userListParams(params: UsersSearchParams): QueryParams {

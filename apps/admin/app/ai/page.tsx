@@ -25,7 +25,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
     adminGet<{ prompts: AiPrompt[] }>("/admin/ai/prompts"),
   ]);
   const activeModel = models.find((model) => model.isDefault);
-  const activePrompt = prompts.find((prompt) => prompt.isActive);
+  const activePrompts = prompts.filter((prompt) => prompt.isActive);
   const filteredModels = filterModels(models, params);
   const filteredPrompts = filterPrompts(prompts, params);
 
@@ -45,9 +45,9 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
         />
         <Metric label="Enabled models" value={models.filter((model) => model.enabled).length} />
         <Metric
-          label="Active prompt"
-          value={activePrompt?.version ?? "None"}
-          sub={activePrompt?.title}
+          label="Active prompts"
+          value={activePrompts.length || "None"}
+          sub={activePrompts.map((prompt) => prompt.key).join(", ") || "No prompt active"}
         />
         <Metric
           label="Prompt drafts"
@@ -245,7 +245,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
               <input
                 className="input"
                 name="promptQuery"
-                placeholder="Version, title, or body"
+                placeholder="Key, version, title, or body"
                 defaultValue={params.promptQuery ?? ""}
               />
             </label>
@@ -282,6 +282,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                   <tr key={prompt.id}>
                     <td>
                       <div className="font-semibold">{prompt.title}</div>
+                      <div className="muted text-xs break-cell">{prompt.key}</div>
                       <div className="muted text-xs">{prompt.version}</div>
                     </td>
                     <td>{prompt.isActive ? <Badge>Active</Badge> : prompt.status}</td>
@@ -325,19 +326,21 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
         <div className="grid gap-4">
           <div className="panel">
             <h2 className="text-xl font-bold">Active prompt preview</h2>
-            {activePrompt ? (
-              <div className="mt-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold">{activePrompt.title}</h3>
-                  <Badge>{activePrompt.version}</Badge>
-                </div>
-                <p className="muted mt-1 text-sm">
-                  Updated {formatDate(activePrompt.updatedAt)} by{" "}
-                  {activePrompt.updatedBy ?? "unknown"}
-                </p>
-                <pre className="code-block mt-4 max-h-[360px] overflow-auto">
-                  {activePrompt.body}
-                </pre>
+            {activePrompts.length > 0 ? (
+              <div className="grid gap-3 mt-4">
+                {activePrompts.map((prompt) => (
+                  <div key={prompt.id} className="rounded-md border border-[var(--border)] p-3">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold">{prompt.title}</h3>
+                      <Badge>{prompt.key}</Badge>
+                      <Badge>{prompt.version}</Badge>
+                    </div>
+                    <p className="muted mt-1 text-sm">
+                      Updated {formatDate(prompt.updatedAt)} by {prompt.updatedBy ?? "unknown"}
+                    </p>
+                    <pre className="code-block mt-4 max-h-[300px] overflow-auto">{prompt.body}</pre>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="muted mt-3">No active prompt is configured.</p>
@@ -352,6 +355,19 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                 type="hidden"
                 value={createMutationKey("prompt:create")}
               />
+              <input
+                className="input"
+                name="key"
+                placeholder="Prompt key"
+                list="prompt-key-options"
+                defaultValue="food_photo"
+                required
+              />
+              <datalist id="prompt-key-options">
+                <option value="food_photo" />
+                <option value="food_photo_IN" />
+                <option value="food_photo_GLOBAL" />
+              </datalist>
               <input
                 className="input"
                 name="version"
@@ -418,6 +434,7 @@ function filterPrompts(prompts: AiPrompt[], params: AiSearchParams) {
   return prompts.filter((prompt) => {
     const matchesQuery =
       !query ||
+      prompt.key.toLowerCase().includes(query) ||
       prompt.version.toLowerCase().includes(query) ||
       prompt.title.toLowerCase().includes(query) ||
       prompt.body.toLowerCase().includes(query);

@@ -534,7 +534,10 @@ const updateModelSchema = z.object({
   reason: requiredReasonSchema,
 });
 
+const aiPromptKeySchema = z.enum(["food_photo", "food_photo_IN", "food_photo_GLOBAL"]);
+
 const createPromptSchema = z.object({
+  key: aiPromptKeySchema.default("food_photo"),
   version: z.string().trim().min(3).max(80),
   title: z.string().trim().min(3).max(160),
   body: z.string().trim().min(100).max(20000),
@@ -926,6 +929,13 @@ type AdminUserRow = {
   identity_provider: string | null;
   provider_subject: string | null;
   timezone: string;
+  device_timezone: string | null;
+  device_region: string | null;
+  device_locale: string | null;
+  device_platform: string | null;
+  device_app_version: string | null;
+  device_app_build: number | string | null;
+  device_last_seen_at: string | null;
   linked_at: string | null;
   deletion_requested_at: string | null;
   deactivated_at: string | null;
@@ -972,6 +982,13 @@ const searchAdminUsers = async (
 	        identity.identity_provider,
 	        profiles.provider_subject,
 	        profiles.timezone,
+	        latest_device.timezone as device_timezone,
+	        latest_device.region as device_region,
+	        latest_device.locale as device_locale,
+	        latest_device.platform as device_platform,
+	        latest_device.app_version as device_app_version,
+	        latest_device.app_build as device_app_build,
+	        latest_device.last_seen_at::text as device_last_seen_at,
 		        profiles.linked_at::text,
 	        profiles.deletion_requested_at::text,
 	        profiles.deactivated_at::text,
@@ -999,6 +1016,20 @@ const searchAdminUsers = async (
 	        order by account_identities.updated_at desc, account_identities.created_at desc
 	        limit 1
 	      ) identity on true
+	      left join lateral (
+	        select
+	          devices.timezone,
+	          devices.region,
+	          devices.locale,
+	          devices.platform,
+	          devices.app_version,
+	          devices.app_build,
+	          devices.last_seen_at
+	        from devices
+	        where devices.profile_id = profiles.id
+	        order by devices.last_seen_at desc
+	        limit 1
+	      ) latest_device on true
 	      left join scan_credits
 	        on scan_credits.profile_id = profiles.id
 	        and scan_credits.local_date = date '1970-01-01'
@@ -1010,6 +1041,13 @@ const searchAdminUsers = async (
 	        identity.email,
 	        identity.display_name,
 	        identity.identity_provider,
+	        latest_device.timezone,
+	        latest_device.region,
+	        latest_device.locale,
+	        latest_device.platform,
+	        latest_device.app_version,
+	        latest_device.app_build,
+	        latest_device.last_seen_at,
 	        scan_credits.free_remaining,
 	        scan_credits.rewarded_remaining,
 	        scan_credits.premium_remaining
@@ -1023,6 +1061,9 @@ const searchAdminUsers = async (
 	        or email ilike ${pattern}
 	        or display_name ilike ${pattern}
 	        or provider_subject ilike ${pattern}
+	        or device_timezone ilike ${pattern}
+	        or device_region ilike ${pattern}
+	        or device_locale ilike ${pattern}
 	      )
       and (
         ${query.status} = 'all'
@@ -1081,6 +1122,13 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
 	      identity.identity_provider,
 	      profiles.provider_subject,
 	      profiles.timezone,
+	      latest_device.timezone as device_timezone,
+	      latest_device.region as device_region,
+	      latest_device.locale as device_locale,
+	      latest_device.platform as device_platform,
+	      latest_device.app_version as device_app_version,
+	      latest_device.app_build as device_app_build,
+	      latest_device.last_seen_at::text as device_last_seen_at,
 	      profiles.linked_at::text,
       profiles.deletion_requested_at::text,
       profiles.deactivated_at::text,
@@ -1105,6 +1153,20 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
 	      order by account_identities.updated_at desc, account_identities.created_at desc
 	      limit 1
 	    ) identity on true
+	    left join lateral (
+	      select
+	        devices.timezone,
+	        devices.region,
+	        devices.locale,
+	        devices.platform,
+	        devices.app_version,
+	        devices.app_build,
+	        devices.last_seen_at
+	      from devices
+	      where devices.profile_id = profiles.id
+	      order by devices.last_seen_at desc
+	      limit 1
+	    ) latest_device on true
 	    left join scan_credits
 	      on scan_credits.profile_id = profiles.id
 	      and scan_credits.local_date = date '1970-01-01'
@@ -1117,6 +1179,13 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
 	      identity.email,
 	      identity.display_name,
 	      identity.identity_provider,
+	      latest_device.timezone,
+	      latest_device.region,
+	      latest_device.locale,
+	      latest_device.platform,
+	      latest_device.app_version,
+	      latest_device.app_build,
+	      latest_device.last_seen_at,
 	      scan_credits.free_remaining,
 	      scan_credits.rewarded_remaining,
 	      scan_credits.premium_remaining
@@ -1157,6 +1226,7 @@ const mapAdminUserRow = (row: AdminUserRow) => ({
   identityProvider: row.identity_provider ?? undefined,
   providerSubject: row.provider_subject ?? undefined,
   timezone: row.timezone,
+  device: mapAdminDeviceRow(row),
   linkedAt: row.linked_at ?? undefined,
   deletionRequestedAt: row.deletion_requested_at ?? undefined,
   deactivatedAt: row.deactivated_at ?? undefined,
@@ -1175,6 +1245,28 @@ const mapAdminUserRow = (row: AdminUserRow) => ({
     grants: numberValue(row.grants),
   },
 });
+
+const mapAdminDeviceRow = (row: {
+  device_timezone?: string | null;
+  device_region?: string | null;
+  device_locale?: string | null;
+  device_platform?: string | null;
+  device_app_version?: string | null;
+  device_app_build?: number | string | null;
+  device_last_seen_at?: string | null;
+}) => {
+  const device = {
+    timezone: row.device_timezone ?? undefined,
+    region: row.device_region ?? undefined,
+    locale: row.device_locale ?? undefined,
+    platform: row.device_platform ?? undefined,
+    appVersion: row.device_app_version ?? undefined,
+    appBuild: nullableNumberValue(row.device_app_build) ?? undefined,
+    lastSeenAt: row.device_last_seen_at ?? undefined,
+  };
+
+  return Object.values(device).some((value) => value !== undefined) ? device : undefined;
+};
 
 const mapAdminGrantRow = (row: AdminGrantRow) => ({
   id: row.id,
@@ -1205,6 +1297,10 @@ type AdminConversionRow = {
   linked_at: string | null;
   profile_created_at: string | null;
   profile_updated_at: string | null;
+  profile_timezone: string | null;
+  device_timezone: string | null;
+  device_region: string | null;
+  device_locale: string | null;
   created_at: string;
   updated_at: string;
   scans: number | string;
@@ -1250,6 +1346,10 @@ const listAdminConversions = async (
         profiles.linked_at::text as linked_at,
         profiles.created_at::text as profile_created_at,
         profiles.updated_at::text as profile_updated_at,
+        profiles.timezone as profile_timezone,
+        devices.timezone as device_timezone,
+        devices.region as device_region,
+        devices.locale as device_locale,
         count(distinct scan_sessions.id)::int as scans,
         count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
         count(distinct meals.id)::int as meals
@@ -1290,6 +1390,10 @@ const listAdminConversions = async (
         or email ilike ${pattern}
         or display_name ilike ${pattern}
         or app_version ilike ${pattern}
+        or profile_timezone ilike ${pattern}
+        or device_timezone ilike ${pattern}
+        or device_region ilike ${pattern}
+        or device_locale ilike ${pattern}
       )
     order by
       case when ${sort} = 'createdAt' and ${direction} = 'asc' then created_at_sort end asc nulls last,
@@ -1344,6 +1448,10 @@ const mapAdminConversionRow = (row: AdminConversionRow) => ({
   linkedAt: row.linked_at ?? undefined,
   profileCreatedAt: row.profile_created_at ?? undefined,
   profileUpdatedAt: row.profile_updated_at ?? undefined,
+  profileTimezone: row.profile_timezone ?? undefined,
+  deviceTimezone: row.device_timezone ?? undefined,
+  deviceRegion: row.device_region ?? undefined,
+  deviceLocale: row.device_locale ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   stats: {
@@ -1530,6 +1638,10 @@ type AdminScanRow = {
   profile_email: string | null;
   profile_display_name: string | null;
   profile_auth_method: string | null;
+  profile_timezone: string | null;
+  device_timezone: string | null;
+  device_region: string | null;
+  device_locale: string | null;
   status: string;
   consumed_credit_reason: string | null;
   user_hint: string | null;
@@ -1588,6 +1700,10 @@ const listAdminScans = async (
 	        coalesce(identity.email, profiles.email) as profile_email,
 	        identity.display_name as profile_display_name,
 	        profiles.auth_method::text as profile_auth_method,
+	        profiles.timezone as profile_timezone,
+	        devices.timezone as device_timezone,
+	        devices.region as device_region,
+	        devices.locale as device_locale,
 	        scan_sessions.status::text,
         scan_sessions.consumed_credit_reason,
         scan_sessions.user_hint,
@@ -1610,6 +1726,7 @@ const listAdminScans = async (
         meals.title as meal_title
       from scan_sessions
 		      left join profiles on profiles.id = scan_sessions.profile_id
+		      left join devices on devices.install_id = scan_sessions.install_id
 		      left join lateral (
 		        select
 		          account_identities.email,
@@ -1649,6 +1766,10 @@ const listAdminScans = async (
 	        or install_id = ${normalized}
 	        or profile_email ilike ${pattern}
 	        or profile_display_name ilike ${pattern}
+	        or profile_timezone ilike ${pattern}
+	        or device_timezone ilike ${pattern}
+	        or device_region ilike ${pattern}
+	        or device_locale ilike ${pattern}
 	        or user_hint ilike ${pattern}
         or meal_title ilike ${pattern}
       )
@@ -1718,6 +1839,10 @@ const loadAdminScan = async (
 	      coalesce(identity.email, profiles.email) as profile_email,
 	      identity.display_name as profile_display_name,
 	      profiles.auth_method::text as profile_auth_method,
+	      profiles.timezone as profile_timezone,
+	      devices.timezone as device_timezone,
+	      devices.region as device_region,
+	      devices.locale as device_locale,
 	      scan_sessions.status::text,
       scan_sessions.consumed_credit_reason,
       scan_sessions.user_hint,
@@ -1739,6 +1864,7 @@ const loadAdminScan = async (
       meals.title as meal_title
     from scan_sessions
 		    left join profiles on profiles.id = scan_sessions.profile_id
+		    left join devices on devices.install_id = scan_sessions.install_id
 		    left join lateral (
 		      select
 		        account_identities.email,
@@ -1790,6 +1916,10 @@ const mapAdminScanRow = (row: AdminScanRow) => ({
   profileEmail: row.profile_email ?? undefined,
   profileDisplayName: row.profile_display_name ?? undefined,
   profileAuthMethod: row.profile_auth_method ?? undefined,
+  profileTimezone: row.profile_timezone ?? undefined,
+  deviceTimezone: row.device_timezone ?? undefined,
+  deviceRegion: row.device_region ?? undefined,
+  deviceLocale: row.device_locale ?? undefined,
   status: row.status,
   creditReason: row.consumed_credit_reason ?? undefined,
   userHint: row.user_hint ?? undefined,
@@ -2072,7 +2202,7 @@ const createPromptVersion = async (
         updated_by
       )
       values (
-        'food_photo',
+        ${input.key},
         ${input.version},
         'gemini',
         ${input.title},

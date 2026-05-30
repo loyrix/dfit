@@ -108,7 +108,7 @@ export default async function ConversionsPage({
           <input
             className="input"
             name="query"
-            placeholder="Name, email, install id, profile id, or app version"
+            placeholder="Name, email, install id, profile id, app version, timezone, region"
             defaultValue={listParams.query ?? ""}
           />
         </label>
@@ -181,6 +181,7 @@ export default async function ConversionsPage({
                     Platform
                   </SortableHeader>
                 </th>
+                <th>Location</th>
                 <th>
                   <SortableHeader
                     basePath="/conversions"
@@ -273,6 +274,18 @@ export default async function ConversionsPage({
                     <Badge>{platformLabel(install.platform)}</Badge>
                   </td>
                   <td>
+                    <div
+                      className="font-semibold truncate-cell"
+                      title={conversionLocationLabel(install)}
+                    >
+                      {install.deviceTimezone ?? install.profileTimezone ?? "Unknown"}
+                    </div>
+                    <div className="muted text-xs truncate-cell">
+                      {[install.deviceRegion, install.deviceLocale].filter(Boolean).join(" · ") ||
+                        "No region/locale"}
+                    </div>
+                  </td>
+                  <td>
                     <div className="font-semibold">{formatNumber(install.stats.scans)}</div>
                     <div className="muted text-xs">
                       {formatNumber(install.stats.failedScans)} failed ·{" "}
@@ -335,6 +348,15 @@ function conversionUserLabel(install: AdminConversionInstall) {
     email: install.email,
     fallback: install.authMethod === "anonymous" ? "Anonymous user" : "Unnamed account",
   });
+}
+
+function conversionLocationLabel(install: AdminConversionInstall) {
+  const parts = [
+    install.deviceTimezone ?? install.profileTimezone,
+    install.deviceRegion,
+    install.deviceLocale,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "No device location";
 }
 
 function platformLabel(value: string | undefined) {

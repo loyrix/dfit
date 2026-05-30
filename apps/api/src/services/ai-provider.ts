@@ -9,6 +9,10 @@ import { VertexAiProvider } from "./vertex-ai-provider.js";
 export type AnalyzeMealImageInput = {
   scanId: string;
   userHint?: string;
+  promptKey?: string;
+  locale?: string;
+  region?: string;
+  timezone?: string;
   image?: {
     mimeType: "image/jpeg" | "image/png" | "image/webp";
     base64: string;

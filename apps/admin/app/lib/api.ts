@@ -158,6 +158,15 @@ export type AdminUser = {
   identityProvider?: string;
   providerSubject?: string;
   timezone: string;
+  device?: {
+    timezone?: string;
+    region?: string;
+    locale?: string;
+    platform?: string;
+    appVersion?: string;
+    appBuild?: number;
+    lastSeenAt?: string;
+  };
   linkedAt?: string;
   deletionRequestedAt?: string;
   deactivatedAt?: string;
@@ -190,6 +199,10 @@ export type AdminScan = {
   profileEmail?: string;
   profileDisplayName?: string;
   profileAuthMethod?: string;
+  profileTimezone?: string;
+  deviceTimezone?: string;
+  deviceRegion?: string;
+  deviceLocale?: string;
   status: string;
   creditReason?: string;
   userHint?: string;
@@ -235,6 +248,10 @@ export type AdminConversionInstall = {
   linkedAt?: string;
   profileCreatedAt?: string;
   profileUpdatedAt?: string;
+  profileTimezone?: string;
+  deviceTimezone?: string;
+  deviceRegion?: string;
+  deviceLocale?: string;
   createdAt: string;
   updatedAt: string;
   stats: {
