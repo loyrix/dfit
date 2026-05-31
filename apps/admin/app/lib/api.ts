@@ -183,6 +183,7 @@ export type AdminUser = {
   grants?: AdminGrant[];
   recentScans?: AdminScan[];
   lifecycleEvents?: AdminLifecycleEvent[];
+  noFoodLimit?: AdminNoFoodScanLimit;
 };
 
 export type AdminGrant = {
@@ -192,6 +193,24 @@ export type AdminGrant = {
   amount: number;
   reason: string;
   actor: string;
+  createdAt: string;
+};
+
+export type AdminNoFoodScanLimit = {
+  attemptsLast24h: number;
+  latestResetId?: string;
+  latestResetReason?: string;
+  latestResetActor?: string;
+  latestResetAt?: string;
+  resets: AdminNoFoodScanLimitReset[];
+};
+
+export type AdminNoFoodScanLimitReset = {
+  id: string;
+  profileId: string;
+  reason: string;
+  actor: string;
+  resetAt: string;
   createdAt: string;
 };
 

@@ -58,6 +58,20 @@ export async function reactivateUserAction(formData: FormData) {
   redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
 }
 
+export async function resetNoFoodLimitAction(formData: FormData) {
+  await requireAdminSession();
+  const profileId = stringValue(formData, "profileId");
+  await adminSend(
+    `/admin/users/${profileId}/no-food-limit/reset`,
+    {
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData) },
+  );
+  revalidatePath("/users");
+  redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
+}
+
 export async function setDefaultModelAction(formData: FormData) {
   await requireAdminSession();
   await adminSend(

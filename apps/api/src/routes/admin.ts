@@ -227,6 +227,19 @@ export const registerAdminRoutes = async (
     },
   );
 
+  app.post(
+    "/admin/users/:profileId/no-food-limit/reset",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+      const { profileId } = profileParamsSchema.parse(request.params);
+      const body = resetNoFoodScanLimitSchema.parse(request.body ?? {});
+      const result = await resetNoFoodScanLimit(sql, request, profileId, body);
+      if (!result) return reply.status(404).send({ error: "profile_not_found" });
+      return reply.status(201).send(result);
+    },
+  );
+
   app.get("/admin/scans", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const query = adminScanQuerySchema.parse(request.query ?? {});
@@ -517,6 +530,10 @@ const grantCreditSchema = z.object({
 });
 
 const reactivateProfileSchema = z.object({
+  reason: requiredReasonSchema,
+});
+
+const resetNoFoodScanLimitSchema = z.object({
   reason: requiredReasonSchema,
 });
 
@@ -970,6 +987,23 @@ type AdminGrantRow = {
   created_at: string;
 };
 
+type AdminNoFoodScanLimitStateRow = {
+  attempts_last_24h: number | string;
+  latest_reset_id: string | null;
+  latest_reset_reason: string | null;
+  latest_reset_actor: string | null;
+  latest_reset_at: string | null;
+};
+
+type AdminNoFoodScanLimitResetRow = {
+  id: string;
+  profile_id: string;
+  reason: string;
+  actor: string;
+  reset_at: string;
+  created_at: string;
+};
+
 type AdminLifecycleEventRow = {
   id: string;
   profile_id: string;
@@ -1305,12 +1339,14 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
 
   const scans = await listAdminScans(sql, { profileId, limit: 20 });
   const lifecycleEvents = await loadProfileLifecycleEvents(sql, profileId);
+  const noFoodLimit = await loadNoFoodScanLimitState(sql, profileId);
 
   return {
     ...mapAdminUserRow(userRow),
     grants: grants.map(mapAdminGrantRow),
     recentScans: scans.scans,
     lifecycleEvents: lifecycleEvents.map(mapAdminLifecycleEventRow),
+    noFoodLimit,
   };
 };
 
@@ -1430,6 +1466,86 @@ const mapAdminGrantRow = (row: AdminGrantRow) => ({
   amount: row.amount,
   reason: row.reason,
   actor: row.actor,
+  createdAt: row.created_at,
+});
+
+const loadNoFoodScanLimitState = async (
+  sql: SqlClient | postgres.TransactionSql,
+  profileId: string,
+) => {
+  const [state] = await sql<AdminNoFoodScanLimitStateRow[]>`
+    with latest_reset as (
+      select id, reason, actor, reset_at
+      from no_food_scan_limit_resets
+      where profile_id = ${profileId}
+      order by reset_at desc
+      limit 1
+    ),
+    effective_window as (
+      select greatest(
+        now() - interval '24 hours',
+        coalesce((select reset_at from latest_reset), now() - interval '24 hours')
+      ) as since
+    )
+    select
+      (
+        select count(*)::integer
+        from scan_sessions
+        inner join lateral (
+          select raw_ai_json
+          from ai_predictions
+          where ai_predictions.scan_session_id = scan_sessions.id
+          order by ai_predictions.created_at desc
+          limit 1
+        ) ai_predictions on true
+        where scan_sessions.profile_id = ${profileId}
+          and scan_sessions.created_at >= (select since from effective_window)
+          and jsonb_array_length(
+            case
+              when jsonb_typeof(ai_predictions.raw_ai_json -> 'analysis' -> 'items') = 'array'
+                then ai_predictions.raw_ai_json -> 'analysis' -> 'items'
+              when jsonb_typeof(ai_predictions.raw_ai_json -> 'items') = 'array'
+                then ai_predictions.raw_ai_json -> 'items'
+              else '[]'::jsonb
+            end
+          ) = 0
+      ) as attempts_last_24h,
+      (select id::text from latest_reset) as latest_reset_id,
+      (select reason from latest_reset) as latest_reset_reason,
+      (select actor from latest_reset) as latest_reset_actor,
+      (select reset_at::text from latest_reset) as latest_reset_at
+  `;
+
+  const resets = await sql<AdminNoFoodScanLimitResetRow[]>`
+    select
+      id::text,
+      profile_id::text,
+      reason,
+      actor,
+      reset_at::text,
+      created_at::text
+    from no_food_scan_limit_resets
+    where profile_id = ${profileId}
+    order by reset_at desc
+    limit 10
+  `;
+
+  return {
+    attemptsLast24h: numberValue(state?.attempts_last_24h),
+    latestResetId: state?.latest_reset_id ?? undefined,
+    latestResetReason: state?.latest_reset_reason ?? undefined,
+    latestResetActor: state?.latest_reset_actor ?? undefined,
+    latestResetAt: state?.latest_reset_at ?? undefined,
+    resets: resets.map(mapNoFoodScanLimitResetRow),
+  };
+};
+
+const mapNoFoodScanLimitResetRow = (row: AdminNoFoodScanLimitResetRow) => ({
+  id: row.id,
+  profileId: row.profile_id,
+  reason: row.reason,
+  actor: row.actor,
+  resetAt: row.reset_at,
   createdAt: row.created_at,
 });
 
@@ -1835,6 +1951,64 @@ const reactivateUserProfile = async (
   const user = await loadAdminUser(sql, profileId);
   return user ? { user, reactivated: result.reactivated } : undefined;
 };
+
+const resetNoFoodScanLimit = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  profileId: string,
+  input: z.infer<typeof resetNoFoodScanLimitSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const [profile] = await tx<{ id: string; auth_method: string; email: string | null }[]>`
+      select id::text, auth_method::text, email
+      from profiles
+      where id = ${profileId}
+      limit 1
+      for update
+    `;
+    if (!profile) return undefined;
+
+    const before = await loadNoFoodScanLimitState(tx, profileId);
+    const [reset] = await tx<AdminNoFoodScanLimitResetRow[]>`
+      insert into no_food_scan_limit_resets (
+        profile_id,
+        reason,
+        actor
+      )
+      values (
+        ${profileId},
+        ${input.reason},
+        ${getAdminActor(request) ?? "unknown"}
+      )
+      returning
+        id::text,
+        profile_id::text,
+        reason,
+        actor,
+        reset_at::text,
+        created_at::text
+    `;
+    const after = await loadNoFoodScanLimitState(tx, profileId);
+    const auditLogId = await insertAuditLog(tx, request, {
+      action: "reset_no_food_scan_limit",
+      targetType: "profile",
+      targetId: profileId,
+      reason: input.reason,
+      before,
+      after,
+    });
+
+    await tx`
+      update no_food_scan_limit_resets
+      set audit_log_id = ${auditLogId}
+      where id = ${reset.id}
+    `;
+
+    return {
+      reset: mapNoFoodScanLimitResetRow(reset),
+      noFoodLimit: after,
+    };
+  });
 
 const mapProfileLifecycleSnapshot = (row: AdminProfileLifecycleRow) => ({
   id: row.id,

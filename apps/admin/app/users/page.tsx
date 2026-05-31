@@ -16,7 +16,7 @@ import {
   shortId,
   type QueryParams,
 } from "../components/ui";
-import { grantCreditsAction, reactivateUserAction } from "../lib/actions";
+import { grantCreditsAction, reactivateUserAction, resetNoFoodLimitAction } from "../lib/actions";
 import { adminGet, type AdminUser, type PageInfo } from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
 
@@ -398,50 +398,54 @@ function UserDetail({ user }: { user: AdminUser }) {
         ) : null}
 
         {!user.deletedAt ? (
-          <form action={grantCreditsAction} className="form-grid mt-5">
-            <input name="profileId" type="hidden" value={user.id} />
-            <input
-              name="idempotencyKey"
-              type="hidden"
-              value={createMutationKey(`grant:${user.id}`)}
-            />
-            <div className="grid grid-cols-2 gap-3">
+          <>
+            <form action={grantCreditsAction} className="form-grid mt-5">
+              <input name="profileId" type="hidden" value={user.id} />
+              <input
+                name="idempotencyKey"
+                type="hidden"
+                value={createMutationKey(`grant:${user.id}`)}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-2">
+                  <span className="text-sm muted">Credit type</span>
+                  <select className="select" name="creditType" defaultValue="rewarded">
+                    <option value="free">Free</option>
+                    <option value="rewarded">Rewarded</option>
+                    <option value="premium">Premium</option>
+                  </select>
+                </label>
+                <label className="grid gap-2">
+                  <span className="text-sm muted">Amount</span>
+                  <input
+                    className="input"
+                    name="amount"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    defaultValue="1"
+                    required
+                  />
+                </label>
+              </div>
               <label className="grid gap-2">
-                <span className="text-sm muted">Credit type</span>
-                <select className="select" name="creditType" defaultValue="rewarded">
-                  <option value="free">Free</option>
-                  <option value="rewarded">Rewarded</option>
-                  <option value="premium">Premium</option>
-                </select>
-              </label>
-              <label className="grid gap-2">
-                <span className="text-sm muted">Amount</span>
+                <span className="text-sm muted">Reason</span>
                 <input
                   className="input"
-                  name="amount"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  defaultValue="1"
+                  name="reason"
+                  placeholder="Example: compensated failed scan reported in support"
+                  minLength={8}
+                  maxLength={500}
                   required
                 />
               </label>
-            </div>
-            <label className="grid gap-2">
-              <span className="text-sm muted">Reason</span>
-              <input
-                className="input"
-                name="reason"
-                placeholder="Example: compensated failed scan reported in support"
-                minLength={8}
-                maxLength={500}
-                required
-              />
-            </label>
-            <button className="button" type="submit">
-              Grant scan credits
-            </button>
-          </form>
+              <button className="button" type="submit">
+                Grant scan credits
+              </button>
+            </form>
+
+            <NoFoodLimitPanel user={user} />
+          </>
         ) : (
           <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
             <h3 className="font-semibold text-slate-950">Deleted account</h3>
@@ -574,6 +578,76 @@ function UserDetail({ user }: { user: AdminUser }) {
         </div>
       </div>
     </>
+  );
+}
+
+function NoFoodLimitPanel({ user }: { user: AdminUser }) {
+  const noFoodLimit = user.noFoodLimit;
+  const attempts = noFoodLimit?.attemptsLast24h ?? 0;
+
+  return (
+    <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <div className="section-head">
+        <div>
+          <h3 className="font-semibold text-slate-950">No-food scan pause</h3>
+          <p className="muted mt-1 text-sm">
+            {attempts} no-food attempt{attempts === 1 ? "" : "s"} currently count toward this
+            user&apos;s 24-hour pause. Resetting lets this profile retry immediately without
+            deleting scan history.
+          </p>
+        </div>
+        {noFoodLimit?.latestResetAt ? (
+          <Badge>Last reset {formatDate(noFoodLimit.latestResetAt)}</Badge>
+        ) : (
+          <Badge tone="default">No reset yet</Badge>
+        )}
+      </div>
+
+      {noFoodLimit?.latestResetAt ? (
+        <p className="muted mt-2 text-xs">
+          Last reset by {noFoodLimit.latestResetActor ?? "unknown"}:{" "}
+          {noFoodLimit.latestResetReason ?? "No reason captured"}
+        </p>
+      ) : null}
+
+      <form action={resetNoFoodLimitAction} className="mini-form mt-4">
+        <input name="profileId" type="hidden" value={user.id} />
+        <input
+          name="idempotencyKey"
+          type="hidden"
+          value={createMutationKey(`no-food-reset:${user.id}`)}
+        />
+        <input
+          className="input"
+          name="reason"
+          placeholder="Reason for resetting no-food pause"
+          minLength={8}
+          maxLength={500}
+          required
+        />
+        <button className="button" type="submit">
+          Reset pause
+        </button>
+      </form>
+
+      {noFoodLimit?.resets?.length ? (
+        <div className="mt-4 table-wrap">
+          <table className="table table-compact">
+            <tbody>
+              {noFoodLimit.resets.slice(0, 3).map((reset) => (
+                <tr key={reset.id}>
+                  <td>
+                    <div className="font-semibold">{reset.actor}</div>
+                    <div className="muted text-xs">{reset.reason}</div>
+                  </td>
+                  <td>{formatDate(reset.resetAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

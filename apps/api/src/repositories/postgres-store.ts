@@ -2303,6 +2303,13 @@ export class PostgresStore implements AppRepository {
   async countNoFoodScanAttemptsSince(sinceIso: string) {
     const profile = await this.getProfile();
     const [row] = await this.sql<{ count: number | string }[]>`
+      with latest_reset as (
+        select reset_at
+        from no_food_scan_limit_resets
+        where profile_id = ${profile.id}
+        order by reset_at desc
+        limit 1
+      )
       select count(*)::integer as count
       from scan_sessions
       inner join lateral (
@@ -2313,7 +2320,10 @@ export class PostgresStore implements AppRepository {
         limit 1
       ) ai_predictions on true
       where scan_sessions.profile_id = ${profile.id}
-        and scan_sessions.created_at >= ${sinceIso}::timestamptz
+        and scan_sessions.created_at >= greatest(
+          ${sinceIso}::timestamptz,
+          coalesce((select reset_at from latest_reset), ${sinceIso}::timestamptz)
+        )
         and jsonb_array_length(
           case
             when jsonb_typeof(ai_predictions.raw_ai_json -> 'analysis' -> 'items') = 'array'
