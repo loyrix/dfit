@@ -97,6 +97,7 @@ export default async function UsersPage({
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
             <option value="deletion_requested">Deletion requested</option>
+            <option value="deleted">Deleted</option>
           </select>
         </label>
         <label>
@@ -227,8 +228,8 @@ export default async function UsersPage({
                       </div>
                     </td>
                     <td>
-                      <Badge tone={user.deactivatedAt ? "red" : "green"}>
-                        {user.deactivatedAt ? "inactive" : "active"}
+                      <Badge tone={user.deletedAt || user.deactivatedAt ? "red" : "green"}>
+                        {userStatus(user)}
                       </Badge>
                       <div className="muted text-xs">
                         {user.authMethod}
@@ -258,6 +259,9 @@ export default async function UsersPage({
                     </td>
                     <td>
                       <div>{user.lastScanAt ? formatDate(user.lastScanAt) : "No scans yet"}</div>
+                      {user.deletedAt ? (
+                        <div className="muted text-xs">Deleted {formatDate(user.deletedAt)}</div>
+                      ) : null}
                     </td>
                     <td>
                       <div>{formatDate(user.createdAt)}</div>
@@ -324,8 +328,8 @@ function UserDetail({ user }: { user: AdminUser }) {
               {user.email && user.displayName ? user.email : shortId(user.id, 10, 8)}
             </p>
           </div>
-          <Badge tone={user.deactivatedAt ? "red" : "green"}>
-            {user.deactivatedAt ? "Inactive" : "Active"}
+          <Badge tone={user.deletedAt || user.deactivatedAt ? "red" : "green"}>
+            {userStatus(user)}
           </Badge>
         </div>
 
@@ -359,10 +363,13 @@ function UserDetail({ user }: { user: AdminUser }) {
             label="Deactivated"
             value={user.deactivatedAt ? formatDate(user.deactivatedAt) : "No"}
           />
+          <Detail label="Deleted" value={user.deletedAt ? formatDate(user.deletedAt) : "No"} />
+          <Detail label="Deleted by" value={user.lifecycleActor ?? "No deletion event"} />
+          <Detail label="Deletion reason" value={user.lifecycleReason ?? "None"} />
           <Detail label="Grants" value={formatNumber(user.stats.grants)} />
         </div>
 
-        {user.deactivatedAt ? (
+        {user.deactivatedAt && !user.deletedAt ? (
           <form
             action={reactivateUserAction}
             className="mt-5 grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
@@ -390,58 +397,127 @@ function UserDetail({ user }: { user: AdminUser }) {
           </form>
         ) : null}
 
-        <form action={grantCreditsAction} className="form-grid mt-5">
-          <input name="profileId" type="hidden" value={user.id} />
-          <input
-            name="idempotencyKey"
-            type="hidden"
-            value={createMutationKey(`grant:${user.id}`)}
-          />
-          <div className="grid grid-cols-2 gap-3">
+        {!user.deletedAt ? (
+          <form action={grantCreditsAction} className="form-grid mt-5">
+            <input name="profileId" type="hidden" value={user.id} />
+            <input
+              name="idempotencyKey"
+              type="hidden"
+              value={createMutationKey(`grant:${user.id}`)}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <label className="grid gap-2">
+                <span className="text-sm muted">Credit type</span>
+                <select className="select" name="creditType" defaultValue="rewarded">
+                  <option value="free">Free</option>
+                  <option value="rewarded">Rewarded</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </label>
+              <label className="grid gap-2">
+                <span className="text-sm muted">Amount</span>
+                <input
+                  className="input"
+                  name="amount"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  defaultValue="1"
+                  required
+                />
+              </label>
+            </div>
             <label className="grid gap-2">
-              <span className="text-sm muted">Credit type</span>
-              <select className="select" name="creditType" defaultValue="rewarded">
-                <option value="free">Free</option>
-                <option value="rewarded">Rewarded</option>
-                <option value="premium">Premium</option>
-              </select>
-            </label>
-            <label className="grid gap-2">
-              <span className="text-sm muted">Amount</span>
+              <span className="text-sm muted">Reason</span>
               <input
                 className="input"
-                name="amount"
-                type="number"
-                min="1"
-                max="1000"
-                defaultValue="1"
+                name="reason"
+                placeholder="Example: compensated failed scan reported in support"
+                minLength={8}
+                maxLength={500}
                 required
               />
             </label>
+            <button className="button" type="submit">
+              Grant scan credits
+            </button>
+          </form>
+        ) : (
+          <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+            <h3 className="font-semibold text-slate-950">Deleted account</h3>
+            <p className="muted mt-1 text-sm">
+              This profile row was removed by the user. Credits and reactivation are disabled;
+              retained AI analytics remain unlinked from the deleted profile.
+            </p>
           </div>
-          <label className="grid gap-2">
-            <span className="text-sm muted">Reason</span>
-            <input
-              className="input"
-              name="reason"
-              placeholder="Example: compensated failed scan reported in support"
-              minLength={8}
-              maxLength={500}
-              required
-            />
-          </label>
-          <button className="button" type="submit">
-            Grant scan credits
-          </button>
-        </form>
+        )}
+      </div>
+
+      <div className="panel">
+        <h2 className="text-xl font-bold">Lifecycle events</h2>
+        <div className="table-wrap mt-4">
+          <table className="table table-compact">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Actor</th>
+                <th>Device</th>
+                <th>Snapshot</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(user.lifecycleEvents ?? []).map((event) => (
+                <tr key={event.id}>
+                  <td>
+                    <Badge tone={event.eventType === "deleted" ? "red" : "default"}>
+                      {event.eventType}
+                    </Badge>
+                    <div className="muted text-xs">{event.reason ?? "No reason captured"}</div>
+                  </td>
+                  <td>
+                    <div className="font-semibold truncate-cell" title={event.actor}>
+                      {event.actor}
+                    </div>
+                    <div className="muted text-xs">
+                      {event.displayName ?? event.email ?? event.authMethod ?? "Unknown account"}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{platformLabel(event.platform)}</div>
+                    <div className="muted text-xs">
+                      {event.appVersion ?? "unknown"} ({event.appBuild ?? 0})
+                    </div>
+                    <div className="muted text-xs">
+                      {event.deviceTimezone ?? event.deviceRegion ?? "No location"}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{formatNumber(event.scanCount)} scans</div>
+                    <div className="muted text-xs">
+                      {formatNumber(event.failedScanCount)} failed · {formatNumber(event.mealCount)}{" "}
+                      meals
+                    </div>
+                  </td>
+                  <td>{formatDate(event.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(user.lifecycleEvents ?? []).length === 0 ? (
+            <EmptyState title="No lifecycle events captured" />
+          ) : null}
+        </div>
       </div>
 
       <div className="panel">
         <div className="section-head">
           <h2 className="text-xl font-bold">Recent scans</h2>
-          <Link className="badge" href={`/scans?profileId=${user.id}`}>
-            View all
-          </Link>
+          {!user.deletedAt ? (
+            <Link className="badge" href={`/scans?profileId=${user.id}`}>
+              View all
+            </Link>
+          ) : null}
         </div>
         <div className="table-wrap">
           <table className="table table-compact">
@@ -514,8 +590,20 @@ function userLabel(user: Pick<AdminUser, "displayName" | "email" | "authMethod">
   return personLabel({
     displayName: user.displayName,
     email: user.email,
-    fallback: user.authMethod === "anonymous" ? "Anonymous user" : "Unnamed account",
+    fallback:
+      user.authMethod === "anonymous"
+        ? "Anonymous user"
+        : user.authMethod === "unknown"
+          ? "Deleted account"
+          : "Unnamed account",
   });
+}
+
+function userStatus(user: Pick<AdminUser, "deletedAt" | "deactivatedAt" | "deletionRequestedAt">) {
+  if (user.deletedAt) return "deleted";
+  if (user.deactivatedAt) return "inactive";
+  if (user.deletionRequestedAt) return "deletion requested";
+  return "active";
 }
 
 function deviceLocationLabel(user: AdminUser) {

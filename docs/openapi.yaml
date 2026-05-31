@@ -428,9 +428,10 @@ paths:
       tags: [Profile]
       summary: Delete current profile
       description: |
-        Permanently deletes the signed-in account profile, meals, scans, targets,
-        account credentials, sessions, and stored meal photos. Anonymous profiles
-        cannot call this endpoint.
+        Permanently deletes the signed-in account profile, meals, targets,
+        account credentials, sessions, and stored meal photos. Scan AI analytics
+        are retained for business reporting with profile, hint, image, and credit
+        fields unlinked from the user. Anonymous profiles cannot call this endpoint.
       security:
         - bearerAuth: []
       responses:

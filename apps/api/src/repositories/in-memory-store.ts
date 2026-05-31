@@ -37,6 +37,8 @@ import type {
 import { currentRequestIdentity } from "../request-context.js";
 import { AccountAuthError as AuthError } from "./app-repository.js";
 
+type ProfileLifecycleEventType = "deactivated" | "deleted";
+
 export class InMemoryStore implements AppRepository {
   readonly defaultProfile: Profile = {
     id: "profile_demo",
@@ -85,6 +87,19 @@ export class InMemoryStore implements AppRepository {
   >();
   private readonly rewardedAdServerVerifications = new Map<string, RewardedAdServerVerification>();
   private readonly rewardedAdTransactions = new Set<string>();
+  private readonly profileLifecycleEvents: Array<{
+    profileId: string;
+    eventType: ProfileLifecycleEventType;
+    actor: string;
+    authMethod: Profile["authMethod"];
+    email?: string;
+    displayName?: string;
+    installId?: string;
+    platform?: string;
+    scanCount: number;
+    mealCount: number;
+    createdAt: string;
+  }> = [];
 
   async getProfile(): Promise<Profile> {
     const identity = currentRequestIdentity();
@@ -382,6 +397,7 @@ export class InMemoryStore implements AppRepository {
 
   async deactivateProfile(): Promise<boolean> {
     const profile = await this.requireActiveAccountProfile();
+    this.recordProfileLifecycleEvent(profile, "deactivated");
     this.deactivatedProfiles.add(profile.id);
     for (const [token, profileId] of this.sessions) {
       if (profileId === profile.id) this.sessions.delete(token);
@@ -419,6 +435,7 @@ export class InMemoryStore implements AppRepository {
 
   async deleteProfile(): Promise<boolean> {
     const profile = await this.requireActiveAccountProfile();
+    this.recordProfileLifecycleEvent(profile, "deleted");
     for (const [email, credential] of this.credentials) {
       if (credential.profileId === profile.id) this.credentials.delete(email);
     }
@@ -446,6 +463,36 @@ export class InMemoryStore implements AppRepository {
     this.deactivatedProfiles.delete(profile.id);
     this.resetCurrentInstallToAnonymous();
     return true;
+  }
+
+  private recordProfileLifecycleEvent(
+    profile: Profile,
+    eventType: ProfileLifecycleEventType,
+  ): void {
+    const identity = currentRequestIdentity();
+    const oauthIdentity = [...this.oauthIdentities.values()].find(
+      (candidate) => candidate.profileId === profile.id,
+    );
+    const scanCount = [...this.scans.values()].filter(
+      (scan) => scan.profileId === profile.id,
+    ).length;
+    const mealCount = [...this.mealProfiles.values()].filter(
+      (profileId) => profileId === profile.id,
+    ).length;
+
+    this.profileLifecycleEvents.push({
+      profileId: profile.id,
+      eventType,
+      actor: oauthIdentity?.email ?? profile.email ?? oauthIdentity?.displayName ?? profile.id,
+      authMethod: profile.authMethod,
+      email: oauthIdentity?.email ?? profile.email,
+      displayName: oauthIdentity?.displayName,
+      installId: identity.installId,
+      platform: identity.platform,
+      scanCount,
+      mealCount,
+      createdAt: new Date().toISOString(),
+    });
   }
 
   async searchFoods(query: string) {

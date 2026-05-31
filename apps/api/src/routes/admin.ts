@@ -353,7 +353,7 @@ const adminPaginationQuerySchema = z.object({
 
 const adminUserSearchQuerySchema = adminPaginationQuerySchema.extend({
   query: z.string().trim().max(160).optional(),
-  status: z.enum(["all", "active", "inactive", "deletion_requested"]).default("all"),
+  status: z.enum(["all", "active", "inactive", "deletion_requested", "deleted"]).default("all"),
   authMethod: z.enum(["all", "anonymous", "email", "google", "apple"]).default("all"),
   risk: z.enum(["all", "failed_scans", "low_quota", "deactivated"]).default("all"),
   sort: z
@@ -939,6 +939,11 @@ type AdminUserRow = {
   linked_at: string | null;
   deletion_requested_at: string | null;
   deactivated_at: string | null;
+  deleted_at: string | null;
+  lifecycle_event_id: string | null;
+  lifecycle_event_type: string | null;
+  lifecycle_actor: string | null;
+  lifecycle_reason: string | null;
   created_at: string;
   updated_at: string;
   last_scan_at: string | null;
@@ -965,6 +970,34 @@ type AdminGrantRow = {
   created_at: string;
 };
 
+type AdminLifecycleEventRow = {
+  id: string;
+  profile_id: string;
+  event_type: "deactivated" | "deleted";
+  actor_type: string;
+  actor: string;
+  reason: string | null;
+  auth_method: string | null;
+  email: string | null;
+  display_name: string | null;
+  identity_provider: string | null;
+  provider_subject: string | null;
+  profile_timezone: string | null;
+  install_id: string | null;
+  platform: string | null;
+  app_version: string | null;
+  app_build: number | string | null;
+  device_timezone: string | null;
+  device_region: string | null;
+  device_locale: string | null;
+  scan_count: number | string;
+  failed_scan_count: number | string;
+  meal_count: number | string;
+  profile_created_at: string | null;
+  profile_updated_at: string | null;
+  created_at: string;
+};
+
 const searchAdminUsers = async (
   sql: SqlClient,
   query: z.infer<typeof adminUserSearchQuerySchema>,
@@ -973,7 +1006,7 @@ const searchAdminUsers = async (
   const pattern = `%${normalized}%`;
   const { page, pageSize, offset, sort, direction } = normalizeAdminPagination(query, 25);
   const rows = await sql<AdminUserListRow[]>`
-	    with user_rollup as (
+	    with active_user_rows as (
 	      select
 	        profiles.id::text,
 	        profiles.auth_method::text,
@@ -989,22 +1022,27 @@ const searchAdminUsers = async (
 	        latest_device.app_version as device_app_version,
 	        latest_device.app_build as device_app_build,
 	        latest_device.last_seen_at::text as device_last_seen_at,
-		        profiles.linked_at::text,
+		      profiles.linked_at::text,
 	        profiles.deletion_requested_at::text,
 	        profiles.deactivated_at::text,
+          null::text as deleted_at,
+          null::text as lifecycle_event_id,
+          null::text as lifecycle_event_type,
+          null::text as lifecycle_actor,
+          null::text as lifecycle_reason,
 	        profiles.created_at as created_at_sort,
 	        profiles.updated_at as updated_at_sort,
 	        max(scan_sessions.created_at) as last_scan_at_sort,
 	        profiles.created_at::text,
 	        profiles.updated_at::text,
 	        max(scan_sessions.created_at)::text as last_scan_at,
-        coalesce(scan_credits.free_remaining, 0)::int as free_remaining,
-        coalesce(scan_credits.rewarded_remaining, 0)::int as rewarded_remaining,
-        coalesce(scan_credits.premium_remaining, 0)::int as premium_remaining,
-        count(distinct meals.id)::int as meals,
-        count(distinct scan_sessions.id)::int as scans,
-        count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
-        count(distinct admin_scan_credit_grants.id)::int as grants
+          coalesce(scan_credits.free_remaining, 0)::int as free_remaining,
+          coalesce(scan_credits.rewarded_remaining, 0)::int as rewarded_remaining,
+          coalesce(scan_credits.premium_remaining, 0)::int as premium_remaining,
+          count(distinct meals.id)::int as meals,
+          count(distinct scan_sessions.id)::int as scans,
+          count(distinct scan_sessions.id) filter (where scan_sessions.status = 'failed')::int as failed_scans,
+          count(distinct admin_scan_credit_grants.id)::int as grants
 	      from profiles
 	      left join lateral (
 	        select
@@ -1051,7 +1089,56 @@ const searchAdminUsers = async (
 	        scan_credits.free_remaining,
 	        scan_credits.rewarded_remaining,
 	        scan_credits.premium_remaining
-	    )
+	    ),
+      deleted_user_rows as (
+        select
+          lifecycle.profile_id::text as id,
+          coalesce(lifecycle.auth_method, 'unknown') as auth_method,
+          lifecycle.email,
+          lifecycle.display_name,
+          lifecycle.identity_provider,
+          lifecycle.provider_subject,
+          coalesce(lifecycle.profile_timezone, 'Asia/Kolkata') as timezone,
+          lifecycle.device_timezone,
+          lifecycle.device_region,
+          lifecycle.device_locale,
+          lifecycle.platform as device_platform,
+          lifecycle.app_version as device_app_version,
+          lifecycle.app_build as device_app_build,
+          lifecycle.created_at::text as device_last_seen_at,
+          null::text as linked_at,
+          null::text as deletion_requested_at,
+          null::text as deactivated_at,
+          lifecycle.created_at::text as deleted_at,
+          lifecycle.id::text as lifecycle_event_id,
+          lifecycle.event_type::text as lifecycle_event_type,
+          lifecycle.actor as lifecycle_actor,
+          lifecycle.reason as lifecycle_reason,
+          coalesce(lifecycle.profile_created_at, lifecycle.created_at) as created_at_sort,
+          lifecycle.created_at as updated_at_sort,
+          null::timestamptz as last_scan_at_sort,
+          coalesce(lifecycle.profile_created_at, lifecycle.created_at)::text as created_at,
+          coalesce(lifecycle.profile_updated_at, lifecycle.created_at)::text as updated_at,
+          null::text as last_scan_at,
+          0::int as free_remaining,
+          0::int as rewarded_remaining,
+          0::int as premium_remaining,
+          lifecycle.meal_count::int as meals,
+          lifecycle.scan_count::int as scans,
+          lifecycle.failed_scan_count::int as failed_scans,
+          0::int as grants
+        from (
+          select distinct on (profile_id) *
+          from profile_lifecycle_events
+          where event_type = 'deleted'
+          order by profile_id, created_at desc
+        ) lifecycle
+      ),
+      user_rollup as (
+        select * from active_user_rows
+        union all
+        select * from deleted_user_rows
+      )
 	    select *, count(*) over()::int as total_count
 	    from user_rollup
     where
@@ -1063,13 +1150,15 @@ const searchAdminUsers = async (
 	        or provider_subject ilike ${pattern}
 	        or device_timezone ilike ${pattern}
 	        or device_region ilike ${pattern}
-	        or device_locale ilike ${pattern}
+		        or device_locale ilike ${pattern}
+            or lifecycle_actor ilike ${pattern}
 	      )
       and (
         ${query.status} = 'all'
-        or (${query.status} = 'active' and deactivated_at is null)
-        or (${query.status} = 'inactive' and deactivated_at is not null)
-        or (${query.status} = 'deletion_requested' and deletion_requested_at is not null)
+        or (${query.status} = 'active' and deleted_at is null and deactivated_at is null)
+        or (${query.status} = 'inactive' and deleted_at is null and deactivated_at is not null)
+        or (${query.status} = 'deletion_requested' and deleted_at is null and deletion_requested_at is not null)
+        or (${query.status} = 'deleted' and deleted_at is not null)
       )
       and (${query.authMethod} = 'all' or auth_method = ${query.authMethod})
       and (
@@ -1132,6 +1221,11 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
 	      profiles.linked_at::text,
       profiles.deletion_requested_at::text,
       profiles.deactivated_at::text,
+      null::text as deleted_at,
+      null::text as lifecycle_event_id,
+      null::text as lifecycle_event_type,
+      null::text as lifecycle_actor,
+      null::text as lifecycle_reason,
       profiles.created_at::text,
       profiles.updated_at::text,
       max(scan_sessions.created_at)::text as last_scan_at,
@@ -1192,7 +1286,7 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
 	    limit 1
 	  `;
 
-  if (!userRow) return undefined;
+  if (!userRow) return loadDeletedAdminUser(sql, profileId);
 
   const grants = await sql<AdminGrantRow[]>`
     select
@@ -1210,11 +1304,67 @@ const loadAdminUser = async (sql: SqlClient, profileId: string) => {
   `;
 
   const scans = await listAdminScans(sql, { profileId, limit: 20 });
+  const lifecycleEvents = await loadProfileLifecycleEvents(sql, profileId);
 
   return {
     ...mapAdminUserRow(userRow),
     grants: grants.map(mapAdminGrantRow),
     recentScans: scans.scans,
+    lifecycleEvents: lifecycleEvents.map(mapAdminLifecycleEventRow),
+  };
+};
+
+const loadDeletedAdminUser = async (sql: SqlClient, profileId: string) => {
+  const [row] = await sql<AdminUserRow[]>`
+    select
+      lifecycle.profile_id::text as id,
+      coalesce(lifecycle.auth_method, 'unknown') as auth_method,
+      lifecycle.email,
+      lifecycle.display_name,
+      lifecycle.identity_provider,
+      lifecycle.provider_subject,
+      coalesce(lifecycle.profile_timezone, 'Asia/Kolkata') as timezone,
+      lifecycle.device_timezone,
+      lifecycle.device_region,
+      lifecycle.device_locale,
+      lifecycle.platform as device_platform,
+      lifecycle.app_version as device_app_version,
+      lifecycle.app_build as device_app_build,
+      lifecycle.created_at::text as device_last_seen_at,
+      null::text as linked_at,
+      null::text as deletion_requested_at,
+      null::text as deactivated_at,
+      lifecycle.created_at::text as deleted_at,
+      lifecycle.id::text as lifecycle_event_id,
+      lifecycle.event_type::text as lifecycle_event_type,
+      lifecycle.actor as lifecycle_actor,
+      lifecycle.reason as lifecycle_reason,
+      coalesce(lifecycle.profile_created_at, lifecycle.created_at)::text as created_at,
+      coalesce(lifecycle.profile_updated_at, lifecycle.created_at)::text as updated_at,
+      null::text as last_scan_at,
+      0::int as free_remaining,
+      0::int as rewarded_remaining,
+      0::int as premium_remaining,
+      lifecycle.meal_count::int as meals,
+      lifecycle.scan_count::int as scans,
+      lifecycle.failed_scan_count::int as failed_scans,
+      0::int as grants
+    from (
+      select distinct on (profile_id) *
+      from profile_lifecycle_events
+      where profile_id = ${profileId}
+        and event_type = 'deleted'
+      order by profile_id, created_at desc
+    ) lifecycle
+  `;
+
+  if (!row) return undefined;
+  const lifecycleEvents = await loadProfileLifecycleEvents(sql, profileId);
+  return {
+    ...mapAdminUserRow(row),
+    grants: [],
+    recentScans: [],
+    lifecycleEvents: lifecycleEvents.map(mapAdminLifecycleEventRow),
   };
 };
 
@@ -1230,6 +1380,11 @@ const mapAdminUserRow = (row: AdminUserRow) => ({
   linkedAt: row.linked_at ?? undefined,
   deletionRequestedAt: row.deletion_requested_at ?? undefined,
   deactivatedAt: row.deactivated_at ?? undefined,
+  deletedAt: row.deleted_at ?? undefined,
+  lifecycleEventId: row.lifecycle_event_id ?? undefined,
+  lifecycleEventType: row.lifecycle_event_type ?? undefined,
+  lifecycleActor: row.lifecycle_actor ?? undefined,
+  lifecycleReason: row.lifecycle_reason ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   lastScanAt: row.last_scan_at ?? undefined,
@@ -1275,6 +1430,68 @@ const mapAdminGrantRow = (row: AdminGrantRow) => ({
   amount: row.amount,
   reason: row.reason,
   actor: row.actor,
+  createdAt: row.created_at,
+});
+
+const loadProfileLifecycleEvents = async (sql: SqlClient, profileId: string) =>
+  sql<AdminLifecycleEventRow[]>`
+    select
+      id::text,
+      profile_id::text,
+      event_type,
+      actor_type,
+      actor,
+      reason,
+      auth_method,
+      email,
+      display_name,
+      identity_provider,
+      provider_subject,
+      profile_timezone,
+      install_id,
+      platform,
+      app_version,
+      app_build,
+      device_timezone,
+      device_region,
+      device_locale,
+      scan_count,
+      failed_scan_count,
+      meal_count,
+      profile_created_at::text,
+      profile_updated_at::text,
+      created_at::text
+    from profile_lifecycle_events
+    where profile_id = ${profileId}
+    order by created_at desc
+    limit 20
+  `;
+
+const mapAdminLifecycleEventRow = (row: AdminLifecycleEventRow) => ({
+  id: row.id,
+  profileId: row.profile_id,
+  eventType: row.event_type,
+  actorType: row.actor_type,
+  actor: row.actor,
+  reason: row.reason ?? undefined,
+  authMethod: row.auth_method ?? undefined,
+  email: row.email ?? undefined,
+  displayName: row.display_name ?? undefined,
+  identityProvider: row.identity_provider ?? undefined,
+  providerSubject: row.provider_subject ?? undefined,
+  profileTimezone: row.profile_timezone ?? undefined,
+  installId: row.install_id ?? undefined,
+  platform: row.platform ?? undefined,
+  appVersion: row.app_version ?? undefined,
+  appBuild: nullableNumberValue(row.app_build) ?? undefined,
+  deviceTimezone: row.device_timezone ?? undefined,
+  deviceRegion: row.device_region ?? undefined,
+  deviceLocale: row.device_locale ?? undefined,
+  scanCount: numberValue(row.scan_count),
+  failedScanCount: numberValue(row.failed_scan_count),
+  mealCount: numberValue(row.meal_count),
+  profileCreatedAt: row.profile_created_at ?? undefined,
+  profileUpdatedAt: row.profile_updated_at ?? undefined,
   createdAt: row.created_at,
 });
 

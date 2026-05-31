@@ -190,6 +190,7 @@ const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type AppPlatform = NonNullable<ScanSession["platform"]>;
+type ProfileLifecycleEventType = "deactivated" | "deleted";
 type SqlExecutor = postgres.Sql | postgres.TransactionSql;
 
 const rewardedVerificationFromRow = (row: RewardedAdCallbackRow): RewardedAdServerVerification => {
@@ -421,6 +422,15 @@ export class PostgresStore implements AppRepository {
         returning id::text
       `;
 
+      if (!updated) return false;
+
+      await this.recordProfileLifecycleEvent(
+        tx,
+        profile.id,
+        "deactivated",
+        "User deactivated account from app",
+      );
+
       await tx`
         update account_sessions
         set revoked_at = now()
@@ -434,7 +444,7 @@ export class PostgresStore implements AppRepository {
         where profile_id = ${profile.id}
       `;
 
-      return Boolean(updated);
+      return true;
     });
 
     await this.resetCurrentInstallToAnonymousProfile();
@@ -474,6 +484,14 @@ export class PostgresStore implements AppRepository {
   async deleteProfile(): Promise<boolean> {
     const profile = await this.requireActiveAccountProfile();
     const deleted = await this.sql.begin(async (tx) => {
+      const recorded = await this.recordProfileLifecycleEvent(
+        tx,
+        profile.id,
+        "deleted",
+        "User deleted account from app",
+      );
+      if (!recorded) return false;
+
       await tx`
         update install_scan_credits
         set profile_id = null, updated_at = now()
@@ -505,11 +523,119 @@ export class PostgresStore implements AppRepository {
         returning id::text
       `;
 
-      return Boolean(deletedProfile);
+      if (!deletedProfile) {
+        throw new Error("Profile deletion lost the profile row after lifecycle event capture.");
+      }
+
+      return true;
     });
 
     await this.resetCurrentInstallToAnonymousProfile();
     return deleted;
+  }
+
+  private async recordProfileLifecycleEvent(
+    sql: SqlExecutor,
+    profileId: string,
+    eventType: ProfileLifecycleEventType,
+    reason: string,
+  ): Promise<boolean> {
+    const requestIdentity = currentRequestIdentity();
+    const [row] = await sql<{ id: string }[]>`
+      insert into profile_lifecycle_events (
+        profile_id,
+        event_type,
+        actor_type,
+        actor,
+        reason,
+        auth_method,
+        email,
+        display_name,
+        identity_provider,
+        provider_subject,
+        profile_timezone,
+        profile_created_at,
+        profile_updated_at,
+        install_id,
+        platform,
+        app_version,
+        app_build,
+        device_timezone,
+        device_region,
+        device_locale,
+        scan_count,
+        failed_scan_count,
+        meal_count
+      )
+      select
+        profiles.id,
+        ${eventType},
+        'user',
+        coalesce(identity.email, profiles.email, identity.display_name, profiles.id::text),
+        ${reason},
+        profiles.auth_method::text,
+        coalesce(identity.email, profiles.email),
+        identity.display_name,
+        identity.provider,
+        profiles.provider_subject,
+        profiles.timezone,
+        profiles.created_at,
+        profiles.updated_at,
+        latest_device.install_id,
+        latest_device.platform,
+        latest_device.app_version,
+        latest_device.app_build,
+        latest_device.timezone,
+        latest_device.region,
+        latest_device.locale,
+        coalesce(scan_counts.scan_count, 0)::int,
+        coalesce(scan_counts.failed_scan_count, 0)::int,
+        coalesce(meal_counts.meal_count, 0)::int
+      from profiles
+      left join lateral (
+        select
+          account_identities.email,
+          account_identities.display_name,
+          account_identities.provider::text as provider
+        from account_identities
+        where account_identities.profile_id = profiles.id
+        order by account_identities.updated_at desc, account_identities.created_at desc
+        limit 1
+      ) identity on true
+      left join lateral (
+        select
+          devices.install_id,
+          devices.platform,
+          devices.app_version,
+          devices.app_build,
+          devices.timezone,
+          devices.region,
+          devices.locale
+        from devices
+        where devices.profile_id = profiles.id
+        order by
+          (devices.install_id = ${requestIdentity.installId ?? ""}) desc,
+          devices.last_seen_at desc
+        limit 1
+      ) latest_device on true
+      left join lateral (
+        select
+          count(*)::int as scan_count,
+          count(*) filter (where scan_sessions.status = 'failed')::int as failed_scan_count
+        from scan_sessions
+        where scan_sessions.profile_id = profiles.id
+      ) scan_counts on true
+      left join lateral (
+        select count(*)::int as meal_count
+        from meals
+        where meals.profile_id = profiles.id
+      ) meal_counts on true
+      where profiles.id = ${profileId}
+        and profiles.auth_method <> 'anonymous'
+      returning id::text
+    `;
+
+    return Boolean(row);
   }
 
   async getHealthTarget(profileId?: string): Promise<ProfileHealthTarget | undefined> {

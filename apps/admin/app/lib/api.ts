@@ -170,6 +170,11 @@ export type AdminUser = {
   linkedAt?: string;
   deletionRequestedAt?: string;
   deactivatedAt?: string;
+  deletedAt?: string;
+  lifecycleEventId?: string;
+  lifecycleEventType?: string;
+  lifecycleActor?: string;
+  lifecycleReason?: string;
   createdAt: string;
   updatedAt: string;
   lastScanAt?: string;
@@ -177,6 +182,7 @@ export type AdminUser = {
   stats: { meals: number; scans: number; failedScans: number; grants: number };
   grants?: AdminGrant[];
   recentScans?: AdminScan[];
+  lifecycleEvents?: AdminLifecycleEvent[];
 };
 
 export type AdminGrant = {
@@ -186,6 +192,34 @@ export type AdminGrant = {
   amount: number;
   reason: string;
   actor: string;
+  createdAt: string;
+};
+
+export type AdminLifecycleEvent = {
+  id: string;
+  profileId: string;
+  eventType: "deactivated" | "deleted";
+  actorType: string;
+  actor: string;
+  reason?: string;
+  authMethod?: string;
+  email?: string;
+  displayName?: string;
+  identityProvider?: string;
+  providerSubject?: string;
+  profileTimezone?: string;
+  installId?: string;
+  platform?: string;
+  appVersion?: string;
+  appBuild?: number;
+  deviceTimezone?: string;
+  deviceRegion?: string;
+  deviceLocale?: string;
+  scanCount: number;
+  failedScanCount: number;
+  mealCount: number;
+  profileCreatedAt?: string;
+  profileUpdatedAt?: string;
   createdAt: string;
 };
 
