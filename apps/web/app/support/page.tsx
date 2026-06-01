@@ -22,6 +22,10 @@ const faqs = [
     a: "LogMyPlate includes 3 one-time free scans so you can try the flow before creating an account. Signed-in users may be able to unlock additional scans with rewarded ads when available.",
   },
   {
+    q: "Why does a rewarded ad say it is not ready?",
+    a: "Rewarded ads may not load when a VPN, Private DNS service, ad blocker, restricted office or school network, or unstable connection blocks Google AdMob. Turn off the VPN or ad-blocking DNS, switch to mobile data or a different Wi-Fi network, then reopen the app and try again. Ads are optional and depend on ad availability in your region.",
+  },
+  {
     q: "Does it work for Indian food?",
     a: "Yes — the AI model handles Indian meals including curries, rice dishes, dals, sabzis, breads, and street food. It also works for global cuisines. The model estimates portions visually rather than relying on a food database.",
   },
@@ -44,8 +48,25 @@ const faqs = [
 ];
 
 export default function SupportPage() {
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.a,
+      },
+    })),
+  };
+
   return (
     <div className="min-h-screen pt-28 pb-24 px-5 sm:px-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <div className="max-w-2xl mx-auto flex flex-col gap-12">
         {/* Header */}
         <div className="flex flex-col gap-3">
