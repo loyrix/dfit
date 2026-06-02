@@ -7,6 +7,7 @@ import {
   readClientAppBuild,
   resolveAppUpdatePolicy,
 } from "../services/app-update-policy.js";
+import { loadEngagementPolicy } from "../services/engagement-policy.js";
 import { buildJournalSummary, buildTodayJournal } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
 
@@ -21,6 +22,9 @@ export const registerBootstrapRoutes = async (
     const profile = await timer.measure("profile", () => repository.getProfile());
     const updatePolicyConfig = await timer.measure("updatePolicy", () =>
       loadAppUpdatePolicyConfig(sql),
+    );
+    const engagementPolicy = await timer.measure("engagementPolicy", () =>
+      loadEngagementPolicy(sql),
     );
     const [quota, rewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
@@ -51,6 +55,7 @@ export const registerBootstrapRoutes = async (
       profile,
       healthTarget,
       updatePolicy: resolveAppUpdatePolicy(updatePolicyConfig, readClientAppBuild(request)),
+      engagementPolicy,
       quota,
       rewardedAdProgress,
       today,

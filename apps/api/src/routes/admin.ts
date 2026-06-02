@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { engagementPolicyConfigSchema } from "@logmyplate/contracts";
 import type { MealImageSummary } from "@logmyplate/domain";
 import postgres from "postgres";
 import { z } from "zod";
@@ -10,6 +11,11 @@ import {
   loadAppUpdatePolicyConfig,
   parseAppUpdatePolicyConfig,
 } from "../services/app-update-policy.js";
+import {
+  ENGAGEMENT_POLICY_KEY,
+  loadEngagementPolicy,
+  parseEngagementPolicy,
+} from "../services/engagement-policy.js";
 
 const usdToInr = Number(process.env.AI_COST_USD_TO_INR ?? 95.4);
 
@@ -340,6 +346,18 @@ export const registerAdminRoutes = async (
     return { policy };
   });
 
+  app.get("/admin/engagement-policy", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { policy: await loadEngagementPolicy(sql) };
+  });
+
+  app.put("/admin/engagement-policy", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = updateEngagementPolicySchema.parse(request.body ?? {});
+    const policy = await updateEngagementPolicy(sql, request, body);
+    return { policy };
+  });
+
   app.get("/admin/audit-log", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const query = adminAuditQuerySchema.parse(request.query ?? {});
@@ -593,6 +611,10 @@ const updateNoticeSchema = z.object({
 });
 
 const updateAppUpdatePolicySchema = appUpdatePolicyConfigSchema.extend({
+  reason: requiredReasonSchema,
+});
+
+const updateEngagementPolicySchema = engagementPolicyConfigSchema.extend({
   reason: requiredReasonSchema,
 });
 
@@ -2754,6 +2776,53 @@ const updateAppUpdatePolicy = async (
     });
 
     return parseAppUpdatePolicyConfig(row.value);
+  });
+
+const updateEngagementPolicy = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof updateEngagementPolicySchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const { reason, ...policyInput } = input;
+    const nextPolicy = engagementPolicyConfigSchema.parse(policyInput);
+    const [before] = await tx<AppRuntimeConfigRow[]>`
+      select key, value, description, updated_by, updated_at::text
+      from app_runtime_config
+      where key = ${ENGAGEMENT_POLICY_KEY}
+      limit 1
+    `;
+
+    const [row] = await tx<AppRuntimeConfigRow[]>`
+      insert into app_runtime_config (key, value, description, updated_by)
+      values (
+        ${ENGAGEMENT_POLICY_KEY},
+        ${tx.json(nextPolicy)},
+        'Controls review prompts, interstitial ads, local notification scenarios, and streak celebrations for mobile clients.',
+        ${actor}
+      )
+      on conflict (key) do update
+      set
+        value = excluded.value,
+        description = excluded.description,
+        updated_by = excluded.updated_by,
+        updated_at = now()
+      returning key, value, description, updated_by, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_engagement_policy",
+      targetType: "app_runtime_config",
+      targetId: ENGAGEMENT_POLICY_KEY,
+      reason,
+      before: before
+        ? { ...mapAppRuntimeConfigRow(before), value: parseEngagementPolicy(before.value) }
+        : null,
+      after: { ...mapAppRuntimeConfigRow(row), value: parseEngagementPolicy(row.value) },
+    });
+
+    return parseEngagementPolicy(row.value);
   });
 
 const updateFeatureFlag = async (

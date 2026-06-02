@@ -202,12 +202,29 @@ export async function updateAppUpdatePolicyAction(formData: FormData) {
   redirect("/versions");
 }
 
+export async function updateEngagementPolicyAction(formData: FormData) {
+  await requireAdminSession();
+  await adminSend("/admin/engagement-policy", readEngagementPolicy(formData), {
+    idempotencyKey: readMutationKey(formData),
+    method: "PUT",
+  });
+  revalidatePath("/growth");
+  redirect("/growth");
+}
+
 const stringValue = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
 
 const optionalStringValue = (formData: FormData, key: string) => {
   const value = stringValue(formData, key);
   return value ? value : undefined;
 };
+
+const nullableStringValue = (formData: FormData, key: string) => {
+  const value = stringValue(formData, key);
+  return value ? value : null;
+};
+
+const booleanValue = (formData: FormData, key: string) => formData.get(key) === "on";
 
 const numberValue = (formData: FormData, key: string) => Number(formData.get(key) ?? 0);
 
@@ -221,3 +238,86 @@ const readPlatformPolicy = (formData: FormData, platform: "ios" | "android") => 
   mandatoryTitle: stringValue(formData, `${platform}.mandatoryTitle`),
   mandatoryMessage: stringValue(formData, `${platform}.mandatoryMessage`),
 });
+
+const notificationScenarioKeys = ["breakfast", "lunch", "snack", "dinner", "targetSetup"] as const;
+
+const readEngagementPolicy = (formData: FormData) => ({
+  reviewPrompt: {
+    enabled: booleanValue(formData, "reviewPrompt.enabled"),
+    minConfirmedScans: numberValue(formData, "reviewPrompt.minConfirmedScans"),
+    minActiveDays: numberValue(formData, "reviewPrompt.minActiveDays"),
+    cooldownDays: numberValue(formData, "reviewPrompt.cooldownDays"),
+    oncePerAppVersion: booleanValue(formData, "reviewPrompt.oncePerAppVersion"),
+    storeUrls: {
+      ios: nullableStringValue(formData, "reviewPrompt.storeUrls.ios"),
+      android: nullableStringValue(formData, "reviewPrompt.storeUrls.android"),
+    },
+    copy: {
+      title: stringValue(formData, "reviewPrompt.copy.title"),
+      body: stringValue(formData, "reviewPrompt.copy.body"),
+      positiveLabel: stringValue(formData, "reviewPrompt.copy.positiveLabel"),
+      negativeLabel: stringValue(formData, "reviewPrompt.copy.negativeLabel"),
+    },
+  },
+  interstitialAds: {
+    enabled: booleanValue(formData, "interstitialAds.enabled"),
+    freeUsersOnly: booleanValue(formData, "interstitialAds.freeUsersOnly"),
+    premiumExcluded: booleanValue(formData, "interstitialAds.premiumExcluded"),
+    minConfirmedScansBeforeFirstAd: numberValue(
+      formData,
+      "interstitialAds.minConfirmedScansBeforeFirstAd",
+    ),
+    scansBetweenAds: numberValue(formData, "interstitialAds.scansBetweenAds"),
+    cooldownMinutes: numberValue(formData, "interstitialAds.cooldownMinutes"),
+    dailyCap: numberValue(formData, "interstitialAds.dailyCap"),
+    adUnitIds: {
+      ios: nullableStringValue(formData, "interstitialAds.adUnitIds.ios"),
+      android: nullableStringValue(formData, "interstitialAds.adUnitIds.android"),
+    },
+  },
+  notifications: {
+    enabled: booleanValue(formData, "notifications.enabled"),
+    dailyCap: numberValue(formData, "notifications.dailyCap"),
+    quietHours: {
+      start: stringValue(formData, "notifications.quietHours.start"),
+      end: stringValue(formData, "notifications.quietHours.end"),
+    },
+    scenarios: Object.fromEntries(
+      notificationScenarioKeys.map((key) => [key, readNotificationScenario(formData, key)]),
+    ),
+  },
+  streaks: {
+    enabled: booleanValue(formData, "streaks.enabled"),
+    milestones: readStreakMilestones(formData),
+    scanRewards: {
+      enabled: booleanValue(formData, "streaks.scanRewards.enabled"),
+    },
+  },
+  reason: stringValue(formData, "reason"),
+});
+
+const readNotificationScenario = (
+  formData: FormData,
+  key: (typeof notificationScenarioKeys)[number],
+) => ({
+  enabled: booleanValue(formData, `notifications.scenarios.${key}.enabled`),
+  windowStart: stringValue(formData, `notifications.scenarios.${key}.windowStart`),
+  windowEnd: stringValue(formData, `notifications.scenarios.${key}.windowEnd`),
+  title: stringValue(formData, `notifications.scenarios.${key}.title`),
+  body: stringValue(formData, `notifications.scenarios.${key}.body`),
+  requiresTarget: booleanValue(formData, `notifications.scenarios.${key}.requiresTarget`),
+  onlyIfTargetNotReached: booleanValue(
+    formData,
+    `notifications.scenarios.${key}.onlyIfTargetNotReached`,
+  ),
+});
+
+const readStreakMilestones = (formData: FormData) => {
+  const count = numberValue(formData, "streaks.milestoneCount");
+  return Array.from({ length: count }, (_, index) => ({
+    days: numberValue(formData, `streaks.milestones.${index}.days`),
+    title: stringValue(formData, `streaks.milestones.${index}.title`),
+    body: stringValue(formData, `streaks.milestones.${index}.body`),
+    scanRewardAmount: numberValue(formData, `streaks.milestones.${index}.scanRewardAmount`),
+  }));
+};

@@ -386,6 +386,76 @@ export type AppUpdatePolicy = {
   android: AppUpdatePlatformPolicy;
 };
 
+export type EngagementNotificationScenario = {
+  enabled: boolean;
+  windowStart: string;
+  windowEnd: string;
+  title: string;
+  body: string;
+  requiresTarget: boolean;
+  onlyIfTargetNotReached: boolean;
+};
+
+export type EngagementPolicy = {
+  reviewPrompt: {
+    enabled: boolean;
+    minConfirmedScans: number;
+    minActiveDays: number;
+    cooldownDays: number;
+    oncePerAppVersion: boolean;
+    storeUrls: {
+      ios: string | null;
+      android: string | null;
+    };
+    copy: {
+      title: string;
+      body: string;
+      positiveLabel: string;
+      negativeLabel: string;
+    };
+  };
+  interstitialAds: {
+    enabled: boolean;
+    freeUsersOnly: boolean;
+    premiumExcluded: boolean;
+    minConfirmedScansBeforeFirstAd: number;
+    scansBetweenAds: number;
+    cooldownMinutes: number;
+    dailyCap: number;
+    adUnitIds: {
+      ios: string | null;
+      android: string | null;
+    };
+  };
+  notifications: {
+    enabled: boolean;
+    dailyCap: number;
+    quietHours: {
+      start: string;
+      end: string;
+    };
+    scenarios: {
+      breakfast: EngagementNotificationScenario;
+      lunch: EngagementNotificationScenario;
+      snack: EngagementNotificationScenario;
+      dinner: EngagementNotificationScenario;
+      targetSetup: EngagementNotificationScenario;
+    };
+  };
+  streaks: {
+    enabled: boolean;
+    milestones: Array<{
+      days: number;
+      title: string;
+      body: string;
+      scanRewardAmount: number;
+    }>;
+    scanRewards: {
+      enabled: boolean;
+    };
+  };
+};
+
 export type AuditEntry = {
   id: string;
   actor: string;

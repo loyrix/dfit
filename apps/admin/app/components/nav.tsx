@@ -10,6 +10,7 @@ const navItems = [
   ["/users", "Users"],
   ["/scans", "Scans"],
   ["/ai", "AI Controls"],
+  ["/growth", "Growth Controls"],
   ["/flags", "Flags & Notices"],
   ["/versions", "App Versions"],
   ["/audit", "Audit Log"],

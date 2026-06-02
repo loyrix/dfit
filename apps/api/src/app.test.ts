@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultEngagementPolicyConfig, engagementPolicyConfigSchema } from "@logmyplate/contracts";
 import { buildApp, type BuildAppOptions } from "./app.js";
 import { currentRequestIdentity, type RequestIdentity } from "./request-context.js";
 import { InMemoryStore } from "./repositories/in-memory-store.js";
@@ -267,6 +268,57 @@ describe("LogMyPlate API", () => {
       process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
     }
     await app.close();
+  });
+
+  it("keeps engagement policy admin endpoints database-backed", async () => {
+    const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
+    const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;
+    process.env.ADMIN_DASHBOARD_USERNAME = "test-admin";
+    process.env.ADMIN_DASHBOARD_PASSWORD = "test-admin-password";
+
+    const app = await testApp();
+    const response = await app.inject({
+      method: "GET",
+      url: "/admin/engagement-policy",
+      headers: {
+        authorization: `Basic ${Buffer.from("test-admin:test-admin-password").toString("base64")}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ error: "database_unavailable" });
+
+    if (previousUsername === undefined) {
+      delete process.env.ADMIN_DASHBOARD_USERNAME;
+    } else {
+      process.env.ADMIN_DASHBOARD_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.ADMIN_DASHBOARD_PASSWORD;
+    } else {
+      process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
+    }
+    await app.close();
+  });
+
+  it("normalizes engagement policy defaults and rejects unsafe values", () => {
+    const defaults = defaultEngagementPolicyConfig();
+
+    expect(defaults.reviewPrompt.enabled).toBe(false);
+    expect(defaults.interstitialAds.enabled).toBe(false);
+    expect(defaults.notifications.enabled).toBe(false);
+    expect(defaults.streaks.enabled).toBe(false);
+    expect(defaults.streaks.scanRewards.enabled).toBe(false);
+    expect(
+      engagementPolicyConfigSchema.safeParse({
+        reviewPrompt: { cooldownDays: 0 },
+      }).success,
+    ).toBe(false);
+    expect(
+      engagementPolicyConfigSchema.safeParse({
+        interstitialAds: { scansBetweenAds: 0 },
+      }).success,
+    ).toBe(false);
   });
 
   it("serves launch feature configuration", async () => {
@@ -1053,6 +1105,15 @@ describe("LogMyPlate API", () => {
         premiumRemaining: 0,
       },
       today: { totals: { calories: 180 } },
+      engagementPolicy: {
+        reviewPrompt: { enabled: false },
+        interstitialAds: { enabled: false },
+        notifications: { enabled: false },
+        streaks: {
+          enabled: false,
+          scanRewards: { enabled: false },
+        },
+      },
       weeklySummary: {
         summary: {
           windowDays: 7,
