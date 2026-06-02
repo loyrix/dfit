@@ -1,7 +1,12 @@
 import { AdminShell } from "../components/shell";
 import { Badge, PageHeader } from "../components/ui";
 import { updateEngagementPolicyAction } from "../lib/actions";
-import { adminGet, type EngagementNotificationScenario, type EngagementPolicy } from "../lib/api";
+import {
+  adminGet,
+  type EngagementAnalyticsEvents,
+  type EngagementNotificationScenario,
+  type EngagementPolicy,
+} from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +20,25 @@ const scenarioLabels = {
 } as const;
 
 type ScenarioKey = keyof typeof scenarioLabels;
+
+const analyticsEventLabels: Record<keyof EngagementAnalyticsEvents, string> = {
+  appOpen: "App open",
+  bootstrapLoaded: "Bootstrap loaded",
+  tabSelected: "Tab selected",
+  scanStarted: "Scan started",
+  scanAnalysisSucceeded: "Scan analysis succeeded",
+  scanAnalysisFailed: "Scan analysis failed",
+  scanConfirmed: "Scan confirmed",
+  manualMealSaved: "Manual meal saved",
+  mealUpdated: "Meal updated",
+  mealDeleted: "Meal deleted",
+  rewardedAdStarted: "Rewarded ad started",
+  rewardedAdEarned: "Rewarded ad earned",
+  rewardedAdFailed: "Rewarded ad failed",
+  accountGateShown: "Account gate shown",
+  accountLinked: "Account linked",
+  healthTargetSaved: "Health target saved",
+};
 
 export default async function GrowthControlsPage() {
   const { policy } = await adminGet<{ policy: EngagementPolicy }>("/admin/engagement-policy");
@@ -42,8 +66,13 @@ export default async function GrowthControlsPage() {
         />
 
         <section className="grid two-col">
+          <AnalyticsPanel policy={policy} />
           <ReviewPromptPanel policy={policy} />
+        </section>
+
+        <section className="grid two-col">
           <InterstitialAdsPanel policy={policy} />
+          <StreaksPanel policy={policy} />
         </section>
 
         <section className="panel">
@@ -128,8 +157,6 @@ export default async function GrowthControlsPage() {
           </div>
         </section>
 
-        <StreaksPanel policy={policy} />
-
         <section className="panel">
           <label className="block">
             <span className="font-semibold">Reason</span>
@@ -150,6 +177,87 @@ export default async function GrowthControlsPage() {
         </section>
       </form>
     </AdminShell>
+  );
+}
+
+function AnalyticsPanel({ policy }: { policy: EngagementPolicy }) {
+  return (
+    <div className="panel">
+      <div className="section-head">
+        <div>
+          <h2 className="text-xl font-bold">Firebase Analytics</h2>
+          <p className="muted mt-1 text-sm">
+            Remote event gates for mobile measurement. Requires Firebase dart defines in app builds.
+          </p>
+        </div>
+        <Badge
+          tone={policy.analytics.enabled && policy.analytics.firebaseEnabled ? "green" : "red"}
+        >
+          {policy.analytics.enabled && policy.analytics.firebaseEnabled ? "Enabled" : "Disabled"}
+        </Badge>
+      </div>
+
+      <div className="form-grid mt-4">
+        <label className="inline-controls">
+          <input
+            name="analytics.enabled"
+            type="checkbox"
+            defaultChecked={policy.analytics.enabled}
+          />
+          Enable analytics policy
+        </label>
+        <label className="inline-controls">
+          <input
+            name="analytics.firebaseEnabled"
+            type="checkbox"
+            defaultChecked={policy.analytics.firebaseEnabled}
+          />
+          Send to Firebase
+        </label>
+        <label className="inline-controls">
+          <input
+            name="analytics.debugLogging"
+            type="checkbox"
+            defaultChecked={policy.analytics.debugLogging}
+          />
+          Debug log events
+        </label>
+        <NumberField
+          label="Sample rate percent"
+          name="analytics.sampleRatePercent"
+          value={policy.analytics.sampleRatePercent}
+          min={0}
+          max={100}
+        />
+      </div>
+
+      <div className="table-wrap mt-4">
+        <table className="table table-compact">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Track</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(Object.keys(analyticsEventLabels) as Array<keyof EngagementAnalyticsEvents>).map(
+              (key) => (
+                <tr key={key}>
+                  <td>{analyticsEventLabels[key]}</td>
+                  <td>
+                    <input
+                      name={`analytics.events.${key}`}
+                      type="checkbox"
+                      defaultChecked={policy.analytics.events[key]}
+                    />
+                  </td>
+                </tr>
+              ),
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
@@ -611,6 +719,8 @@ function TextareaField({
 
 function anyEnabled(policy: EngagementPolicy) {
   return (
+    policy.analytics.enabled ||
+    policy.analytics.firebaseEnabled ||
     policy.reviewPrompt.enabled ||
     policy.interstitialAds.enabled ||
     policy.notifications.enabled ||

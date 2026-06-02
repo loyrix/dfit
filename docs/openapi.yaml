@@ -83,7 +83,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get engagement policy
-      description: Returns the backoffice-managed growth policy used by future review prompts, interstitial ads, local notifications, and streaks.
+      description: Returns the backoffice-managed growth policy used by Firebase Analytics, future review prompts, interstitial ads, local notifications, and streaks.
       security:
         - adminBasic: []
       responses:
@@ -2029,8 +2029,10 @@ components:
 
     EngagementPolicy:
       type: object
-      required: [reviewPrompt, interstitialAds, notifications, streaks]
+      required: [analytics, reviewPrompt, interstitialAds, notifications, streaks]
       properties:
+        analytics:
+          $ref: "#/components/schemas/EngagementAnalyticsPolicy"
         reviewPrompt:
           $ref: "#/components/schemas/EngagementReviewPromptPolicy"
         interstitialAds:
@@ -2039,6 +2041,75 @@ components:
           $ref: "#/components/schemas/EngagementNotificationsPolicy"
         streaks:
           $ref: "#/components/schemas/EngagementStreaksPolicy"
+
+    EngagementAnalyticsPolicy:
+      type: object
+      required: [enabled, firebaseEnabled, debugLogging, sampleRatePercent, events]
+      properties:
+        enabled:
+          type: boolean
+        firebaseEnabled:
+          type: boolean
+        debugLogging:
+          type: boolean
+        sampleRatePercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        events:
+          type: object
+          required:
+            [
+              appOpen,
+              bootstrapLoaded,
+              tabSelected,
+              scanStarted,
+              scanAnalysisSucceeded,
+              scanAnalysisFailed,
+              scanConfirmed,
+              manualMealSaved,
+              mealUpdated,
+              mealDeleted,
+              rewardedAdStarted,
+              rewardedAdEarned,
+              rewardedAdFailed,
+              accountGateShown,
+              accountLinked,
+              healthTargetSaved,
+            ]
+          properties:
+            appOpen:
+              type: boolean
+            bootstrapLoaded:
+              type: boolean
+            tabSelected:
+              type: boolean
+            scanStarted:
+              type: boolean
+            scanAnalysisSucceeded:
+              type: boolean
+            scanAnalysisFailed:
+              type: boolean
+            scanConfirmed:
+              type: boolean
+            manualMealSaved:
+              type: boolean
+            mealUpdated:
+              type: boolean
+            mealDeleted:
+              type: boolean
+            rewardedAdStarted:
+              type: boolean
+            rewardedAdEarned:
+              type: boolean
+            rewardedAdFailed:
+              type: boolean
+            accountGateShown:
+              type: boolean
+            accountLinked:
+              type: boolean
+            healthTargetSaved:
+              type: boolean
 
     EngagementReviewPromptPolicy:
       type: object

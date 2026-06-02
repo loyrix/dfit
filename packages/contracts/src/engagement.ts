@@ -7,6 +7,33 @@ const timeOfDaySchema = z
 
 const nullableUrlSchema = z.string().trim().url().max(500).nullable();
 
+const analyticsEventKeySchema = z.object({
+  appOpen: z.boolean().default(true),
+  bootstrapLoaded: z.boolean().default(true),
+  tabSelected: z.boolean().default(false),
+  scanStarted: z.boolean().default(true),
+  scanAnalysisSucceeded: z.boolean().default(true),
+  scanAnalysisFailed: z.boolean().default(true),
+  scanConfirmed: z.boolean().default(true),
+  manualMealSaved: z.boolean().default(true),
+  mealUpdated: z.boolean().default(true),
+  mealDeleted: z.boolean().default(true),
+  rewardedAdStarted: z.boolean().default(true),
+  rewardedAdEarned: z.boolean().default(true),
+  rewardedAdFailed: z.boolean().default(true),
+  accountGateShown: z.boolean().default(true),
+  accountLinked: z.boolean().default(true),
+  healthTargetSaved: z.boolean().default(true),
+});
+
+export const engagementAnalyticsPolicySchema = z.object({
+  enabled: z.boolean().default(false),
+  firebaseEnabled: z.boolean().default(false),
+  debugLogging: z.boolean().default(false),
+  sampleRatePercent: z.coerce.number().int().min(0).max(100).default(100),
+  events: analyticsEventKeySchema.default({}),
+});
+
 const reviewPromptCopySchema = z.object({
   title: z.string().trim().min(3).max(120).default("Enjoying LogMyPlate?"),
   body: z
@@ -158,6 +185,7 @@ export const engagementStreaksPolicySchema = z.object({
 });
 
 export const engagementPolicyConfigSchema = z.object({
+  analytics: engagementAnalyticsPolicySchema.default({}),
   reviewPrompt: engagementReviewPromptPolicySchema.default({}),
   interstitialAds: engagementInterstitialAdsPolicySchema.default({}),
   notifications: engagementNotificationsPolicySchema.default({}),

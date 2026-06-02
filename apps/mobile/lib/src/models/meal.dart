@@ -779,6 +779,187 @@ class AppUpdatePolicy {
   }
 }
 
+class EngagementAnalyticsEvents {
+  const EngagementAnalyticsEvents({
+    this.appOpen = true,
+    this.bootstrapLoaded = true,
+    this.tabSelected = false,
+    this.scanStarted = true,
+    this.scanAnalysisSucceeded = true,
+    this.scanAnalysisFailed = true,
+    this.scanConfirmed = true,
+    this.manualMealSaved = true,
+    this.mealUpdated = true,
+    this.mealDeleted = true,
+    this.rewardedAdStarted = true,
+    this.rewardedAdEarned = true,
+    this.rewardedAdFailed = true,
+    this.accountGateShown = true,
+    this.accountLinked = true,
+    this.healthTargetSaved = true,
+  });
+
+  final bool appOpen;
+  final bool bootstrapLoaded;
+  final bool tabSelected;
+  final bool scanStarted;
+  final bool scanAnalysisSucceeded;
+  final bool scanAnalysisFailed;
+  final bool scanConfirmed;
+  final bool manualMealSaved;
+  final bool mealUpdated;
+  final bool mealDeleted;
+  final bool rewardedAdStarted;
+  final bool rewardedAdEarned;
+  final bool rewardedAdFailed;
+  final bool accountGateShown;
+  final bool accountLinked;
+  final bool healthTargetSaved;
+
+  factory EngagementAnalyticsEvents.fromJson(Map<String, dynamic>? json) {
+    return EngagementAnalyticsEvents(
+      appOpen: _boolValue(json?['appOpen'], fallback: true),
+      bootstrapLoaded: _boolValue(json?['bootstrapLoaded'], fallback: true),
+      tabSelected: _boolValue(json?['tabSelected']),
+      scanStarted: _boolValue(json?['scanStarted'], fallback: true),
+      scanAnalysisSucceeded: _boolValue(
+        json?['scanAnalysisSucceeded'],
+        fallback: true,
+      ),
+      scanAnalysisFailed: _boolValue(
+        json?['scanAnalysisFailed'],
+        fallback: true,
+      ),
+      scanConfirmed: _boolValue(json?['scanConfirmed'], fallback: true),
+      manualMealSaved: _boolValue(json?['manualMealSaved'], fallback: true),
+      mealUpdated: _boolValue(json?['mealUpdated'], fallback: true),
+      mealDeleted: _boolValue(json?['mealDeleted'], fallback: true),
+      rewardedAdStarted: _boolValue(json?['rewardedAdStarted'], fallback: true),
+      rewardedAdEarned: _boolValue(json?['rewardedAdEarned'], fallback: true),
+      rewardedAdFailed: _boolValue(json?['rewardedAdFailed'], fallback: true),
+      accountGateShown: _boolValue(json?['accountGateShown'], fallback: true),
+      accountLinked: _boolValue(json?['accountLinked'], fallback: true),
+      healthTargetSaved: _boolValue(json?['healthTargetSaved'], fallback: true),
+    );
+  }
+
+  bool isEnabled(String eventName) {
+    return switch (eventName) {
+      'app_open' => appOpen,
+      'bootstrap_loaded' => bootstrapLoaded,
+      'tab_selected' => tabSelected,
+      'scan_started' => scanStarted,
+      'scan_analysis_succeeded' => scanAnalysisSucceeded,
+      'scan_analysis_failed' => scanAnalysisFailed,
+      'scan_confirmed' => scanConfirmed,
+      'manual_meal_saved' => manualMealSaved,
+      'meal_updated' => mealUpdated,
+      'meal_deleted' => mealDeleted,
+      'rewarded_ad_started' => rewardedAdStarted,
+      'rewarded_ad_earned' => rewardedAdEarned,
+      'rewarded_ad_failed' => rewardedAdFailed,
+      'account_gate_shown' => accountGateShown,
+      'account_linked' => accountLinked,
+      'health_target_saved' => healthTargetSaved,
+      _ => false,
+    };
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'appOpen': appOpen,
+      'bootstrapLoaded': bootstrapLoaded,
+      'tabSelected': tabSelected,
+      'scanStarted': scanStarted,
+      'scanAnalysisSucceeded': scanAnalysisSucceeded,
+      'scanAnalysisFailed': scanAnalysisFailed,
+      'scanConfirmed': scanConfirmed,
+      'manualMealSaved': manualMealSaved,
+      'mealUpdated': mealUpdated,
+      'mealDeleted': mealDeleted,
+      'rewardedAdStarted': rewardedAdStarted,
+      'rewardedAdEarned': rewardedAdEarned,
+      'rewardedAdFailed': rewardedAdFailed,
+      'accountGateShown': accountGateShown,
+      'accountLinked': accountLinked,
+      'healthTargetSaved': healthTargetSaved,
+    };
+  }
+}
+
+class EngagementAnalyticsPolicy {
+  const EngagementAnalyticsPolicy({
+    this.enabled = false,
+    this.firebaseEnabled = false,
+    this.debugLogging = false,
+    this.sampleRatePercent = 100,
+    this.events = const EngagementAnalyticsEvents(),
+  });
+
+  final bool enabled;
+  final bool firebaseEnabled;
+  final bool debugLogging;
+  final int sampleRatePercent;
+  final EngagementAnalyticsEvents events;
+
+  bool get canReport => enabled && firebaseEnabled && sampleRatePercent > 0;
+
+  factory EngagementAnalyticsPolicy.disabled() {
+    return const EngagementAnalyticsPolicy();
+  }
+
+  factory EngagementAnalyticsPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return EngagementAnalyticsPolicy.disabled();
+    return EngagementAnalyticsPolicy(
+      enabled: _boolValue(json['enabled']),
+      firebaseEnabled: _boolValue(json['firebaseEnabled']),
+      debugLogging: _boolValue(json['debugLogging']),
+      sampleRatePercent: _boundedInt(
+        json['sampleRatePercent'],
+        fallback: 100,
+        min: 0,
+        max: 100,
+      ),
+      events: EngagementAnalyticsEvents.fromJson(
+        json['events'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'firebaseEnabled': firebaseEnabled,
+      'debugLogging': debugLogging,
+      'sampleRatePercent': sampleRatePercent,
+      'events': events.toJson(),
+    };
+  }
+}
+
+class EngagementPolicy {
+  const EngagementPolicy({this.analytics = const EngagementAnalyticsPolicy()});
+
+  final EngagementAnalyticsPolicy analytics;
+
+  factory EngagementPolicy.disabled() {
+    return const EngagementPolicy();
+  }
+
+  factory EngagementPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return EngagementPolicy.disabled();
+    return EngagementPolicy(
+      analytics: EngagementAnalyticsPolicy.fromJson(
+        json['analytics'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'analytics': analytics.toJson()};
+  }
+}
+
 AppUpdateStatus _appUpdateStatusFromApi(String? value) {
   return switch (value) {
     'optional' => AppUpdateStatus.optional,
@@ -794,12 +975,36 @@ int? _nullableInt(Object? value) {
   return int.tryParse(value.toString());
 }
 
+bool _boolValue(Object? value, {bool fallback = false}) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true') return true;
+    if (normalized == 'false') return false;
+  }
+  return fallback;
+}
+
+int _boundedInt(
+  Object? value, {
+  required int fallback,
+  required int min,
+  required int max,
+}) {
+  final parsed = _nullableInt(value) ?? fallback;
+  if (parsed < min) return min;
+  if (parsed > max) return max;
+  return parsed;
+}
+
 class AppBootstrapData {
   const AppBootstrapData({
     required this.serverTime,
     required this.profile,
     this.healthTarget,
     required this.updatePolicy,
+    required this.engagementPolicy,
     required this.quota,
     required this.rewardedAdProgress,
     required this.today,
@@ -810,6 +1015,7 @@ class AppBootstrapData {
   final AppProfile profile;
   final HealthTarget? healthTarget;
   final AppUpdatePolicy updatePolicy;
+  final EngagementPolicy engagementPolicy;
   final ScanQuota quota;
   final RewardedAdProgress rewardedAdProgress;
   final TodayJournalData today;
@@ -824,6 +1030,9 @@ class AppBootstrapData {
           : HealthTarget.fromJson(json['healthTarget'] as Map<String, dynamic>),
       updatePolicy: AppUpdatePolicy.fromJson(
         json['updatePolicy'] as Map<String, dynamic>?,
+      ),
+      engagementPolicy: EngagementPolicy.fromJson(
+        json['engagementPolicy'] as Map<String, dynamic>?,
       ),
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
       rewardedAdProgress: json['rewardedAdProgress'] == null
@@ -846,6 +1055,24 @@ class AppBootstrapData {
     return {
       'serverTime': serverTime,
       'profile': profile.toJson(),
+      'updatePolicy': {
+        'status': updatePolicy.status.name,
+        if (updatePolicy.platform != null) 'platform': updatePolicy.platform,
+        if (updatePolicy.currentBuild != null)
+          'currentBuild': updatePolicy.currentBuild,
+        if (updatePolicy.currentVersion != null)
+          'currentVersion': updatePolicy.currentVersion,
+        if (updatePolicy.latestBuild != null)
+          'latestBuild': updatePolicy.latestBuild,
+        if (updatePolicy.latestVersion != null)
+          'latestVersion': updatePolicy.latestVersion,
+        if (updatePolicy.minSupportedBuild != null)
+          'minSupportedBuild': updatePolicy.minSupportedBuild,
+        if (updatePolicy.storeUrl != null) 'storeUrl': updatePolicy.storeUrl,
+        if (updatePolicy.title != null) 'title': updatePolicy.title,
+        if (updatePolicy.message != null) 'message': updatePolicy.message,
+      },
+      'engagementPolicy': engagementPolicy.toJson(),
       'healthTarget': healthTarget == null
           ? null
           : {
@@ -1033,6 +1260,13 @@ class ScanAnalysis {
   final String detectedLanguage;
   final List<MealItem> items;
   final bool imageStored;
+
+  MacroTotals get totals {
+    return items.fold<MacroTotals>(
+      MacroTotals.zero,
+      (total, item) => total + item.nutrition,
+    );
+  }
 
   factory ScanAnalysis.fromJson(Map<String, dynamic> json) {
     return ScanAnalysis(

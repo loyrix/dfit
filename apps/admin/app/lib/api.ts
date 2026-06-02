@@ -396,7 +396,33 @@ export type EngagementNotificationScenario = {
   onlyIfTargetNotReached: boolean;
 };
 
+export type EngagementAnalyticsEvents = {
+  appOpen: boolean;
+  bootstrapLoaded: boolean;
+  tabSelected: boolean;
+  scanStarted: boolean;
+  scanAnalysisSucceeded: boolean;
+  scanAnalysisFailed: boolean;
+  scanConfirmed: boolean;
+  manualMealSaved: boolean;
+  mealUpdated: boolean;
+  mealDeleted: boolean;
+  rewardedAdStarted: boolean;
+  rewardedAdEarned: boolean;
+  rewardedAdFailed: boolean;
+  accountGateShown: boolean;
+  accountLinked: boolean;
+  healthTargetSaved: boolean;
+};
+
 export type EngagementPolicy = {
+  analytics: {
+    enabled: boolean;
+    firebaseEnabled: boolean;
+    debugLogging: boolean;
+    sampleRatePercent: number;
+    events: EngagementAnalyticsEvents;
+  };
   reviewPrompt: {
     enabled: boolean;
     minConfirmedScans: number;

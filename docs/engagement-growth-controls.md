@@ -26,8 +26,35 @@ behavior is added in later phases.
 
 - Admin page: `Growth Controls`.
 - Every save requires a reason and writes an audit log entry.
-- The admin UI is only a control surface in Phase 1; it does not activate mobile
-  behavior until later app releases consume the policy.
+- The admin UI is a control surface. Growth features remain disabled unless
+  their own policy toggles and mobile support are both active.
+
+## Phase 2: Firebase Analytics Foundation
+
+- Status: implemented locally, pending deployment and mobile release.
+- Runtime policy section: `engagement_policy.analytics`.
+- Default behavior: analytics policy, Firebase collection, and debug logging are
+  disabled.
+- Mobile behavior:
+  - Firebase initializes only when dart-define Firebase options are present.
+  - Missing Firebase options leave analytics as a no-op.
+  - Backoffice policy controls global enablement, Firebase reporting, debug
+    logging, sampling, and individual event gates.
+  - Logged events are sanitized and avoid raw email, profile id, tokens, meal
+    names, food photo data, and free-form user text.
+- Core events wired:
+  - app open
+  - bootstrap loaded
+  - tab selected
+  - scan started
+  - scan analysis succeeded/failed
+  - scan confirmed
+  - manual meal saved
+  - meal updated/deleted
+  - rewarded ad started/earned/failed
+  - account gate shown
+  - account linked
+  - health target saved
 
 ## Validation And Tests
 
@@ -41,7 +68,6 @@ behavior is added in later phases.
 
 ## Next-Phase Readiness
 
-- Phase 2: Firebase Analytics consumes policy and consent gates.
 - Phase 3: interstitial ads read placement, caps, cooldown, and ad unit ids.
 - Phase 4: native review prompt reads eligibility, copy, cooldown, and store
   URLs.

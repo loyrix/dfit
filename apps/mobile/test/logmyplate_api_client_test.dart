@@ -280,6 +280,32 @@ void main() {
               'title': 'Update available',
               'message': 'A newer LogMyPlate version is ready.',
             },
+            'engagementPolicy': {
+              'analytics': {
+                'enabled': true,
+                'firebaseEnabled': true,
+                'debugLogging': true,
+                'sampleRatePercent': 25,
+                'events': {
+                  'appOpen': true,
+                  'bootstrapLoaded': true,
+                  'tabSelected': true,
+                  'scanStarted': true,
+                  'scanAnalysisSucceeded': true,
+                  'scanAnalysisFailed': true,
+                  'scanConfirmed': true,
+                  'manualMealSaved': true,
+                  'mealUpdated': true,
+                  'mealDeleted': true,
+                  'rewardedAdStarted': true,
+                  'rewardedAdEarned': true,
+                  'rewardedAdFailed': true,
+                  'accountGateShown': true,
+                  'accountLinked': true,
+                  'healthTargetSaved': true,
+                },
+              },
+            },
             'today': {
               'date': '2026-05-12',
               'timezone': 'Asia/Kolkata',
@@ -365,11 +391,72 @@ void main() {
     expect(bootstrap.healthTarget?.dailyCalorieTarget, 2238);
     expect(bootstrap.updatePolicy.status, AppUpdateStatus.optional);
     expect(bootstrap.updatePolicy.latestBuild, 14);
+    expect(bootstrap.engagementPolicy.analytics.enabled, isTrue);
+    expect(bootstrap.engagementPolicy.analytics.firebaseEnabled, isTrue);
+    expect(bootstrap.engagementPolicy.analytics.debugLogging, isTrue);
+    expect(bootstrap.engagementPolicy.analytics.sampleRatePercent, 25);
+    expect(
+      bootstrap.engagementPolicy.analytics.events.isEnabled('tab_selected'),
+      isTrue,
+    );
     expect(bootstrap.today.target?.calories, 2238);
     expect(bootstrap.weeklyRange.target?.calories, 2238);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
     expect(bootstrap.weeklyRange.summary.trackedDayAverage.calories, 180);
   });
+
+  test(
+    'uses disabled engagement policy defaults for legacy bootstrap payloads',
+    () {
+      final bootstrap = AppBootstrapData.fromJson({
+        'serverTime': '2026-05-12T10:00:00.000Z',
+        'profile': {
+          'id': 'profile_1',
+          'authMethod': 'anonymous',
+          'timezone': 'Asia/Kolkata',
+        },
+        'quota': {
+          'freeRemaining': 3,
+          'rewardedRemaining': 0,
+          'premiumRemaining': 0,
+        },
+        'today': {
+          'totals': {'calories': 0, 'proteinG': 0, 'carbsG': 0, 'fatG': 0},
+          'meals': [],
+        },
+        'weeklyRange': {
+          'startDate': '2026-05-06',
+          'endDate': '2026-05-12',
+          'days': [],
+          'summary': {
+            'windowDays': 7,
+            'activeDays': 0,
+            'mealCount': 0,
+            'totals': {'calories': 0, 'proteinG': 0, 'carbsG': 0, 'fatG': 0},
+            'trackedDayAverage': {
+              'calories': 0,
+              'proteinG': 0,
+              'carbsG': 0,
+              'fatG': 0,
+            },
+            'calendarDayAverage': {
+              'calories': 0,
+              'proteinG': 0,
+              'carbsG': 0,
+              'fatG': 0,
+            },
+          },
+        },
+      });
+
+      expect(bootstrap.engagementPolicy.analytics.enabled, isFalse);
+      expect(bootstrap.engagementPolicy.analytics.firebaseEnabled, isFalse);
+      expect(
+        bootstrap.engagementPolicy.analytics.events.isEnabled('scan_started'),
+        isTrue,
+      );
+    },
+  );
 
   test('saves health targets with account auth headers', () async {
     final client = LogMyPlateApiClient(

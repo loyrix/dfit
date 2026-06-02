@@ -41,11 +41,50 @@ allowlisted keys for their platform and pass them to Flutter as dart defines:
 - `LOGMYPLATE_GOOGLE_IOS_CLIENT_ID`
 - `LOGMYPLATE_GOOGLE_ANDROID_CLIENT_ID`
 - `LOGMYPLATE_REWARDED_AD_UNIT_ID`
+- `LOGMYPLATE_FIREBASE_API_KEY`
+- `LOGMYPLATE_FIREBASE_PROJECT_ID`
+- `LOGMYPLATE_FIREBASE_MESSAGING_SENDER_ID`
+- `LOGMYPLATE_FIREBASE_APP_ID`
+- `LOGMYPLATE_FIREBASE_IOS_APP_ID`
+- `LOGMYPLATE_FIREBASE_ANDROID_APP_ID`
+- `LOGMYPLATE_FIREBASE_STORAGE_BUCKET`
+- `LOGMYPLATE_FIREBASE_MEASUREMENT_ID`
+- `LOGMYPLATE_FIREBASE_IOS_BUNDLE_ID`
+- `LOGMYPLATE_FIREBASE_IOS_CLIENT_ID`
+- `LOGMYPLATE_FIREBASE_ANDROID_CLIENT_ID`
 
 This means Xcode's Play button and Android Studio/Gradle runs use the same
 local config as terminal `flutter run`. Explicit CLI or CI dart defines still
 win over `.env`, so release automation can pass fixed values without editing
 local files.
+
+## Firebase Analytics Configuration
+
+Firebase Analytics is runtime-gated by the backoffice `Growth Controls`
+analytics policy. If Firebase dart defines are missing, the analytics service is
+a no-op and app startup continues normally. If Firebase is configured but the
+backoffice analytics toggles are disabled, collection remains disabled.
+
+Minimum Firebase dart defines for mobile analytics:
+
+```txt
+LOGMYPLATE_FIREBASE_API_KEY
+LOGMYPLATE_FIREBASE_PROJECT_ID
+LOGMYPLATE_FIREBASE_MESSAGING_SENDER_ID
+LOGMYPLATE_FIREBASE_IOS_APP_ID
+LOGMYPLATE_FIREBASE_ANDROID_APP_ID
+```
+
+Optional Firebase dart defines:
+
+```txt
+LOGMYPLATE_FIREBASE_APP_ID
+LOGMYPLATE_FIREBASE_STORAGE_BUCKET
+LOGMYPLATE_FIREBASE_MEASUREMENT_ID
+LOGMYPLATE_FIREBASE_IOS_BUNDLE_ID
+LOGMYPLATE_FIREBASE_IOS_CLIENT_ID
+LOGMYPLATE_FIREBASE_ANDROID_CLIENT_ID
+```
 
 ## Android Google Sign-In
 

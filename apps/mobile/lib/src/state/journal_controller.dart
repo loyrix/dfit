@@ -5,18 +5,22 @@ import 'package:flutter/foundation.dart';
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../services/app_diagnostics.dart';
-import '../services/logmyplate_api_client.dart';
 import '../services/journal_cache_store.dart';
+import '../services/logmyplate_analytics.dart';
+import '../services/logmyplate_api_client.dart';
 
 class JournalController extends ChangeNotifier {
   JournalController({
     LogMyPlateApiClient? apiClient,
     JournalCacheStore? cacheStore,
+    LogMyPlateAnalytics? analytics,
   }) : _apiClient = apiClient ?? LogMyPlateApiClient(),
-       _cacheStore = cacheStore ?? JournalCacheStore();
+       _cacheStore = cacheStore ?? JournalCacheStore(),
+       _analytics = analytics ?? const NoopLogMyPlateAnalytics();
 
   final LogMyPlateApiClient _apiClient;
   final JournalCacheStore _cacheStore;
+  final LogMyPlateAnalytics _analytics;
 
   bool _loading = false;
   String? _error;
@@ -74,12 +78,27 @@ class JournalController extends ChangeNotifier {
         : null;
     if (cached != null) {
       _applyBootstrap(cached);
+      await _analytics.applyPolicy(cached.engagementPolicy.analytics);
       notifyListeners();
     }
 
     try {
       final bootstrap = await _apiClient.fetchBootstrap();
       _applyBootstrap(bootstrap);
+      await _analytics.applyPolicy(bootstrap.engagementPolicy.analytics);
+      unawaited(
+        _analytics.logEvent(
+          'bootstrap_loaded',
+          parameters: {
+            'auth_method': bootstrap.profile.authMethod,
+            'meal_count': bootstrap.today.meals.length,
+            'free_remaining': bootstrap.quota.freeRemaining,
+            'rewarded_remaining': bootstrap.quota.rewardedRemaining,
+            'premium_remaining': bootstrap.quota.premiumRemaining,
+            'has_target': bootstrap.healthTarget != null,
+          },
+        ),
+      );
       await _cacheStore.save(bootstrap);
     } catch (error, stackTrace) {
       AppDiagnostics.instance.record(
@@ -107,6 +126,16 @@ class JournalController extends ChangeNotifier {
       );
       _upsertLocalMeal(meal);
       _error = null;
+      unawaited(
+        _analytics.logEvent(
+          'manual_meal_saved',
+          parameters: {
+            'meal_type': type.name,
+            'item_count': items.length,
+            'calories': meal.totals.calories,
+          },
+        ),
+      );
       _refreshJournalSoon();
       notifyListeners();
       return meal;
@@ -146,6 +175,16 @@ class JournalController extends ChangeNotifier {
       );
       _upsertLocalMeal(updated);
       _error = null;
+      unawaited(
+        _analytics.logEvent(
+          'meal_updated',
+          parameters: {
+            'meal_type': meal.type.name,
+            'item_count': items.length,
+            'calories': updated.totals.calories,
+          },
+        ),
+      );
       notifyListeners();
       _refreshJournalSoon();
       return updated;
@@ -173,6 +212,16 @@ class JournalController extends ChangeNotifier {
       await _apiClient.deleteMeal(mealId: meal.id, idempotencyKey: key);
       _removeLocalMeal(meal.id);
       _error = null;
+      unawaited(
+        _analytics.logEvent(
+          'meal_deleted',
+          parameters: {
+            'meal_type': meal.type.name,
+            'item_count': meal.items.length,
+            'calories': meal.totals.calories,
+          },
+        ),
+      );
       notifyListeners();
       _refreshJournalSoon();
     } catch (error, stackTrace) {
@@ -197,6 +246,17 @@ class JournalController extends ChangeNotifier {
       );
       _healthTarget = target;
       _error = null;
+      unawaited(
+        _analytics.logEvent(
+          'health_target_saved',
+          parameters: {
+            'goal': target.goal.apiName,
+            'activity_level': target.activityLevel.apiName,
+            'daily_calorie_target': target.dailyCalorieTarget,
+            'bmi_category': target.bmiCategory,
+          },
+        ),
+      );
       notifyListeners();
       _refreshJournalSoon();
       return target;
@@ -228,6 +288,16 @@ class JournalController extends ChangeNotifier {
       _quota = reward.quota;
       _rewardedAdProgress = reward.progress;
       _error = null;
+      unawaited(
+        _analytics.logEvent(
+          'rewarded_ad_earned',
+          parameters: {
+            'granted_scan': reward.grantedScan,
+            'ads_watched_today': reward.adsWatchedToday,
+            'scans_granted_today': reward.scansGrantedToday,
+          },
+        ),
+      );
       notifyListeners();
       return reward;
     } catch (error, stackTrace) {
@@ -313,6 +383,15 @@ class JournalController extends ChangeNotifier {
     _error = null;
     final seed = DateTime.now().microsecondsSinceEpoch;
     try {
+      unawaited(
+        _analytics.logEvent(
+          'scan_started',
+          parameters: {
+            'has_hint': photo.userHint?.trim().isNotEmpty == true,
+            'bytes': photo.byteSize,
+          },
+        ),
+      );
       final prepared = await _apiClient.prepareScan(
         idempotencyKey: 'scan-prepare-$seed',
       );
@@ -324,9 +403,32 @@ class JournalController extends ChangeNotifier {
         idempotencyKey: 'scan-analyze-$seed',
         photo: photo,
       );
+      unawaited(
+        _analytics.logEvent(
+          'scan_analysis_succeeded',
+          parameters: {
+            'meal_type': analysis.mealType.name,
+            'item_count': analysis.items.length,
+            'calories': analysis.totals.calories,
+            'image_stored': analysis.imageStored,
+          },
+        ),
+      );
       await _refreshQuota(notify: false);
       return analysis;
     } catch (error, stackTrace) {
+      unawaited(
+        _analytics.logEvent(
+          'scan_analysis_failed',
+          parameters: {
+            'error_type': error is LogMyPlateApiException
+                ? error.errorCode ?? 'api_error'
+                : error.runtimeType.toString(),
+            'has_hint': photo.userHint?.trim().isNotEmpty == true,
+            'bytes': photo.byteSize,
+          },
+        ),
+      );
       AppDiagnostics.instance.record(
         'scan.analyze',
         error,
@@ -370,6 +472,17 @@ class JournalController extends ChangeNotifier {
           );
       _upsertLocalMeal(meal);
       _error = null;
+      unawaited(
+        _analytics.logEvent(
+          'scan_confirmed',
+          parameters: {
+            'meal_type': type.name,
+            'item_count': items.length,
+            'calories': meal.totals.calories,
+            'image_attached': photo != null,
+          },
+        ),
+      );
       notifyListeners();
       _refreshJournalSoon();
       return meal;

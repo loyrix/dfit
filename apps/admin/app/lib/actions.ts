@@ -241,7 +241,35 @@ const readPlatformPolicy = (formData: FormData, platform: "ios" | "android") => 
 
 const notificationScenarioKeys = ["breakfast", "lunch", "snack", "dinner", "targetSetup"] as const;
 
+const analyticsEventKeys = [
+  "appOpen",
+  "bootstrapLoaded",
+  "tabSelected",
+  "scanStarted",
+  "scanAnalysisSucceeded",
+  "scanAnalysisFailed",
+  "scanConfirmed",
+  "manualMealSaved",
+  "mealUpdated",
+  "mealDeleted",
+  "rewardedAdStarted",
+  "rewardedAdEarned",
+  "rewardedAdFailed",
+  "accountGateShown",
+  "accountLinked",
+  "healthTargetSaved",
+] as const;
+
 const readEngagementPolicy = (formData: FormData) => ({
+  analytics: {
+    enabled: booleanValue(formData, "analytics.enabled"),
+    firebaseEnabled: booleanValue(formData, "analytics.firebaseEnabled"),
+    debugLogging: booleanValue(formData, "analytics.debugLogging"),
+    sampleRatePercent: numberValue(formData, "analytics.sampleRatePercent"),
+    events: Object.fromEntries(
+      analyticsEventKeys.map((key) => [key, booleanValue(formData, `analytics.events.${key}`)]),
+    ),
+  },
   reviewPrompt: {
     enabled: booleanValue(formData, "reviewPrompt.enabled"),
     minConfirmedScans: numberValue(formData, "reviewPrompt.minConfirmedScans"),

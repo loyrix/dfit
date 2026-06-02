@@ -24,8 +24,9 @@ import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/app_links.dart';
-import 'services/rewarded_ad_service.dart';
+import 'services/logmyplate_analytics.dart';
 import 'services/logmyplate_api_client.dart';
+import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'theme/logmyplate_colors.dart';
@@ -39,13 +40,16 @@ class LogMyPlateApp extends StatefulWidget {
     AuthController? authController,
     JournalController? journalController,
     RewardedAdGateway? rewardedAdGateway,
+    LogMyPlateAnalytics? analytics,
   }) : _authController = authController,
        _journalController = journalController,
-       _rewardedAdGateway = rewardedAdGateway;
+       _rewardedAdGateway = rewardedAdGateway,
+       _analytics = analytics;
 
   final AuthController? _authController;
   final JournalController? _journalController;
   final RewardedAdGateway? _rewardedAdGateway;
+  final LogMyPlateAnalytics? _analytics;
 
   @override
   State<LogMyPlateApp> createState() => _LogMyPlateAppState();
@@ -58,8 +62,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   late final AuthController _authController =
       widget._authController ?? AuthController();
+  late final LogMyPlateAnalytics _analytics =
+      widget._analytics ?? LogMyPlateFirebaseAnalytics();
   late final JournalController _journalController =
-      widget._journalController ?? JournalController();
+      widget._journalController ?? JournalController(analytics: _analytics);
   late final RewardedAdGateway _rewardedAds =
       widget._rewardedAdGateway ?? GoogleRewardedAdService();
   late final platform_links.AppLinks _incomingLinks = platform_links.AppLinks();
@@ -132,12 +138,28 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _initializeApp() async {
+    await _analytics.initialize();
     await _loadLocalPreferences();
     await _authController.load();
     if (_authController.isSignedIn && !_hasSeenWelcome) {
       await _markWelcomeSeen();
     }
     await _journalController.loadToday();
+    unawaited(
+      _analytics.logEvent(
+        'app_open',
+        parameters: {
+          'auth_method': _journalController.lastLoadedAt == null
+              ? 'unknown'
+              : _authController.session == null
+              ? 'anonymous'
+              : _authController.session!.provider.name,
+          'has_seen_welcome': _hasSeenWelcome,
+          'theme_mode': _themeMode.name,
+        },
+        oncePerSession: true,
+      ),
+    );
     _handleAccessStateChanged();
     if (mounted) setState(() => _appInitialized = true);
   }
@@ -277,7 +299,22 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   void _selectTab(int index) {
     setState(() => _selectedTab = index);
+    unawaited(
+      _analytics.logEvent(
+        'tab_selected',
+        parameters: {'tab_index': index, 'tab': _tabName(index)},
+      ),
+    );
     if (index == 1) unawaited(_loadJournalTab());
+  }
+
+  String _tabName(int index) {
+    return switch (index) {
+      0 => 'today',
+      1 => 'journal',
+      2 => 'profile',
+      _ => 'unknown',
+    };
   }
 
   Future<void> _loadJournalTab({bool force = false}) async {
@@ -564,6 +601,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       serverSideUserId: _authController.session?.profileId,
     );
     if (!outcome.earnedReward) {
+      unawaited(
+        _analytics.logEvent(
+          'rewarded_ad_failed',
+          parameters: {'reason': outcome.errorMessage ?? 'not_completed'},
+        ),
+      );
       _showJournalNotice(
         tone: LogMyPlateNoticeTone.warning,
         title: 'Ad not completed',
@@ -599,6 +642,16 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       );
       return false;
     } catch (error) {
+      unawaited(
+        _analytics.logEvent(
+          'rewarded_ad_failed',
+          parameters: {
+            'reason': error is LogMyPlateApiException
+                ? error.errorCode ?? 'api_error'
+                : error.runtimeType.toString(),
+          },
+        ),
+      );
       if (error is LogMyPlateApiException &&
           error.errorCode == 'rewarded_ad_verification_pending') {
         _showJournalNotice(
@@ -683,6 +736,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
 
     try {
+      unawaited(
+        _analytics.logEvent(
+          'rewarded_ad_started',
+          parameters: {'placement': 'scan_unlock'},
+        ),
+      );
       return await _rewardedAds.showScanUnlockAd(
         onAdShowed: hideLoader,
         serverSideUserId: serverSideUserId,
@@ -726,6 +785,15 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
     final session = await _openAccountGate(reason);
     if (session != null) {
+      unawaited(
+        _analytics.logEvent(
+          'account_linked',
+          parameters: {
+            'reason': reason.name,
+            'provider': session.provider.name,
+          },
+        ),
+      );
       await _markWelcomeSeen();
       _journalController.resetForAccountChange();
       setState(() {
@@ -915,6 +983,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<AuthSession?> _openAccountGate(AccountGateReason reason) async {
+    unawaited(
+      _analytics.logEvent(
+        'account_gate_shown',
+        parameters: {'reason': reason.name},
+      ),
+    );
     final result = await _navigatorKey.currentState!.push<AuthSession>(
       logmyplatePageRoute<AuthSession>(
         builder: (_) => AnimatedBuilder(
