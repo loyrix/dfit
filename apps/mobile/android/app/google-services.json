@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "447001010179",
+    "project_id": "logmyplate-0425",
+    "storage_bucket": "logmyplate-0425.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447001010179:android:e26e5e4e09036ca3aeae36",
+        "android_client_info": {
+          "package_name": "com.logmyplate.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6sLxaQnN8knlamDrezQe_cuJzxMZ2IX8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,3 +1,4 @@
+import groovy.json.JsonSlurper
 import java.util.Base64
 import java.util.Properties
 
@@ -7,6 +8,9 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val logmyplateAndroidApplicationId = "com.logmyplate.app"
+val androidGoogleServicesFile = project.file("google-services.json")
 
 val flutterDartDefineKeysFromEnv =
     listOf(
@@ -54,6 +58,47 @@ fun repoEnvValue(key: String): String? {
     }
 }
 
+fun stringValue(value: Any?): String? =
+    (value as? String)?.trim()?.takeIf { it.isNotEmpty() }
+
+fun androidGoogleServicesJson(): Map<*, *>? =
+    if (!androidGoogleServicesFile.isFile) {
+        null
+    } else {
+        runCatching { JsonSlurper().parse(androidGoogleServicesFile) as? Map<*, *> }.getOrNull()
+    }
+
+fun androidGoogleServicesClient(): Map<*, *>? {
+    val json = androidGoogleServicesJson() ?: return null
+    val clients = json["client"] as? List<*> ?: return null
+    return clients
+        .filterIsInstance<Map<*, *>>()
+        .firstOrNull { client ->
+            val clientInfo = client["client_info"] as? Map<*, *>
+            val androidInfo = clientInfo?.get("android_client_info") as? Map<*, *>
+            stringValue(androidInfo?.get("package_name")) == logmyplateAndroidApplicationId
+        }
+}
+
+fun googleServicesFirebaseValue(key: String): String? {
+    val json = androidGoogleServicesJson() ?: return null
+    val projectInfo = json["project_info"] as? Map<*, *> ?: return null
+    val client = androidGoogleServicesClient() ?: return null
+    val clientInfo = client["client_info"] as? Map<*, *>
+    val apiKeys = client["api_key"] as? List<*>
+    val firstApiKey = apiKeys?.filterIsInstance<Map<*, *>>()?.firstOrNull()
+
+    return when (key) {
+        "LOGMYPLATE_FIREBASE_API_KEY" -> stringValue(firstApiKey?.get("current_key"))
+        "LOGMYPLATE_FIREBASE_PROJECT_ID" -> stringValue(projectInfo["project_id"])
+        "LOGMYPLATE_FIREBASE_MESSAGING_SENDER_ID" -> stringValue(projectInfo["project_number"])
+        "LOGMYPLATE_FIREBASE_APP_ID",
+        "LOGMYPLATE_FIREBASE_ANDROID_APP_ID" -> stringValue(clientInfo?.get("mobilesdk_app_id"))
+        "LOGMYPLATE_FIREBASE_STORAGE_BUCKET" -> stringValue(projectInfo["storage_bucket"])
+        else -> null
+    }
+}
+
 fun encodeDartDefine(key: String, value: String): String =
     Base64.getEncoder().encodeToString("$key=$value".toByteArray(Charsets.UTF_8))
 
@@ -93,10 +138,18 @@ val envDartDefines =
         if (key in existingDartDefineKeys) return@mapNotNull null
         encodeDartDefine(key, value)
     }
+val envDartDefineKeys = existingDartDefineKeys(envDartDefines.joinToString(","))
+val googleServicesDartDefines =
+    flutterDartDefineKeysFromEnv.mapNotNull { key ->
+        val value = googleServicesFirebaseValue(key) ?: return@mapNotNull null
+        if (key in existingDartDefineKeys || key in envDartDefineKeys) return@mapNotNull null
+        encodeDartDefine(key, value)
+    }
 val effectiveDartDefines =
-    (listOf(existingDartDefines).filter { it.isNotBlank() } + envDartDefines).joinToString(",")
+    (listOf(existingDartDefines).filter { it.isNotBlank() } + envDartDefines + googleServicesDartDefines)
+        .joinToString(",")
 
-if (envDartDefines.isNotEmpty()) {
+if (envDartDefines.isNotEmpty() || googleServicesDartDefines.isNotEmpty()) {
     extensions.extraProperties.set(
         "dart-defines",
         effectiveDartDefines,
@@ -133,7 +186,7 @@ val releaseSigningConfigured =
         .all { releaseSigningProperty(it) != null }
 
 android {
-    namespace = "com.logmyplate.app"
+    namespace = logmyplateAndroidApplicationId
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -147,7 +200,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.logmyplate.app"
+        applicationId = logmyplateAndroidApplicationId
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

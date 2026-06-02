@@ -61,9 +61,15 @@ local files.
 ## Firebase Analytics Configuration
 
 Firebase Analytics is runtime-gated by the backoffice `Growth Controls`
-analytics policy. If Firebase dart defines are missing, the analytics service is
-a no-op and app startup continues normally. If Firebase is configured but the
+analytics policy. If Firebase config values are missing, the analytics service
+is a no-op and app startup continues normally. If Firebase is configured but the
 backoffice analytics toggles are disabled, collection remains disabled.
+
+iOS includes `ios/Runner/GoogleService-Info.plist`, and Android includes
+`android/app/google-services.json`. Xcode and Gradle builds derive the required
+Firebase dart defines from those files when `.env` or explicit build defines do
+not provide them. CI can still pass explicit dart defines to override the
+bundled config values.
 
 Minimum Firebase dart defines for mobile analytics:
 
@@ -88,9 +94,10 @@ LOGMYPLATE_FIREBASE_ANDROID_CLIENT_ID
 
 ## Android Google Sign-In
 
-Android uses the `google_sign_in` plugin without `google-services.json`. Keep
-`LOGMYPLATE_GOOGLE_WEB_CLIENT_ID` set to the Web OAuth client ID; the app passes
-that value to Google as `serverClientId`.
+Android uses the `google_sign_in` plugin with an explicit
+`LOGMYPLATE_GOOGLE_WEB_CLIENT_ID`; the Firebase `google-services.json` is used
+for Firebase Analytics config and does not replace the Web OAuth client ID. The
+app passes the Web OAuth value to Google as `serverClientId`.
 
 The Android OAuth client in Google Cloud must use package `com.logmyplate.app`
 and the signing SHA for every build you test:

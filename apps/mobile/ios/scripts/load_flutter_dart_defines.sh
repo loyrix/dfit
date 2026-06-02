@@ -1,14 +1,14 @@
 #!/bin/sh
 
-# Load selected Flutter --dart-define values from the repo .env when building
-# from Xcode. This keeps Xcode's Run button aligned with `flutter run` without
-# checking local secret/config values into the project.
+# Load selected Flutter --dart-define values when building from Xcode. Repo
+# .env values win first; Firebase iOS values can also be derived from the
+# bundled GoogleService-Info.plist.
 
 ENV_FILE="${SRCROOT}/../../../.env"
+FIREBASE_IOS_PLIST="${SRCROOT}/Runner/GoogleService-Info.plist"
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo "warning: Repo .env not found at ${ENV_FILE}; skipping Flutter dart defines." >&2
-  return 0 2>/dev/null || exit 0
+  echo "warning: Repo .env not found at ${ENV_FILE}; checking bundled Firebase config only." >&2
 fi
 
 decode_define() {
@@ -21,6 +21,11 @@ encode_define() {
 
 read_env_value() {
   key="$1"
+  if [ ! -f "$ENV_FILE" ]; then
+    printf ''
+    return
+  fi
+
   value=$(
     awk -v key="$key" '
       /^[[:space:]]*#/ { next }
@@ -52,6 +57,16 @@ read_env_value() {
   printf '%s' "$value"
 }
 
+read_plist_value() {
+  plist_key="$1"
+  if [ ! -f "$FIREBASE_IOS_PLIST" ]; then
+    printf ''
+    return
+  fi
+
+  /usr/libexec/PlistBuddy -c "Print :${plist_key}" "$FIREBASE_IOS_PLIST" 2>/dev/null || true
+}
+
 has_dart_define_key() {
   key="$1"
   old_ifs="$IFS"
@@ -69,9 +84,10 @@ has_dart_define_key() {
   return 1
 }
 
-append_dart_define_from_env() {
+append_dart_define() {
   key="$1"
-  value="$(read_env_value "$key")"
+  value="$2"
+  source="$3"
   if [ -z "$value" ]; then
     return
   fi
@@ -86,7 +102,20 @@ append_dart_define_from_env() {
     DART_DEFINES="$DART_DEFINES,$encoded"
   fi
   export DART_DEFINES
-  echo "Loaded Flutter dart define ${key} from repo .env"
+  echo "Loaded Flutter dart define ${key} from ${source}"
+}
+
+append_dart_define_from_env() {
+  key="$1"
+  value="$(read_env_value "$key")"
+  append_dart_define "$key" "$value" "repo .env"
+}
+
+append_dart_define_from_ios_firebase_plist() {
+  key="$1"
+  plist_key="$2"
+  value="$(read_plist_value "$plist_key")"
+  append_dart_define "$key" "$value" "GoogleService-Info.plist"
 }
 
 append_dart_define_from_env "LOGMYPLATE_API_BASE_URL"
@@ -101,3 +130,11 @@ append_dart_define_from_env "LOGMYPLATE_FIREBASE_STORAGE_BUCKET"
 append_dart_define_from_env "LOGMYPLATE_FIREBASE_MEASUREMENT_ID"
 append_dart_define_from_env "LOGMYPLATE_FIREBASE_IOS_BUNDLE_ID"
 append_dart_define_from_env "LOGMYPLATE_FIREBASE_IOS_CLIENT_ID"
+
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_API_KEY" "API_KEY"
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_PROJECT_ID" "PROJECT_ID"
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_MESSAGING_SENDER_ID" "GCM_SENDER_ID"
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_APP_ID" "GOOGLE_APP_ID"
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_IOS_APP_ID" "GOOGLE_APP_ID"
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_STORAGE_BUCKET" "STORAGE_BUCKET"
+append_dart_define_from_ios_firebase_plist "LOGMYPLATE_FIREBASE_IOS_BUNDLE_ID" "BUNDLE_ID"
