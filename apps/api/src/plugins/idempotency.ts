@@ -5,6 +5,7 @@ const mutatingMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
 const skipsIdempotency = (request: FastifyRequest): boolean => {
   if (request.url.startsWith("/v1/auth/")) return true;
+  if (request.method === "PUT" && request.url === "/v1/devices/push-token") return true;
   if (request.method === "POST" && request.url === "/v1/profiles/me/deactivate") return true;
   if (request.method === "DELETE" && request.url === "/v1/profiles/me") return true;
   return false;

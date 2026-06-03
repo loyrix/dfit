@@ -144,6 +144,41 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("registers FCM push tokens for the current install", async () => {
+    const app = await testApp();
+    const response = await app.inject({
+      method: "PUT",
+      url: "/v1/devices/push-token",
+      headers: {
+        "x-logmyplate-install-id": "install-push-token",
+        "x-logmyplate-platform": "ios",
+      },
+      payload: {
+        provider: "fcm",
+        token: "fcm-token-with-enough-length",
+        permissionStatus: "authorized",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ registered: true });
+    await app.close();
+  });
+
+  it("rejects invalid push token registration payloads", async () => {
+    const app = await testApp();
+    const response = await app.inject({
+      method: "PUT",
+      url: "/v1/devices/push-token",
+      headers: { "x-logmyplate-install-id": "install-push-invalid" },
+      payload: { provider: "fcm", token: "short" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "invalid_push_token" });
+    await app.close();
+  });
+
   it("serves interactive API documentation and the raw OpenAPI document", async () => {
     const app = await testApp();
     const docs = await app.inject({ method: "GET", url: "/docs" });

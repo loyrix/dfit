@@ -37,6 +37,11 @@ export type ApiConfig = {
     resendApiKey?: string;
     passwordResetFrom: string;
   };
+  push: {
+    firebaseProjectId?: string;
+    firebaseCredentialsJson?: string;
+    firebaseCredentialsJsonBase64?: string;
+  };
   gemini: {
     apiKey?: string;
     model: string;
@@ -92,6 +97,18 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       resendApiKey: emptyToUndefined(env.RESEND_API_KEY),
       passwordResetFrom:
         emptyToUndefined(env.PASSWORD_RESET_EMAIL_FROM) ?? "LogMyPlate <no-reply@logmyplate.com>",
+    },
+    push: {
+      firebaseProjectId:
+        emptyToUndefined(env.FIREBASE_PROJECT_ID) ??
+        emptyToUndefined(env.LOGMYPLATE_FIREBASE_PROJECT_ID) ??
+        emptyToUndefined(env.GOOGLE_CLOUD_PROJECT),
+      firebaseCredentialsJson:
+        emptyToUndefined(env.FIREBASE_SERVICE_ACCOUNT_JSON) ??
+        emptyToUndefined(env.GOOGLE_APPLICATION_CREDENTIALS_JSON),
+      firebaseCredentialsJsonBase64:
+        emptyToUndefined(env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64) ??
+        emptyToUndefined(env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64),
     },
     gemini: {
       apiKey: env.GEMINI_API_KEY,

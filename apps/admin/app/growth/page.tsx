@@ -1,6 +1,6 @@
 import { AdminShell } from "../components/shell";
 import { Badge, PageHeader } from "../components/ui";
-import { updateEngagementPolicyAction } from "../lib/actions";
+import { sendPushNotificationAction, updateEngagementPolicyAction } from "../lib/actions";
 import {
   adminGet,
   type EngagementAnalyticsEvents,
@@ -48,7 +48,7 @@ export default async function GrowthControlsPage() {
       <PageHeader
         eyebrow="Growth"
         title="Growth Controls"
-        description="Prepare review prompts, interstitial ads, local notifications, and streak policies from backoffice. Phase 1 only stores configuration; mobile behavior remains inactive until later app support consumes these settings."
+        description="Prepare review prompts, interstitial ads, FCM push reminders, and streak policies from backoffice. Push delivery is server-driven; mobile only registers device tokens when enabled."
         action={
           <div className="inline-controls">
             <Badge tone={anyEnabled(policy) ? "green" : "red"}>
@@ -78,9 +78,9 @@ export default async function GrowthControlsPage() {
         <section className="panel">
           <div className="section-head">
             <div>
-              <h2 className="text-xl font-bold">Local notifications</h2>
+              <h2 className="text-xl font-bold">FCM push reminders</h2>
               <p className="muted mt-1 text-sm">
-                Message timing and copy for a future local reminder scheduler.
+                Message timing and copy for backend-sent meal reminders.
               </p>
             </div>
             <Badge tone={policy.notifications.enabled ? "green" : "red"}>
@@ -176,7 +176,81 @@ export default async function GrowthControlsPage() {
           </div>
         </section>
       </form>
+
+      <ManualPushPanel />
     </AdminShell>
+  );
+}
+
+function ManualPushPanel() {
+  return (
+    <form action={sendPushNotificationAction} className="panel mt-4">
+      <input
+        name="idempotencyKey"
+        type="hidden"
+        value={createMutationKey("push-notification:send")}
+      />
+      <div className="section-head">
+        <div>
+          <h2 className="text-xl font-bold">Manual push</h2>
+          <p className="muted mt-1 text-sm">
+            Send an FCM notification to an active profile, install, or guarded broadcast target.
+          </p>
+        </div>
+        <Badge tone="amber">Server push</Badge>
+      </div>
+
+      <div className="form-grid mt-4">
+        <label>
+          <span className="font-semibold">Target</span>
+          <select className="input mt-2" name="targetType" defaultValue="profile" required>
+            <option value="profile">Profile ID</option>
+            <option value="install">Install ID</option>
+            <option value="all_active">All active push tokens</option>
+          </select>
+        </label>
+        <div className="grid two-col">
+          <TextField label="Profile ID" name="profileId" value="" maxLength={80} />
+          <TextField label="Install ID" name="installId" value="" maxLength={128} />
+        </div>
+        <div className="grid two-col">
+          <TextField
+            label="Title"
+            name="title"
+            value="Meal reminder"
+            minLength={3}
+            maxLength={120}
+            required
+          />
+          <TextField label="Deeplink" name="deeplink" value="logmyplate://" maxLength={256} />
+        </div>
+        <TextareaField
+          label="Body"
+          name="body"
+          value="Open LogMyPlate and log your meal while it is fresh."
+          minLength={3}
+          maxLength={500}
+        />
+        <TextField label="Broadcast confirmation" name="confirmAll" value="" maxLength={32} />
+        <label>
+          <span className="font-semibold">Reason</span>
+          <input
+            className="input mt-2"
+            name="reason"
+            placeholder="Why this push notification is being sent"
+            minLength={8}
+            maxLength={500}
+            required
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <button className="button" type="submit">
+          Send push
+        </button>
+      </div>
+    </form>
   );
 }
 

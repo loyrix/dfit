@@ -14,8 +14,8 @@ info:
     authenticated-only boundary on most endpoints. This document therefore marks those
     endpoints as supporting optional identity rather than requiring login.
 
-    Every mutating endpoint except `/v1/auth/*` and account lifecycle endpoints
-    requires an `Idempotency-Key` header.
+    Every mutating endpoint except `/v1/auth/*`, `/v1/devices/push-token`, and account lifecycle
+    endpoints requires an `Idempotency-Key` header.
 servers:
   - url: https://logmyplate-api.vercel.app
     description: Production
@@ -31,6 +31,8 @@ tags:
   - name: Journal
   - name: Meals
   - name: Scans
+  - name: Ads
+  - name: Devices
   - name: Admin
 
 paths:
@@ -83,7 +85,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get engagement policy
-      description: Returns the backoffice-managed growth policy used by Firebase Analytics, future review prompts, interstitial ads, local notifications, and streaks.
+      description: Returns the backoffice-managed growth policy used by Firebase Analytics, review prompts, interstitial ads, FCM push reminders, and streaks.
       security:
         - adminBasic: []
       responses:
@@ -145,6 +147,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/SimpleError"
 
+  /admin/push-notifications/send:
+    post:
+      tags: [Admin]
+      summary: Send manual FCM push notification
+      description: Sends a server-side Firebase Cloud Messaging notification to a profile, install, or guarded broadcast target using active registered device tokens.
+      security:
+        - adminBasic: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSendPushNotificationRequest"
+      responses:
+        "200":
+          description: Push delivery attempt summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSendPushNotificationResponse"
+        "400":
+          description: Invalid push notification payload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Admin credentials are missing or invalid.
+        "404":
+          description: No active registered push tokens matched the requested target.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "503":
+          description: Database or Firebase Cloud Messaging server credentials are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
   /v1/app/bootstrap:
     get:
       tags: [Bootstrap]
@@ -170,6 +213,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BootstrapResponse"
+
+  /v1/devices/push-token:
+    put:
+      tags: [Devices]
+      summary: Register device push token
+      description: Idempotently registers the current mobile install's FCM token so backend jobs and admin actions can send server-side push notifications. Mobile apps call this only when remote notifications are enabled by engagement policy and the user has granted push permission.
+      security:
+        - bearerAuth: []
+          installId: []
+        - installId: []
+      parameters:
+        - $ref: "#/components/parameters/PlatformHeader"
+        - $ref: "#/components/parameters/AppVersionHeader"
+        - $ref: "#/components/parameters/AppBuildHeader"
+        - $ref: "#/components/parameters/LocaleHeader"
+        - $ref: "#/components/parameters/RegionHeader"
+        - $ref: "#/components/parameters/TimezoneHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushTokenRequest"
+      responses:
+        "200":
+          description: Push token registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterPushTokenResponse"
+        "400":
+          description: Invalid push token payload or missing install identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
 
   /v1/foods:
     get:
@@ -2015,6 +2094,101 @@ components:
           type: string
         message:
           type: string
+
+    RegisterPushTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        provider:
+          type: string
+          enum: [fcm]
+          default: fcm
+        token:
+          type: string
+          minLength: 16
+          maxLength: 4096
+          description: Firebase Cloud Messaging registration token. The API stores the token and a hash; operational logs and admin responses must not expose the raw value.
+        platform:
+          type: string
+          enum: [ios, android]
+        permissionStatus:
+          type: string
+          enum: [authorized, provisional, denied, not_determined, unknown]
+          default: unknown
+
+    RegisterPushTokenResponse:
+      type: object
+      required: [registered]
+      properties:
+        registered:
+          type: boolean
+          const: true
+
+    AdminSendPushNotificationRequest:
+      type: object
+      required: [targetType, title, body, reason]
+      properties:
+        targetType:
+          type: string
+          enum: [profile, install, all_active]
+        profileId:
+          type: string
+          format: uuid
+          description: Required when `targetType` is `profile`.
+        installId:
+          type: string
+          minLength: 1
+          maxLength: 160
+          description: Required when `targetType` is `install`.
+        confirmAll:
+          type: string
+          enum: [SEND_TO_ALL]
+          description: Required when `targetType` is `all_active`.
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        body:
+          type: string
+          minLength: 3
+          maxLength: 500
+        data:
+          type: object
+          additionalProperties:
+            type: string
+            maxLength: 256
+          maxProperties: 20
+          description: Optional FCM data payload. Keys are sanitized before delivery.
+        reason:
+          type: string
+          minLength: 8
+          maxLength: 500
+
+    AdminSendPushNotificationResponse:
+      type: object
+      required: [delivery]
+      properties:
+        delivery:
+          type: object
+          required: [attempted, sent, failed, disabledTokens, failures]
+          properties:
+            attempted:
+              type: integer
+              minimum: 0
+            sent:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+            disabledTokens:
+              type: integer
+              minimum: 0
+            failures:
+              type: object
+              additionalProperties:
+                type: integer
+                minimum: 0
 
     EngagementPolicyUpdateRequest:
       allOf:

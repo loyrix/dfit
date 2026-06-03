@@ -34,6 +34,8 @@ import type {
   Profile,
   ProfileDeletionPlan,
   ProfileHealthTarget,
+  PushTokenRegistrationInput,
+  PushTokenRegistrationResult,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   RewardedAdProgressState,
@@ -1603,6 +1605,90 @@ export class PostgresStore implements AppRepository {
         quota: quotaFromRow(quotaRow),
       };
     });
+  }
+
+  async registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult> {
+    const profile = await this.getProfile();
+    const identity = currentRequestIdentity();
+    const installId = identity.installId;
+    if (!installId) {
+      throw new AccountAuthError(
+        "install_required",
+        "Device install identity is required to register push notifications.",
+        400,
+      );
+    }
+
+    const platform = input.platform ?? identity.platform ?? "ios";
+    const [row] = await this.sql<
+      {
+        profile_id: string;
+        install_id: string;
+        provider: "fcm";
+        platform: "ios" | "android";
+        registered_at: string;
+      }[]
+    >`
+      insert into push_notification_tokens (
+        profile_id,
+        install_id,
+        provider,
+        platform,
+        token,
+        token_hash,
+        permission_status,
+        locale,
+        region,
+        timezone,
+        app_version,
+        app_build
+      )
+      values (
+        ${profile.id},
+        ${installId},
+        ${input.provider},
+        ${platform},
+        ${input.token},
+        ${hashToken(input.token)},
+        ${input.permissionStatus ?? "unknown"},
+        ${identity.locale ?? null},
+        ${identity.region ?? null},
+        ${identity.timezone ?? null},
+        ${identity.appVersion ?? null},
+        ${identity.appBuild ?? null}
+      )
+      on conflict (provider, token_hash) do update
+      set
+        profile_id = excluded.profile_id,
+        install_id = excluded.install_id,
+        platform = excluded.platform,
+        token = excluded.token,
+        permission_status = excluded.permission_status,
+        locale = excluded.locale,
+        region = excluded.region,
+        timezone = excluded.timezone,
+        app_version = coalesce(excluded.app_version, push_notification_tokens.app_version),
+        app_build = coalesce(excluded.app_build, push_notification_tokens.app_build),
+        enabled = true,
+        disabled_at = null,
+        last_registered_at = now(),
+        last_seen_at = now(),
+        updated_at = now()
+      returning
+        profile_id::text,
+        install_id,
+        provider,
+        platform,
+        last_registered_at::text as registered_at
+    `;
+
+    return {
+      profileId: row.profile_id,
+      installId: row.install_id,
+      provider: row.provider,
+      platform: row.platform,
+      registeredAt: row.registered_at,
+    };
   }
 
   async createMeal(input: CreateMealInput) {

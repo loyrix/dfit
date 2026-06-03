@@ -171,6 +171,21 @@ export type RewardedAdCreditResult = {
 
 export type RewardedAdProgressState = Omit<RewardedAdCreditResult, "grantedScan" | "quota">;
 
+export type PushTokenRegistrationInput = {
+  provider: "fcm";
+  token: string;
+  platform?: "ios" | "android";
+  permissionStatus?: "authorized" | "provisional" | "denied" | "not_determined" | "unknown";
+};
+
+export type PushTokenRegistrationResult = {
+  profileId: string;
+  installId: string;
+  provider: "fcm";
+  platform: "ios" | "android";
+  registeredAt: string;
+};
+
 export type ListMealsInput = {
   fromDate?: string;
   toDate?: string;
@@ -235,6 +250,7 @@ export interface AppRepository {
     customData: string;
   }): Promise<RewardedAdServerVerification | undefined>;
   completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult>;
+  registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
   updateMeal(mealId: string, input: UpdateMealInput): Promise<MealSummary | undefined>;

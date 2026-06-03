@@ -65,6 +65,37 @@ void main() {
     expect(error.retryable, isTrue);
   });
 
+  test('registers push tokens with device headers', () async {
+    late http.Request seenRequest;
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      loadAppBuildInfo: testBuildInfo,
+      httpClient: MockClient((request) async {
+        seenRequest = request;
+        return http.Response(jsonEncode({'registered': true}), 200);
+      }),
+    );
+
+    await client.registerPushToken(
+      token: 'fcm-token-with-enough-length',
+      provider: 'fcm',
+      platform: 'ios',
+      permissionStatus: 'authorized',
+    );
+
+    expect(seenRequest.method, 'PUT');
+    expect(seenRequest.url.path, '/v1/devices/push-token');
+    expect(seenRequest.headers['x-logmyplate-install-id'], 'test-install');
+    expect(seenRequest.headers['content-type'], 'application/json');
+    expect(jsonDecode(seenRequest.body), {
+      'provider': 'fcm',
+      'token': 'fcm-token-with-enough-length',
+      'platform': 'ios',
+      'permissionStatus': 'authorized',
+    });
+  });
+
   test('prepares and analyzes a scan', () async {
     final requests = <http.Request>[];
     final client = LogMyPlateApiClient(
@@ -336,6 +367,31 @@ void main() {
                   'android': 'ca-app-pub-123/android-interstitial',
                 },
               },
+              'notifications': {
+                'enabled': true,
+                'dailyCap': 1,
+                'quietHours': {'start': '21:30', 'end': '06:30'},
+                'scenarios': {
+                  'breakfast': {
+                    'enabled': true,
+                    'windowStart': '08:00',
+                    'windowEnd': '09:30',
+                    'title': 'Breakfast?',
+                    'body': 'Log breakfast before the day runs away.',
+                    'requiresTarget': false,
+                    'onlyIfTargetNotReached': true,
+                  },
+                  'lunch': {
+                    'enabled': true,
+                    'windowStart': '13:00',
+                    'windowEnd': '14:30',
+                    'title': 'Lunch?',
+                    'body': 'Log lunch while it is fresh.',
+                    'requiresTarget': true,
+                    'onlyIfTargetNotReached': true,
+                  },
+                },
+              },
             },
             'today': {
               'date': '2026-05-12',
@@ -454,6 +510,17 @@ void main() {
       bootstrap.engagementPolicy.interstitialAds.adUnitIds.ios,
       'ca-app-pub-123/ios-interstitial',
     );
+    expect(bootstrap.engagementPolicy.notifications.enabled, isTrue);
+    expect(bootstrap.engagementPolicy.notifications.dailyCap, 1);
+    expect(bootstrap.engagementPolicy.notifications.quietHours.start, '21:30');
+    expect(
+      bootstrap.engagementPolicy.notifications.scenarios.breakfast.title,
+      'Breakfast?',
+    );
+    expect(
+      bootstrap.engagementPolicy.notifications.scenarios.lunch.requiresTarget,
+      isTrue,
+    );
     expect(bootstrap.today.target?.calories, 2238);
     expect(bootstrap.weeklyRange.target?.calories, 2238);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
@@ -510,6 +577,12 @@ void main() {
       expect(bootstrap.engagementPolicy.reviewPrompt.minConfirmedScans, 3);
       expect(bootstrap.engagementPolicy.interstitialAds.enabled, isFalse);
       expect(bootstrap.engagementPolicy.interstitialAds.dailyCap, 3);
+      expect(bootstrap.engagementPolicy.notifications.enabled, isFalse);
+      expect(bootstrap.engagementPolicy.notifications.dailyCap, 2);
+      expect(
+        bootstrap.engagementPolicy.notifications.scenarios.lunch.requiresTarget,
+        isTrue,
+      );
       expect(
         bootstrap.engagementPolicy.analytics.events.isEnabled('scan_started'),
         isTrue,

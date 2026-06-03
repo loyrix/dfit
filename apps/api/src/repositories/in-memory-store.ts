@@ -23,6 +23,8 @@ import type {
   Profile,
   ProfileDeletionPlan,
   ProfileHealthTarget,
+  PushTokenRegistrationInput,
+  PushTokenRegistrationResult,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   RewardedAdProgressState,
@@ -87,6 +89,7 @@ export class InMemoryStore implements AppRepository {
   >();
   private readonly rewardedAdServerVerifications = new Map<string, RewardedAdServerVerification>();
   private readonly rewardedAdTransactions = new Set<string>();
+  private readonly pushTokens = new Map<string, PushTokenRegistrationResult>();
   private readonly profileLifecycleEvents: Array<{
     profileId: string;
     eventType: ProfileLifecycleEventType;
@@ -592,6 +595,29 @@ export class InMemoryStore implements AppRepository {
       ...(await this.getRewardedAdProgress()),
       quota: { ...quota },
     };
+  }
+
+  async registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult> {
+    const profile = await this.getProfile();
+    const identity = currentRequestIdentity();
+    const installId = identity.installId;
+    if (!installId) {
+      throw new AuthError(
+        "install_required",
+        "Device install identity is required to register push notifications.",
+        400,
+      );
+    }
+
+    const registered: PushTokenRegistrationResult = {
+      profileId: profile.id,
+      installId,
+      provider: input.provider,
+      platform: input.platform ?? identity.platform ?? "ios",
+      registeredAt: new Date().toISOString(),
+    };
+    this.pushTokens.set(input.token, registered);
+    return registered;
   }
 
   async createMeal(input: CreateMealInput) {

@@ -212,6 +212,28 @@ export async function updateEngagementPolicyAction(formData: FormData) {
   redirect("/growth");
 }
 
+export async function sendPushNotificationAction(formData: FormData) {
+  await requireAdminSession();
+  await adminSend(
+    "/admin/push-notifications/send",
+    {
+      targetType: stringValue(formData, "targetType"),
+      profileId: optionalStringValue(formData, "profileId"),
+      installId: optionalStringValue(formData, "installId"),
+      title: stringValue(formData, "title"),
+      body: stringValue(formData, "body"),
+      confirmAll: optionalStringValue(formData, "confirmAll"),
+      reason: stringValue(formData, "reason"),
+      data: {
+        deeplink: optionalStringValue(formData, "deeplink") ?? "logmyplate://",
+      },
+    },
+    { idempotencyKey: readMutationKey(formData) },
+  );
+  revalidatePath("/growth");
+  redirect("/growth?push=sent");
+}
+
 const stringValue = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
 
 const optionalStringValue = (formData: FormData, key: string) => {

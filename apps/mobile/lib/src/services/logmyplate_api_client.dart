@@ -57,6 +57,25 @@ class LogMyPlateApiClient {
     );
   }
 
+  Future<void> registerPushToken({
+    required String token,
+    required String provider,
+    required String platform,
+    required String permissionStatus,
+  }) async {
+    final response = await _httpClient.put(
+      Uri.parse('$baseUrl/v1/devices/push-token'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode({
+        'provider': provider,
+        'token': token,
+        'platform': platform,
+        'permissionStatus': permissionStatus,
+      }),
+    );
+    _throwIfBad(response);
+  }
+
   Future<JournalRangeData> fetchJournalRange({
     int days = 7,
     int weekOffset = 0,

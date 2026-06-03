@@ -8,8 +8,8 @@ behavior is added in later phases.
 
 - Status: implemented, pending deployment.
 - Runtime config key: `engagement_policy`.
-- Default behavior: review prompts, interstitial ads, notifications, streaks,
-  and scan rewards are disabled.
+- Default behavior: review prompts, interstitial ads, FCM push reminders,
+  streaks, and scan rewards are disabled.
 - Compatibility rule: old mobile builds ignore the new bootstrap field, and the
   API falls back to disabled defaults when the database row is missing or
   invalid.
@@ -21,6 +21,7 @@ behavior is added in later phases.
 - Admin-only endpoints:
   - `GET /admin/engagement-policy`
   - `PUT /admin/engagement-policy`
+  - `POST /admin/push-notifications/send`
 
 ## Admin Growth Controls
 
@@ -102,7 +103,36 @@ behavior is added in later phases.
   - Ad load/show failures are diagnostics-only and do not interrupt the saved
     meal flow.
 
+## Phase 5: FCM Push Notification Runtime
+
+- Status: implemented locally, pending deployment, Firebase server credentials,
+  APNs setup, and mobile release.
+- Runtime policy section: `engagement_policy.notifications`.
+- Default behavior: disabled.
+- Mobile behavior:
+  - The app does not schedule local reminders.
+  - When `notifications.enabled` is true and Firebase options are present, the
+    app requests push permission and registers its FCM token with
+    `PUT /v1/devices/push-token`.
+  - When `notifications.enabled` is false, the app does not request push
+    permission or register tokens.
+  - Token registration is diagnostics-only and does not affect bootstrap,
+    journal loading, meal confirmation, or target save flows.
+  - Android declares `POST_NOTIFICATIONS` for Android 13+ runtime permission.
+  - iOS declares an APNs entitlement through `$(APS_ENVIRONMENT)` with Debug as
+    development and Release/Profile as production.
+- Backend behavior:
+  - Push tokens are stored in `push_notification_tokens`.
+  - Raw tokens are treated as sensitive and are not returned through bootstrap.
+  - Manual admin sends use `POST /admin/push-notifications/send`.
+  - Broadcast sends require `confirmAll = SEND_TO_ALL`.
+  - Firebase server credentials are optional at boot; sends return
+    `push_provider_not_configured` until configured.
+  - The notification scenario timing, quiet hours, daily cap, and message copy
+    remain Growth Controls policy for the backend scheduler/cron phase.
+- Verification:
+  - pending after implementation checks.
+
 ## Next-Phase Readiness
 
-- Phase 5: local notifications read scenarios, quiet hours, copy, and daily cap.
 - Phase 6: streaks read milestones and scan reward settings.

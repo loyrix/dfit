@@ -1158,16 +1158,222 @@ class EngagementInterstitialAdsPolicy {
   }
 }
 
+class EngagementQuietHours {
+  const EngagementQuietHours({this.start = '22:00', this.end = '07:00'});
+
+  final String start;
+  final String end;
+
+  factory EngagementQuietHours.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementQuietHours();
+    return EngagementQuietHours(
+      start: _stringValue(json['start'], fallback: '22:00'),
+      end: _stringValue(json['end'], fallback: '07:00'),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'start': start, 'end': end};
+  }
+}
+
+class EngagementNotificationScenarioPolicy {
+  const EngagementNotificationScenarioPolicy({
+    this.enabled = false,
+    this.windowStart = '12:00',
+    this.windowEnd = '13:00',
+    this.title = 'Meal reminder',
+    this.body = 'Log your meal when it fits.',
+    this.requiresTarget = false,
+    this.onlyIfTargetNotReached = true,
+  });
+
+  final bool enabled;
+  final String windowStart;
+  final String windowEnd;
+  final String title;
+  final String body;
+  final bool requiresTarget;
+  final bool onlyIfTargetNotReached;
+
+  factory EngagementNotificationScenarioPolicy.fromJson(
+    Map<String, dynamic>? json, {
+    required EngagementNotificationScenarioPolicy fallback,
+  }) {
+    if (json == null) return fallback;
+    return EngagementNotificationScenarioPolicy(
+      enabled: _boolValue(json['enabled']),
+      windowStart: _stringValue(
+        json['windowStart'],
+        fallback: fallback.windowStart,
+      ),
+      windowEnd: _stringValue(json['windowEnd'], fallback: fallback.windowEnd),
+      title: _stringValue(json['title'], fallback: fallback.title),
+      body: _stringValue(json['body'], fallback: fallback.body),
+      requiresTarget: _boolValue(
+        json['requiresTarget'],
+        fallback: fallback.requiresTarget,
+      ),
+      onlyIfTargetNotReached: _boolValue(
+        json['onlyIfTargetNotReached'],
+        fallback: fallback.onlyIfTargetNotReached,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'windowStart': windowStart,
+      'windowEnd': windowEnd,
+      'title': title,
+      'body': body,
+      'requiresTarget': requiresTarget,
+      'onlyIfTargetNotReached': onlyIfTargetNotReached,
+    };
+  }
+}
+
+class EngagementNotificationScenarios {
+  const EngagementNotificationScenarios({
+    this.breakfast = _defaultBreakfast,
+    this.lunch = _defaultLunch,
+    this.snack = _defaultSnack,
+    this.dinner = _defaultDinner,
+    this.targetSetup = _defaultTargetSetup,
+  });
+
+  static const _defaultBreakfast = EngagementNotificationScenarioPolicy(
+    windowStart: '08:30',
+    windowEnd: '10:00',
+    title: 'Breakfast check-in',
+    body: 'A quick breakfast log keeps today on track.',
+  );
+  static const _defaultLunch = EngagementNotificationScenarioPolicy(
+    windowStart: '13:00',
+    windowEnd: '14:30',
+    title: 'Lunch reminder',
+    body: 'Still no lunch logged. Add it before the day gets busy.',
+    requiresTarget: true,
+  );
+  static const _defaultSnack = EngagementNotificationScenarioPolicy(
+    windowStart: '17:00',
+    windowEnd: '18:30',
+    title: 'Snack check-in',
+    body: 'If you had a snack, log it now while it is fresh.',
+    requiresTarget: true,
+  );
+  static const _defaultDinner = EngagementNotificationScenarioPolicy(
+    windowStart: '20:00',
+    windowEnd: '21:30',
+    title: 'Dinner reminder',
+    body: 'Dinner not logged yet. Capture it before wrapping up.',
+    requiresTarget: true,
+  );
+  static const _defaultTargetSetup = EngagementNotificationScenarioPolicy(
+    windowStart: '18:00',
+    windowEnd: '19:00',
+    title: 'Set your calorie target',
+    body: 'Set a target once so LogMyPlate can guide your day better.',
+    onlyIfTargetNotReached: false,
+  );
+
+  final EngagementNotificationScenarioPolicy breakfast;
+  final EngagementNotificationScenarioPolicy lunch;
+  final EngagementNotificationScenarioPolicy snack;
+  final EngagementNotificationScenarioPolicy dinner;
+  final EngagementNotificationScenarioPolicy targetSetup;
+
+  factory EngagementNotificationScenarios.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementNotificationScenarios();
+    return EngagementNotificationScenarios(
+      breakfast: EngagementNotificationScenarioPolicy.fromJson(
+        json['breakfast'] as Map<String, dynamic>?,
+        fallback: _defaultBreakfast,
+      ),
+      lunch: EngagementNotificationScenarioPolicy.fromJson(
+        json['lunch'] as Map<String, dynamic>?,
+        fallback: _defaultLunch,
+      ),
+      snack: EngagementNotificationScenarioPolicy.fromJson(
+        json['snack'] as Map<String, dynamic>?,
+        fallback: _defaultSnack,
+      ),
+      dinner: EngagementNotificationScenarioPolicy.fromJson(
+        json['dinner'] as Map<String, dynamic>?,
+        fallback: _defaultDinner,
+      ),
+      targetSetup: EngagementNotificationScenarioPolicy.fromJson(
+        json['targetSetup'] as Map<String, dynamic>?,
+        fallback: _defaultTargetSetup,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'breakfast': breakfast.toJson(),
+      'lunch': lunch.toJson(),
+      'snack': snack.toJson(),
+      'dinner': dinner.toJson(),
+      'targetSetup': targetSetup.toJson(),
+    };
+  }
+}
+
+class EngagementNotificationsPolicy {
+  const EngagementNotificationsPolicy({
+    this.enabled = false,
+    this.dailyCap = 2,
+    this.quietHours = const EngagementQuietHours(),
+    this.scenarios = const EngagementNotificationScenarios(),
+  });
+
+  final bool enabled;
+  final int dailyCap;
+  final EngagementQuietHours quietHours;
+  final EngagementNotificationScenarios scenarios;
+
+  factory EngagementNotificationsPolicy.disabled() {
+    return const EngagementNotificationsPolicy();
+  }
+
+  factory EngagementNotificationsPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return EngagementNotificationsPolicy.disabled();
+    return EngagementNotificationsPolicy(
+      enabled: _boolValue(json['enabled']),
+      dailyCap: _boundedInt(json['dailyCap'], fallback: 2, min: 0, max: 10),
+      quietHours: EngagementQuietHours.fromJson(
+        json['quietHours'] as Map<String, dynamic>?,
+      ),
+      scenarios: EngagementNotificationScenarios.fromJson(
+        json['scenarios'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'dailyCap': dailyCap,
+      'quietHours': quietHours.toJson(),
+      'scenarios': scenarios.toJson(),
+    };
+  }
+}
+
 class EngagementPolicy {
   const EngagementPolicy({
     this.analytics = const EngagementAnalyticsPolicy(),
     this.reviewPrompt = const EngagementReviewPromptPolicy(),
     this.interstitialAds = const EngagementInterstitialAdsPolicy(),
+    this.notifications = const EngagementNotificationsPolicy(),
   });
 
   final EngagementAnalyticsPolicy analytics;
   final EngagementReviewPromptPolicy reviewPrompt;
   final EngagementInterstitialAdsPolicy interstitialAds;
+  final EngagementNotificationsPolicy notifications;
 
   factory EngagementPolicy.disabled() {
     return const EngagementPolicy();
@@ -1185,6 +1391,9 @@ class EngagementPolicy {
       interstitialAds: EngagementInterstitialAdsPolicy.fromJson(
         json['interstitialAds'] as Map<String, dynamic>?,
       ),
+      notifications: EngagementNotificationsPolicy.fromJson(
+        json['notifications'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -1193,6 +1402,7 @@ class EngagementPolicy {
       'analytics': analytics.toJson(),
       'reviewPrompt': reviewPrompt.toJson(),
       'interstitialAds': interstitialAds.toJson(),
+      'notifications': notifications.toJson(),
     };
   }
 }

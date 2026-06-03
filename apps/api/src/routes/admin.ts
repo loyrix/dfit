@@ -3,6 +3,7 @@ import { engagementPolicyConfigSchema } from "@logmyplate/contracts";
 import type { MealImageSummary } from "@logmyplate/domain";
 import postgres from "postgres";
 import { z } from "zod";
+import { config } from "../config.js";
 import type { SqlClient } from "../db/client.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 import {
@@ -16,6 +17,10 @@ import {
   loadEngagementPolicy,
   parseEngagementPolicy,
 } from "../services/engagement-policy.js";
+import {
+  FirebaseCloudMessagingSender,
+  PushNotificationConfigurationError,
+} from "../services/push-notifications.js";
 
 const usdToInr = Number(process.env.AI_COST_USD_TO_INR ?? 95.4);
 
@@ -358,6 +363,61 @@ export const registerAdminRoutes = async (
     return { policy };
   });
 
+  app.post(
+    "/admin/push-notifications/send",
+    { preHandler: requireAdmin },
+    async (request, reply) => {
+      if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+      const body = sendPushNotificationSchema.parse(request.body ?? {});
+      const sender = new FirebaseCloudMessagingSender(config.push);
+      if (!sender.configured) {
+        return reply.status(503).send({
+          error: "push_provider_not_configured",
+          message: "Firebase Cloud Messaging server credentials are not configured.",
+        });
+      }
+
+      const targets = await listPushNotificationTargets(sql, body);
+      if (targets.length === 0) {
+        return reply.status(404).send({
+          error: "push_target_not_found",
+          message: "No active push tokens matched this target.",
+        });
+      }
+
+      try {
+        const delivery = await sendPushNotificationToTargets(sql, sender, body, targets);
+        await insertAuditLog(sql, request, {
+          action: "send_push_notification",
+          targetType: "push_notification",
+          targetId: body.targetType,
+          reason: body.reason,
+          before: {
+            targetType: body.targetType,
+            profileId: body.profileId ?? null,
+            installId: body.installId ?? null,
+            tokenCount: targets.length,
+          },
+          after: {
+            title: body.title,
+            sent: delivery.sent,
+            failed: delivery.failed,
+            disabledTokens: delivery.disabledTokens,
+          },
+        });
+        return { delivery };
+      } catch (error) {
+        if (error instanceof PushNotificationConfigurationError) {
+          return reply.status(503).send({
+            error: "push_provider_not_configured",
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+    },
+  );
+
   app.get("/admin/audit-log", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const query = adminAuditQuerySchema.parse(request.query ?? {});
@@ -617,6 +677,41 @@ const updateAppUpdatePolicySchema = appUpdatePolicyConfigSchema.extend({
 const updateEngagementPolicySchema = engagementPolicyConfigSchema.extend({
   reason: requiredReasonSchema,
 });
+
+const sendPushNotificationSchema = z
+  .object({
+    targetType: z.enum(["profile", "install", "all_active"]),
+    profileId: uuidSchema.optional(),
+    installId: z.string().trim().min(3).max(128).optional(),
+    title: z.string().trim().min(3).max(120),
+    body: z.string().trim().min(3).max(500),
+    data: z.record(z.string().trim().max(64), z.string().trim().max(256)).default({}),
+    confirmAll: z.string().trim().optional(),
+    reason: requiredReasonSchema,
+  })
+  .superRefine((value, context) => {
+    if (value.targetType === "profile" && !value.profileId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["profileId"],
+        message: "profileId is required for profile push targets.",
+      });
+    }
+    if (value.targetType === "install" && !value.installId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["installId"],
+        message: "installId is required for install push targets.",
+      });
+    }
+    if (value.targetType === "all_active" && value.confirmAll !== "SEND_TO_ALL") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmAll"],
+        message: "Type SEND_TO_ALL to send a broadcast push notification.",
+      });
+    }
+  });
 
 type AdminOverviewRow = {
   profiles: number | string;
@@ -2799,7 +2894,7 @@ const updateEngagementPolicy = async (
       values (
         ${ENGAGEMENT_POLICY_KEY},
         ${tx.json(nextPolicy)},
-        'Controls review prompts, interstitial ads, local notification scenarios, and streak celebrations for mobile clients.',
+        'Controls review prompts, interstitial ads, FCM push reminder scenarios, and streak celebrations for mobile clients.',
         ${actor}
       )
       on conflict (key) do update
@@ -3022,6 +3117,110 @@ type AuditLogRow = {
   user_agent: string | null;
   created_at: string;
 };
+
+type PushNotificationTargetRow = {
+  id: string;
+  token: string;
+  token_hash: string;
+};
+
+type PushNotificationDelivery = {
+  attempted: number;
+  sent: number;
+  failed: number;
+  disabledTokens: number;
+  failures: Record<string, number>;
+};
+
+const listPushNotificationTargets = async (
+  sql: SqlClient,
+  input: z.infer<typeof sendPushNotificationSchema>,
+) => {
+  const targetProfileId = input.targetType === "profile" ? input.profileId : undefined;
+  const targetInstallId = input.targetType === "install" ? input.installId : undefined;
+  return sql<PushNotificationTargetRow[]>`
+    select id::text, token, token_hash
+    from push_notification_tokens
+    where enabled = true
+      and permission_status in ('authorized', 'provisional')
+      and (${targetProfileId ?? null}::uuid is null or profile_id = ${targetProfileId ?? null})
+      and (${targetInstallId ?? null}::text is null or install_id = ${targetInstallId ?? null})
+    order by last_seen_at desc
+    limit 1000
+  `;
+};
+
+const sendPushNotificationToTargets = async (
+  sql: SqlClient,
+  sender: FirebaseCloudMessagingSender,
+  input: z.infer<typeof sendPushNotificationSchema>,
+  targets: PushNotificationTargetRow[],
+): Promise<PushNotificationDelivery> => {
+  let sent = 0;
+  let failed = 0;
+  const failures: Record<string, number> = {};
+  const disabledHashes: string[] = [];
+  const data = sanitizePushData({
+    ...input.data,
+    source: "admin_manual",
+  });
+
+  for (const target of targets) {
+    const result = await sender.send({
+      token: target.token,
+      title: input.title,
+      body: input.body,
+      data,
+    });
+    if (result.success) {
+      sent += 1;
+      continue;
+    }
+
+    failed += 1;
+    const key = result.errorCode ?? `http_${result.status}`;
+    failures[key] = (failures[key] ?? 0) + 1;
+    if (
+      result.status === 404 ||
+      result.errorCode === "NOT_FOUND" ||
+      result.errorCode === "UNREGISTERED"
+    ) {
+      disabledHashes.push(target.token_hash);
+    }
+  }
+
+  for (const tokenHash of disabledHashes) {
+    await sql`
+      update push_notification_tokens
+      set
+        enabled = false,
+        disabled_at = now(),
+        updated_at = now()
+      where token_hash = ${tokenHash}
+    `;
+  }
+
+  return {
+    attempted: targets.length,
+    sent,
+    failed,
+    disabledTokens: disabledHashes.length,
+    failures,
+  };
+};
+
+const sanitizePushData = (data: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(data)
+      .map(([key, value]) => [
+        key
+          .trim()
+          .replace(/[^a-zA-Z0-9_]/g, "_")
+          .slice(0, 64),
+        value.trim().slice(0, 256),
+      ])
+      .filter(([key, value]) => key && value),
+  );
 
 type AuditLogListRow = AuditLogRow & {
   total_count: number | string;

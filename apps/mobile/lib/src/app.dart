@@ -30,6 +30,7 @@ import 'services/app_links.dart';
 import 'services/interstitial_ad_store.dart';
 import 'services/logmyplate_analytics.dart';
 import 'services/logmyplate_api_client.dart';
+import 'services/push_notification_service.dart';
 import 'services/review_prompt_store.dart';
 import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
@@ -50,6 +51,7 @@ class LogMyPlateApp extends StatefulWidget {
     ReviewPromptStore? reviewPromptStore,
     InterstitialAdStore? interstitialAdStore,
     AppBuildInfoStore? appBuildInfoStore,
+    PushNotificationRegistrar? pushNotificationRegistrar,
   }) : _authController = authController,
        _journalController = journalController,
        _rewardedAdGateway = rewardedAdGateway,
@@ -57,7 +59,8 @@ class LogMyPlateApp extends StatefulWidget {
        _analytics = analytics,
        _reviewPromptStore = reviewPromptStore,
        _interstitialAdStore = interstitialAdStore,
-       _appBuildInfoStore = appBuildInfoStore;
+       _appBuildInfoStore = appBuildInfoStore,
+       _pushNotificationRegistrar = pushNotificationRegistrar;
 
   final AuthController? _authController;
   final JournalController? _journalController;
@@ -67,6 +70,7 @@ class LogMyPlateApp extends StatefulWidget {
   final ReviewPromptStore? _reviewPromptStore;
   final InterstitialAdStore? _interstitialAdStore;
   final AppBuildInfoStore? _appBuildInfoStore;
+  final PushNotificationRegistrar? _pushNotificationRegistrar;
 
   @override
   State<LogMyPlateApp> createState() => _LogMyPlateAppState();
@@ -93,6 +97,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._interstitialAdStore ?? InterstitialAdStore();
   late final AppBuildInfoStore _appBuildInfoStore =
       widget._appBuildInfoStore ?? AppBuildInfoStore();
+  late final PushNotificationRegistrar _pushNotifications =
+      widget._pushNotificationRegistrar ?? FirebasePushNotificationRegistrar();
   late final platform_links.AppLinks _incomingLinks = platform_links.AppLinks();
   StreamSubscription<Uri>? _incomingLinkSubscription;
   ThemeMode _themeMode = ThemeMode.dark;
@@ -124,6 +130,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     _journalController.removeListener(_handleAccessStateChanged);
     _rewardedAds.dispose();
     _interstitialAds.dispose();
+    _pushNotifications.dispose();
     _authController.dispose();
     _journalController.dispose();
     super.dispose();
@@ -171,6 +178,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       await _markWelcomeSeen();
     }
     await _journalController.loadToday();
+    unawaited(_syncPushNotifications());
     unawaited(
       _analytics.logEvent(
         'app_open',
@@ -286,7 +294,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           showSettingsAction: showSettingsAction,
           bottomPadding: bottomPadding,
           syncMessage: _journalController.error,
-          onRefresh: _journalController.loadToday,
+          onRefresh: _refreshToday,
           onScan: _openCamera,
           onAddManually: _openManualReview,
           onOpenSettings: () => _selectTab(2),
@@ -363,6 +371,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     } finally {
       if (mounted) setState(() => _loadingJournalTab = false);
     }
+  }
+
+  Future<void> _refreshToday() async {
+    await _journalController.loadToday();
+    unawaited(_syncPushNotifications());
   }
 
   Future<void> _loadLocalPreferences() async {
@@ -518,6 +531,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       _journalTabRange = null;
       _selectedTab = 0;
     });
+    unawaited(_syncPushNotifications());
     _replaceCurrentRouteWithMealDetail(meal);
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
@@ -544,6 +558,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       _journalTabRange = null;
       _selectedTab = 0;
     });
+    unawaited(_syncPushNotifications());
     _replaceCurrentRouteWithMealDetail(meal);
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
@@ -687,7 +702,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         logmyplatePageRoute<bool>(
           builder: (_) => MealDetailScreen(
             meal: meal,
-            onUpdateMeal: _journalController.updateMeal,
+            onUpdateMeal: _updateMeal,
             onDeleteMeal: _deleteMeal,
           ),
         ),
@@ -729,6 +744,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         await _openManualReview();
       } else if (action == _NoScanCreditsAction.refresh) {
         await _journalController.loadToday();
+        unawaited(_syncPushNotifications());
         if ((_journalController.quota?.totalRemaining ?? 0) > 0) return true;
       }
       break;
@@ -954,6 +970,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       });
       _navigatorKey.currentState!.popUntil((route) => route.isFirst);
       await _journalController.loadToday();
+      unawaited(_syncPushNotifications());
       if (promptForHealthTarget) await _promptForHealthTargetIfNeeded();
     }
     return session;
@@ -1073,6 +1090,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     });
     _navigatorKey.currentState?.popUntil((route) => route.isFirst);
     await _journalController.loadToday();
+    unawaited(_syncPushNotifications());
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
       title: title,
@@ -1121,6 +1139,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       );
       if (target != null) {
         setState(() => _journalTabRange = null);
+        unawaited(_syncPushNotifications());
         _showJournalNotice(
           tone: LogMyPlateNoticeTone.success,
           title: initialTarget == null
@@ -1192,6 +1211,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     });
     _navigatorKey.currentState?.popUntil((route) => route.isFirst);
     await _journalController.loadToday();
+    unawaited(_syncPushNotifications());
   }
 
   Future<bool> _openMealDetail(MealLog meal) async {
@@ -1199,7 +1219,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       logmyplatePageRoute<bool>(
         builder: (_) => MealDetailScreen(
           meal: meal,
-          onUpdateMeal: _journalController.updateMeal,
+          onUpdateMeal: _updateMeal,
           onDeleteMeal: _deleteMeal,
         ),
       ),
@@ -1210,6 +1230,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   Future<void> _deleteMeal(MealLog meal) async {
     await _journalController.deleteMeal(meal);
     _journalTabRange = null;
+    unawaited(_syncPushNotifications());
     _showJournalNotice(
       tone: LogMyPlateNoticeTone.success,
       title: 'Meal deleted',
@@ -1232,7 +1253,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
             range: range,
             isSyncing: _journalController.loading,
             syncMessage: _journalController.error,
-            onRefresh: _journalController.loadToday,
+            onRefresh: _refreshToday,
             onLoadWeek: _journalController.loadWeeklyRange,
             onLoadWeeks: _journalController.loadAvailableWeeks,
             onOpenMeal: _openMealDetail,
@@ -1275,6 +1296,27 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
 
     return continueScan == true;
+  }
+
+  Future<MealLog> _updateMeal(MealLog meal, List<MealItem> items) async {
+    final updated = await _journalController.updateMeal(meal, items);
+    _journalTabRange = null;
+    unawaited(_syncPushNotifications());
+    return updated;
+  }
+
+  Future<void> _syncPushNotifications() async {
+    try {
+      await _pushNotifications.sync(
+        _journalController.engagementPolicy.notifications,
+      );
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'push_notifications.sync',
+        error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 }
 
