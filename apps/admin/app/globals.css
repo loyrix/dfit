@@ -50,7 +50,7 @@ textarea {
 
 .admin-shell {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
   min-height: 100vh;
   width: 100%;
 }
@@ -63,6 +63,7 @@ textarea {
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow-y: auto;
 }
 
 .brand-mark {
@@ -74,16 +75,47 @@ textarea {
   width: 42px;
 }
 
+.admin-nav {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.nav-primary,
+.nav-section {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-section {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.nav-section-label {
+  color: #8a6812;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  padding: 0 10px 2px;
+  text-transform: uppercase;
+}
+
 .nav-link {
   display: block;
   border-radius: 8px;
   color: var(--muted);
-  padding: 11px 12px;
+  padding: 10px 12px;
 }
 
 .nav-link:hover {
   background: var(--panel-soft);
   color: var(--text);
+}
+
+.nav-link-sub {
+  font-size: 14px;
+  padding: 8px 12px 8px 18px;
 }
 
 .nav-link-active {
@@ -413,6 +445,45 @@ textarea {
   gap: 10px;
 }
 
+.section-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.section-tab {
+  align-items: flex-start;
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 3px;
+  min-height: 46px;
+  min-width: 150px;
+  padding: 10px 12px;
+}
+
+.section-tab:hover {
+  background: var(--panel-soft);
+}
+
+.section-tab-active {
+  background: var(--gold-soft);
+  border-color: #ead489;
+  color: var(--text);
+}
+
+.section-tab-active:hover {
+  background: var(--gold-soft);
+}
+
+.focused-page {
+  display: grid;
+  gap: 14px;
+  max-width: 1120px;
+}
+
 .usage-grid {
   align-items: stretch;
   display: grid;
@@ -671,5 +742,9 @@ textarea {
   .usage-split,
   .prompt-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .section-tab {
+    flex: 1 1 180px;
   }
 }

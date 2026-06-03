@@ -1,46 +1,127 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
-const navItems = [
-  ["/", "Overview"],
-  ["/cost", "AI Usage"],
-  ["/conversions", "Conversion"],
-  ["/users", "Users"],
-  ["/scans", "Scans"],
-  ["/ai", "AI Controls"],
-  ["/growth", "Growth Controls"],
-  ["/flags", "Flags & Notices"],
-  ["/versions", "App Versions"],
-  ["/audit", "Audit Log"],
+const primaryItems = [
+  { href: "/", label: "Overview" },
+  { href: "/cost", label: "AI Usage" },
+  { href: "/conversions", label: "Conversion" },
+  { href: "/scans", label: "Scan Sessions" },
 ] as const;
+
+const navGroups = [
+  {
+    label: "Support",
+    items: [
+      { href: "/users", label: "Users" },
+      { href: "/audit", label: "Audit Log" },
+    ],
+  },
+  {
+    label: "AI Controls",
+    items: [
+      { href: "/ai?section=models", label: "Models" },
+      { href: "/ai?section=prompts", label: "Prompts" },
+    ],
+  },
+  {
+    label: "Growth",
+    items: [
+      { href: "/growth", label: "Growth Policy" },
+      { href: "/growth?section=push", label: "Manual Push" },
+    ],
+  },
+  {
+    label: "Runtime",
+    items: [
+      { href: "/flags?section=flags", label: "Feature Flags" },
+      { href: "/flags?section=notices", label: "In-app Notices" },
+      { href: "/flags?section=create-notice", label: "Create Notice" },
+      { href: "/versions", label: "App Versions" },
+    ],
+  },
+] as const;
+
+const defaultSections: Record<string, string> = {
+  "/ai": "models",
+  "/flags": "flags",
+  "/growth": "policy",
+};
 
 export function AdminNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   return (
-    <nav className="mt-8 grid gap-1" aria-label="Admin navigation">
-      {navItems.map(([href, label]) => {
-        const active = isActivePath(pathname, href);
-        return (
-          <Link
-            aria-current={active ? "page" : undefined}
-            className={`nav-link${active ? " nav-link-active" : ""}`}
-            href={href}
-            key={href}
-          >
-            {label}
-          </Link>
-        );
-      })}
+    <nav className="admin-nav" aria-label="Admin navigation">
+      <div className="nav-primary">
+        {primaryItems.map(({ href, label }) => {
+          const active = isActivePath(pathname, searchParams, href);
+          return (
+            <Link
+              aria-current={active ? "page" : undefined}
+              className={`nav-link${active ? " nav-link-active" : ""}`}
+              href={href}
+              key={href}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {navGroups.map((group) => (
+        <div className="nav-section" key={group.label}>
+          <div className="nav-section-label">{group.label}</div>
+          <div className="grid gap-1">
+            {group.items.map(({ href, label }) => {
+              const active = isActivePath(pathname, searchParams, href);
+              return (
+                <Link
+                  aria-current={active ? "page" : undefined}
+                  className={`nav-link nav-link-sub${active ? " nav-link-active" : ""}`}
+                  href={href}
+                  key={href}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   );
 }
 
-function isActivePath(pathname: string, href: string) {
-  if (href === "/") {
+function isActivePath(pathname: string, searchParams: URLSearchParams, href: string) {
+  const [pathAndQuery] = href.split("#");
+  const [hrefPath, hrefQuery] = pathAndQuery.split("?");
+  if (hrefPath === "/") {
     return pathname === "/";
   }
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (!(pathname === hrefPath || pathname.startsWith(`${hrefPath}/`))) {
+    return false;
+  }
+
+  if (!hrefQuery) {
+    const defaultSection = defaultSections[hrefPath];
+    if (defaultSection) {
+      return (searchParams.get("section") ?? defaultSection) === defaultSection;
+    }
+    return true;
+  }
+
+  const requiredParams = new URLSearchParams(hrefQuery);
+  for (const [key, value] of requiredParams) {
+    const currentValue =
+      key === "section" && defaultSections[hrefPath]
+        ? (searchParams.get(key) ?? defaultSections[hrefPath])
+        : searchParams.get(key);
+    if (currentValue !== value) {
+      return false;
+    }
+  }
+  return true;
 }

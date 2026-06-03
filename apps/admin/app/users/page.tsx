@@ -71,6 +71,26 @@ export default async function UsersPage({
     },
   );
 
+  if (selected?.user) {
+    return (
+      <AdminShell>
+        <PageHeader
+          eyebrow="Support"
+          title="User detail"
+          description="Inspect quota, lifecycle status, recent scans, support grants, and recovery actions for this profile."
+          action={
+            <Link className="button button-secondary" href={hrefWithParams("/users", listParams)}>
+              Back to users
+            </Link>
+          }
+        />
+        <section className="focused-page">
+          <UserDetail user={selected.user} />
+        </section>
+      </AdminShell>
+    );
+  }
+
   return (
     <AdminShell>
       <PageHeader
@@ -136,7 +156,7 @@ export default async function UsersPage({
         </button>
       </form>
 
-      <section className="grid two-col">
+      <section className="grid">
         <div className="panel">
           <div className="section-head">
             <h2 className="text-xl font-bold">User directory</h2>
@@ -290,23 +310,8 @@ export default async function UsersPage({
           </div>
           <Pagination basePath="/users" params={listParams} pageInfo={effectivePageInfo} />
         </div>
-
-        <div className="grid gap-4">
-          {selected ? <UserDetail user={selected.user} /> : <EmptyUserDetail />}
-        </div>
       </section>
     </AdminShell>
-  );
-}
-
-function EmptyUserDetail() {
-  return (
-    <div className="panel">
-      <h2 className="text-xl font-bold">User detail</h2>
-      <p className="muted mt-2">
-        Select a user to inspect quota, support history, scan health, and lifecycle status.
-      </p>
-    </div>
   );
 }
 

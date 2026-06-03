@@ -1,5 +1,5 @@
 import { AdminShell } from "../components/shell";
-import { Badge, EmptyState, PageHeader, formatDate } from "../components/ui";
+import { Badge, EmptyState, PageHeader, SectionTabs, formatDate } from "../components/ui";
 import { createNoticeAction, updateFeatureFlagAction, updateNoticeAction } from "../lib/actions";
 import { adminGet, type AppNotice, type FeatureFlag } from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
@@ -7,6 +7,7 @@ import { createMutationKey } from "../lib/idempotency";
 export const dynamic = "force-dynamic";
 
 type FlagsSearchParams = {
+  section?: string;
   flagQuery?: string;
   noticeQuery?: string;
   noticeStatus?: string;
@@ -25,6 +26,8 @@ export default async function FlagsPage({
   ]);
   const filteredFlags = filterFlags(flags, params.flagQuery);
   const filteredNotices = filterNotices(notices, params);
+  const section =
+    params.section === "notices" || params.section === "create-notice" ? params.section : "flags";
 
   return (
     <AdminShell>
@@ -34,13 +37,37 @@ export default async function FlagsPage({
         description="Control client-visible feature availability and publish in-app notices without an App Store or Play Store release."
       />
 
-      <section className="grid two-col">
-        <div className="panel">
+      <SectionTabs
+        items={[
+          {
+            href: "/flags?section=flags",
+            label: "Feature flags",
+            detail: "Toggle runtime behavior",
+            active: section === "flags",
+          },
+          {
+            href: "/flags?section=notices",
+            label: "In-app notices",
+            detail: "Review and pause published messages",
+            active: section === "notices",
+          },
+          {
+            href: "/flags?section=create-notice",
+            label: "Create notice",
+            detail: "Publish a new message",
+            active: section === "create-notice",
+          },
+        ]}
+      />
+
+      {section === "flags" ? (
+        <section className="panel">
           <div className="section-head">
             <h2 className="text-xl font-bold">Feature flags</h2>
             <span className="muted text-sm">{filteredFlags.length} shown</span>
           </div>
           <form className="toolbar toolbar-two" action="/flags">
+            <input name="section" type="hidden" value="flags" />
             <label>
               <span className="metric-label">Search flags</span>
               <input
@@ -61,7 +88,7 @@ export default async function FlagsPage({
                   <th>Flag</th>
                   <th>Status</th>
                   <th>Updated</th>
-                  <th>Reasoned update</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,43 +109,46 @@ export default async function FlagsPage({
                       <div>{formatDate(flag.updatedAt)}</div>
                       <div className="muted text-xs">{flag.updatedBy ?? "unknown"}</div>
                     </td>
-                    <td>
-                      <form action={updateFeatureFlagAction} className="form-grid">
-                        <input name="key" type="hidden" value={flag.key} />
-                        <input
-                          name="idempotencyKey"
-                          type="hidden"
-                          value={createMutationKey(`flag:${flag.key}:update`)}
-                        />
-                        <label className="inline-controls text-sm">
+                    <td className="table-actions">
+                      <details className="row-action-details">
+                        <summary className="badge">Configure</summary>
+                        <form action={updateFeatureFlagAction} className="form-grid">
+                          <input name="key" type="hidden" value={flag.key} />
                           <input
-                            name="value"
-                            type="checkbox"
-                            defaultChecked={flag.value === true}
+                            name="idempotencyKey"
+                            type="hidden"
+                            value={createMutationKey(`flag:${flag.key}:update`)}
                           />
-                          Enabled
-                        </label>
-                        <input
-                          className="input"
-                          name="description"
-                          defaultValue={flag.description ?? ""}
-                          placeholder="Description"
-                          maxLength={500}
-                        />
-                        <div className="mini-form">
+                          <label className="inline-controls text-sm">
+                            <input
+                              name="value"
+                              type="checkbox"
+                              defaultChecked={flag.value === true}
+                            />
+                            Enabled
+                          </label>
                           <input
                             className="input"
-                            name="reason"
-                            placeholder="Reason for flag change"
-                            minLength={8}
+                            name="description"
+                            defaultValue={flag.description ?? ""}
+                            placeholder="Description"
                             maxLength={500}
-                            required
                           />
-                          <button className="button" type="submit">
-                            Save
-                          </button>
-                        </div>
-                      </form>
+                          <div className="mini-form">
+                            <input
+                              className="input"
+                              name="reason"
+                              placeholder="Reason for flag change"
+                              minLength={8}
+                              maxLength={500}
+                              required
+                            />
+                            <button className="button" type="submit">
+                              Save
+                            </button>
+                          </div>
+                        </form>
+                      </details>
                     </td>
                   </tr>
                 ))}
@@ -126,180 +156,196 @@ export default async function FlagsPage({
             </table>
             {filteredFlags.length === 0 ? <EmptyState title="No flags matched" /> : null}
           </div>
-        </div>
+        </section>
+      ) : null}
 
-        <div className="panel">
-          <h2 className="text-xl font-bold">Create in-app notice</h2>
-          <form action={createNoticeAction} className="form-grid mt-4">
-            <input name="idempotencyKey" type="hidden" value={createMutationKey("notice:create")} />
-            <input
-              className="input"
-              name="title"
-              placeholder="Notice title"
-              minLength={3}
-              maxLength={120}
-              required
-            />
-            <textarea
-              className="textarea"
-              name="body"
-              placeholder="Notice message"
-              minLength={3}
-              maxLength={500}
-              required
-            />
-            <select className="select" name="severity" defaultValue="info">
-              <option value="info">Info</option>
-              <option value="success">Success</option>
-              <option value="warning">Warning</option>
-              <option value="critical">Critical</option>
-            </select>
-            <label className="inline-controls">
-              <input name="active" type="checkbox" /> Active now
+      {section === "create-notice" ? (
+        <section className="focused-page">
+          <div className="panel">
+            <h2 className="text-xl font-bold">Create in-app notice</h2>
+            <form action={createNoticeAction} className="form-grid mt-4">
+              <input
+                name="idempotencyKey"
+                type="hidden"
+                value={createMutationKey("notice:create")}
+              />
+              <input
+                className="input"
+                name="title"
+                placeholder="Notice title"
+                minLength={3}
+                maxLength={120}
+                required
+              />
+              <textarea
+                className="textarea"
+                name="body"
+                placeholder="Notice message"
+                minLength={3}
+                maxLength={500}
+                required
+              />
+              <select className="select" name="severity" defaultValue="info">
+                <option value="info">Info</option>
+                <option value="success">Success</option>
+                <option value="warning">Warning</option>
+                <option value="critical">Critical</option>
+              </select>
+              <label className="inline-controls">
+                <input name="active" type="checkbox" /> Active now
+              </label>
+              <input
+                className="input"
+                name="ctaLabel"
+                placeholder="CTA label, optional"
+                maxLength={80}
+              />
+              <input
+                className="input"
+                name="ctaUrl"
+                placeholder="CTA URL, optional"
+                maxLength={500}
+              />
+              <input
+                className="input"
+                name="reason"
+                placeholder="Reason for notice"
+                minLength={8}
+                maxLength={500}
+                required
+              />
+              <button className="button" type="submit">
+                Publish notice
+              </button>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
+      {section === "notices" ? (
+        <section className="panel">
+          <div className="section-head">
+            <h2 className="text-xl font-bold">Notices</h2>
+            <span className="muted text-sm">{filteredNotices.length} shown</span>
+          </div>
+          <form className="toolbar toolbar-four" action="/flags">
+            <input name="section" type="hidden" value="notices" />
+            <label>
+              <span className="metric-label">Search notices</span>
+              <input
+                className="input"
+                name="noticeQuery"
+                placeholder="Title or body"
+                defaultValue={params.noticeQuery ?? ""}
+              />
             </label>
-            <input
-              className="input"
-              name="ctaLabel"
-              placeholder="CTA label, optional"
-              maxLength={80}
-            />
-            <input
-              className="input"
-              name="ctaUrl"
-              placeholder="CTA URL, optional"
-              maxLength={500}
-            />
-            <input
-              className="input"
-              name="reason"
-              placeholder="Reason for notice"
-              minLength={8}
-              maxLength={500}
-              required
-            />
+            <label>
+              <span className="metric-label">Status</span>
+              <select
+                className="select"
+                name="noticeStatus"
+                defaultValue={params.noticeStatus ?? "all"}
+              >
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+            <label>
+              <span className="metric-label">Severity</span>
+              <select
+                className="select"
+                name="noticeSeverity"
+                defaultValue={params.noticeSeverity ?? "all"}
+              >
+                <option value="all">All severities</option>
+                <option value="info">Info</option>
+                <option value="success">Success</option>
+                <option value="warning">Warning</option>
+                <option value="critical">Critical</option>
+              </select>
+            </label>
             <button className="button" type="submit">
-              Publish notice
+              Filter
             </button>
           </form>
-        </div>
-      </section>
-
-      <section className="panel mt-4">
-        <div className="section-head">
-          <h2 className="text-xl font-bold">Notices</h2>
-          <span className="muted text-sm">{filteredNotices.length} shown</span>
-        </div>
-        <form className="toolbar toolbar-four" action="/flags">
-          <label>
-            <span className="metric-label">Search notices</span>
-            <input
-              className="input"
-              name="noticeQuery"
-              placeholder="Title or body"
-              defaultValue={params.noticeQuery ?? ""}
-            />
-          </label>
-          <label>
-            <span className="metric-label">Status</span>
-            <select
-              className="select"
-              name="noticeStatus"
-              defaultValue={params.noticeStatus ?? "all"}
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </label>
-          <label>
-            <span className="metric-label">Severity</span>
-            <select
-              className="select"
-              name="noticeSeverity"
-              defaultValue={params.noticeSeverity ?? "all"}
-            >
-              <option value="all">All severities</option>
-              <option value="info">Info</option>
-              <option value="success">Success</option>
-              <option value="warning">Warning</option>
-              <option value="critical">Critical</option>
-            </select>
-          </label>
-          <button className="button" type="submit">
-            Filter
-          </button>
-        </form>
-        <div className="table-wrap">
-          <table className="table table-compact">
-            <thead>
-              <tr>
-                <th>Notice</th>
-                <th>Severity</th>
-                <th>Status</th>
-                <th>CTA</th>
-                <th>Updated</th>
-                <th>Reasoned update</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredNotices.map((notice) => (
-                <tr key={notice.id}>
-                  <td>
-                    <div className="font-semibold">{notice.title}</div>
-                    <div className="muted text-xs break-cell">{notice.body}</div>
-                  </td>
-                  <td>{notice.severity}</td>
-                  <td>
-                    <Badge tone={notice.active ? "green" : "red"}>
-                      {notice.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </td>
-                  <td>
-                    {notice.ctaLabel ? (
-                      <div>
-                        <div className="font-semibold">{notice.ctaLabel}</div>
-                        <div className="muted text-xs break-cell">{notice.ctaUrl ?? "No URL"}</div>
-                      </div>
-                    ) : (
-                      "None"
-                    )}
-                  </td>
-                  <td>
-                    <div>{formatDate(notice.updatedAt)}</div>
-                    <div className="muted text-xs">{notice.updatedBy ?? "unknown"}</div>
-                  </td>
-                  <td>
-                    <form action={updateNoticeAction} className="mini-form">
-                      <input name="noticeId" type="hidden" value={notice.id} />
-                      <input
-                        name="idempotencyKey"
-                        type="hidden"
-                        value={createMutationKey(`notice:${notice.id}:update`)}
-                      />
-                      <label className="inline-controls text-sm">
-                        <input name="active" type="checkbox" defaultChecked={notice.active} />{" "}
-                        Active
-                      </label>
-                      <input
-                        className="input"
-                        name="reason"
-                        placeholder="Reason"
-                        minLength={8}
-                        maxLength={500}
-                        required
-                      />
-                      <button className="button" type="submit">
-                        Save
-                      </button>
-                    </form>
-                  </td>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Notice</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                  <th>CTA</th>
+                  <th>Updated</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filteredNotices.length === 0 ? <EmptyState title="No notices matched" /> : null}
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {filteredNotices.map((notice) => (
+                  <tr key={notice.id}>
+                    <td>
+                      <div className="font-semibold">{notice.title}</div>
+                      <div className="muted text-xs break-cell">{notice.body}</div>
+                    </td>
+                    <td>{notice.severity}</td>
+                    <td>
+                      <Badge tone={notice.active ? "green" : "red"}>
+                        {notice.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td>
+                      {notice.ctaLabel ? (
+                        <div>
+                          <div className="font-semibold">{notice.ctaLabel}</div>
+                          <div className="muted text-xs break-cell">
+                            {notice.ctaUrl ?? "No URL"}
+                          </div>
+                        </div>
+                      ) : (
+                        "None"
+                      )}
+                    </td>
+                    <td>
+                      <div>{formatDate(notice.updatedAt)}</div>
+                      <div className="muted text-xs">{notice.updatedBy ?? "unknown"}</div>
+                    </td>
+                    <td className="table-actions">
+                      <details className="row-action-details">
+                        <summary className="badge">Configure</summary>
+                        <form action={updateNoticeAction} className="mini-form">
+                          <input name="noticeId" type="hidden" value={notice.id} />
+                          <input
+                            name="idempotencyKey"
+                            type="hidden"
+                            value={createMutationKey(`notice:${notice.id}:update`)}
+                          />
+                          <label className="inline-controls text-sm">
+                            <input name="active" type="checkbox" defaultChecked={notice.active} />{" "}
+                            Active
+                          </label>
+                          <input
+                            className="input"
+                            name="reason"
+                            placeholder="Reason"
+                            minLength={8}
+                            maxLength={500}
+                            required
+                          />
+                          <button className="button" type="submit">
+                            Save
+                          </button>
+                        </form>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filteredNotices.length === 0 ? <EmptyState title="No notices matched" /> : null}
+          </div>
+        </section>
+      ) : null}
     </AdminShell>
   );
 }

@@ -57,7 +57,7 @@ export default async function CostPage({
         <Link className="button button-secondary" href="/scans?sort=latencyMs&direction=desc">
           Inspect slow scans
         </Link>
-        <Link className="button button-secondary" href="/ai">
+        <Link className="button button-secondary" href="/ai?section=models">
           Tune model and prompt
         </Link>
         <Link className="button button-secondary" href="/audit?targetType=ai">

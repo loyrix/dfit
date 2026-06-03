@@ -63,6 +63,33 @@ export function EmptyState({ title, body }: { title: string; body?: string }) {
   );
 }
 
+export function SectionTabs({
+  items,
+}: {
+  items: Array<{
+    href: string;
+    label: string;
+    active: boolean;
+    detail?: string;
+  }>;
+}) {
+  return (
+    <nav className="section-tabs" aria-label="Page sections">
+      {items.map((item) => (
+        <Link
+          aria-current={item.active ? "page" : undefined}
+          className={`section-tab${item.active ? " section-tab-active" : ""}`}
+          href={item.href}
+          key={item.href}
+        >
+          <span className="font-semibold">{item.label}</span>
+          {item.detail ? <span className="muted text-xs">{item.detail}</span> : null}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export function ResultSummary({ pageInfo, noun }: { pageInfo?: PageInfo; noun: string }) {
   if (!pageInfo) return null;
   const start = pageInfo.total === 0 ? 0 : (pageInfo.page - 1) * pageInfo.pageSize + 1;

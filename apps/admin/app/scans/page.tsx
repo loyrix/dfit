@@ -72,6 +72,26 @@ export default async function ScansPage({
     },
   );
 
+  if (detail?.scan) {
+    return (
+      <AdminShell>
+        <PageHeader
+          eyebrow="Debugging"
+          title="Scan detail"
+          description="Inspect the food photo, profile context, model metadata, timing, confidence, and parsed AI output for this scan."
+          action={
+            <Link className="button button-secondary" href={hrefWithParams("/scans", listParams)}>
+              Back to scans
+            </Link>
+          }
+        />
+        <section className="focused-page">
+          <ScanDetail scan={detail.scan} />
+        </section>
+      </AdminShell>
+    );
+  }
+
   return (
     <AdminShell>
       <PageHeader
@@ -213,7 +233,7 @@ export default async function ScansPage({
         </button>
       </form>
 
-      <section className="grid two-col">
+      <section className="grid">
         <div className="panel">
           <div className="section-head">
             <h2 className="text-xl font-bold">Scan sessions</h2>
@@ -382,8 +402,6 @@ export default async function ScansPage({
           </div>
           <Pagination basePath="/scans" params={listParams} pageInfo={effectivePageInfo} />
         </div>
-
-        <ScanDetail scan={detail?.scan} />
       </section>
     </AdminShell>
   );

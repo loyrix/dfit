@@ -1,5 +1,5 @@
 import { AdminShell } from "../components/shell";
-import { Badge, PageHeader } from "../components/ui";
+import { Badge, PageHeader, SectionTabs } from "../components/ui";
 import { sendPushNotificationAction, updateEngagementPolicyAction } from "../lib/actions";
 import {
   adminGet,
@@ -41,6 +41,7 @@ const analyticsEventLabels: Record<keyof EngagementAnalyticsEvents, string> = {
 };
 
 type GrowthControlsSearchParams = {
+  section?: string;
   push?: string;
   message?: string;
 };
@@ -52,6 +53,7 @@ export default async function GrowthControlsPage({
 }) {
   const params = (await searchParams) ?? {};
   const { policy } = await adminGet<{ policy: EngagementPolicy }>("/admin/engagement-policy");
+  const section = params.section === "push" ? "push" : "policy";
 
   return (
     <AdminShell>
@@ -79,126 +81,145 @@ export default async function GrowthControlsPage({
         </div>
       ) : null}
 
-      <form action={updateEngagementPolicyAction} className="grid gap-4">
-        <input
-          name="idempotencyKey"
-          type="hidden"
-          value={createMutationKey("engagement-policy:update")}
-        />
+      <SectionTabs
+        items={[
+          {
+            href: "/growth",
+            label: "Growth policy",
+            detail: "Analytics, reviews, ads, streaks, reminders",
+            active: section === "policy",
+          },
+          {
+            href: "/growth?section=push",
+            label: "Manual push",
+            detail: "Send a targeted FCM notification",
+            active: section === "push",
+          },
+        ]}
+      />
 
-        <section className="grid two-col">
-          <AnalyticsPanel policy={policy} />
-          <ReviewPromptPanel policy={policy} />
-        </section>
+      {section === "policy" ? (
+        <form action={updateEngagementPolicyAction} className="grid gap-4">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:update")}
+          />
 
-        <section className="grid two-col">
-          <InterstitialAdsPanel policy={policy} />
-          <StreaksPanel policy={policy} />
-        </section>
+          <section className="grid two-col">
+            <AnalyticsPanel policy={policy} />
+            <ReviewPromptPanel policy={policy} />
+          </section>
 
-        <section className="panel">
-          <div className="section-head">
-            <div>
-              <h2 className="text-xl font-bold">FCM push reminders</h2>
-              <p className="muted mt-1 text-sm">
-                Message timing and copy for backend-sent meal reminders.
-              </p>
+          <section className="grid two-col">
+            <InterstitialAdsPanel policy={policy} />
+            <StreaksPanel policy={policy} />
+          </section>
+
+          <section className="panel">
+            <div className="section-head">
+              <div>
+                <h2 className="text-xl font-bold">FCM push reminders</h2>
+                <p className="muted mt-1 text-sm">
+                  Message timing and copy for backend-sent meal reminders.
+                </p>
+              </div>
+              <Badge tone={policy.notifications.enabled ? "green" : "red"}>
+                {policy.notifications.enabled ? "Enabled" : "Disabled"}
+              </Badge>
             </div>
-            <Badge tone={policy.notifications.enabled ? "green" : "red"}>
-              {policy.notifications.enabled ? "Enabled" : "Disabled"}
-            </Badge>
-          </div>
 
-          <div className="form-grid mt-4">
-            <label className="inline-controls">
-              <input
-                name="notifications.enabled"
-                type="checkbox"
-                defaultChecked={policy.notifications.enabled}
-              />
-              Enable notification policy
-            </label>
-            <label>
-              <span className="font-semibold">Daily notification cap</span>
+            <div className="form-grid mt-4">
+              <label className="inline-controls">
+                <input
+                  name="notifications.enabled"
+                  type="checkbox"
+                  defaultChecked={policy.notifications.enabled}
+                />
+                Enable notification policy
+              </label>
+              <label>
+                <span className="font-semibold">Daily notification cap</span>
+                <input
+                  className="input mt-2"
+                  name="notifications.dailyCap"
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="1"
+                  defaultValue={policy.notifications.dailyCap}
+                  required
+                />
+              </label>
+              <div className="grid two-col">
+                <label>
+                  <span className="font-semibold">Quiet hours start</span>
+                  <input
+                    className="input mt-2"
+                    name="notifications.quietHours.start"
+                    type="time"
+                    defaultValue={policy.notifications.quietHours.start}
+                    required
+                  />
+                </label>
+                <label>
+                  <span className="font-semibold">Quiet hours end</span>
+                  <input
+                    className="input mt-2"
+                    name="notifications.quietHours.end"
+                    type="time"
+                    defaultValue={policy.notifications.quietHours.end}
+                    required
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="table-wrap mt-4">
+              <table className="table table-compact">
+                <thead>
+                  <tr>
+                    <th>Scenario</th>
+                    <th>Window</th>
+                    <th>Message</th>
+                    <th>Conditions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(Object.keys(scenarioLabels) as ScenarioKey[]).map((key) => (
+                    <NotificationScenarioRow
+                      key={key}
+                      scenarioKey={key}
+                      scenario={policy.notifications.scenarios[key]}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="panel">
+            <label className="block">
+              <span className="font-semibold">Reason</span>
               <input
                 className="input mt-2"
-                name="notifications.dailyCap"
-                type="number"
-                min="0"
-                max="10"
-                step="1"
-                defaultValue={policy.notifications.dailyCap}
+                name="reason"
+                placeholder="Why this engagement policy is changing"
+                minLength={8}
+                maxLength={500}
                 required
               />
             </label>
-            <div className="grid two-col">
-              <label>
-                <span className="font-semibold">Quiet hours start</span>
-                <input
-                  className="input mt-2"
-                  name="notifications.quietHours.start"
-                  type="time"
-                  defaultValue={policy.notifications.quietHours.start}
-                  required
-                />
-              </label>
-              <label>
-                <span className="font-semibold">Quiet hours end</span>
-                <input
-                  className="input mt-2"
-                  name="notifications.quietHours.end"
-                  type="time"
-                  defaultValue={policy.notifications.quietHours.end}
-                  required
-                />
-              </label>
+            <div className="mt-4 flex justify-end">
+              <button className="button" type="submit">
+                Save growth controls
+              </button>
             </div>
-          </div>
+          </section>
+        </form>
+      ) : null}
 
-          <div className="table-wrap mt-4">
-            <table className="table table-compact">
-              <thead>
-                <tr>
-                  <th>Scenario</th>
-                  <th>Window</th>
-                  <th>Message</th>
-                  <th>Conditions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(Object.keys(scenarioLabels) as ScenarioKey[]).map((key) => (
-                  <NotificationScenarioRow
-                    key={key}
-                    scenarioKey={key}
-                    scenario={policy.notifications.scenarios[key]}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="panel">
-          <label className="block">
-            <span className="font-semibold">Reason</span>
-            <input
-              className="input mt-2"
-              name="reason"
-              placeholder="Why this engagement policy is changing"
-              minLength={8}
-              maxLength={500}
-              required
-            />
-          </label>
-          <div className="mt-4 flex justify-end">
-            <button className="button" type="submit">
-              Save growth controls
-            </button>
-          </div>
-        </section>
-      </form>
-
-      <ManualPushPanel />
+      {section === "push" ? <ManualPushPanel /> : null}
     </AdminShell>
   );
 }

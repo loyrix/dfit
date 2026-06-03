@@ -83,7 +83,7 @@ export async function setDefaultModelAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
   revalidatePath("/ai");
-  redirect("/ai");
+  redirect("/ai?section=models");
 }
 
 export async function updateModelAction(formData: FormData) {
@@ -102,7 +102,7 @@ export async function updateModelAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
   revalidatePath("/ai");
-  redirect("/ai");
+  redirect("/ai?section=models");
 }
 
 export async function createPromptAction(formData: FormData) {
@@ -119,7 +119,7 @@ export async function createPromptAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData) },
   );
   revalidatePath("/ai");
-  redirect("/ai");
+  redirect("/ai?section=prompts");
 }
 
 export async function activatePromptAction(formData: FormData) {
@@ -133,7 +133,7 @@ export async function activatePromptAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
   revalidatePath("/ai");
-  redirect("/ai");
+  redirect("/ai?section=prompts");
 }
 
 export async function updateFeatureFlagAction(formData: FormData) {
@@ -149,7 +149,7 @@ export async function updateFeatureFlagAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
   revalidatePath("/flags");
-  redirect("/flags");
+  redirect("/flags?section=flags");
 }
 
 export async function createNoticeAction(formData: FormData) {
@@ -168,7 +168,7 @@ export async function createNoticeAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData) },
   );
   revalidatePath("/flags");
-  redirect("/flags");
+  redirect("/flags?section=notices");
 }
 
 export async function updateNoticeAction(formData: FormData) {
@@ -183,7 +183,7 @@ export async function updateNoticeAction(formData: FormData) {
     { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
   revalidatePath("/flags");
-  redirect("/flags");
+  redirect("/flags?section=notices");
 }
 
 export async function updateAppUpdatePolicyAction(formData: FormData) {
@@ -237,9 +237,11 @@ export async function sendPushNotificationAction(formData: FormData) {
   }
   revalidatePath("/growth");
   if (pushError) {
-    redirect(`/growth?push=error&message=${encodeURIComponent(pushError.slice(0, 220))}`);
+    redirect(
+      `/growth?section=push&push=error&message=${encodeURIComponent(pushError.slice(0, 220))}`,
+    );
   }
-  redirect("/growth?push=sent");
+  redirect("/growth?section=push&push=sent");
 }
 
 const stringValue = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
