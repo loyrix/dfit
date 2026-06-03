@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { adminSend } from "./api";
+import { adminGet, adminSend, type EngagementPolicy } from "./api";
 import { readMutationKey } from "./idempotency";
 import {
   clearAdminSession,
@@ -209,7 +209,47 @@ export async function updateEngagementPolicyAction(formData: FormData) {
     method: "PUT",
   });
   revalidatePath("/growth");
-  redirect("/growth");
+  redirect("/growth?section=analytics");
+}
+
+export async function updateEngagementAnalyticsAction(formData: FormData) {
+  await updateEngagementPolicySection(
+    formData,
+    "analytics",
+    readAnalyticsPolicy(formData),
+    "analytics",
+  );
+}
+
+export async function updateReviewPromptAction(formData: FormData) {
+  await updateEngagementPolicySection(
+    formData,
+    "reviewPrompt",
+    readReviewPromptPolicy(formData),
+    "review",
+  );
+}
+
+export async function updateInterstitialAdsAction(formData: FormData) {
+  await updateEngagementPolicySection(
+    formData,
+    "interstitialAds",
+    readInterstitialAdsPolicy(formData),
+    "ads",
+  );
+}
+
+export async function updateNotificationsAction(formData: FormData) {
+  await updateEngagementPolicySection(
+    formData,
+    "notifications",
+    readNotificationsPolicy(formData),
+    "notifications",
+  );
+}
+
+export async function updateStreaksAction(formData: FormData) {
+  await updateEngagementPolicySection(formData, "streaks", readStreaksPolicy(formData), "streaks");
 }
 
 export async function sendPushNotificationAction(formData: FormData) {
@@ -293,68 +333,99 @@ const analyticsEventKeys = [
 ] as const;
 
 const readEngagementPolicy = (formData: FormData) => ({
-  analytics: {
-    enabled: booleanValue(formData, "analytics.enabled"),
-    firebaseEnabled: booleanValue(formData, "analytics.firebaseEnabled"),
-    debugLogging: booleanValue(formData, "analytics.debugLogging"),
-    sampleRatePercent: numberValue(formData, "analytics.sampleRatePercent"),
-    events: Object.fromEntries(
-      analyticsEventKeys.map((key) => [key, booleanValue(formData, `analytics.events.${key}`)]),
-    ),
-  },
-  reviewPrompt: {
-    enabled: booleanValue(formData, "reviewPrompt.enabled"),
-    minConfirmedScans: numberValue(formData, "reviewPrompt.minConfirmedScans"),
-    minActiveDays: numberValue(formData, "reviewPrompt.minActiveDays"),
-    cooldownDays: numberValue(formData, "reviewPrompt.cooldownDays"),
-    oncePerAppVersion: booleanValue(formData, "reviewPrompt.oncePerAppVersion"),
-    storeUrls: {
-      ios: nullableStringValue(formData, "reviewPrompt.storeUrls.ios"),
-      android: nullableStringValue(formData, "reviewPrompt.storeUrls.android"),
-    },
-    copy: {
-      title: stringValue(formData, "reviewPrompt.copy.title"),
-      body: stringValue(formData, "reviewPrompt.copy.body"),
-      positiveLabel: stringValue(formData, "reviewPrompt.copy.positiveLabel"),
-      negativeLabel: stringValue(formData, "reviewPrompt.copy.negativeLabel"),
-    },
-  },
-  interstitialAds: {
-    enabled: booleanValue(formData, "interstitialAds.enabled"),
-    freeUsersOnly: booleanValue(formData, "interstitialAds.freeUsersOnly"),
-    premiumExcluded: booleanValue(formData, "interstitialAds.premiumExcluded"),
-    minConfirmedScansBeforeFirstAd: numberValue(
-      formData,
-      "interstitialAds.minConfirmedScansBeforeFirstAd",
-    ),
-    scansBetweenAds: numberValue(formData, "interstitialAds.scansBetweenAds"),
-    cooldownMinutes: numberValue(formData, "interstitialAds.cooldownMinutes"),
-    dailyCap: numberValue(formData, "interstitialAds.dailyCap"),
-    adUnitIds: {
-      ios: nullableStringValue(formData, "interstitialAds.adUnitIds.ios"),
-      android: nullableStringValue(formData, "interstitialAds.adUnitIds.android"),
-    },
-  },
-  notifications: {
-    enabled: booleanValue(formData, "notifications.enabled"),
-    dailyCap: numberValue(formData, "notifications.dailyCap"),
-    quietHours: {
-      start: stringValue(formData, "notifications.quietHours.start"),
-      end: stringValue(formData, "notifications.quietHours.end"),
-    },
-    scenarios: Object.fromEntries(
-      notificationScenarioKeys.map((key) => [key, readNotificationScenario(formData, key)]),
-    ),
-  },
-  streaks: {
-    enabled: booleanValue(formData, "streaks.enabled"),
-    milestones: readStreakMilestones(formData),
-    scanRewards: {
-      enabled: booleanValue(formData, "streaks.scanRewards.enabled"),
-    },
-  },
+  analytics: readAnalyticsPolicy(formData),
+  reviewPrompt: readReviewPromptPolicy(formData),
+  interstitialAds: readInterstitialAdsPolicy(formData),
+  notifications: readNotificationsPolicy(formData),
+  streaks: readStreaksPolicy(formData),
   reason: stringValue(formData, "reason"),
 });
+
+const readAnalyticsPolicy = (formData: FormData): EngagementPolicy["analytics"] => ({
+  enabled: booleanValue(formData, "analytics.enabled"),
+  firebaseEnabled: booleanValue(formData, "analytics.firebaseEnabled"),
+  debugLogging: booleanValue(formData, "analytics.debugLogging"),
+  sampleRatePercent: numberValue(formData, "analytics.sampleRatePercent"),
+  events: Object.fromEntries(
+    analyticsEventKeys.map((key) => [key, booleanValue(formData, `analytics.events.${key}`)]),
+  ) as EngagementPolicy["analytics"]["events"],
+});
+
+const readReviewPromptPolicy = (formData: FormData): EngagementPolicy["reviewPrompt"] => ({
+  enabled: booleanValue(formData, "reviewPrompt.enabled"),
+  minConfirmedScans: numberValue(formData, "reviewPrompt.minConfirmedScans"),
+  minActiveDays: numberValue(formData, "reviewPrompt.minActiveDays"),
+  cooldownDays: numberValue(formData, "reviewPrompt.cooldownDays"),
+  oncePerAppVersion: booleanValue(formData, "reviewPrompt.oncePerAppVersion"),
+  storeUrls: {
+    ios: nullableStringValue(formData, "reviewPrompt.storeUrls.ios"),
+    android: nullableStringValue(formData, "reviewPrompt.storeUrls.android"),
+  },
+  copy: {
+    title: stringValue(formData, "reviewPrompt.copy.title"),
+    body: stringValue(formData, "reviewPrompt.copy.body"),
+    positiveLabel: stringValue(formData, "reviewPrompt.copy.positiveLabel"),
+    negativeLabel: stringValue(formData, "reviewPrompt.copy.negativeLabel"),
+  },
+});
+
+const readInterstitialAdsPolicy = (formData: FormData): EngagementPolicy["interstitialAds"] => ({
+  enabled: booleanValue(formData, "interstitialAds.enabled"),
+  freeUsersOnly: booleanValue(formData, "interstitialAds.freeUsersOnly"),
+  premiumExcluded: booleanValue(formData, "interstitialAds.premiumExcluded"),
+  minConfirmedScansBeforeFirstAd: numberValue(
+    formData,
+    "interstitialAds.minConfirmedScansBeforeFirstAd",
+  ),
+  scansBetweenAds: numberValue(formData, "interstitialAds.scansBetweenAds"),
+  cooldownMinutes: numberValue(formData, "interstitialAds.cooldownMinutes"),
+  dailyCap: numberValue(formData, "interstitialAds.dailyCap"),
+  adUnitIds: {
+    ios: nullableStringValue(formData, "interstitialAds.adUnitIds.ios"),
+    android: nullableStringValue(formData, "interstitialAds.adUnitIds.android"),
+  },
+});
+
+const readNotificationsPolicy = (formData: FormData): EngagementPolicy["notifications"] => ({
+  enabled: booleanValue(formData, "notifications.enabled"),
+  dailyCap: numberValue(formData, "notifications.dailyCap"),
+  quietHours: {
+    start: stringValue(formData, "notifications.quietHours.start"),
+    end: stringValue(formData, "notifications.quietHours.end"),
+  },
+  scenarios: Object.fromEntries(
+    notificationScenarioKeys.map((key) => [key, readNotificationScenario(formData, key)]),
+  ) as EngagementPolicy["notifications"]["scenarios"],
+});
+
+const readStreaksPolicy = (formData: FormData): EngagementPolicy["streaks"] => ({
+  enabled: booleanValue(formData, "streaks.enabled"),
+  milestones: readStreakMilestones(formData),
+  scanRewards: {
+    enabled: booleanValue(formData, "streaks.scanRewards.enabled"),
+  },
+});
+
+const updateEngagementPolicySection = async <K extends keyof EngagementPolicy>(
+  formData: FormData,
+  section: K,
+  value: EngagementPolicy[K],
+  redirectSection: string,
+) => {
+  await requireAdminSession();
+  const { policy } = await adminGet<{ policy: EngagementPolicy }>("/admin/engagement-policy");
+  const nextPolicy = {
+    ...policy,
+    [section]: value,
+    reason: stringValue(formData, "reason"),
+  };
+  await adminSend("/admin/engagement-policy", nextPolicy as unknown as Record<string, unknown>, {
+    idempotencyKey: readMutationKey(formData),
+    method: "PUT",
+  });
+  revalidatePath("/growth");
+  redirect(`/growth?section=${redirectSection}`);
+};
 
 const readNotificationScenario = (
   formData: FormData,

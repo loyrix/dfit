@@ -1,6 +1,13 @@
 import { AdminShell } from "../components/shell";
 import { Badge, PageHeader, SectionTabs } from "../components/ui";
-import { sendPushNotificationAction, updateEngagementPolicyAction } from "../lib/actions";
+import {
+  sendPushNotificationAction,
+  updateEngagementAnalyticsAction,
+  updateInterstitialAdsAction,
+  updateNotificationsAction,
+  updateReviewPromptAction,
+  updateStreaksAction,
+} from "../lib/actions";
 import {
   adminGet,
   type EngagementAnalyticsEvents,
@@ -46,6 +53,8 @@ type GrowthControlsSearchParams = {
   message?: string;
 };
 
+type GrowthSection = "analytics" | "review" | "ads" | "notifications" | "streaks" | "push";
+
 export default async function GrowthControlsPage({
   searchParams,
 }: {
@@ -53,7 +62,7 @@ export default async function GrowthControlsPage({
 }) {
   const params = (await searchParams) ?? {};
   const { policy } = await adminGet<{ policy: EngagementPolicy }>("/admin/engagement-policy");
-  const section = params.section === "push" ? "push" : "policy";
+  const section = normalizeGrowthSection(params.section);
 
   return (
     <AdminShell>
@@ -84,10 +93,34 @@ export default async function GrowthControlsPage({
       <SectionTabs
         items={[
           {
-            href: "/growth",
-            label: "Growth policy",
-            detail: "Analytics, reviews, ads, streaks, reminders",
-            active: section === "policy",
+            href: "/growth?section=analytics",
+            label: "Analytics",
+            detail: "Firebase measurement gates",
+            active: section === "analytics",
+          },
+          {
+            href: "/growth?section=review",
+            label: "Review prompt",
+            detail: "Store review eligibility",
+            active: section === "review",
+          },
+          {
+            href: "/growth?section=ads",
+            label: "Interstitial ads",
+            detail: "Ad caps and unit ids",
+            active: section === "ads",
+          },
+          {
+            href: "/growth?section=notifications",
+            label: "Push reminders",
+            detail: "Meal reminder scenarios",
+            active: section === "notifications",
+          },
+          {
+            href: "/growth?section=streaks",
+            label: "Streaks",
+            detail: "Milestones and rewards",
+            active: section === "streaks",
           },
           {
             href: "/growth?section=push",
@@ -98,129 +131,125 @@ export default async function GrowthControlsPage({
         ]}
       />
 
-      {section === "policy" ? (
-        <form action={updateEngagementPolicyAction} className="grid gap-4">
+      {section === "analytics" ? (
+        <form action={updateEngagementAnalyticsAction} className="focused-page">
           <input
             name="idempotencyKey"
             type="hidden"
-            value={createMutationKey("engagement-policy:update")}
+            value={createMutationKey("engagement-policy:analytics:update")}
           />
+          <AnalyticsPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save analytics policy"
+            placeholder="Why analytics measurement is changing"
+          />
+        </form>
+      ) : null}
 
-          <section className="grid two-col">
-            <AnalyticsPanel policy={policy} />
-            <ReviewPromptPanel policy={policy} />
-          </section>
+      {section === "review" ? (
+        <form action={updateReviewPromptAction} className="focused-page">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:review:update")}
+          />
+          <ReviewPromptPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save review prompt"
+            placeholder="Why review prompt rules or copy are changing"
+          />
+        </form>
+      ) : null}
 
-          <section className="grid two-col">
-            <InterstitialAdsPanel policy={policy} />
-            <StreaksPanel policy={policy} />
-          </section>
+      {section === "ads" ? (
+        <form action={updateInterstitialAdsAction} className="focused-page">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:ads:update")}
+          />
+          <InterstitialAdsPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save interstitial ads"
+            placeholder="Why ad policy or ad unit ids are changing"
+          />
+        </form>
+      ) : null}
 
-          <section className="panel">
-            <div className="section-head">
-              <div>
-                <h2 className="text-xl font-bold">FCM push reminders</h2>
-                <p className="muted mt-1 text-sm">
-                  Message timing and copy for backend-sent meal reminders.
-                </p>
-              </div>
-              <Badge tone={policy.notifications.enabled ? "green" : "red"}>
-                {policy.notifications.enabled ? "Enabled" : "Disabled"}
-              </Badge>
-            </div>
+      {section === "notifications" ? (
+        <form action={updateNotificationsAction} className="focused-page">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:notifications:update")}
+          />
+          <NotificationsPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save push reminders"
+            placeholder="Why push reminder timing or copy is changing"
+          />
+        </form>
+      ) : null}
 
-            <div className="form-grid mt-4">
-              <label className="inline-controls">
-                <input
-                  name="notifications.enabled"
-                  type="checkbox"
-                  defaultChecked={policy.notifications.enabled}
-                />
-                Enable notification policy
-              </label>
-              <label>
-                <span className="font-semibold">Daily notification cap</span>
-                <input
-                  className="input mt-2"
-                  name="notifications.dailyCap"
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="1"
-                  defaultValue={policy.notifications.dailyCap}
-                  required
-                />
-              </label>
-              <div className="grid two-col">
-                <label>
-                  <span className="font-semibold">Quiet hours start</span>
-                  <input
-                    className="input mt-2"
-                    name="notifications.quietHours.start"
-                    type="time"
-                    defaultValue={policy.notifications.quietHours.start}
-                    required
-                  />
-                </label>
-                <label>
-                  <span className="font-semibold">Quiet hours end</span>
-                  <input
-                    className="input mt-2"
-                    name="notifications.quietHours.end"
-                    type="time"
-                    defaultValue={policy.notifications.quietHours.end}
-                    required
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div className="table-wrap mt-4">
-              <table className="table table-compact">
-                <thead>
-                  <tr>
-                    <th>Scenario</th>
-                    <th>Window</th>
-                    <th>Message</th>
-                    <th>Conditions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(Object.keys(scenarioLabels) as ScenarioKey[]).map((key) => (
-                    <NotificationScenarioRow
-                      key={key}
-                      scenarioKey={key}
-                      scenario={policy.notifications.scenarios[key]}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="panel">
-            <label className="block">
-              <span className="font-semibold">Reason</span>
-              <input
-                className="input mt-2"
-                name="reason"
-                placeholder="Why this engagement policy is changing"
-                minLength={8}
-                maxLength={500}
-                required
-              />
-            </label>
-            <div className="mt-4 flex justify-end">
-              <button className="button" type="submit">
-                Save growth controls
-              </button>
-            </div>
-          </section>
+      {section === "streaks" ? (
+        <form action={updateStreaksAction} className="focused-page">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:streaks:update")}
+          />
+          <StreaksPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save streak policy"
+            placeholder="Why streak milestones or rewards are changing"
+          />
         </form>
       ) : null}
 
       {section === "push" ? <ManualPushPanel /> : null}
     </AdminShell>
+  );
+}
+
+function normalizeGrowthSection(value: string | undefined): GrowthSection {
+  if (
+    value === "review" ||
+    value === "ads" ||
+    value === "notifications" ||
+    value === "streaks" ||
+    value === "push"
+  ) {
+    return value;
+  }
+  return "analytics";
+}
+
+function SectionSavePanel({
+  buttonLabel,
+  placeholder,
+}: {
+  buttonLabel: string;
+  placeholder: string;
+}) {
+  return (
+    <section className="panel">
+      <label className="block">
+        <span className="font-semibold">Reason</span>
+        <input
+          className="input mt-2"
+          name="reason"
+          placeholder={placeholder}
+          minLength={8}
+          maxLength={500}
+          required
+        />
+      </label>
+      <div className="mt-4 flex justify-end">
+        <button className="button" type="submit">
+          {buttonLabel}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -569,6 +598,92 @@ function InterstitialAdsPanel({ policy }: { policy: EngagementPolicy }) {
         />
       </div>
     </div>
+  );
+}
+
+function NotificationsPanel({ policy }: { policy: EngagementPolicy }) {
+  return (
+    <section className="panel">
+      <div className="section-head">
+        <div>
+          <h2 className="text-xl font-bold">FCM push reminders</h2>
+          <p className="muted mt-1 text-sm">
+            Message timing and copy for backend-sent meal reminders.
+          </p>
+        </div>
+        <Badge tone={policy.notifications.enabled ? "green" : "red"}>
+          {policy.notifications.enabled ? "Enabled" : "Disabled"}
+        </Badge>
+      </div>
+
+      <div className="form-grid mt-4">
+        <label className="inline-controls">
+          <input
+            name="notifications.enabled"
+            type="checkbox"
+            defaultChecked={policy.notifications.enabled}
+          />
+          Enable notification policy
+        </label>
+        <label>
+          <span className="font-semibold">Daily notification cap</span>
+          <input
+            className="input mt-2"
+            name="notifications.dailyCap"
+            type="number"
+            min="0"
+            max="10"
+            step="1"
+            defaultValue={policy.notifications.dailyCap}
+            required
+          />
+        </label>
+        <div className="grid two-col">
+          <label>
+            <span className="font-semibold">Quiet hours start</span>
+            <input
+              className="input mt-2"
+              name="notifications.quietHours.start"
+              type="time"
+              defaultValue={policy.notifications.quietHours.start}
+              required
+            />
+          </label>
+          <label>
+            <span className="font-semibold">Quiet hours end</span>
+            <input
+              className="input mt-2"
+              name="notifications.quietHours.end"
+              type="time"
+              defaultValue={policy.notifications.quietHours.end}
+              required
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="table-wrap mt-4">
+        <table className="table table-compact">
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Window</th>
+              <th>Message</th>
+              <th>Conditions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(Object.keys(scenarioLabels) as ScenarioKey[]).map((key) => (
+              <NotificationScenarioRow
+                key={key}
+                scenarioKey={key}
+                scenario={policy.notifications.scenarios[key]}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

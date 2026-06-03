@@ -28,7 +28,11 @@ const navGroups = [
   {
     label: "Growth",
     items: [
-      { href: "/growth", label: "Growth Policy" },
+      { href: "/growth?section=analytics", label: "Analytics" },
+      { href: "/growth?section=review", label: "Review Prompt" },
+      { href: "/growth?section=ads", label: "Interstitial Ads" },
+      { href: "/growth?section=notifications", label: "Push Reminders" },
+      { href: "/growth?section=streaks", label: "Streaks" },
       { href: "/growth?section=push", label: "Manual Push" },
     ],
   },
@@ -46,7 +50,7 @@ const navGroups = [
 const defaultSections: Record<string, string> = {
   "/ai": "models",
   "/flags": "flags",
-  "/growth": "policy",
+  "/growth": "analytics",
 };
 
 export function AdminNav() {
@@ -72,8 +76,12 @@ export function AdminNav() {
       </div>
 
       {navGroups.map((group) => (
-        <div className="nav-section" key={group.label}>
-          <div className="nav-section-label">{group.label}</div>
+        <details
+          className="nav-section nav-dropdown"
+          key={group.label}
+          open={group.items.some(({ href }) => isActivePath(pathname, searchParams, href))}
+        >
+          <summary className="nav-section-label">{group.label}</summary>
           <div className="grid gap-1">
             {group.items.map(({ href, label }) => {
               const active = isActivePath(pathname, searchParams, href);
@@ -89,7 +97,7 @@ export function AdminNav() {
               );
             })}
           </div>
-        </div>
+        </details>
       ))}
     </nav>
   );
