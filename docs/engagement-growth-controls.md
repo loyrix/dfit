@@ -66,10 +66,25 @@ behavior is added in later phases.
   - `pnpm --filter @logmyplate/api typecheck`
   - `pnpm --filter @logmyplate/admin typecheck`
 
+## Phase 3: Review Prompt Mobile Runtime
+
+- Status: implemented locally, pending deployment and mobile release.
+- Runtime policy section: `engagement_policy.reviewPrompt`.
+- Default behavior: disabled.
+- Mobile behavior:
+  - Confirmed AI scans are counted locally after successful scan confirmation.
+  - Manual meals do not count toward review prompt eligibility.
+  - The prompt only appears when the backoffice policy is enabled and local
+    eligibility passes confirmed scan count, active day count, cooldown, and
+    once-per-app-version gates.
+  - Store URLs and prompt copy come from Growth Controls.
+  - Missing or invalid store URLs suppress the prompt instead of breaking scan
+    confirmation.
+  - Legacy bootstrap payloads continue to parse with disabled review prompt
+    defaults.
+
 ## Next-Phase Readiness
 
-- Phase 3: interstitial ads read placement, caps, cooldown, and ad unit ids.
-- Phase 4: native review prompt reads eligibility, copy, cooldown, and store
-  URLs.
+- Phase 4: interstitial ads read placement, caps, cooldown, and ad unit ids.
 - Phase 5: local notifications read scenarios, quiet hours, copy, and daily cap.
 - Phase 6: streaks read milestones and scan reward settings.

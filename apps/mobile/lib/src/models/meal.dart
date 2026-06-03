@@ -937,10 +937,146 @@ class EngagementAnalyticsPolicy {
   }
 }
 
+class EngagementReviewPromptCopy {
+  const EngagementReviewPromptCopy({
+    this.title = 'Enjoying LogMyPlate?',
+    this.body =
+        'A quick review helps more people discover simple meal tracking.',
+    this.positiveLabel = 'Rate LogMyPlate',
+    this.negativeLabel = 'Not now',
+  });
+
+  final String title;
+  final String body;
+  final String positiveLabel;
+  final String negativeLabel;
+
+  factory EngagementReviewPromptCopy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementReviewPromptCopy();
+    return EngagementReviewPromptCopy(
+      title: _stringValue(json['title'], fallback: 'Enjoying LogMyPlate?'),
+      body: _stringValue(
+        json['body'],
+        fallback:
+            'A quick review helps more people discover simple meal tracking.',
+      ),
+      positiveLabel: _stringValue(
+        json['positiveLabel'],
+        fallback: 'Rate LogMyPlate',
+      ),
+      negativeLabel: _stringValue(json['negativeLabel'], fallback: 'Not now'),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'body': body,
+      'positiveLabel': positiveLabel,
+      'negativeLabel': negativeLabel,
+    };
+  }
+}
+
+class EngagementStoreUrls {
+  const EngagementStoreUrls({
+    this.ios = 'https://apps.apple.com/app/id6770872606',
+    this.android =
+        'https://play.google.com/store/apps/details?id=com.logmyplate.app',
+  });
+
+  final String? ios;
+  final String? android;
+
+  factory EngagementStoreUrls.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementStoreUrls();
+    return EngagementStoreUrls(
+      ios: _nullableString(json['ios']),
+      android: _nullableString(json['android']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'ios': ios, 'android': android};
+  }
+}
+
+class EngagementReviewPromptPolicy {
+  const EngagementReviewPromptPolicy({
+    this.enabled = false,
+    this.minConfirmedScans = 3,
+    this.minActiveDays = 2,
+    this.cooldownDays = 90,
+    this.oncePerAppVersion = true,
+    this.storeUrls = const EngagementStoreUrls(),
+    this.copy = const EngagementReviewPromptCopy(),
+  });
+
+  final bool enabled;
+  final int minConfirmedScans;
+  final int minActiveDays;
+  final int cooldownDays;
+  final bool oncePerAppVersion;
+  final EngagementStoreUrls storeUrls;
+  final EngagementReviewPromptCopy copy;
+
+  factory EngagementReviewPromptPolicy.disabled() {
+    return const EngagementReviewPromptPolicy();
+  }
+
+  factory EngagementReviewPromptPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return EngagementReviewPromptPolicy.disabled();
+    return EngagementReviewPromptPolicy(
+      enabled: _boolValue(json['enabled']),
+      minConfirmedScans: _boundedInt(
+        json['minConfirmedScans'],
+        fallback: 3,
+        min: 0,
+        max: 1000,
+      ),
+      minActiveDays: _boundedInt(
+        json['minActiveDays'],
+        fallback: 2,
+        min: 0,
+        max: 365,
+      ),
+      cooldownDays: _boundedInt(
+        json['cooldownDays'],
+        fallback: 90,
+        min: 1,
+        max: 365,
+      ),
+      oncePerAppVersion: _boolValue(json['oncePerAppVersion'], fallback: true),
+      storeUrls: EngagementStoreUrls.fromJson(
+        json['storeUrls'] as Map<String, dynamic>?,
+      ),
+      copy: EngagementReviewPromptCopy.fromJson(
+        json['copy'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'minConfirmedScans': minConfirmedScans,
+      'minActiveDays': minActiveDays,
+      'cooldownDays': cooldownDays,
+      'oncePerAppVersion': oncePerAppVersion,
+      'storeUrls': storeUrls.toJson(),
+      'copy': copy.toJson(),
+    };
+  }
+}
+
 class EngagementPolicy {
-  const EngagementPolicy({this.analytics = const EngagementAnalyticsPolicy()});
+  const EngagementPolicy({
+    this.analytics = const EngagementAnalyticsPolicy(),
+    this.reviewPrompt = const EngagementReviewPromptPolicy(),
+  });
 
   final EngagementAnalyticsPolicy analytics;
+  final EngagementReviewPromptPolicy reviewPrompt;
 
   factory EngagementPolicy.disabled() {
     return const EngagementPolicy();
@@ -952,11 +1088,17 @@ class EngagementPolicy {
       analytics: EngagementAnalyticsPolicy.fromJson(
         json['analytics'] as Map<String, dynamic>?,
       ),
+      reviewPrompt: EngagementReviewPromptPolicy.fromJson(
+        json['reviewPrompt'] as Map<String, dynamic>?,
+      ),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'analytics': analytics.toJson()};
+    return {
+      'analytics': analytics.toJson(),
+      'reviewPrompt': reviewPrompt.toJson(),
+    };
   }
 }
 
@@ -984,6 +1126,18 @@ bool _boolValue(Object? value, {bool fallback = false}) {
     if (normalized == 'false') return false;
   }
   return fallback;
+}
+
+String _stringValue(Object? value, {required String fallback}) {
+  if (value == null) return fallback;
+  final text = value.toString().trim();
+  return text.isEmpty ? fallback : text;
+}
+
+String? _nullableString(Object? value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
 }
 
 int _boundedInt(

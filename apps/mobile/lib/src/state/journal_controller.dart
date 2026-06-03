@@ -30,6 +30,7 @@ class JournalController extends ChangeNotifier {
   RewardedAdProgress _rewardedAdProgress = RewardedAdProgress.initial();
   HealthTarget? _healthTarget;
   AppUpdatePolicy _updatePolicy = AppUpdatePolicy.current();
+  EngagementPolicy _engagementPolicy = EngagementPolicy.disabled();
   JournalRangeData? _weeklyRange;
   DateTime? _lastLoadedAt;
 
@@ -41,6 +42,7 @@ class JournalController extends ChangeNotifier {
   RewardedAdProgress get rewardedAdProgress => _rewardedAdProgress;
   HealthTarget? get healthTarget => _healthTarget;
   AppUpdatePolicy get updatePolicy => _updatePolicy;
+  EngagementPolicy get engagementPolicy => _engagementPolicy;
   MacroTotals? get dailyTarget =>
       _healthTarget?.dailyTargetTotals ?? _weeklyRange?.target;
   JournalRangeData? get weeklyRange => _weeklyRange;
@@ -57,6 +59,7 @@ class JournalController extends ChangeNotifier {
     _rewardedAdProgress = RewardedAdProgress.initial();
     _healthTarget = null;
     _updatePolicy = AppUpdatePolicy.current();
+    _engagementPolicy = EngagementPolicy.disabled();
     _weeklyRange = null;
     _lastLoadedAt = null;
     notifyListeners();
@@ -348,6 +351,7 @@ class JournalController extends ChangeNotifier {
     _totals = bootstrap.today.totals;
     _healthTarget = bootstrap.healthTarget;
     _updatePolicy = bootstrap.updatePolicy;
+    _engagementPolicy = bootstrap.engagementPolicy;
     _weeklyRange = bootstrap.weeklyRange;
     _quota = bootstrap.quota;
     _rewardedAdProgress = bootstrap.rewardedAdProgress;

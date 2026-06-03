@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:app_links/app_links.dart' as platform_links;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,9 +24,12 @@ import 'screens/review_meal_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'services/app_build_info.dart';
+import 'services/app_diagnostics.dart';
 import 'services/app_links.dart';
 import 'services/logmyplate_analytics.dart';
 import 'services/logmyplate_api_client.dart';
+import 'services/review_prompt_store.dart';
 import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
@@ -41,15 +45,21 @@ class LogMyPlateApp extends StatefulWidget {
     JournalController? journalController,
     RewardedAdGateway? rewardedAdGateway,
     LogMyPlateAnalytics? analytics,
+    ReviewPromptStore? reviewPromptStore,
+    AppBuildInfoStore? appBuildInfoStore,
   }) : _authController = authController,
        _journalController = journalController,
        _rewardedAdGateway = rewardedAdGateway,
-       _analytics = analytics;
+       _analytics = analytics,
+       _reviewPromptStore = reviewPromptStore,
+       _appBuildInfoStore = appBuildInfoStore;
 
   final AuthController? _authController;
   final JournalController? _journalController;
   final RewardedAdGateway? _rewardedAdGateway;
   final LogMyPlateAnalytics? _analytics;
+  final ReviewPromptStore? _reviewPromptStore;
+  final AppBuildInfoStore? _appBuildInfoStore;
 
   @override
   State<LogMyPlateApp> createState() => _LogMyPlateAppState();
@@ -68,6 +78,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._journalController ?? JournalController(analytics: _analytics);
   late final RewardedAdGateway _rewardedAds =
       widget._rewardedAdGateway ?? GoogleRewardedAdService();
+  late final ReviewPromptStore _reviewPromptStore =
+      widget._reviewPromptStore ?? ReviewPromptStore();
+  late final AppBuildInfoStore _appBuildInfoStore =
+      widget._appBuildInfoStore ?? AppBuildInfoStore();
   late final platform_links.AppLinks _incomingLinks = platform_links.AppLinks();
   StreamSubscription<Uri>? _incomingLinkSubscription;
   ThemeMode _themeMode = ThemeMode.dark;
@@ -524,6 +538,74 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       title: 'Scan saved',
       message: 'Your meal log is ready.',
     );
+    unawaited(_maybeShowReviewPromptAfterConfirmedScan());
+  }
+
+  Future<void> _maybeShowReviewPromptAfterConfirmedScan() async {
+    try {
+      final now = DateTime.now();
+      final stats = await _reviewPromptStore.recordConfirmedScan(now: now);
+      final policy = _journalController.engagementPolicy.reviewPrompt;
+      if (!policy.enabled) return;
+
+      final appBuild = await _appBuildInfoStore.load();
+      final appVersionKey = _reviewPromptVersionKey(appBuild);
+      if (!stats.isEligible(
+        policy: policy,
+        appVersionKey: appVersionKey,
+        now: now,
+      )) {
+        return;
+      }
+
+      final storeUrl = _reviewPromptStoreUrl(policy);
+      if (storeUrl == null) return;
+
+      await _reviewPromptStore.markPromptShown(
+        appVersionKey: appVersionKey,
+        now: now,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+
+      final context = _navigatorKey.currentContext;
+      if (context == null || !context.mounted) return;
+      final accepted = await showModalBottomSheet<bool>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _ReviewPromptSheet(policy: policy),
+      );
+      if (accepted != true || !context.mounted) return;
+
+      await openLogMyPlateLink(
+        context,
+        storeUrl,
+        copiedMessage: 'Store link copied',
+      );
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'review_prompt.after_scan_confirm',
+        error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  String _reviewPromptVersionKey(AppBuildInfo appBuild) {
+    final version = appBuild.version.trim();
+    final build = appBuild.buildNumber.trim();
+    if (version.isEmpty && build.isEmpty) return '';
+    if (build.isEmpty) return version;
+    if (version.isEmpty) return build;
+    return '$version+$build';
+  }
+
+  Uri? _reviewPromptStoreUrl(EngagementReviewPromptPolicy policy) {
+    final url = defaultTargetPlatform == TargetPlatform.android
+        ? policy.storeUrls.android
+        : policy.storeUrls.ios;
+    if (url == null || url.trim().isEmpty) return null;
+    return Uri.tryParse(url.trim());
   }
 
   void _replaceCurrentRouteWithMealDetail(MealLog meal) {
@@ -1802,6 +1884,98 @@ class _JournalTabLoadingScreen extends StatelessWidget {
 }
 
 enum _NoScanCreditsAction { watchAd, addManually, refresh }
+
+class _ReviewPromptSheet extends StatelessWidget {
+  const _ReviewPromptSheet({required this.policy});
+
+  final EngagementReviewPromptPolicy policy;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 24,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.favorite_rounded,
+                    color: colors.accentText,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        policy.copy.title,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        policy.copy.body,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textSecondary,
+                          height: 1.38,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.primaryAction,
+                foregroundColor: colors.primaryActionText,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(policy.copy.positiveLabel),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(policy.copy.negativeLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _NoScanCreditsSheet extends StatelessWidget {
   const _NoScanCreditsSheet({required this.progress});

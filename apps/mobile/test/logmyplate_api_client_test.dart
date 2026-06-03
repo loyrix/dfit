@@ -305,6 +305,24 @@ void main() {
                   'healthTargetSaved': true,
                 },
               },
+              'reviewPrompt': {
+                'enabled': true,
+                'minConfirmedScans': 4,
+                'minActiveDays': 3,
+                'cooldownDays': 45,
+                'oncePerAppVersion': true,
+                'storeUrls': {
+                  'ios': 'https://apps.apple.com/app/id6770872606',
+                  'android':
+                      'https://play.google.com/store/apps/details?id=com.logmyplate.app',
+                },
+                'copy': {
+                  'title': 'Enjoying LogMyPlate?',
+                  'body': 'A quick review helps us improve.',
+                  'positiveLabel': 'Rate now',
+                  'negativeLabel': 'Maybe later',
+                },
+              },
             },
             'today': {
               'date': '2026-05-12',
@@ -399,6 +417,18 @@ void main() {
       bootstrap.engagementPolicy.analytics.events.isEnabled('tab_selected'),
       isTrue,
     );
+    expect(bootstrap.engagementPolicy.reviewPrompt.enabled, isTrue);
+    expect(bootstrap.engagementPolicy.reviewPrompt.minConfirmedScans, 4);
+    expect(bootstrap.engagementPolicy.reviewPrompt.minActiveDays, 3);
+    expect(bootstrap.engagementPolicy.reviewPrompt.cooldownDays, 45);
+    expect(
+      bootstrap.engagementPolicy.reviewPrompt.storeUrls.android,
+      'https://play.google.com/store/apps/details?id=com.logmyplate.app',
+    );
+    expect(
+      bootstrap.engagementPolicy.reviewPrompt.copy.positiveLabel,
+      'Rate now',
+    );
     expect(bootstrap.today.target?.calories, 2238);
     expect(bootstrap.weeklyRange.target?.calories, 2238);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
@@ -451,6 +481,8 @@ void main() {
 
       expect(bootstrap.engagementPolicy.analytics.enabled, isFalse);
       expect(bootstrap.engagementPolicy.analytics.firebaseEnabled, isFalse);
+      expect(bootstrap.engagementPolicy.reviewPrompt.enabled, isFalse);
+      expect(bootstrap.engagementPolicy.reviewPrompt.minConfirmedScans, 3);
       expect(
         bootstrap.engagementPolicy.analytics.events.isEnabled('scan_started'),
         isTrue,
