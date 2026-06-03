@@ -136,6 +136,9 @@ behavior is added in later phases.
     daily cap, target requirements, target-reached suppression, and message
     copy.
   - Each scenario is sent at most once per user local day.
+  - Target setup can use a primary and secondary window, allowing up to two
+    target setup reminders per user local day when the user has not set a
+    target.
   - Invalid/unregistered FCM tokens are disabled after failed delivery.
   - Scheduler run and delivery history is retained for 14 days, then cleaned up
     by the runner.

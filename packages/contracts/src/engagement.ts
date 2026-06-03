@@ -83,6 +83,8 @@ const notificationScenarioPolicySchema = z.object({
   enabled: z.boolean().default(false),
   windowStart: timeOfDaySchema.default("12:00"),
   windowEnd: timeOfDaySchema.default("13:00"),
+  secondWindowStart: timeOfDaySchema.nullable().default(null),
+  secondWindowEnd: timeOfDaySchema.nullable().default(null),
   title: z.string().trim().min(3).max(120).default("Meal reminder"),
   body: z.string().trim().min(3).max(500).default("Log your meal when it fits."),
   requiresTarget: z.boolean().default(false),
@@ -130,6 +132,8 @@ export const engagementNotificationsPolicySchema = z.object({
       targetSetup: notificationScenarioPolicySchema.default({
         windowStart: "18:00",
         windowEnd: "19:00",
+        secondWindowStart: "11:00",
+        secondWindowEnd: "12:00",
         title: "Set your calorie target",
         body: "Set a target once so LogMyPlate can guide your day better.",
         onlyIfTargetNotReached: false,

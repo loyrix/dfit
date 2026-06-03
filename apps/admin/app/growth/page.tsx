@@ -722,6 +722,25 @@ function NotificationScenarioRow({
             required
           />
         </div>
+        {scenarioKey === "targetSetup" ? (
+          <div className="mt-3 grid gap-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+              Second window
+            </div>
+            <input
+              className="input"
+              name={`${prefix}.secondWindowStart`}
+              type="time"
+              defaultValue={scenario.secondWindowStart ?? "11:00"}
+            />
+            <input
+              className="input"
+              name={`${prefix}.secondWindowEnd`}
+              type="time"
+              defaultValue={scenario.secondWindowEnd ?? "12:00"}
+            />
+          </div>
+        ) : null}
       </td>
       <td>
         <div className="form-grid">

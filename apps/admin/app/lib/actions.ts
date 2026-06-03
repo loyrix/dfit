@@ -434,6 +434,14 @@ const readNotificationScenario = (
   enabled: booleanValue(formData, `notifications.scenarios.${key}.enabled`),
   windowStart: stringValue(formData, `notifications.scenarios.${key}.windowStart`),
   windowEnd: stringValue(formData, `notifications.scenarios.${key}.windowEnd`),
+  secondWindowStart:
+    key === "targetSetup"
+      ? nullableStringValue(formData, `notifications.scenarios.${key}.secondWindowStart`)
+      : null,
+  secondWindowEnd:
+    key === "targetSetup"
+      ? nullableStringValue(formData, `notifications.scenarios.${key}.secondWindowEnd`)
+      : null,
   title: stringValue(formData, `notifications.scenarios.${key}.title`),
   body: stringValue(formData, `notifications.scenarios.${key}.body`),
   requiresTarget: booleanValue(formData, `notifications.scenarios.${key}.requiresTarget`),

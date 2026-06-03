@@ -14,6 +14,7 @@ export const reminderScenarioKeys = [
 ] as const;
 
 export type ReminderScenarioKey = (typeof reminderScenarioKeys)[number];
+export type ReminderScenarioSlot = "primary" | "secondary";
 
 type ReminderToken = {
   id: string;
@@ -30,6 +31,7 @@ type ReminderMealSummary = {
 type SentReminderSummary = {
   localDate: string;
   scenarioKey: ReminderScenarioKey;
+  scenarioSlot?: ReminderScenarioSlot;
 };
 
 type ReminderCandidateRow = {
@@ -70,8 +72,10 @@ export type ReminderDecision =
   | {
       shouldSend: true;
       scenarioKey: ReminderScenarioKey;
+      scenarioSlot: ReminderScenarioSlot;
       title: string;
       body: string;
+      deeplink: string;
     }
   | {
       shouldSend: false;
@@ -201,12 +205,11 @@ export const selectDueReminder = (
   for (const scenarioKey of reminderScenarioKeys) {
     const scenario = notificationPolicy.scenarios[scenarioKey];
     if (!scenario.enabled) continue;
-    if (!isWithinTimeWindow(candidate.localTimeMinutes, scenario.windowStart, scenario.windowEnd)) {
-      continue;
-    }
-    if (candidate.sentScenarioKeys.has(scenarioKey)) {
+    const slotDecision = selectScenarioSlot(scenarioKey, scenario, candidate);
+    if (slotDecision.reason === "already_sent") {
       return { shouldSend: false, reason: "already_sent" };
     }
+    if (slotDecision.reason !== "due") continue;
     if (scenario.requiresTarget && !candidate.hasTarget) {
       return { shouldSend: false, reason: "target_required" };
     }
@@ -226,8 +229,10 @@ export const selectDueReminder = (
     return {
       shouldSend: true,
       scenarioKey,
+      scenarioSlot: slotDecision.slot,
       title: scenario.title,
       body: scenario.body,
+      deeplink: scenarioKey === "targetSetup" ? "logmyplate://target" : "logmyplate://",
     };
   }
 
@@ -268,6 +273,53 @@ export const isWithinTimeWindow = (
   if (start < end) return localMinutes >= start && localMinutes <= end;
   return localMinutes >= start || localMinutes <= end;
 };
+
+type SlotSelection =
+  | { reason: "due"; slot: ReminderScenarioSlot }
+  | { reason: "not_due" | "already_sent" };
+
+const selectScenarioSlot = (
+  scenarioKey: ReminderScenarioKey,
+  scenario: EngagementPolicyConfig["notifications"]["scenarios"][ReminderScenarioKey],
+  candidate: ReminderCandidate,
+): SlotSelection => {
+  const primaryDue = isWithinTimeWindow(
+    candidate.localTimeMinutes,
+    scenario.windowStart,
+    scenario.windowEnd,
+  );
+  if (scenarioKey !== "targetSetup") {
+    if (!primaryDue) return { reason: "not_due" };
+    return candidate.sentScenarioKeys.has(scenarioSendKey(scenarioKey, "primary"))
+      ? { reason: "already_sent" }
+      : { reason: "due", slot: "primary" };
+  }
+
+  if (primaryDue) {
+    return candidate.sentScenarioKeys.has(scenarioSendKey(scenarioKey, "primary"))
+      ? { reason: "already_sent" }
+      : { reason: "due", slot: "primary" };
+  }
+
+  if (
+    scenario.secondWindowStart &&
+    scenario.secondWindowEnd &&
+    isWithinTimeWindow(
+      candidate.localTimeMinutes,
+      scenario.secondWindowStart,
+      scenario.secondWindowEnd,
+    )
+  ) {
+    return candidate.sentScenarioKeys.has(scenarioSendKey(scenarioKey, "secondary"))
+      ? { reason: "already_sent" }
+      : { reason: "due", slot: "secondary" };
+  }
+
+  return { reason: "not_due" };
+};
+
+const scenarioSendKey = (scenarioKey: ReminderScenarioKey, slot: ReminderScenarioSlot): string =>
+  `${scenarioKey}:${slot}`;
 
 const emptySummary = (dryRun: boolean): ScheduledPushReminderSummary => ({
   runId: null,
@@ -387,7 +439,8 @@ const listReminderCandidates = async (
       select jsonb_agg(
         jsonb_build_object(
           'localDate', push_reminder_deliveries.local_date::text,
-          'scenarioKey', push_reminder_deliveries.scenario_key
+          'scenarioKey', push_reminder_deliveries.scenario_key,
+          'scenarioSlot', push_reminder_deliveries.scenario_slot
         )
       ) as sent_reminders
       from push_reminder_deliveries
@@ -424,7 +477,11 @@ const normalizeCandidate = (row: ReminderCandidateRow, now: Date): ReminderCandi
     dailyCalorieTarget: row.daily_calorie_target === null ? null : Number(row.daily_calorie_target),
     todayCalories: todaysMeals.reduce((sum, meal) => sum + Number(meal.calories ?? 0), 0),
     loggedMealTypes: new Set(todaysMeals.map((meal) => meal.mealType)),
-    sentScenarioKeys: new Set(todaysSentReminders.map((reminder) => reminder.scenarioKey)),
+    sentScenarioKeys: new Set(
+      todaysSentReminders.map((reminder) =>
+        scenarioSendKey(reminder.scenarioKey, reminder.scenarioSlot ?? "primary"),
+      ),
+    ),
     sentTodayCount: todaysSentReminders.length,
     tokens: parseTokens(row.tokens).slice(0, 3),
   };
@@ -443,6 +500,7 @@ const reserveReminderDelivery = async (
       run_id,
       profile_id,
       scenario_key,
+      scenario_slot,
       local_date,
       timezone,
       title,
@@ -453,6 +511,7 @@ const reserveReminderDelivery = async (
       ${input.runId},
       ${input.candidate.profileId},
       ${input.decision.scenarioKey},
+      ${input.decision.scenarioSlot},
       ${input.candidate.localDate},
       ${input.candidate.timezone},
       ${input.decision.title},
@@ -494,8 +553,9 @@ const sendReminderToCandidate = async (
         data: {
           source: "scheduled_reminder",
           scenario: decision.scenarioKey,
+          scenarioSlot: decision.scenarioSlot,
           localDate: candidate.localDate,
-          deeplink: "logmyplate://",
+          deeplink: decision.deeplink,
         },
       });
     } catch {

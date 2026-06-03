@@ -65,8 +65,10 @@ describe("push reminder scheduling", () => {
     expect(decision).toEqual({
       shouldSend: true,
       scenarioKey: "breakfast",
+      scenarioSlot: "primary",
       title: "Breakfast check-in",
       body: "Log breakfast now.",
+      deeplink: "logmyplate://",
     });
   });
 
@@ -112,5 +114,52 @@ describe("push reminder scheduling", () => {
     );
 
     expect(decision).toEqual({ shouldSend: false, reason: "target_reached" });
+  });
+
+  it("allows target setup once in each configured target setup window when target is missing", () => {
+    const policy = defaultEngagementPolicyConfig();
+    policy.notifications.enabled = true;
+    policy.notifications.scenarios.targetSetup.enabled = true;
+    policy.notifications.scenarios.targetSetup.windowStart = "11:00";
+    policy.notifications.scenarios.targetSetup.windowEnd = "12:00";
+    policy.notifications.scenarios.targetSetup.secondWindowStart = "18:00";
+    policy.notifications.scenarios.targetSetup.secondWindowEnd = "19:00";
+
+    expect(
+      selectDueReminder(
+        policy,
+        candidate({
+          hasTarget: false,
+          dailyCalorieTarget: null,
+          localTimeMinutes: 11 * 60 + 15,
+        }),
+      ),
+    ).toEqual({
+      shouldSend: true,
+      scenarioKey: "targetSetup",
+      scenarioSlot: "primary",
+      title: "Set your calorie target",
+      body: "Set a target once so LogMyPlate can guide your day better.",
+      deeplink: "logmyplate://target",
+    });
+
+    expect(
+      selectDueReminder(
+        policy,
+        candidate({
+          hasTarget: false,
+          dailyCalorieTarget: null,
+          localTimeMinutes: 18 * 60 + 15,
+          sentScenarioKeys: new Set(["targetSetup:primary"]),
+        }),
+      ),
+    ).toEqual({
+      shouldSend: true,
+      scenarioKey: "targetSetup",
+      scenarioSlot: "secondary",
+      title: "Set your calorie target",
+      body: "Set a target once so LogMyPlate can guide your day better.",
+      deeplink: "logmyplate://target",
+    });
   });
 });

@@ -390,6 +390,8 @@ export type EngagementNotificationScenario = {
   enabled: boolean;
   windowStart: string;
   windowEnd: string;
+  secondWindowStart?: string | null;
+  secondWindowEnd?: string | null;
   title: string;
   body: string;
   requiresTarget: boolean;

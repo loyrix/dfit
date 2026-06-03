@@ -2496,6 +2496,16 @@ components:
         windowEnd:
           type: string
           pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+        secondWindowStart:
+          type: string
+          nullable: true
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+          description: Optional secondary reminder window. Only target setup currently uses this.
+        secondWindowEnd:
+          type: string
+          nullable: true
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+          description: Optional secondary reminder window. Only target setup currently uses this.
         title:
           type: string
           minLength: 3
