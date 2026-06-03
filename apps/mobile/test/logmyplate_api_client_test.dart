@@ -323,6 +323,19 @@ void main() {
                   'negativeLabel': 'Maybe later',
                 },
               },
+              'interstitialAds': {
+                'enabled': true,
+                'freeUsersOnly': true,
+                'premiumExcluded': true,
+                'minConfirmedScansBeforeFirstAd': 3,
+                'scansBetweenAds': 4,
+                'cooldownMinutes': 15,
+                'dailyCap': 2,
+                'adUnitIds': {
+                  'ios': 'ca-app-pub-123/ios-interstitial',
+                  'android': 'ca-app-pub-123/android-interstitial',
+                },
+              },
             },
             'today': {
               'date': '2026-05-12',
@@ -429,6 +442,18 @@ void main() {
       bootstrap.engagementPolicy.reviewPrompt.copy.positiveLabel,
       'Rate now',
     );
+    expect(bootstrap.engagementPolicy.interstitialAds.enabled, isTrue);
+    expect(
+      bootstrap.engagementPolicy.interstitialAds.minConfirmedScansBeforeFirstAd,
+      3,
+    );
+    expect(bootstrap.engagementPolicy.interstitialAds.scansBetweenAds, 4);
+    expect(bootstrap.engagementPolicy.interstitialAds.cooldownMinutes, 15);
+    expect(bootstrap.engagementPolicy.interstitialAds.dailyCap, 2);
+    expect(
+      bootstrap.engagementPolicy.interstitialAds.adUnitIds.ios,
+      'ca-app-pub-123/ios-interstitial',
+    );
     expect(bootstrap.today.target?.calories, 2238);
     expect(bootstrap.weeklyRange.target?.calories, 2238);
     expect(bootstrap.today.meals.single.title, 'Dal rice');
@@ -483,6 +508,8 @@ void main() {
       expect(bootstrap.engagementPolicy.analytics.firebaseEnabled, isFalse);
       expect(bootstrap.engagementPolicy.reviewPrompt.enabled, isFalse);
       expect(bootstrap.engagementPolicy.reviewPrompt.minConfirmedScans, 3);
+      expect(bootstrap.engagementPolicy.interstitialAds.enabled, isFalse);
+      expect(bootstrap.engagementPolicy.interstitialAds.dailyCap, 3);
       expect(
         bootstrap.engagementPolicy.analytics.events.isEnabled('scan_started'),
         isTrue,

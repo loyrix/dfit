@@ -27,6 +27,7 @@ import 'screens/welcome_screen.dart';
 import 'services/app_build_info.dart';
 import 'services/app_diagnostics.dart';
 import 'services/app_links.dart';
+import 'services/interstitial_ad_store.dart';
 import 'services/logmyplate_analytics.dart';
 import 'services/logmyplate_api_client.dart';
 import 'services/review_prompt_store.dart';
@@ -44,21 +45,27 @@ class LogMyPlateApp extends StatefulWidget {
     AuthController? authController,
     JournalController? journalController,
     RewardedAdGateway? rewardedAdGateway,
+    InterstitialAdGateway? interstitialAdGateway,
     LogMyPlateAnalytics? analytics,
     ReviewPromptStore? reviewPromptStore,
+    InterstitialAdStore? interstitialAdStore,
     AppBuildInfoStore? appBuildInfoStore,
   }) : _authController = authController,
        _journalController = journalController,
        _rewardedAdGateway = rewardedAdGateway,
+       _interstitialAdGateway = interstitialAdGateway,
        _analytics = analytics,
        _reviewPromptStore = reviewPromptStore,
+       _interstitialAdStore = interstitialAdStore,
        _appBuildInfoStore = appBuildInfoStore;
 
   final AuthController? _authController;
   final JournalController? _journalController;
   final RewardedAdGateway? _rewardedAdGateway;
+  final InterstitialAdGateway? _interstitialAdGateway;
   final LogMyPlateAnalytics? _analytics;
   final ReviewPromptStore? _reviewPromptStore;
+  final InterstitialAdStore? _interstitialAdStore;
   final AppBuildInfoStore? _appBuildInfoStore;
 
   @override
@@ -78,8 +85,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._journalController ?? JournalController(analytics: _analytics);
   late final RewardedAdGateway _rewardedAds =
       widget._rewardedAdGateway ?? GoogleRewardedAdService();
+  late final InterstitialAdGateway _interstitialAds =
+      widget._interstitialAdGateway ?? GoogleInterstitialAdService();
   late final ReviewPromptStore _reviewPromptStore =
       widget._reviewPromptStore ?? ReviewPromptStore();
+  late final InterstitialAdStore _interstitialAdStore =
+      widget._interstitialAdStore ?? InterstitialAdStore();
   late final AppBuildInfoStore _appBuildInfoStore =
       widget._appBuildInfoStore ?? AppBuildInfoStore();
   late final platform_links.AppLinks _incomingLinks = platform_links.AppLinks();
@@ -112,6 +123,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     _authController.removeListener(_handleAccessStateChanged);
     _journalController.removeListener(_handleAccessStateChanged);
     _rewardedAds.dispose();
+    _interstitialAds.dispose();
     _authController.dispose();
     _journalController.dispose();
     super.dispose();
@@ -538,15 +550,21 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       title: 'Scan saved',
       message: 'Your meal log is ready.',
     );
-    unawaited(_maybeShowReviewPromptAfterConfirmedScan());
+    unawaited(_runPostConfirmGrowthPrompts());
   }
 
-  Future<void> _maybeShowReviewPromptAfterConfirmedScan() async {
+  Future<void> _runPostConfirmGrowthPrompts() async {
+    final reviewPromptShown = await _maybeShowReviewPromptAfterConfirmedScan();
+    if (reviewPromptShown) return;
+    await _maybeShowInterstitialAfterConfirmedScan();
+  }
+
+  Future<bool> _maybeShowReviewPromptAfterConfirmedScan() async {
     try {
       final now = DateTime.now();
       final stats = await _reviewPromptStore.recordConfirmedScan(now: now);
       final policy = _journalController.engagementPolicy.reviewPrompt;
-      if (!policy.enabled) return;
+      if (!policy.enabled) return false;
 
       final appBuild = await _appBuildInfoStore.load();
       final appVersionKey = _reviewPromptVersionKey(appBuild);
@@ -555,36 +573,79 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         appVersionKey: appVersionKey,
         now: now,
       )) {
-        return;
+        return false;
       }
 
       final storeUrl = _reviewPromptStoreUrl(policy);
-      if (storeUrl == null) return;
+      if (storeUrl == null) return false;
 
       await _reviewPromptStore.markPromptShown(
         appVersionKey: appVersionKey,
         now: now,
       );
       await Future<void>.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
+      if (!mounted) return false;
 
       final context = _navigatorKey.currentContext;
-      if (context == null || !context.mounted) return;
+      if (context == null || !context.mounted) return false;
       final accepted = await showModalBottomSheet<bool>(
         context: context,
         backgroundColor: Colors.transparent,
         builder: (_) => _ReviewPromptSheet(policy: policy),
       );
-      if (accepted != true || !context.mounted) return;
+      if (accepted != true || !context.mounted) return true;
 
       await openLogMyPlateLink(
         context,
         storeUrl,
         copiedMessage: 'Store link copied',
       );
+      return true;
     } catch (error, stackTrace) {
       AppDiagnostics.instance.record(
         'review_prompt.after_scan_confirm',
+        error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  Future<void> _maybeShowInterstitialAfterConfirmedScan() async {
+    try {
+      final now = DateTime.now();
+      final stats = await _interstitialAdStore.recordConfirmedScan(now: now);
+      final policy = _journalController.engagementPolicy.interstitialAds;
+      if (!policy.enabled) return;
+
+      final quota = _journalController.quota;
+      final isPremiumUser = (quota?.premiumRemaining ?? 0) > 0;
+      if (!stats.isEligible(
+        policy: policy,
+        isPremiumUser: isPremiumUser,
+        now: now,
+      )) {
+        return;
+      }
+
+      final adUnitId = _interstitialAdUnitId(policy);
+      if (adUnitId.isEmpty) return;
+
+      await Future<void>.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
+
+      final outcome = await _interstitialAds.showPostConfirmAd(
+        adUnitId: adUnitId,
+      );
+      if (!outcome.shown) return;
+
+      await _interstitialAdStore.markShown(
+        confirmedScanCount: stats.confirmedScans,
+        now: DateTime.now(),
+      );
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'interstitial_ad.after_scan_confirm',
         error,
         stackTrace: stackTrace,
       );
@@ -606,6 +667,15 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         : policy.storeUrls.ios;
     if (url == null || url.trim().isEmpty) return null;
     return Uri.tryParse(url.trim());
+  }
+
+  String _interstitialAdUnitId(EngagementInterstitialAdsPolicy policy) {
+    final configured = defaultTargetPlatform == TargetPlatform.android
+        ? policy.adUnitIds.android
+        : policy.adUnitIds.ios;
+    final configuredAdUnitId = configured?.trim() ?? '';
+    if (configuredAdUnitId.isNotEmpty) return configuredAdUnitId;
+    return LogMyPlateAdConfig.interstitialAdUnitId;
   }
 
   void _replaceCurrentRouteWithMealDetail(MealLog meal) {

@@ -68,7 +68,7 @@ behavior is added in later phases.
 
 ## Phase 3: Review Prompt Mobile Runtime
 
-- Status: implemented locally, pending deployment and mobile release.
+- Status: implemented and verified, pending mobile release.
 - Runtime policy section: `engagement_policy.reviewPrompt`.
 - Default behavior: disabled.
 - Mobile behavior:
@@ -83,8 +83,26 @@ behavior is added in later phases.
   - Legacy bootstrap payloads continue to parse with disabled review prompt
     defaults.
 
+## Phase 4: Interstitial Ads Mobile Runtime
+
+- Status: implemented locally, pending deployment and mobile release.
+- Runtime policy section: `engagement_policy.interstitialAds`.
+- Default behavior: disabled.
+- Mobile behavior:
+  - Confirmed AI scans are counted locally after successful scan confirmation.
+  - Manual meals do not count toward interstitial placement eligibility.
+  - Review prompts take priority; interstitials are skipped on scans where a
+    review prompt is shown.
+  - The app checks first-ad threshold, scans-between-ads spacing, cooldown,
+    daily cap, and premium exclusion before attempting to show an ad.
+  - Platform ad unit IDs come from Growth Controls first, then dart defines.
+  - Debug/simulator builds can use Google test interstitial IDs.
+  - Release builds do not fall back to test interstitial IDs; missing production
+    IDs suppress the ad without affecting scan confirmation.
+  - Ad load/show failures are diagnostics-only and do not interrupt the saved
+    meal flow.
+
 ## Next-Phase Readiness
 
-- Phase 4: interstitial ads read placement, caps, cooldown, and ad unit ids.
 - Phase 5: local notifications read scenarios, quiet hours, copy, and daily cap.
 - Phase 6: streaks read milestones and scan reward settings.

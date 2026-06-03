@@ -1069,14 +1069,105 @@ class EngagementReviewPromptPolicy {
   }
 }
 
+class EngagementAdUnitIds {
+  const EngagementAdUnitIds({this.ios, this.android});
+
+  final String? ios;
+  final String? android;
+
+  factory EngagementAdUnitIds.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementAdUnitIds();
+    return EngagementAdUnitIds(
+      ios: _nullableString(json['ios']),
+      android: _nullableString(json['android']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'ios': ios, 'android': android};
+  }
+}
+
+class EngagementInterstitialAdsPolicy {
+  const EngagementInterstitialAdsPolicy({
+    this.enabled = false,
+    this.freeUsersOnly = true,
+    this.premiumExcluded = true,
+    this.minConfirmedScansBeforeFirstAd = 2,
+    this.scansBetweenAds = 2,
+    this.cooldownMinutes = 10,
+    this.dailyCap = 3,
+    this.adUnitIds = const EngagementAdUnitIds(),
+  });
+
+  final bool enabled;
+  final bool freeUsersOnly;
+  final bool premiumExcluded;
+  final int minConfirmedScansBeforeFirstAd;
+  final int scansBetweenAds;
+  final int cooldownMinutes;
+  final int dailyCap;
+  final EngagementAdUnitIds adUnitIds;
+
+  factory EngagementInterstitialAdsPolicy.disabled() {
+    return const EngagementInterstitialAdsPolicy();
+  }
+
+  factory EngagementInterstitialAdsPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return EngagementInterstitialAdsPolicy.disabled();
+    return EngagementInterstitialAdsPolicy(
+      enabled: _boolValue(json['enabled']),
+      freeUsersOnly: _boolValue(json['freeUsersOnly'], fallback: true),
+      premiumExcluded: _boolValue(json['premiumExcluded'], fallback: true),
+      minConfirmedScansBeforeFirstAd: _boundedInt(
+        json['minConfirmedScansBeforeFirstAd'],
+        fallback: 2,
+        min: 0,
+        max: 1000,
+      ),
+      scansBetweenAds: _boundedInt(
+        json['scansBetweenAds'],
+        fallback: 2,
+        min: 1,
+        max: 1000,
+      ),
+      cooldownMinutes: _boundedInt(
+        json['cooldownMinutes'],
+        fallback: 10,
+        min: 0,
+        max: 1440,
+      ),
+      dailyCap: _boundedInt(json['dailyCap'], fallback: 3, min: 0, max: 100),
+      adUnitIds: EngagementAdUnitIds.fromJson(
+        json['adUnitIds'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'freeUsersOnly': freeUsersOnly,
+      'premiumExcluded': premiumExcluded,
+      'minConfirmedScansBeforeFirstAd': minConfirmedScansBeforeFirstAd,
+      'scansBetweenAds': scansBetweenAds,
+      'cooldownMinutes': cooldownMinutes,
+      'dailyCap': dailyCap,
+      'adUnitIds': adUnitIds.toJson(),
+    };
+  }
+}
+
 class EngagementPolicy {
   const EngagementPolicy({
     this.analytics = const EngagementAnalyticsPolicy(),
     this.reviewPrompt = const EngagementReviewPromptPolicy(),
+    this.interstitialAds = const EngagementInterstitialAdsPolicy(),
   });
 
   final EngagementAnalyticsPolicy analytics;
   final EngagementReviewPromptPolicy reviewPrompt;
+  final EngagementInterstitialAdsPolicy interstitialAds;
 
   factory EngagementPolicy.disabled() {
     return const EngagementPolicy();
@@ -1091,6 +1182,9 @@ class EngagementPolicy {
       reviewPrompt: EngagementReviewPromptPolicy.fromJson(
         json['reviewPrompt'] as Map<String, dynamic>?,
       ),
+      interstitialAds: EngagementInterstitialAdsPolicy.fromJson(
+        json['interstitialAds'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -1098,6 +1192,7 @@ class EngagementPolicy {
     return {
       'analytics': analytics.toJson(),
       'reviewPrompt': reviewPrompt.toJson(),
+      'interstitialAds': interstitialAds.toJson(),
     };
   }
 }

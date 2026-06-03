@@ -52,5 +52,54 @@ void main() {
         LogMyPlateAdConfig.androidRewardedAdUnitId,
       );
     });
+
+    test('uses configured interstitial ad unit first', () {
+      expect(
+        LogMyPlateAdConfig.resolveInterstitialAdUnitId(
+          configured: ' ca-app-pub-6936425975956435/0987654321 ',
+          platform: TargetPlatform.iOS,
+          releaseMode: true,
+        ),
+        'ca-app-pub-6936425975956435/0987654321',
+      );
+    });
+
+    test('uses interstitial demo units outside release builds', () {
+      expect(
+        LogMyPlateAdConfig.resolveInterstitialAdUnitId(
+          configured: '',
+          platform: TargetPlatform.iOS,
+          releaseMode: false,
+        ),
+        LogMyPlateAdConfig.iosTestInterstitialAdUnitId,
+      );
+      expect(
+        LogMyPlateAdConfig.resolveInterstitialAdUnitId(
+          configured: '',
+          platform: TargetPlatform.android,
+          releaseMode: false,
+        ),
+        LogMyPlateAdConfig.androidTestInterstitialAdUnitId,
+      );
+    });
+
+    test('requires configured interstitial ad unit in release builds', () {
+      expect(
+        LogMyPlateAdConfig.resolveInterstitialAdUnitId(
+          configured: '',
+          platform: TargetPlatform.iOS,
+          releaseMode: true,
+        ),
+        isEmpty,
+      );
+      expect(
+        LogMyPlateAdConfig.resolveInterstitialAdUnitId(
+          configured: '',
+          platform: TargetPlatform.android,
+          releaseMode: true,
+        ),
+        isEmpty,
+      );
+    });
   });
 }
