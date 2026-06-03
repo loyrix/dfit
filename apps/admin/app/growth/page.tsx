@@ -40,7 +40,17 @@ const analyticsEventLabels: Record<keyof EngagementAnalyticsEvents, string> = {
   healthTargetSaved: "Health target saved",
 };
 
-export default async function GrowthControlsPage() {
+type GrowthControlsSearchParams = {
+  push?: string;
+  message?: string;
+};
+
+export default async function GrowthControlsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<GrowthControlsSearchParams>;
+}) {
+  const params = (await searchParams) ?? {};
   const { policy } = await adminGet<{ policy: EngagementPolicy }>("/admin/engagement-policy");
 
   return (
@@ -57,6 +67,17 @@ export default async function GrowthControlsPage() {
           </div>
         }
       />
+
+      {params.push === "sent" ? (
+        <div className="panel panel-light mb-4 border border-emerald-200 text-sm font-semibold text-emerald-700">
+          Push notification request sent.
+        </div>
+      ) : null}
+      {params.push === "error" ? (
+        <div className="panel panel-light mb-4 border border-red-200 text-sm font-semibold text-red-700">
+          {friendlyPushError(params.message)}
+        </div>
+      ) : null}
 
       <form action={updateEngagementPolicyAction} className="grid gap-4">
         <input
@@ -231,7 +252,12 @@ function ManualPushPanel() {
           minLength={3}
           maxLength={500}
         />
-        <TextField label="Broadcast confirmation" name="confirmAll" value="" maxLength={32} />
+        <div>
+          <TextField label="Broadcast confirmation" name="confirmAll" value="" maxLength={32} />
+          <p className="muted mt-1 text-xs">
+            Required only for all-active broadcasts. Type exactly SEND_TO_ALL.
+          </p>
+        </div>
         <label>
           <span className="font-semibold">Reason</span>
           <input
@@ -801,4 +827,18 @@ function anyEnabled(policy: EngagementPolicy) {
     policy.streaks.enabled ||
     policy.streaks.scanRewards.enabled
   );
+}
+
+function friendlyPushError(message?: string) {
+  if (!message) return "Push notification request failed.";
+  if (message.includes("SEND_TO_ALL")) {
+    return "Broadcast push blocked. Select all-active only when you type SEND_TO_ALL in Broadcast confirmation.";
+  }
+  if (message.includes("push_provider_not_configured")) {
+    return "Firebase push provider is not configured in the API environment.";
+  }
+  if (message.includes("push_target_not_found")) {
+    return "No active push token matched this target. Open the latest app once after enabling notifications.";
+  }
+  return message;
 }

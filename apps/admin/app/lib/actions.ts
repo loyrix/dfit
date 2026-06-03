@@ -214,23 +214,31 @@ export async function updateEngagementPolicyAction(formData: FormData) {
 
 export async function sendPushNotificationAction(formData: FormData) {
   await requireAdminSession();
-  await adminSend(
-    "/admin/push-notifications/send",
-    {
-      targetType: stringValue(formData, "targetType"),
-      profileId: optionalStringValue(formData, "profileId"),
-      installId: optionalStringValue(formData, "installId"),
-      title: stringValue(formData, "title"),
-      body: stringValue(formData, "body"),
-      confirmAll: optionalStringValue(formData, "confirmAll"),
-      reason: stringValue(formData, "reason"),
-      data: {
-        deeplink: optionalStringValue(formData, "deeplink") ?? "logmyplate://",
+  let pushError: string | undefined;
+  try {
+    await adminSend(
+      "/admin/push-notifications/send",
+      {
+        targetType: stringValue(formData, "targetType"),
+        profileId: optionalStringValue(formData, "profileId"),
+        installId: optionalStringValue(formData, "installId"),
+        title: stringValue(formData, "title"),
+        body: stringValue(formData, "body"),
+        confirmAll: optionalStringValue(formData, "confirmAll"),
+        reason: stringValue(formData, "reason"),
+        data: {
+          deeplink: optionalStringValue(formData, "deeplink") ?? "logmyplate://",
+        },
       },
-    },
-    { idempotencyKey: readMutationKey(formData) },
-  );
+      { idempotencyKey: readMutationKey(formData) },
+    );
+  } catch (error) {
+    pushError = error instanceof Error ? error.message : "Push notification send failed.";
+  }
   revalidatePath("/growth");
+  if (pushError) {
+    redirect(`/growth?push=error&message=${encodeURIComponent(pushError.slice(0, 220))}`);
+  }
   redirect("/growth?push=sent");
 }
 

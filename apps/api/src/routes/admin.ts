@@ -368,7 +368,14 @@ export const registerAdminRoutes = async (
     { preHandler: requireAdmin },
     async (request, reply) => {
       if (!sql) return reply.status(503).send({ error: "database_unavailable" });
-      const body = sendPushNotificationSchema.parse(request.body ?? {});
+      const parsed = sendPushNotificationSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: "invalid_push_notification",
+          issues: parsed.error.issues,
+        });
+      }
+      const body = parsed.data;
       const sender = new FirebaseCloudMessagingSender(config.push);
       if (!sender.configured) {
         return reply.status(503).send({

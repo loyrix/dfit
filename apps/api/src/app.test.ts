@@ -336,6 +336,61 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("rejects broadcast push sends without explicit operator confirmation", async () => {
+    const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
+    const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;
+    process.env.ADMIN_DASHBOARD_USERNAME = "test-admin";
+    process.env.ADMIN_DASHBOARD_PASSWORD = "test-admin-password";
+
+    const fakeSql = Object.assign(
+      () => {
+        throw new Error("SQL should not be called for invalid push payloads.");
+      },
+      { end: async () => undefined },
+    );
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      sql: fakeSql as never,
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/admin/push-notifications/send",
+      headers: {
+        authorization: `Basic ${Buffer.from("test-admin:test-admin-password").toString("base64")}`,
+        "idempotency-key": "invalid-broadcast-push",
+      },
+      payload: {
+        targetType: "all_active",
+        title: "Meal reminder",
+        body: "Open LogMyPlate and log your meal.",
+        reason: "Manual push regression test",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: "invalid_push_notification",
+      issues: [
+        {
+          path: ["confirmAll"],
+          message: "Type SEND_TO_ALL to send a broadcast push notification.",
+        },
+      ],
+    });
+
+    if (previousUsername === undefined) {
+      delete process.env.ADMIN_DASHBOARD_USERNAME;
+    } else {
+      process.env.ADMIN_DASHBOARD_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.ADMIN_DASHBOARD_PASSWORD;
+    } else {
+      process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
+    }
+    await app.close();
+  });
+
   it("normalizes engagement policy defaults and rejects unsafe values", () => {
     const defaults = defaultEngagementPolicyConfig();
 
