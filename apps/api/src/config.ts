@@ -42,6 +42,9 @@ export type ApiConfig = {
     firebaseCredentialsJson?: string;
     firebaseCredentialsJsonBase64?: string;
   };
+  cron: {
+    secret?: string;
+  };
   gemini: {
     apiKey?: string;
     model: string;
@@ -109,6 +112,9 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       firebaseCredentialsJsonBase64:
         emptyToUndefined(env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64) ??
         emptyToUndefined(env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64),
+    },
+    cron: {
+      secret: emptyToUndefined(env.CRON_SECRET),
     },
     gemini: {
       apiKey: env.GEMINI_API_KEY,

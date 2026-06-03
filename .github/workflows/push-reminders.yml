@@ -1,0 +1,76 @@
+name: Scheduled push reminders
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Evaluate reminders without sending push notifications"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      limit:
+        description: "Maximum profiles to evaluate"
+        required: true
+        default: "500"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-push-reminders
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    name: Trigger reminder runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call LogMyPlate cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.LOGMYPLATE_CRON_SECRET }}
+          API_URL: ${{ vars.LOGMYPLATE_API_URL }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          set -euo pipefail
+          API_URL="${API_URL:-https://logmyplate-api.vercel.app}"
+          DRY_RUN="${DRY_RUN:-false}"
+          LIMIT="${LIMIT:-500}"
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "LOGMYPLATE_CRON_SECRET is not configured."
+            exit 1
+          fi
+
+          dry_run_query=""
+          if [ "${DRY_RUN}" = "true" ]; then
+            dry_run_query="&dryRun=1"
+          fi
+
+          response="$(mktemp)"
+          status="$(
+            curl --silent --show-error \
+              --output "${response}" \
+              --write-out "%{http_code}" \
+              --connect-timeout 10 \
+              --max-time 240 \
+              --retry 2 \
+              --retry-delay 5 \
+              --retry-all-errors \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "${API_URL%/}/internal/cron/push-reminders?limit=${LIMIT}${dry_run_query}"
+          )"
+
+          cat "${response}"
+          echo
+
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 300 ]; then
+            echo "Cron endpoint returned HTTP ${status}."
+            exit 1
+          fi

@@ -68,6 +68,15 @@ describe("API config", () => {
     });
   });
 
+  it("reads cron secret settings", () => {
+    const config = buildApiConfig({
+      NODE_ENV: "development",
+      CRON_SECRET: "scheduled-reminder-secret",
+    });
+
+    expect(config.cron.secret).toBe("scheduled-reminder-secret");
+  });
+
   it("defaults password reset emails to no-reply", () => {
     const config = buildApiConfig({
       NODE_ENV: "development",

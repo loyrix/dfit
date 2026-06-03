@@ -105,8 +105,8 @@ behavior is added in later phases.
 
 ## Phase 5: FCM Push Notification Runtime
 
-- Status: implemented locally, pending deployment, Firebase server credentials,
-  APNs setup, and mobile release.
+- Status: implemented and manually verified; scheduled runner implemented
+  locally, pending deployment and scheduler activation.
 - Runtime policy section: `engagement_policy.notifications`.
 - Default behavior: disabled.
 - Mobile behavior:
@@ -123,15 +123,53 @@ behavior is added in later phases.
     development and Release/Profile as production.
 - Backend behavior:
   - Push tokens are stored in `push_notification_tokens`.
+  - Scheduled reminder attempts are tracked in `push_reminder_runs` and
+    `push_reminder_deliveries`.
   - Raw tokens are treated as sensitive and are not returned through bootstrap.
   - Manual admin sends use `POST /admin/push-notifications/send`.
   - Broadcast sends require `confirmAll = SEND_TO_ALL`.
   - Firebase server credentials are optional at boot; sends return
     `push_provider_not_configured` until configured.
-  - The notification scenario timing, quiet hours, daily cap, and message copy
-    remain Growth Controls policy for the backend scheduler/cron phase.
+  - Scheduled sends use `GET /internal/cron/push-reminders` with
+    `Authorization: Bearer <CRON_SECRET>`.
+  - The runner reads Growth Controls notification scenario timing, quiet hours,
+    daily cap, target requirements, target-reached suppression, and message
+    copy.
+  - Each scenario is sent at most once per user local day.
+  - Invalid/unregistered FCM tokens are disabled after failed delivery.
+  - Scheduler run and delivery history is retained for 14 days, then cleaned up
+    by the runner.
+- Scheduler operations:
+  - Required API env: `CRON_SECRET`, `FIREBASE_PROJECT_ID`, and
+    `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64` or `FIREBASE_SERVICE_ACCOUNT_JSON`.
+  - Recommended free scheduler: GitHub Actions workflow
+    `.github/workflows/push-reminders.yml`, running every 15 minutes.
+  - Required GitHub secret: `LOGMYPLATE_CRON_SECRET`, with the same value as the
+    API `CRON_SECRET`.
+  - Optional GitHub variable: `LOGMYPLATE_API_URL`; defaults to
+    `https://logmyplate-api.vercel.app`.
+  - Dry run:
+
+    ```sh
+    curl -H "Authorization: Bearer $CRON_SECRET" \
+      "https://logmyplate-api.vercel.app/internal/cron/push-reminders?dryRun=1&limit=50"
+    ```
+
+  - Live run:
+
+    ```sh
+    curl -H "Authorization: Bearer $CRON_SECRET" \
+      "https://logmyplate-api.vercel.app/internal/cron/push-reminders?limit=500"
+    ```
+
+  - Run from a scheduler every 10-15 minutes. If using Vercel Cron is not
+    available on the current plan, use an external HTTPS scheduler with the same
+    bearer header.
+
 - Verification:
-  - pending after implementation checks.
+  - `pnpm db:validate`
+  - `pnpm --filter @logmyplate/api test`
+  - `pnpm --filter @logmyplate/api typecheck`
 
 ## Next-Phase Readiness
 

@@ -34,6 +34,7 @@ tags:
   - name: Ads
   - name: Devices
   - name: Admin
+  - name: Internal
 
 paths:
   /:
@@ -183,6 +184,52 @@ paths:
                 $ref: "#/components/schemas/ErrorWithMessage"
         "503":
           description: Database or Firebase Cloud Messaging server credentials are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
+  /internal/cron/push-reminders:
+    get:
+      tags: [Internal]
+      summary: Run scheduled FCM push reminders
+      description: |
+        Internal scheduler endpoint that evaluates the Growth Controls notification policy and sends
+        due FCM meal reminders. Requires `Authorization: Bearer <CRON_SECRET>`.
+      security:
+        - cronBearer: []
+      parameters:
+        - name: dryRun
+          in: query
+          required: false
+          description: When true, evaluates eligibility and records a run without sending FCM notifications.
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of token-owning profiles to evaluate in this run.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+            default: 500
+      responses:
+        "200":
+          description: Scheduled reminder run summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reminders]
+                properties:
+                  reminders:
+                    $ref: "#/components/schemas/ScheduledPushReminderSummary"
+        "401":
+          description: Missing or invalid cron bearer secret.
+        "503":
+          description: Cron secret, database, or Firebase Cloud Messaging server credentials are unavailable.
           content:
             application/json:
               schema:
@@ -1130,6 +1177,11 @@ components:
       type: http
       scheme: basic
       description: Admin dashboard basic authentication.
+    cronBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: shared cron secret
+      description: Internal scheduler bearer secret configured with `CRON_SECRET`.
 
   parameters:
     FoodIdPath:
@@ -2512,6 +2564,67 @@ components:
           type: string
         message:
           type: string
+
+    ScheduledPushReminderSummary:
+      type: object
+      required:
+        [
+          runId,
+          dryRun,
+          scannedProfiles,
+          eligibleProfiles,
+          attemptedProfiles,
+          sentProfiles,
+          failedProfiles,
+          targetTokens,
+          sentTokens,
+          failedTokens,
+          disabledTokens,
+          skipped,
+          scenarios,
+        ]
+      properties:
+        runId:
+          type: string
+          nullable: true
+        dryRun:
+          type: boolean
+        scannedProfiles:
+          type: integer
+        eligibleProfiles:
+          type: integer
+        attemptedProfiles:
+          type: integer
+        sentProfiles:
+          type: integer
+        failedProfiles:
+          type: integer
+        targetTokens:
+          type: integer
+        sentTokens:
+          type: integer
+        failedTokens:
+          type: integer
+        disabledTokens:
+          type: integer
+        skipped:
+          type: object
+          additionalProperties:
+            type: integer
+        scenarios:
+          type: object
+          required: [breakfast, lunch, snack, dinner, targetSetup]
+          properties:
+            breakfast:
+              type: integer
+            lunch:
+              type: integer
+            snack:
+              type: integer
+            dinner:
+              type: integer
+            targetSetup:
+              type: integer
 
     ValidationIssue:
       type: object
