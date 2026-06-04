@@ -1,8 +1,6 @@
 name: Scheduled push reminders
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
