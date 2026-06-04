@@ -445,6 +445,101 @@ class JournalRangeData {
   }
 }
 
+class StreakSummary {
+  const StreakSummary({
+    required this.enabled,
+    required this.currentStreakDays,
+    required this.longestStreakDays,
+    required this.todayLogged,
+    required this.daysUntilNextMilestone,
+    required this.nextRewardScans,
+    this.lastLoggedDate,
+    this.nextMilestoneDays,
+    this.achievedMilestoneDays,
+    this.achievedMilestoneTitle,
+    this.achievedMilestoneBody,
+  });
+
+  final bool enabled;
+  final int currentStreakDays;
+  final int longestStreakDays;
+  final bool todayLogged;
+  final String? lastLoggedDate;
+  final int? nextMilestoneDays;
+  final int daysUntilNextMilestone;
+  final int nextRewardScans;
+  final int? achievedMilestoneDays;
+  final String? achievedMilestoneTitle;
+  final String? achievedMilestoneBody;
+
+  bool get hasHistory =>
+      todayLogged || currentStreakDays > 0 || longestStreakDays > 0;
+
+  factory StreakSummary.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return StreakSummary.disabled();
+    return StreakSummary(
+      enabled: _boolValue(json['enabled']),
+      currentStreakDays: _boundedInt(
+        json['currentStreakDays'],
+        fallback: 0,
+        min: 0,
+        max: 3650,
+      ),
+      longestStreakDays: _boundedInt(
+        json['longestStreakDays'],
+        fallback: 0,
+        min: 0,
+        max: 3650,
+      ),
+      todayLogged: _boolValue(json['todayLogged']),
+      lastLoggedDate: _nullableString(json['lastLoggedDate']),
+      nextMilestoneDays: _nullableInt(json['nextMilestoneDays']),
+      daysUntilNextMilestone: _boundedInt(
+        json['daysUntilNextMilestone'],
+        fallback: 0,
+        min: 0,
+        max: 3650,
+      ),
+      nextRewardScans: _boundedInt(
+        json['nextRewardScans'],
+        fallback: 0,
+        min: 0,
+        max: 100,
+      ),
+      achievedMilestoneDays: _nullableInt(json['achievedMilestoneDays']),
+      achievedMilestoneTitle: _nullableString(json['achievedMilestoneTitle']),
+      achievedMilestoneBody: _nullableString(json['achievedMilestoneBody']),
+    );
+  }
+
+  factory StreakSummary.disabled() {
+    return const StreakSummary(
+      enabled: false,
+      currentStreakDays: 0,
+      longestStreakDays: 0,
+      todayLogged: false,
+      daysUntilNextMilestone: 0,
+      nextRewardScans: 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'currentStreakDays': currentStreakDays,
+      'longestStreakDays': longestStreakDays,
+      'todayLogged': todayLogged,
+      'lastLoggedDate': lastLoggedDate,
+      'nextMilestoneDays': nextMilestoneDays,
+      'daysUntilNextMilestone': daysUntilNextMilestone,
+      'nextRewardScans': nextRewardScans,
+      'achievedMilestoneDays': achievedMilestoneDays,
+      'achievedMilestoneTitle': achievedMilestoneTitle,
+      'achievedMilestoneBody': achievedMilestoneBody,
+    };
+  }
+}
+
 enum HealthSex { female, male, notSpecified }
 
 extension HealthSexApi on HealthSex {
@@ -1362,18 +1457,140 @@ class EngagementNotificationsPolicy {
   }
 }
 
+class EngagementStreakMilestone {
+  const EngagementStreakMilestone({
+    required this.days,
+    required this.title,
+    required this.body,
+    this.scanRewardAmount = 0,
+  });
+
+  final int days;
+  final String title;
+  final String body;
+  final int scanRewardAmount;
+
+  factory EngagementStreakMilestone.fromJson(Map<String, dynamic> json) {
+    return EngagementStreakMilestone(
+      days: _boundedInt(json['days'], fallback: 3, min: 1, max: 3650),
+      title: _stringValue(json['title'], fallback: 'Streak milestone'),
+      body: _stringValue(json['body'], fallback: 'Keep your logging rhythm.'),
+      scanRewardAmount: _boundedInt(
+        json['scanRewardAmount'],
+        fallback: 0,
+        min: 0,
+        max: 100,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'days': days,
+      'title': title,
+      'body': body,
+      'scanRewardAmount': scanRewardAmount,
+    };
+  }
+}
+
+class EngagementStreakScanRewardsPolicy {
+  const EngagementStreakScanRewardsPolicy({this.enabled = false});
+
+  final bool enabled;
+
+  factory EngagementStreakScanRewardsPolicy.fromJson(
+    Map<String, dynamic>? json,
+  ) {
+    if (json == null) return const EngagementStreakScanRewardsPolicy();
+    return EngagementStreakScanRewardsPolicy(
+      enabled: _boolValue(json['enabled']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'enabled': enabled};
+  }
+}
+
+class EngagementStreaksPolicy {
+  const EngagementStreaksPolicy({
+    this.enabled = false,
+    this.milestones = _defaultMilestones,
+    this.scanRewards = const EngagementStreakScanRewardsPolicy(),
+  });
+
+  static const _defaultMilestones = [
+    EngagementStreakMilestone(
+      days: 3,
+      title: '3-day streak',
+      body: 'You logged meals for 3 days. Nice rhythm.',
+    ),
+    EngagementStreakMilestone(
+      days: 7,
+      title: '7-day streak',
+      body: 'A full week of logging. Your pattern is getting clearer.',
+    ),
+    EngagementStreakMilestone(
+      days: 14,
+      title: '14-day streak',
+      body: 'Two steady weeks. This is how awareness becomes a habit.',
+    ),
+    EngagementStreakMilestone(
+      days: 30,
+      title: '30-day streak',
+      body: 'A month of consistency. That is real progress.',
+    ),
+  ];
+
+  final bool enabled;
+  final List<EngagementStreakMilestone> milestones;
+  final EngagementStreakScanRewardsPolicy scanRewards;
+
+  factory EngagementStreaksPolicy.disabled() {
+    return const EngagementStreaksPolicy();
+  }
+
+  factory EngagementStreaksPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return EngagementStreaksPolicy.disabled();
+    final milestones = (json['milestones'] as List<dynamic>?)
+        ?.whereType<Map<String, dynamic>>()
+        .map(EngagementStreakMilestone.fromJson)
+        .toList();
+    return EngagementStreaksPolicy(
+      enabled: _boolValue(json['enabled']),
+      milestones: milestones == null || milestones.isEmpty
+          ? _defaultMilestones
+          : milestones,
+      scanRewards: EngagementStreakScanRewardsPolicy.fromJson(
+        json['scanRewards'] as Map<String, dynamic>?,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'enabled': enabled,
+      'milestones': milestones.map((milestone) => milestone.toJson()).toList(),
+      'scanRewards': scanRewards.toJson(),
+    };
+  }
+}
+
 class EngagementPolicy {
   const EngagementPolicy({
     this.analytics = const EngagementAnalyticsPolicy(),
     this.reviewPrompt = const EngagementReviewPromptPolicy(),
     this.interstitialAds = const EngagementInterstitialAdsPolicy(),
     this.notifications = const EngagementNotificationsPolicy(),
+    this.streaks = const EngagementStreaksPolicy(),
   });
 
   final EngagementAnalyticsPolicy analytics;
   final EngagementReviewPromptPolicy reviewPrompt;
   final EngagementInterstitialAdsPolicy interstitialAds;
   final EngagementNotificationsPolicy notifications;
+  final EngagementStreaksPolicy streaks;
 
   factory EngagementPolicy.disabled() {
     return const EngagementPolicy();
@@ -1394,6 +1611,9 @@ class EngagementPolicy {
       notifications: EngagementNotificationsPolicy.fromJson(
         json['notifications'] as Map<String, dynamic>?,
       ),
+      streaks: EngagementStreaksPolicy.fromJson(
+        json['streaks'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -1403,6 +1623,7 @@ class EngagementPolicy {
       'reviewPrompt': reviewPrompt.toJson(),
       'interstitialAds': interstitialAds.toJson(),
       'notifications': notifications.toJson(),
+      'streaks': streaks.toJson(),
     };
   }
 }
@@ -1468,6 +1689,7 @@ class AppBootstrapData {
     required this.rewardedAdProgress,
     required this.today,
     required this.weeklyRange,
+    required this.streakSummary,
   });
 
   final String serverTime;
@@ -1479,6 +1701,7 @@ class AppBootstrapData {
   final RewardedAdProgress rewardedAdProgress;
   final TodayJournalData today;
   final JournalRangeData weeklyRange;
+  final StreakSummary streakSummary;
 
   factory AppBootstrapData.fromJson(Map<String, dynamic> json) {
     return AppBootstrapData(
@@ -1507,6 +1730,9 @@ class AppBootstrapData {
           : JournalRangeData.fromSummaryJson(
               json['weeklySummary'] as Map<String, dynamic>,
             ),
+      streakSummary: StreakSummary.fromJson(
+        json['streakSummary'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -1557,6 +1783,7 @@ class AppBootstrapData {
         'target': weeklyRange.target?.toJson(),
         'summary': weeklyRange.summary.toJson(),
       },
+      'streakSummary': streakSummary.toJson(),
     };
   }
 }

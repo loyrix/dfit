@@ -32,6 +32,7 @@ class JournalController extends ChangeNotifier {
   AppUpdatePolicy _updatePolicy = AppUpdatePolicy.current();
   EngagementPolicy _engagementPolicy = EngagementPolicy.disabled();
   JournalRangeData? _weeklyRange;
+  StreakSummary _streakSummary = StreakSummary.disabled();
   DateTime? _lastLoadedAt;
 
   bool get loading => _loading;
@@ -46,6 +47,7 @@ class JournalController extends ChangeNotifier {
   MacroTotals? get dailyTarget =>
       _healthTarget?.dailyTargetTotals ?? _weeklyRange?.target;
   JournalRangeData? get weeklyRange => _weeklyRange;
+  StreakSummary get streakSummary => _streakSummary;
   DateTime? get lastLoadedAt => _lastLoadedAt;
   bool get initialLoading =>
       _loading && _lastLoadedAt == null && _meals.isEmpty;
@@ -61,6 +63,7 @@ class JournalController extends ChangeNotifier {
     _updatePolicy = AppUpdatePolicy.current();
     _engagementPolicy = EngagementPolicy.disabled();
     _weeklyRange = null;
+    _streakSummary = StreakSummary.disabled();
     _lastLoadedAt = null;
     notifyListeners();
   }
@@ -353,6 +356,7 @@ class JournalController extends ChangeNotifier {
     _updatePolicy = bootstrap.updatePolicy;
     _engagementPolicy = bootstrap.engagementPolicy;
     _weeklyRange = bootstrap.weeklyRange;
+    _streakSummary = bootstrap.streakSummary;
     _quota = bootstrap.quota;
     _rewardedAdProgress = bootstrap.rewardedAdProgress;
     _lastLoadedAt =

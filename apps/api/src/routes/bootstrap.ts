@@ -8,6 +8,7 @@ import {
   resolveAppUpdatePolicy,
 } from "../services/app-update-policy.js";
 import { loadEngagementPolicy } from "../services/engagement-policy.js";
+import { buildStreakSummary } from "../services/streak-summary.js";
 import { buildJournalSummary, buildTodayJournal } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
 
@@ -31,12 +32,15 @@ export const registerBootstrapRoutes = async (
       timer.measure("rewardedAdProgress", () => repository.getRewardedAdProgress()),
       timer.measure("healthTarget", () => repository.getHealthTarget(profile.id)),
     ]);
-    const [today, weeklySummary] = await Promise.all([
+    const [today, weeklySummary, streakSummary] = await Promise.all([
       timer.measure("today", () =>
         buildTodayJournal(repository, profile, mealImageStorage, healthTarget ?? null),
       ),
       timer.measure("weeklySummary", () =>
         buildJournalSummary(repository, profile, 7, 0, healthTarget ?? null),
+      ),
+      timer.measure("streakSummary", () =>
+        buildStreakSummary(repository, profile, engagementPolicy),
       ),
     ]);
 
@@ -60,6 +64,7 @@ export const registerBootstrapRoutes = async (
       rewardedAdProgress,
       today,
       weeklySummary,
+      streakSummary,
     };
   });
 };

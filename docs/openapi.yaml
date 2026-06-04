@@ -2105,6 +2105,8 @@ components:
           $ref: "#/components/schemas/AppUpdatePolicy"
         engagementPolicy:
           $ref: "#/components/schemas/EngagementPolicy"
+        streakSummary:
+          $ref: "#/components/schemas/StreakSummary"
         quota:
           $ref: "#/components/schemas/Quota"
         today:
@@ -2558,6 +2560,57 @@ components:
           type: integer
           minimum: 0
           maximum: 100
+
+    StreakSummary:
+      type: object
+      required:
+        [
+          enabled,
+          currentStreakDays,
+          longestStreakDays,
+          todayLogged,
+          lastLoggedDate,
+          nextMilestoneDays,
+          daysUntilNextMilestone,
+          nextRewardScans,
+          achievedMilestoneDays,
+          achievedMilestoneTitle,
+          achievedMilestoneBody,
+        ]
+      properties:
+        enabled:
+          type: boolean
+        currentStreakDays:
+          type: integer
+          minimum: 0
+        longestStreakDays:
+          type: integer
+          minimum: 0
+        todayLogged:
+          type: boolean
+        lastLoggedDate:
+          type: string
+          nullable: true
+        nextMilestoneDays:
+          type: integer
+          minimum: 1
+          nullable: true
+        daysUntilNextMilestone:
+          type: integer
+          minimum: 0
+        nextRewardScans:
+          type: integer
+          minimum: 0
+        achievedMilestoneDays:
+          type: integer
+          minimum: 1
+          nullable: true
+        achievedMilestoneTitle:
+          type: string
+          nullable: true
+        achievedMilestoneBody:
+          type: string
+          nullable: true
 
     SimpleError:
       type: object

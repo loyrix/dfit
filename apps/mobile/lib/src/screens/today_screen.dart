@@ -20,6 +20,7 @@ class TodayScreen extends StatelessWidget {
     this.target,
     this.quota,
     this.weeklyRange,
+    this.streakSummary,
     this.loading = false,
     this.initialLoading = false,
     this.weeklyJournalOpening = false,
@@ -41,6 +42,7 @@ class TodayScreen extends StatelessWidget {
   final MacroTotals? target;
   final ScanQuota? quota;
   final JournalRangeData? weeklyRange;
+  final StreakSummary? streakSummary;
   final bool loading;
   final bool initialLoading;
   final bool weeklyJournalOpening;
@@ -128,6 +130,7 @@ class TodayScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       _WeeklySummaryCard(
                         range: weeklyRange!,
+                        streak: streakSummary,
                         onTap: onOpenWeeklyJournal,
                         syncing: loading || weeklyJournalOpening,
                         opening: weeklyJournalOpening,
@@ -201,6 +204,7 @@ class TodayScreen extends StatelessWidget {
 class _WeeklySummaryCard extends StatelessWidget {
   const _WeeklySummaryCard({
     required this.range,
+    this.streak,
     required this.onTap,
     required this.syncing,
     required this.opening,
@@ -208,6 +212,7 @@ class _WeeklySummaryCard extends StatelessWidget {
   });
 
   final JournalRangeData range;
+  final StreakSummary? streak;
   final VoidCallback onTap;
   final bool syncing;
   final bool opening;
@@ -217,9 +222,15 @@ class _WeeklySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final summary = range.summary;
+    final activeStreak = streak?.enabled == true && streak!.hasHistory
+        ? streak
+        : null;
     final trackedText = summary.activeDays == summary.windowDays
         ? '${summary.activeDays} days tracked'
         : '${summary.activeDays} active ${summary.activeDays == 1 ? 'day' : 'days'}';
+    final titleText = activeStreak == null
+        ? trackedText
+        : _streakHeadline(activeStreak);
     final targetCalories = range.target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
     final averageCalories = summary.trackedDayAverage.calories > 0
@@ -254,7 +265,9 @@ class _WeeklySummaryCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Text(
-                                    'Weekly rhythm',
+                                    activeStreak == null
+                                        ? 'Weekly rhythm'
+                                        : 'Streak & rhythm',
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
@@ -275,9 +288,18 @@ class _WeeklySummaryCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 7),
                               Text(
-                                trackedText,
+                                titleText,
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
+                              if (activeStreak != null &&
+                                  !activeStreak.todayLogged) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Log today to keep it alive',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: colors.textSecondary),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -342,6 +364,7 @@ class _WeeklySummaryCard extends StatelessWidget {
                 totalDays: summary.windowDays,
                 averageCalories: averageCalories,
                 targetCalories: hasTarget ? targetCalories : null,
+                streak: activeStreak,
               ),
               const SizedBox(height: 10),
               Row(
@@ -384,6 +407,14 @@ class _WeeklySummaryCard extends StatelessWidget {
       ),
     );
   }
+
+  String _streakHeadline(StreakSummary streak) {
+    if (streak.currentStreakDays <= 0) {
+      return streak.todayLogged ? 'Started today' : 'Start today';
+    }
+    final unit = streak.currentStreakDays == 1 ? 'day' : 'days';
+    return '${streak.currentStreakDays} $unit streak';
+  }
 }
 
 class _WeeklyCoveragePanel extends StatelessWidget {
@@ -392,12 +423,14 @@ class _WeeklyCoveragePanel extends StatelessWidget {
     required this.totalDays,
     required this.averageCalories,
     this.targetCalories,
+    this.streak,
   });
 
   final int activeDays;
   final int totalDays;
   final int averageCalories;
   final int? targetCalories;
+  final StreakSummary? streak;
 
   @override
   Widget build(BuildContext context) {
@@ -405,6 +438,22 @@ class _WeeklyCoveragePanel extends StatelessWidget {
     final visibleDays = totalDays <= 0 ? 7 : totalDays.clamp(1, 7);
     final filledDays = activeDays.clamp(0, visibleDays);
     final coverage = visibleDays == 0 ? 0.0 : filledDays / visibleDays;
+    final activeStreak = streak;
+    final nextMilestone = activeStreak?.nextMilestoneDays;
+    final streakProgress = activeStreak == null || nextMilestone == null
+        ? coverage
+        : (activeStreak.currentStreakDays / nextMilestone)
+              .clamp(0.0, 1.0)
+              .toDouble();
+    final ringProgress = activeStreak == null ? coverage : streakProgress;
+    final ringTitle = activeStreak == null
+        ? '$filledDays/$visibleDays'
+        : activeStreak.currentStreakDays.toString();
+    final ringLabel = activeStreak == null
+        ? 'days'
+        : activeStreak.currentStreakDays == 1
+        ? 'day'
+        : 'streak';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -418,7 +467,7 @@ class _WeeklyCoveragePanel extends StatelessWidget {
               SizedBox.expand(
                 child: CircularProgressIndicator(
                   strokeWidth: 8,
-                  value: coverage,
+                  value: ringProgress,
                   strokeCap: StrokeCap.round,
                   color: LogMyPlateColors.accent,
                   backgroundColor: colors.mutedFill,
@@ -428,13 +477,13 @@ class _WeeklyCoveragePanel extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '$filledDays/$visibleDays',
+                    ringTitle,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   Text(
-                    'days',
+                    ringLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.textSecondary,
                       letterSpacing: 0,
@@ -455,14 +504,40 @@ class _WeeklyCoveragePanel extends StatelessWidget {
                 totalDays: visibleDays,
               ),
               const SizedBox(height: 12),
-              _WeeklyInfoPill(label: 'Avg/day', value: '$averageCalories kCal'),
-              if (targetCalories != null) ...[
-                const SizedBox(height: 8),
-                _WeeklyInfoPill(
-                  label: 'Target/day',
-                  value: '$targetCalories kCal',
-                ),
-              ],
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (activeStreak != null) ...[
+                    _WeeklyInfoPill(
+                      label: 'Best',
+                      value: '${activeStreak.longestStreakDays}d',
+                    ),
+                    if (activeStreak.nextMilestoneDays != null)
+                      _WeeklyInfoPill(
+                        label: 'Next',
+                        value: '${activeStreak.nextMilestoneDays}d',
+                      ),
+                    if (activeStreak.nextRewardScans > 0)
+                      _WeeklyInfoPill(
+                        label: 'Reward',
+                        value:
+                            '+${activeStreak.nextRewardScans} ${activeStreak.nextRewardScans == 1 ? 'scan' : 'scans'}',
+                        highlighted: true,
+                      ),
+                  ] else ...[
+                    _WeeklyInfoPill(
+                      label: 'Avg/day',
+                      value: '$averageCalories kCal',
+                    ),
+                    if (targetCalories != null)
+                      _WeeklyInfoPill(
+                        label: 'Target/day',
+                        value: '$targetCalories kCal',
+                      ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -507,10 +582,15 @@ class _WeeklyCoverageSegments extends StatelessWidget {
 }
 
 class _WeeklyInfoPill extends StatelessWidget {
-  const _WeeklyInfoPill({required this.label, required this.value});
+  const _WeeklyInfoPill({
+    required this.label,
+    required this.value,
+    this.highlighted = false,
+  });
 
   final String label;
   final String value;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -519,8 +599,16 @@ class _WeeklyInfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: colors.mutedFill,
+        color: highlighted
+            ? LogMyPlateColors.accent.withValues(alpha: 0.18)
+            : colors.mutedFill,
         borderRadius: BorderRadius.circular(99),
+        border: highlighted
+            ? Border.all(
+                color: LogMyPlateColors.accent.withValues(alpha: 0.34),
+                width: 0.5,
+              )
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -536,7 +624,7 @@ class _WeeklyInfoPill extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colors.textSecondary,
+              color: highlighted ? colors.accentText : colors.textSecondary,
               letterSpacing: 0,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),

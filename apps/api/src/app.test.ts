@@ -1211,6 +1211,12 @@ describe("LogMyPlate API", () => {
           mealCount: 1,
         },
       },
+      streakSummary: {
+        enabled: false,
+        currentStreakDays: 1,
+        longestStreakDays: 1,
+        nextMilestoneDays: 3,
+      },
     });
     expect(bootstrap.json().serverTime).toEqual(expect.any(String));
     expect(bootstrap.json().today.meals[0]).toMatchObject({

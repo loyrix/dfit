@@ -174,6 +174,29 @@ behavior is added in later phases.
   - `pnpm --filter @logmyplate/api test`
   - `pnpm --filter @logmyplate/api typecheck`
 
+## Phase 6: Streak Runtime Summary And Today UI
+
+- Status: implemented locally, pending deployment and mobile release.
+- Runtime policy section: `engagement_policy.streaks`.
+- Default behavior: disabled.
+- Backend behavior:
+  - `/v1/app/bootstrap` now includes `streakSummary`.
+  - Streaks are computed from existing meal dates; no new migration is required.
+  - Current streak stays alive from yesterday until the user has a chance to log
+    today.
+  - Longest streak, achieved milestone, next milestone, and next configured scan
+    reward amount are returned as read-only summary data.
+  - Scan rewards are not auto-granted in this phase; granting requires a future
+    idempotent reward ledger.
+- Mobile behavior:
+  - Old bootstrap payloads parse with disabled streak defaults.
+  - When backoffice streaks are disabled, the existing weekly rhythm card keeps
+    its previous behavior.
+  - When enabled and the user has logging history, Today shows a compact
+    `Streak & rhythm` card with current streak, weekly segments, best streak,
+    next milestone, and configured next reward.
+  - The card uses existing LogMyPlate light/dark theme tokens.
+
 ## Next-Phase Readiness
 
-- Phase 6: streaks read milestones and scan reward settings.
+- Phase 7: idempotent streak scan reward ledger and milestone celebration sheet.

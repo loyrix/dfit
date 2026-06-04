@@ -287,6 +287,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           target: _journalController.dailyTarget,
           quota: _journalController.quota,
           weeklyRange: _journalController.weeklyRange,
+          streakSummary: _journalController.streakSummary,
           loading: _journalController.loading,
           initialLoading: _journalController.initialLoading,
           weeklyJournalOpening: _openingWeeklyJournal,

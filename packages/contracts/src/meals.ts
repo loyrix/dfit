@@ -56,6 +56,20 @@ export const todayJournalResponseSchema = z.object({
   meals: z.array(mealSchema),
 });
 
+export const streakSummarySchema = z.object({
+  enabled: z.boolean(),
+  currentStreakDays: z.number().int().nonnegative(),
+  longestStreakDays: z.number().int().nonnegative(),
+  todayLogged: z.boolean(),
+  lastLoggedDate: z.string().nullable(),
+  nextMilestoneDays: z.number().int().positive().nullable(),
+  daysUntilNextMilestone: z.number().int().nonnegative(),
+  nextRewardScans: z.number().int().nonnegative(),
+  achievedMilestoneDays: z.number().int().positive().nullable(),
+  achievedMilestoneTitle: z.string().nullable(),
+  achievedMilestoneBody: z.string().nullable(),
+});
+
 export const journalRangeQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(31).default(7),
   weekOffset: z.coerce.number().int().min(0).max(104).default(0),
@@ -99,6 +113,7 @@ export type MealContract = z.infer<typeof mealSchema>;
 export type CreateMealRequestContract = z.infer<typeof createMealRequestSchema>;
 export type UpdateMealRequestContract = z.infer<typeof updateMealRequestSchema>;
 export type TodayJournalResponseContract = z.infer<typeof todayJournalResponseSchema>;
+export type StreakSummaryContract = z.infer<typeof streakSummarySchema>;
 export type JournalRangeQueryContract = z.infer<typeof journalRangeQuerySchema>;
 export type JournalRangeResponseContract = z.infer<typeof journalRangeResponseSchema>;
 export type JournalWeekOptionContract = z.infer<typeof journalWeekOptionSchema>;
