@@ -455,6 +455,9 @@ export type EngagementPolicy = {
       android: string | null;
     };
   };
+  rewardedAds: {
+    dailyScanLimit: number;
+  };
   notifications: {
     enabled: boolean;
     dailyCap: number;

@@ -16,12 +16,14 @@ class ReviewMealScreen extends StatefulWidget {
     this.initialMealType = MealType.lunch,
     this.lockInitialItems = false,
     this.photo,
+    this.onFoodSearch,
   });
 
   final List<MealItem> initialItems;
   final MealType initialMealType;
   final bool lockInitialItems;
   final CapturedMealPhoto? photo;
+  final Future<List<FoodSearchResult>> Function(String query)? onFoodSearch;
   final Future<void> Function(MealType type, List<MealItem> items) onConfirm;
 
   @override
@@ -206,6 +208,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
       builder: (_) => MealItemEditorSheet(
         item: _entries[index].item,
         lockedFromAnalysis: _entries[index].lockedFromAnalysis,
+        onFoodSearch: widget.onFoodSearch,
       ),
     );
     if (result == null || !mounted) return;
@@ -238,6 +241,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
         item: item,
         lockedFromAnalysis: false,
         allowDelete: false,
+        onFoodSearch: widget.onFoodSearch,
       ),
     );
     if (result == null || result.delete) return null;

@@ -137,6 +137,16 @@ class _MealMacroProfile {
     final carbsKcal = totals.carbsG * 4;
     final fatKcal = totals.fatG * 9;
     final macroKcal = proteinKcal + carbsKcal + fatKcal;
+    final itemNames = meal.items
+        .map((item) => item.name.toLowerCase())
+        .toList();
+    final isSnack = meal.type == MealType.snack;
+    final isSingleItem = meal.items.length <= 1;
+    final packagedSnack = isSnack && itemNames.any(_looksLikePackagedSnack);
+    final drinkOnly = isSingleItem && itemNames.any(_looksLikeDrink);
+    final primaryItem = meal.items.isEmpty
+        ? 'This food'
+        : meal.items.first.name;
 
     final proteinShare = macroKcal <= 0 ? 0.0 : proteinKcal / macroKcal;
     final carbsShare = macroKcal <= 0 ? 0.0 : carbsKcal / macroKcal;
@@ -154,12 +164,24 @@ class _MealMacroProfile {
 
     final focus = macroKcal <= 0
         ? 'Add items to build this meal profile.'
+        : packagedSnack
+        ? 'This snack is carb-led and low in protein. That is normal for packaged snacks; balance the next meal with a stronger protein source.'
+        : drinkOnly
+        ? 'This drink adds energy quickly. If it was sweetened, keep the next snack lighter or pair it with protein.'
         : proteinShare < 0.15
-        ? 'This plate is protein light. Add curd, dal, paneer, eggs, tofu, or lean meat when it fits.'
+        ? isSnack
+              ? 'This snack is protein light. Pair your next snack with a protein-rich option when it fits.'
+              : isSingleItem
+              ? '$primaryItem is protein light. Balance the day with a stronger protein source.'
+              : 'This meal is protein light. Add a protein-rich side or portion when it fits.'
         : carbsShare > 0.6
-        ? 'Carbs are leading this meal. Pair the next plate with more protein and vegetables.'
+        ? isSnack
+              ? 'Carbs are leading this snack. Keep the next meal steadier with protein and vegetables.'
+              : 'Carbs are leading this meal. Pair the next plate with more protein and vegetables.'
         : fatShare > 0.48
-        ? 'Fat is high for this meal. Keep the next plate lighter on oil, fried sides, and creamy sauces.'
+        ? isSnack
+              ? 'Fat is high for this snack. Keep the next meal lighter on fried sides, oil, and creamy sauces.'
+              : 'Fat is high for this meal. Keep the next plate lighter on oil, fried sides, and creamy sauces.'
         : 'Balanced enough for a meal. Keep portions honest and repeat the pattern.';
 
     return _MealMacroProfile(
@@ -170,6 +192,30 @@ class _MealMacroProfile {
       profileLabel: label,
       focusMessage: focus,
     );
+  }
+
+  static bool _looksLikePackagedSnack(String name) {
+    return name.contains('biscuit') ||
+        name.contains('cracker') ||
+        name.contains('chips') ||
+        name.contains('namkeen') ||
+        name.contains('cookie') ||
+        name.contains('chocolate') ||
+        name.contains('wafer') ||
+        name.contains('bar') ||
+        name.contains('kurkure') ||
+        name.contains('bhujia');
+  }
+
+  static bool _looksLikeDrink(String name) {
+    return name.contains('tea') ||
+        name.contains('coffee') ||
+        name.contains('juice') ||
+        name.contains('shake') ||
+        name.contains('lassi') ||
+        name.contains('chaas') ||
+        name.contains('soda') ||
+        name.contains('drink');
   }
 }
 

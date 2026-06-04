@@ -114,6 +114,21 @@ class LogMyPlateApiClient {
     );
   }
 
+  Future<List<FoodSearchResult>> searchFoods(String query) async {
+    final normalized = query.trim();
+    if (normalized.length < 2) return const [];
+    final uri = Uri.parse(
+      '$baseUrl/v1/foods',
+    ).replace(queryParameters: {'q': normalized});
+    final response = await _httpClient.get(uri, headers: await _headers());
+    _throwIfBad(response);
+    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    return (payload['results'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(FoodSearchResult.fromJson)
+        .toList();
+  }
+
   Future<RewardedAdCredit> completeRewardedAd({
     required String adUnitId,
     required String idempotencyKey,

@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { completeRewardedAdRequestSchema } from "@logmyplate/contracts";
+import type { SqlClient } from "../db/client.js";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AdMobSsvVerificationError, type AdMobRewardedAdVerifier } from "../services/admob-ssv.js";
+import { loadEngagementPolicy } from "../services/engagement-policy.js";
 
 export type AdRouteOptions = {
   rewardedAdVerifier: AdMobRewardedAdVerifier;
@@ -13,6 +15,7 @@ export const registerAdRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
   options: AdRouteOptions,
+  sql?: SqlClient,
 ): Promise<void> => {
   app.get("/v1/ads/rewarded/ssv", async (request, reply) => {
     try {
@@ -78,6 +81,7 @@ export const registerAdRoutes = async (
       });
     }
 
-    return repository.completeRewardedAd(input);
+    const engagementPolicy = await loadEngagementPolicy(sql);
+    return repository.completeRewardedAd(input, engagementPolicy.rewardedAds.dailyScanLimit);
   });
 };

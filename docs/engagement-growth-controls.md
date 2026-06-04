@@ -9,7 +9,8 @@ behavior is added in later phases.
 - Status: implemented, pending deployment.
 - Runtime config key: `engagement_policy`.
 - Default behavior: review prompts, interstitial ads, FCM push reminders,
-  streaks, and scan rewards are disabled.
+  streaks, and scan rewards are disabled. Rewarded ad scan earning keeps the
+  existing default cap of 5 scans per day unless changed in Growth Controls.
 - Compatibility rule: old mobile builds ignore the new bootstrap field, and the
   API falls back to disabled defaults when the database row is missing or
   invalid.
@@ -102,6 +103,21 @@ behavior is added in later phases.
     IDs suppress the ad without affecting scan confirmation.
   - Ad load/show failures are diagnostics-only and do not interrupt the saved
     meal flow.
+
+## Phase 4B: Rewarded Scan Unlock Controls
+
+- Status: implemented locally, pending deployment.
+- Runtime policy section: `engagement_policy.rewardedAds`.
+- Default behavior: signed-in users can earn up to 5 rewarded scan credits per
+  day.
+- Admin behavior:
+  - Growth Controls exposes `Rewarded Unlocks`.
+  - `dailyScanLimit` controls the maximum rewarded scan credits granted per
+    profile/install local day.
+- API behavior:
+  - `/v1/app/bootstrap` reports the configured cap in `rewardedAdProgress`.
+  - `/v1/ads/rewarded/complete` enforces the configured cap server-side.
+  - Missing legacy policy config falls back to 5.
 
 ## Phase 5: FCM Push Notification Runtime
 

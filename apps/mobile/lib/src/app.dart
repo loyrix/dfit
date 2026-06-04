@@ -286,6 +286,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           totals: _journalController.totals,
           target: _journalController.dailyTarget,
           quota: _journalController.quota,
+          rewardedAdProgress: _journalController.rewardedAdProgress,
           weeklyRange: _journalController.weeklyRange,
           streakSummary: _journalController.streakSummary,
           loading: _journalController.loading,
@@ -297,6 +298,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           syncMessage: _journalController.error,
           onRefresh: _refreshToday,
           onScan: _openCamera,
+          onUnlockWithAd: _unlockScanFromToday,
           onAddManually: _openManualReview,
           onOpenSettings: () => _selectTab(2),
           onOpenMeal: (meal) => _openMealDetail(meal),
@@ -492,6 +494,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           ),
                           lockInitialItems: true,
                           photo: photo,
+                          onFoodSearch: _journalController.searchFoods,
                           onConfirm: (type, items) {
                             return _confirmAnalyzedMeal(
                               scanId: analysis.scanId,
@@ -520,6 +523,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         builder: (_) => ReviewMealScreen(
           initialItems: const [],
           initialMealType: mealTypeForLocalTime(DateTime.now()),
+          onFoodSearch: _journalController.searchFoods,
           onConfirm: _saveMeal,
         ),
       ),
@@ -752,6 +756,25 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
 
     return false;
+  }
+
+  Future<void> _unlockScanFromToday() async {
+    if (!_authController.isSignedIn) {
+      final session = await _openAccountHome(AccountGateReason.quotaExhausted);
+      if (session == null) return;
+      await _journalController.refreshQuota();
+    }
+
+    if (_journalController.rewardedAdProgress.dailyLimitReached) {
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.warning,
+        title: 'Daily ad limit reached',
+        message: 'You can earn more ad scans tomorrow.',
+      );
+      return;
+    }
+
+    await _watchRewardedAdForScanUnlock();
   }
 
   Future<bool> _watchRewardedAdForScanUnlock() async {

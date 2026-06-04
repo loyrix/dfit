@@ -19,6 +19,7 @@ class TodayScreen extends StatelessWidget {
     required this.totals,
     this.target,
     this.quota,
+    this.rewardedAdProgress,
     this.weeklyRange,
     this.streakSummary,
     this.loading = false,
@@ -30,6 +31,7 @@ class TodayScreen extends StatelessWidget {
     this.syncMessage,
     required this.onRefresh,
     required this.onScan,
+    this.onUnlockWithAd,
     required this.onAddManually,
     required this.onOpenSettings,
     required this.onOpenMeal,
@@ -41,6 +43,7 @@ class TodayScreen extends StatelessWidget {
   final MacroTotals totals;
   final MacroTotals? target;
   final ScanQuota? quota;
+  final RewardedAdProgress? rewardedAdProgress;
   final JournalRangeData? weeklyRange;
   final StreakSummary? streakSummary;
   final bool loading;
@@ -52,6 +55,7 @@ class TodayScreen extends StatelessWidget {
   final String? syncMessage;
   final Future<void> Function() onRefresh;
   final VoidCallback onScan;
+  final VoidCallback? onUnlockWithAd;
   final VoidCallback onAddManually;
   final VoidCallback onOpenSettings;
   final ValueChanged<MealLog> onOpenMeal;
@@ -62,6 +66,7 @@ class TodayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isEmpty = meals.isEmpty && !initialLoading;
     final colors = context.logmyplate;
+    final adProgress = rewardedAdProgress ?? RewardedAdProgress.initial();
 
     return Scaffold(
       body: SafeArea(
@@ -87,7 +92,11 @@ class TodayScreen extends StatelessWidget {
                         ),
                       ),
                       if (quota != null) ...[
-                        _QuotaPill(quota: quota!),
+                        _QuotaPill(
+                          quota: quota!,
+                          progress: adProgress,
+                          onUnlockWithAd: onUnlockWithAd,
+                        ),
                         const SizedBox(width: 6),
                       ],
                       if (showSettingsAction)
@@ -962,36 +971,66 @@ class _SyncBanner extends StatelessWidget {
 }
 
 class _QuotaPill extends StatelessWidget {
-  const _QuotaPill({required this.quota});
+  const _QuotaPill({
+    required this.quota,
+    required this.progress,
+    this.onUnlockWithAd,
+  });
 
   final ScanQuota quota;
+  final RewardedAdProgress progress;
+  final VoidCallback? onUnlockWithAd;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final remaining = quota.totalRemaining;
-    final label = remaining > 0 ? '$remaining scans' : 'ad unlock';
-    final background = remaining > 0 ? colors.textPrimary : colors.accent;
-    final foreground = remaining > 0 ? colors.background : colors.accentOn;
+    final canUnlockWithAd =
+        onUnlockWithAd != null && !progress.dailyLimitReached;
+    final label = remaining > 0
+        ? canUnlockWithAd
+              ? '$remaining scans +'
+              : '$remaining scans'
+        : progress.dailyLimitReached
+        ? 'limit hit'
+        : 'ad unlock';
+    final background = remaining > 0
+        ? colors.textPrimary
+        : canUnlockWithAd
+        ? colors.accent
+        : colors.mutedFill;
+    final foreground = remaining > 0
+        ? colors.background
+        : canUnlockWithAd
+        ? colors.accentOn
+        : colors.textSecondary;
 
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 11),
-      decoration: BoxDecoration(
-        color: background,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 0.5,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: foreground,
-          letterSpacing: 0.2,
-          fontFeatures: const [FontFeature.tabularFigures()],
+        onTap: canUnlockWithAd ? onUnlockWithAd : null,
+        child: Ink(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+              width: 0.5,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: foreground,
+                letterSpacing: 0.2,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
         ),
       ),
     );

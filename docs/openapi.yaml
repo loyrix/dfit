@@ -927,7 +927,7 @@ paths:
     post:
       tags: [Ads]
       summary: Complete rewarded ad
-      description: Records a completed rewarded ad. One completed rewarded ad grants one rewarded scan credit, capped at five rewarded scans per day. Production can require a matching AdMob server-side verification token before granting.
+      description: Records a completed rewarded ad. One completed rewarded ad grants one rewarded scan credit, capped by the configured rewarded ad daily scan limit. Production can require a matching AdMob server-side verification token before granting.
       security:
         - bearerAuth: []
           installId: []
@@ -2257,7 +2257,7 @@ components:
 
     EngagementPolicy:
       type: object
-      required: [analytics, reviewPrompt, interstitialAds, notifications, streaks]
+      required: [analytics, reviewPrompt, interstitialAds, rewardedAds, notifications, streaks]
       properties:
         analytics:
           $ref: "#/components/schemas/EngagementAnalyticsPolicy"
@@ -2265,6 +2265,8 @@ components:
           $ref: "#/components/schemas/EngagementReviewPromptPolicy"
         interstitialAds:
           $ref: "#/components/schemas/EngagementInterstitialAdsPolicy"
+        rewardedAds:
+          $ref: "#/components/schemas/EngagementRewardedAdsPolicy"
         notifications:
           $ref: "#/components/schemas/EngagementNotificationsPolicy"
         streaks:
@@ -2449,6 +2451,16 @@ components:
               type: string
               nullable: true
               maxLength: 160
+
+    EngagementRewardedAdsPolicy:
+      type: object
+      required: [dailyScanLimit]
+      properties:
+        dailyScanLimit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Maximum rewarded scan credits a signed-in user can earn per local day.
 
     EngagementNotificationsPolicy:
       type: object

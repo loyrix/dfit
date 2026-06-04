@@ -510,7 +510,9 @@ export class InMemoryStore implements AppRepository {
     return { ...this.quotaFor(await this.getProfile()) };
   }
 
-  async getRewardedAdProgress(): Promise<RewardedAdProgressState> {
+  async getRewardedAdProgress(
+    dailyScanLimit = rewardedDailyScanLimit,
+  ): Promise<RewardedAdProgressState> {
     const profile = await this.getProfile();
     const today = new Date().toISOString().slice(0, 10);
     const progressKey = `${this.quotaKey(profile)}:${today}`;
@@ -518,13 +520,13 @@ export class InMemoryStore implements AppRepository {
       completedAds: 0,
       grantedScans: 0,
     };
-    const state = calculateRewardedAdState(progress);
+    const state = calculateRewardedAdState({ ...progress, dailyScanLimit });
 
     return {
       adsWatchedToday: progress.completedAds,
       adsNeededForNextScan: state.adsNeededForNextScan,
       scansGrantedToday: progress.grantedScans,
-      dailyScanLimit: rewardedDailyScanLimit,
+      dailyScanLimit,
       adsPerScan: rewardedAdsPerScan,
     };
   }
@@ -564,7 +566,10 @@ export class InMemoryStore implements AppRepository {
     );
   }
 
-  async completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
+  async completeRewardedAd(
+    input: RewardedAdCompletionInput,
+    dailyScanLimit = rewardedDailyScanLimit,
+  ): Promise<RewardedAdCreditResult> {
     const profile = await this.getProfile();
     const quota = this.quotaFor(profile);
     const today = new Date().toISOString().slice(0, 10);
@@ -581,7 +586,7 @@ export class InMemoryStore implements AppRepository {
       progress.completedAds += 1;
     }
 
-    const state = calculateRewardedAdState(progress);
+    const state = calculateRewardedAdState({ ...progress, dailyScanLimit });
     const grantableScans = alreadyCompleted ? 0 : Math.min(state.grantableScans, 1);
     if (grantableScans > 0) {
       progress.grantedScans += grantableScans;
@@ -592,7 +597,7 @@ export class InMemoryStore implements AppRepository {
 
     return {
       grantedScan: grantableScans > 0,
-      ...(await this.getRewardedAdProgress()),
+      ...(await this.getRewardedAdProgress(dailyScanLimit)),
       quota: { ...quota },
     };
   }

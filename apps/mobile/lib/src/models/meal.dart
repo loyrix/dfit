@@ -67,6 +67,84 @@ class MacroTotals {
   }
 }
 
+class FoodPortion {
+  const FoodPortion({
+    required this.unit,
+    required this.grams,
+    required this.confidence,
+  });
+
+  final String unit;
+  final double grams;
+  final double confidence;
+
+  factory FoodPortion.fromJson(Map<String, dynamic> json) {
+    return FoodPortion(
+      unit: json['unit'] as String? ?? 'serving',
+      grams: (json['grams'] as num? ?? 0).toDouble(),
+      confidence: (json['confidence'] as num? ?? 0).toDouble(),
+    );
+  }
+}
+
+class FoodSearchResult {
+  const FoodSearchResult({
+    required this.id,
+    required this.canonicalName,
+    required this.nutritionPer100g,
+    required this.portions,
+    required this.score,
+    this.matchedAlias,
+  });
+
+  final String id;
+  final String canonicalName;
+  final MacroTotals nutritionPer100g;
+  final List<FoodPortion> portions;
+  final double score;
+  final String? matchedAlias;
+
+  FoodPortion get bestPortion {
+    final usefulPortions = portions.where((portion) => portion.grams > 0);
+    if (usefulPortions.isEmpty) {
+      return const FoodPortion(unit: 'serving', grams: 100, confidence: 0);
+    }
+    return usefulPortions.reduce(
+      (best, portion) => portion.confidence > best.confidence ? portion : best,
+    );
+  }
+
+  MealItem toMealItem() {
+    final portion = bestPortion;
+    final grams = portion.grams.round().clamp(1, 5000);
+    return MealItem(
+      foodId: id,
+      name: canonicalName,
+      quantity: 1,
+      unit: portion.unit,
+      grams: grams,
+      nutrition: nutritionPer100g.scaledBy(grams / 100),
+      confidence: score >= 90 ? 1 : 0.9,
+    );
+  }
+
+  factory FoodSearchResult.fromJson(Map<String, dynamic> json) {
+    return FoodSearchResult(
+      id: json['id'] as String,
+      canonicalName: json['canonicalName'] as String,
+      nutritionPer100g: MacroTotals.fromJson(
+        json['nutritionPer100g'] as Map<String, dynamic>,
+      ),
+      portions: (json['portions'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(FoodPortion.fromJson)
+          .toList(),
+      score: (json['score'] as num? ?? 0).toDouble(),
+      matchedAlias: json['matchedAlias'] as String?,
+    );
+  }
+}
+
 class MealItem {
   const MealItem({
     required this.name,
@@ -1253,6 +1331,28 @@ class EngagementInterstitialAdsPolicy {
   }
 }
 
+class EngagementRewardedAdsPolicy {
+  const EngagementRewardedAdsPolicy({this.dailyScanLimit = 5});
+
+  final int dailyScanLimit;
+
+  factory EngagementRewardedAdsPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementRewardedAdsPolicy();
+    return EngagementRewardedAdsPolicy(
+      dailyScanLimit: _boundedInt(
+        json['dailyScanLimit'],
+        fallback: 5,
+        min: 1,
+        max: 100,
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'dailyScanLimit': dailyScanLimit};
+  }
+}
+
 class EngagementQuietHours {
   const EngagementQuietHours({this.start = '22:00', this.end = '07:00'});
 
@@ -1582,6 +1682,7 @@ class EngagementPolicy {
     this.analytics = const EngagementAnalyticsPolicy(),
     this.reviewPrompt = const EngagementReviewPromptPolicy(),
     this.interstitialAds = const EngagementInterstitialAdsPolicy(),
+    this.rewardedAds = const EngagementRewardedAdsPolicy(),
     this.notifications = const EngagementNotificationsPolicy(),
     this.streaks = const EngagementStreaksPolicy(),
   });
@@ -1589,6 +1690,7 @@ class EngagementPolicy {
   final EngagementAnalyticsPolicy analytics;
   final EngagementReviewPromptPolicy reviewPrompt;
   final EngagementInterstitialAdsPolicy interstitialAds;
+  final EngagementRewardedAdsPolicy rewardedAds;
   final EngagementNotificationsPolicy notifications;
   final EngagementStreaksPolicy streaks;
 
@@ -1608,6 +1710,9 @@ class EngagementPolicy {
       interstitialAds: EngagementInterstitialAdsPolicy.fromJson(
         json['interstitialAds'] as Map<String, dynamic>?,
       ),
+      rewardedAds: EngagementRewardedAdsPolicy.fromJson(
+        json['rewardedAds'] as Map<String, dynamic>?,
+      ),
       notifications: EngagementNotificationsPolicy.fromJson(
         json['notifications'] as Map<String, dynamic>?,
       ),
@@ -1622,6 +1727,7 @@ class EngagementPolicy {
       'analytics': analytics.toJson(),
       'reviewPrompt': reviewPrompt.toJson(),
       'interstitialAds': interstitialAds.toJson(),
+      'rewardedAds': rewardedAds.toJson(),
       'notifications': notifications.toJson(),
       'streaks': streaks.toJson(),
     };

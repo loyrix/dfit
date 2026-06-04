@@ -212,6 +212,50 @@ void main() {
     expect(quota.totalRemaining, 3);
   });
 
+  test('searches foods and parses portion nutrition', () async {
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/foods');
+        expect(request.url.queryParameters['q'], 'chicken curry');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
+        return http.Response(
+          jsonEncode({
+            'query': 'chicken curry',
+            'results': [
+              {
+                'id': 'food-chicken-curry',
+                'canonicalName': 'Chicken Curry',
+                'region': 'IN',
+                'aliases': ['chicken masala'],
+                'source': 'seed',
+                'nutritionPer100g': {
+                  'calories': 180,
+                  'proteinG': 16,
+                  'carbsG': 5,
+                  'fatG': 11,
+                },
+                'portions': [
+                  {'unit': 'serving', 'grams': 180, 'confidence': 0.86},
+                ],
+                'matchedAlias': 'chicken curry',
+                'score': 100,
+              },
+            ],
+          }),
+          200,
+        );
+      }),
+    );
+
+    final results = await client.searchFoods(' chicken curry ');
+
+    expect(results.single.canonicalName, 'Chicken Curry');
+    expect(results.single.bestPortion.grams, 180);
+    expect(results.single.toMealItem().nutrition.calories, 324);
+  });
+
   test('records rewarded ad completion with idempotency headers', () async {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',

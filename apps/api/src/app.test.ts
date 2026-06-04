@@ -396,6 +396,7 @@ describe("LogMyPlate API", () => {
 
     expect(defaults.reviewPrompt.enabled).toBe(false);
     expect(defaults.interstitialAds.enabled).toBe(false);
+    expect(defaults.rewardedAds.dailyScanLimit).toBe(5);
     expect(defaults.notifications.enabled).toBe(false);
     expect(defaults.streaks.enabled).toBe(false);
     expect(defaults.streaks.scanRewards.enabled).toBe(false);
@@ -407,6 +408,11 @@ describe("LogMyPlate API", () => {
     expect(
       engagementPolicyConfigSchema.safeParse({
         interstitialAds: { scansBetweenAds: 0 },
+      }).success,
+    ).toBe(false);
+    expect(
+      engagementPolicyConfigSchema.safeParse({
+        rewardedAds: { dailyScanLimit: 0 },
       }).success,
     ).toBe(false);
   });
@@ -2405,6 +2411,63 @@ describe("LogMyPlate API", () => {
       adsNeededForNextScan: 0,
       scansGrantedToday: 5,
       quota: { freeRemaining: 3, rewardedRemaining: 5, premiumRemaining: 0 },
+    });
+    await app.close();
+  });
+
+  it("uses engagement policy for rewarded ad daily scan limits", async () => {
+    const fakeSql = Object.assign(
+      () =>
+        Promise.resolve([
+          {
+            value: {
+              rewardedAds: {
+                dailyScanLimit: 2,
+              },
+            },
+          },
+        ]),
+      { end: async () => undefined },
+    );
+    const app = await testApp({
+      repository: new InMemoryStore(),
+      sql: fakeSql as never,
+    });
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-custom-cap",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads-custom-cap@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    let lastPayload: Record<string, unknown> = {};
+    for (let index = 1; index <= 3; index += 1) {
+      const response = await app.inject({
+        method: "POST",
+        url: "/v1/ads/rewarded/complete",
+        headers: { ...headers, "idempotency-key": `rewarded-custom-cap-${index}` },
+        payload: { provider: "admob", placement: "scan_unlock" },
+      });
+      expect(response.statusCode).toBe(200);
+      lastPayload = response.json();
+    }
+
+    expect(lastPayload).toMatchObject({
+      grantedScan: false,
+      adsWatchedToday: 3,
+      adsNeededForNextScan: 0,
+      scansGrantedToday: 2,
+      dailyScanLimit: 2,
+      quota: { freeRemaining: 3, rewardedRemaining: 2, premiumRemaining: 0 },
     });
     await app.close();
   });

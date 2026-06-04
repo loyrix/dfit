@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
@@ -18,11 +20,13 @@ class MealItemEditorSheet extends StatefulWidget {
     required this.item,
     required this.lockedFromAnalysis,
     this.allowDelete = true,
+    this.onFoodSearch,
   });
 
   final MealItem item;
   final bool lockedFromAnalysis;
   final bool allowDelete;
+  final Future<List<FoodSearchResult>> Function(String query)? onFoodSearch;
 
   @override
   State<MealItemEditorSheet> createState() => _MealItemEditorSheetState();
@@ -54,11 +58,24 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
   late String _unit = _portionUnits.contains(widget.item.unit)
       ? widget.item.unit
       : 'serving';
+  final List<FoodSearchResult> _foodSuggestions = [];
+  Timer? _foodSearchDebounce;
+  int _foodSearchSerial = 0;
   String? _validation;
+  bool _searchingFoods = false;
+  bool _applyingSuggestion = false;
   bool _syncingDerivedFields = false;
 
   @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_handleFoodNameChanged);
+  }
+
+  @override
   void dispose() {
+    _foodSearchDebounce?.cancel();
+    _nameController.removeListener(_handleFoodNameChanged);
     _nameController.dispose();
     _quantityController.dispose();
     _gramsController.dispose();
@@ -174,6 +191,15 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                   controller: _nameController,
                   textInputAction: TextInputAction.next,
                 ),
+                if (widget.onFoodSearch != null &&
+                    (_searchingFoods || _foodSuggestions.isNotEmpty)) ...[
+                  const SizedBox(height: 10),
+                  _FoodSuggestionStrip(
+                    suggestions: _foodSuggestions,
+                    searching: _searchingFoods,
+                    onSelect: _applyFoodSuggestion,
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -328,7 +354,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
 
     Navigator.of(context).pop(
       MealItemEditResult.update(
-        widget.item.copyWith(
+        _workingItem.copyWith(
           name: name,
           quantity: quantity,
           unit: _unit,
@@ -343,6 +369,77 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
         ),
       ),
     );
+  }
+
+  void _handleFoodNameChanged() {
+    if (widget.lockedFromAnalysis ||
+        widget.onFoodSearch == null ||
+        _applyingSuggestion) {
+      return;
+    }
+
+    final query = _nameController.text.trim();
+    _foodSearchDebounce?.cancel();
+    if (query.length < 2) {
+      if (_foodSuggestions.isEmpty && !_searchingFoods) return;
+      setState(() {
+        _foodSuggestions.clear();
+        _searchingFoods = false;
+      });
+      return;
+    }
+
+    _foodSearchDebounce = Timer(
+      const Duration(milliseconds: 280),
+      () => _searchFoods(query),
+    );
+  }
+
+  Future<void> _searchFoods(String query) async {
+    final search = widget.onFoodSearch;
+    if (search == null) return;
+    final serial = ++_foodSearchSerial;
+    setState(() => _searchingFoods = true);
+    try {
+      final results = await search(query);
+      if (!mounted ||
+          serial != _foodSearchSerial ||
+          query != _nameController.text.trim()) {
+        return;
+      }
+      setState(() {
+        _foodSuggestions
+          ..clear()
+          ..addAll(results.take(5));
+        _searchingFoods = false;
+      });
+    } catch (_) {
+      if (!mounted || serial != _foodSearchSerial) return;
+      setState(() {
+        _foodSuggestions.clear();
+        _searchingFoods = false;
+      });
+    }
+  }
+
+  void _applyFoodSuggestion(FoodSearchResult food) {
+    final item = food.toMealItem();
+    _applyingSuggestion = true;
+    setState(() {
+      _workingItem = item;
+      _nameController.text = item.name;
+      _quantityController.text = _formatInputNumber(item.quantity);
+      _unit = _portionUnits.contains(item.unit) ? item.unit : 'serving';
+      _gramsController.text = item.grams.toString();
+      _caloriesController.text = item.nutrition.calories.toString();
+      _proteinController.text = _formatInputNumber(item.nutrition.proteinG);
+      _carbsController.text = _formatInputNumber(item.nutrition.carbsG);
+      _fatController.text = _formatInputNumber(item.nutrition.fatG);
+      _foodSuggestions.clear();
+      _searchingFoods = false;
+      _validation = null;
+    });
+    _applyingSuggestion = false;
   }
 
   void _updateLockedFromQuantity(String value) {
@@ -383,6 +480,138 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
     _carbsController.text = _formatInputNumber(_workingItem.nutrition.carbsG);
     _fatController.text = _formatInputNumber(_workingItem.nutrition.fatG);
     _syncingDerivedFields = false;
+  }
+}
+
+class _FoodSuggestionStrip extends StatelessWidget {
+  const _FoodSuggestionStrip({
+    required this.suggestions,
+    required this.searching,
+    required this.onSelect,
+  });
+
+  final List<FoodSearchResult> suggestions;
+  final bool searching;
+  final ValueChanged<FoodSearchResult> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.035)
+            : LogMyPlateColors.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: searching
+              ? colors.accent.withValues(alpha: 0.38)
+              : colors.border.withValues(alpha: 0.76),
+          width: 0.6,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  searching ? 'Searching foods' : 'Matches from food database',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              if (searching)
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.accent,
+                  ),
+                ),
+            ],
+          ),
+          if (suggestions.isNotEmpty) ...[
+            const SizedBox(height: 9),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final food in suggestions) ...[
+                    _FoodSuggestionChip(food: food, onSelect: onSelect),
+                    const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FoodSuggestionChip extends StatelessWidget {
+  const _FoodSuggestionChip({required this.food, required this.onSelect});
+
+  final FoodSearchResult food;
+  final ValueChanged<FoodSearchResult> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final portion = food.bestPortion;
+    final calories = food.nutritionPer100g
+        .scaledBy(portion.grams <= 0 ? 1 : portion.grams / 100)
+        .calories;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => onSelect(food),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.border.withValues(alpha: 0.82)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              food.canonicalName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${portion.grams.round()}g ${portion.unit} · $calories kCal',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textSecondary,
+                letterSpacing: 0,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

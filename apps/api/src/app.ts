@@ -92,11 +92,16 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerRequestContext(app);
   await registerIdempotency(app, repository);
   await registerConfigRoutes(app, sql);
-  await registerAdRoutes(app, repository, {
-    rewardedAdVerifier,
-    requireRewardedAdServerVerification:
-      options.requireRewardedAdServerVerification ?? config.adMob.rewardedSsvRequired,
-  });
+  await registerAdRoutes(
+    app,
+    repository,
+    {
+      rewardedAdVerifier,
+      requireRewardedAdServerVerification:
+        options.requireRewardedAdServerVerification ?? config.adMob.rewardedSsvRequired,
+    },
+    sql,
+  );
   await registerFoodRoutes(app, repository);
   await registerDeviceRoutes(app, repository);
   await registerProfileRoutes(

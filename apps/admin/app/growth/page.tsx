@@ -5,6 +5,7 @@ import {
   updateEngagementAnalyticsAction,
   updateInterstitialAdsAction,
   updateNotificationsAction,
+  updateRewardedAdsAction,
   updateReviewPromptAction,
   updateStreaksAction,
 } from "../lib/actions";
@@ -53,7 +54,14 @@ type GrowthControlsSearchParams = {
   message?: string;
 };
 
-type GrowthSection = "analytics" | "review" | "ads" | "notifications" | "streaks" | "push";
+type GrowthSection =
+  | "analytics"
+  | "review"
+  | "ads"
+  | "rewarded"
+  | "notifications"
+  | "streaks"
+  | "push";
 
 export default async function GrowthControlsPage({
   searchParams,
@@ -109,6 +117,12 @@ export default async function GrowthControlsPage({
             label: "Interstitial ads",
             detail: "Ad caps and unit ids",
             active: section === "ads",
+          },
+          {
+            href: "/growth?section=rewarded",
+            label: "Rewarded unlocks",
+            detail: "Free scan earning limit",
+            active: section === "rewarded",
           },
           {
             href: "/growth?section=notifications",
@@ -176,6 +190,21 @@ export default async function GrowthControlsPage({
         </form>
       ) : null}
 
+      {section === "rewarded" ? (
+        <form action={updateRewardedAdsAction} className="focused-page">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:rewarded:update")}
+          />
+          <RewardedAdsPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save rewarded unlocks"
+            placeholder="Why rewarded scan limits are changing"
+          />
+        </form>
+      ) : null}
+
       {section === "notifications" ? (
         <form action={updateNotificationsAction} className="focused-page">
           <input
@@ -215,6 +244,7 @@ function normalizeGrowthSection(value: string | undefined): GrowthSection {
   if (
     value === "review" ||
     value === "ads" ||
+    value === "rewarded" ||
     value === "notifications" ||
     value === "streaks" ||
     value === "push"
@@ -596,6 +626,36 @@ function InterstitialAdsPanel({ policy }: { policy: EngagementPolicy }) {
           value={policy.interstitialAds.adUnitIds.android ?? ""}
           maxLength={160}
         />
+      </div>
+    </div>
+  );
+}
+
+function RewardedAdsPanel({ policy }: { policy: EngagementPolicy }) {
+  return (
+    <div className="panel">
+      <div className="section-head">
+        <div>
+          <h2 className="text-xl font-bold">Rewarded scan unlocks</h2>
+          <p className="muted mt-1 text-sm">
+            Daily cap for scans a signed-in user can earn by watching rewarded ads.
+          </p>
+        </div>
+        <Badge tone="green">Configurable</Badge>
+      </div>
+
+      <div className="form-grid mt-4">
+        <NumberField
+          label="Rewarded scans per day"
+          name="rewardedAds.dailyScanLimit"
+          value={policy.rewardedAds.dailyScanLimit}
+          min={1}
+          max={100}
+        />
+        <p className="muted text-sm">
+          This controls rewarded scan credits only. Interstitial ad frequency remains separate.
+          Existing app builds read the cap from quota/progress responses.
+        </p>
       </div>
     </div>
   );

@@ -239,6 +239,15 @@ export async function updateInterstitialAdsAction(formData: FormData) {
   );
 }
 
+export async function updateRewardedAdsAction(formData: FormData) {
+  await updateEngagementPolicySection(
+    formData,
+    "rewardedAds",
+    readRewardedAdsPolicy(formData),
+    "rewarded",
+  );
+}
+
 export async function updateNotificationsAction(formData: FormData) {
   await updateEngagementPolicySection(
     formData,
@@ -336,6 +345,7 @@ const readEngagementPolicy = (formData: FormData) => ({
   analytics: readAnalyticsPolicy(formData),
   reviewPrompt: readReviewPromptPolicy(formData),
   interstitialAds: readInterstitialAdsPolicy(formData),
+  rewardedAds: readRewardedAdsPolicy(formData),
   notifications: readNotificationsPolicy(formData),
   streaks: readStreaksPolicy(formData),
   reason: stringValue(formData, "reason"),
@@ -384,6 +394,10 @@ const readInterstitialAdsPolicy = (formData: FormData): EngagementPolicy["inters
     ios: nullableStringValue(formData, "interstitialAds.adUnitIds.ios"),
     android: nullableStringValue(formData, "interstitialAds.adUnitIds.android"),
   },
+});
+
+const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAds"] => ({
+  dailyScanLimit: numberValue(formData, "rewardedAds.dailyScanLimit"),
 });
 
 const readNotificationsPolicy = (formData: FormData): EngagementPolicy["notifications"] => ({

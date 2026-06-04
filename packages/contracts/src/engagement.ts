@@ -79,6 +79,10 @@ export const engagementInterstitialAdsPolicySchema = z.object({
   adUnitIds: platformAdUnitIdsSchema.default({}),
 });
 
+export const engagementRewardedAdsPolicySchema = z.object({
+  dailyScanLimit: z.coerce.number().int().min(1).max(100).default(5),
+});
+
 const notificationScenarioPolicySchema = z.object({
   enabled: z.boolean().default(false),
   windowStart: timeOfDaySchema.default("12:00"),
@@ -192,6 +196,7 @@ export const engagementPolicyConfigSchema = z.object({
   analytics: engagementAnalyticsPolicySchema.default({}),
   reviewPrompt: engagementReviewPromptPolicySchema.default({}),
   interstitialAds: engagementInterstitialAdsPolicySchema.default({}),
+  rewardedAds: engagementRewardedAdsPolicySchema.default({}),
   notifications: engagementNotificationsPolicySchema.default({}),
   streaks: engagementStreaksPolicySchema.default({}),
 });

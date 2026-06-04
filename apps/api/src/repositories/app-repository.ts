@@ -240,7 +240,7 @@ export interface AppRepository {
   searchFoods(query: string): Promise<FoodSearchResult[]>;
   getFood(foodId: string): Promise<FoodRecord | undefined>;
   getQuota(): Promise<ScanCreditState>;
-  getRewardedAdProgress(): Promise<RewardedAdProgressState>;
+  getRewardedAdProgress(dailyScanLimit?: number): Promise<RewardedAdProgressState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
   recordRewardedAdServerVerification(
     input: RewardedAdServerVerificationInput,
@@ -249,7 +249,10 @@ export interface AppRepository {
     profileId: string;
     customData: string;
   }): Promise<RewardedAdServerVerification | undefined>;
-  completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult>;
+  completeRewardedAd(
+    input: RewardedAdCompletionInput,
+    dailyScanLimit?: number,
+  ): Promise<RewardedAdCreditResult>;
   registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;

@@ -328,6 +328,10 @@ class JournalController extends ChangeNotifier {
     return _apiClient.fetchJournalWeeks();
   }
 
+  Future<List<FoodSearchResult>> searchFoods(String query) {
+    return _apiClient.searchFoods(query);
+  }
+
   void _refreshJournalSoon() {
     unawaited(loadToday());
   }

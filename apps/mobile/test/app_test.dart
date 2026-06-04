@@ -289,6 +289,68 @@ void main() {
     expect(find.text('Paneer tikka'), findsOneWidget);
   });
 
+  testWidgets('custom item editor applies food database suggestions', (
+    tester,
+  ) async {
+    List<MealItem>? confirmedItems;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReviewMealScreen(
+          initialItems: const [],
+          onFoodSearch: (query) async {
+            if (!query.toLowerCase().contains('chicken')) return const [];
+            return const [
+              FoodSearchResult(
+                id: 'food-chicken-curry',
+                canonicalName: 'Chicken Curry',
+                nutritionPer100g: MacroTotals(
+                  calories: 180,
+                  proteinG: 16,
+                  carbsG: 5,
+                  fatG: 11,
+                ),
+                portions: [
+                  FoodPortion(unit: 'serving', grams: 180, confidence: 0.86),
+                ],
+                score: 100,
+              ),
+            ];
+          },
+          onConfirm: (_, items) async {
+            confirmedItems = items;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Add custom item'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('edit-item-name')),
+      'chicken',
+    );
+    await tester.pump(const Duration(milliseconds: 320));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Matches from food database'), findsOneWidget);
+    expect(find.text('Chicken Curry'), findsOneWidget);
+
+    await tester.tap(find.text('Chicken Curry'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm meal'));
+    await tester.pump();
+
+    expect(confirmedItems, isNotNull);
+    expect(confirmedItems!.single.foodId, 'food-chicken-curry');
+    expect(confirmedItems!.single.name, 'Chicken Curry');
+    expect(confirmedItems!.single.grams, 180);
+    expect(confirmedItems!.single.nutrition.calories, 324);
+    expect(confirmedItems!.single.nutrition.proteinG, 28.8);
+  });
+
   testWidgets('captured meal review can add a custom item', (tester) async {
     final photo = CapturedMealPhoto(
       bytes: base64Decode(

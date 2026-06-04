@@ -1314,7 +1314,9 @@ export class PostgresStore implements AppRepository {
     return quotaFromRow(await this.getOrCreateQuota(profile));
   }
 
-  async getRewardedAdProgress(): Promise<RewardedAdProgressState> {
+  async getRewardedAdProgress(
+    dailyScanLimit = rewardedDailyScanLimit,
+  ): Promise<RewardedAdProgressState> {
     const profile = await this.getProfile();
     const today = localDate();
     const ownerKey = this.quotaOwnerKey(profile);
@@ -1330,13 +1332,14 @@ export class PostgresStore implements AppRepository {
     const rewardState = calculateRewardedAdState({
       completedAds,
       grantedScans,
+      dailyScanLimit,
     });
 
     return {
       adsWatchedToday: completedAds,
       adsNeededForNextScan: rewardState.adsNeededForNextScan,
       scansGrantedToday: grantedScans,
-      dailyScanLimit: rewardedDailyScanLimit,
+      dailyScanLimit,
       adsPerScan: rewardedAdsPerScan,
     };
   }
@@ -1439,7 +1442,10 @@ export class PostgresStore implements AppRepository {
     return row ? rewardedVerificationFromRow(row) : undefined;
   }
 
-  async completeRewardedAd(input: RewardedAdCompletionInput): Promise<RewardedAdCreditResult> {
+  async completeRewardedAd(
+    input: RewardedAdCompletionInput,
+    dailyScanLimit = rewardedDailyScanLimit,
+  ): Promise<RewardedAdCreditResult> {
     const profile = await this.getProfile();
     const identity = currentRequestIdentity();
     const today = localDate();
@@ -1523,6 +1529,7 @@ export class PostgresStore implements AppRepository {
       const currentRewardState = calculateRewardedAdState({
         completedAds: progress.completed_ads,
         grantedScans: progress.granted_scans,
+        dailyScanLimit,
       });
       const scanGrant = Math.min(currentRewardState.grantableScans, 1);
 
@@ -1593,6 +1600,7 @@ export class PostgresStore implements AppRepository {
       const rewardState = calculateRewardedAdState({
         completedAds: progress.completed_ads,
         grantedScans: progress.granted_scans,
+        dailyScanLimit,
       });
 
       return {
@@ -1600,7 +1608,7 @@ export class PostgresStore implements AppRepository {
         adsWatchedToday: progress.completed_ads,
         adsNeededForNextScan: rewardState.adsNeededForNextScan,
         scansGrantedToday: progress.granted_scans,
-        dailyScanLimit: rewardedDailyScanLimit,
+        dailyScanLimit,
         adsPerScan: rewardedAdsPerScan,
         quota: quotaFromRow(quotaRow),
       };

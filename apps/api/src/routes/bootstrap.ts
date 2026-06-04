@@ -29,7 +29,9 @@ export const registerBootstrapRoutes = async (
     );
     const [quota, rewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
-      timer.measure("rewardedAdProgress", () => repository.getRewardedAdProgress()),
+      timer.measure("rewardedAdProgress", () =>
+        repository.getRewardedAdProgress(engagementPolicy.rewardedAds.dailyScanLimit),
+      ),
       timer.measure("healthTarget", () => repository.getHealthTarget(profile.id)),
     ]);
     const [today, weeklySummary, streakSummary] = await Promise.all([

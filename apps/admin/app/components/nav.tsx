@@ -31,6 +31,7 @@ const navGroups = [
       { href: "/growth?section=analytics", label: "Analytics" },
       { href: "/growth?section=review", label: "Review Prompt" },
       { href: "/growth?section=ads", label: "Interstitial Ads" },
+      { href: "/growth?section=rewarded", label: "Rewarded Unlocks" },
       { href: "/growth?section=notifications", label: "Push Reminders" },
       { href: "/growth?section=streaks", label: "Streaks" },
       { href: "/growth?section=push", label: "Manual Push" },
