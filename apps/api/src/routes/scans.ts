@@ -12,6 +12,7 @@ import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { resolveFoodPhotoPromptKey } from "../services/food-photo-prompt-routing.js";
 import { MockAiProvider } from "../services/mock-ai-provider.js";
 import type { MealImageStorage, StoredMealImage } from "../services/meal-image-storage.js";
+import type { ConfirmedScanFoodLearningItem } from "../repositories/app-repository.js";
 import { toApiMeal } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
 
@@ -94,6 +95,36 @@ const noFoodLimitResponse = () => ({
   message: "Too many non-food scans were detected today. Try again later with a clear meal photo.",
   retryable: false,
 });
+
+const learningItemsFromAnalysis = (analysis: unknown): ConfirmedScanFoodLearningItem[] => {
+  const items = (analysis as { items?: unknown } | undefined)?.items;
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => item as Partial<ConfirmedScanFoodLearningItem>)
+    .filter((item) => typeof item.name === "string")
+    .map((item) => ({
+      name: item.name as string,
+      aliases: Array.isArray(item.aliases)
+        ? item.aliases.filter((alias): alias is string => typeof alias === "string")
+        : [],
+      quantity: Number(item.quantity),
+      unit: item.unit as ConfirmedScanFoodLearningItem["unit"],
+      estimatedGrams: Number(item.estimatedGrams),
+      confidence: typeof item.confidence === "number" ? item.confidence : undefined,
+      nutrition: item.nutrition as ConfirmedScanFoodLearningItem["nutrition"],
+    }));
+};
+
+const learningItemsFromConfirmation = (
+  items: ConfirmScanRequestContract["items"],
+): ConfirmedScanFoodLearningItem[] =>
+  items.map((item) => ({
+    name: item.name,
+    quantity: item.quantity,
+    unit: item.unit,
+    estimatedGrams: item.estimatedGrams,
+    nutrition: item.nutrition,
+  }));
 
 const noFoodScanLimit = () => {
   const configured = Number(process.env.NO_FOOD_SCAN_DAILY_LIMIT ?? defaultNoFoodScanLimit);
@@ -449,6 +480,22 @@ export const registerScanRoutes = async (
         (await timer.measure("imageAttach", () =>
           repository.attachMealImage(meal.mealId, imageToAttach),
         )) ?? meal;
+    }
+
+    try {
+      await timer.measure("learnFoods", () =>
+        repository.learnFoodsFromConfirmedScan({
+          scanId: scan.id,
+          region: currentRequestIdentity().region,
+          predictedItems: learningItemsFromAnalysis(scan.analyzedResponse),
+          confirmedItems: learningItemsFromConfirmation(parsed.data.items),
+        }),
+      );
+    } catch (error) {
+      request.log.error(
+        { err: error, mealId: meal.mealId, scanId: scan.id },
+        "confirmed food learning failed",
+      );
     }
 
     const confirmedImageHash = scan.imageHash;

@@ -6,7 +6,9 @@ import {
   rewardedAdsPerScan,
   rewardedDailyScanLimit,
   searchFoods,
+  seedFoods,
   sumTotals,
+  type FoodRecord,
   type MealSummary,
   type ScanCreditState,
 } from "@logmyplate/domain";
@@ -33,11 +35,13 @@ import type {
   ScanAnalysisCacheRecord,
   ScanSession,
   UpdateMealInput,
+  LearnFoodsFromConfirmedScanInput,
   UpsertScanAnalysisCacheInput,
   UpsertProfileHealthTargetInput,
 } from "./app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AccountAuthError as AuthError } from "./app-repository.js";
+import { buildConfirmedScanLearnedFoodCandidates } from "../services/food-learning.js";
 
 type ProfileLifecycleEventType = "deactivated" | "deleted";
 
@@ -77,6 +81,11 @@ export class InMemoryStore implements AppRepository {
   private readonly sessions = new Map<string, string>();
   private readonly healthTargets = new Map<string, ProfileHealthTarget>();
   private readonly meals = new Map<string, MealSummary>();
+  private readonly foods: FoodRecord[] = seedFoods.map((food) => ({
+    ...food,
+    aliases: [...food.aliases],
+    portions: food.portions.map((portion) => ({ ...portion })),
+  }));
   private readonly mealProfiles = new Map<string, string>();
   private readonly mealScanSessions = new Map<string, string>();
   private readonly scans = new Map<string, ScanSession>();
@@ -499,11 +508,11 @@ export class InMemoryStore implements AppRepository {
   }
 
   async searchFoods(query: string) {
-    return searchFoods(query);
+    return searchFoods(query, this.foods);
   }
 
   async getFood(foodId: string) {
-    return findFoodById(foodId);
+    return findFoodById(foodId, this.foods);
   }
 
   async getQuota() {
@@ -656,6 +665,48 @@ export class InMemoryStore implements AppRepository {
     };
     this.meals.set(mealId, meal);
     return meal;
+  }
+
+  async learnFoodsFromConfirmedScan(input: LearnFoodsFromConfirmedScanInput): Promise<void> {
+    const candidates = buildConfirmedScanLearnedFoodCandidates(input);
+    for (const candidate of candidates) {
+      const existing = searchFoods(candidate.canonicalName, this.foods).find(
+        (food) => food.score >= 100,
+      );
+
+      if (existing) {
+        const food = this.foods.find((storedFood) => storedFood.id === existing.id);
+        if (!food) continue;
+
+        for (const alias of candidate.aliases) {
+          if (
+            !food.aliases.some(
+              (existingAlias) => existingAlias.toLowerCase() === alias.toLowerCase(),
+            )
+          ) {
+            food.aliases.push(alias);
+          }
+        }
+
+        const matchingPortion = food.portions.find(
+          (portion) =>
+            portion.unit === candidate.portion.unit &&
+            Math.abs(portion.grams - candidate.portion.grams) <= 5,
+        );
+        if (!matchingPortion) food.portions.push(candidate.portion);
+        continue;
+      }
+
+      this.foods.push({
+        id: `food_learned_${randomUUID()}`,
+        canonicalName: candidate.canonicalName,
+        region: candidate.region,
+        aliases: candidate.aliases,
+        source: "logmyplate_learned",
+        nutritionPer100g: candidate.nutritionPer100g,
+        portions: [candidate.portion],
+      });
+    }
   }
 
   async updateMeal(mealId: string, input: UpdateMealInput) {

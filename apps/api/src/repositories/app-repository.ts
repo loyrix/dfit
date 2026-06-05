@@ -110,6 +110,23 @@ export type UpdateMealInput = Omit<
   "profileId" | "loggedAt" | "source" | "scanSessionId"
 >;
 
+export type ConfirmedScanFoodLearningItem = {
+  name: string;
+  aliases?: string[];
+  quantity: number;
+  unit: MealItemNutrition["portion"]["unit"];
+  estimatedGrams: number;
+  confidence?: number;
+  nutrition: MacroTotals;
+};
+
+export type LearnFoodsFromConfirmedScanInput = {
+  scanId: string;
+  region?: string;
+  predictedItems: ConfirmedScanFoodLearningItem[];
+  confirmedItems: ConfirmedScanFoodLearningItem[];
+};
+
 export type AttachMealImageInput = Omit<MealImageSummary, "imageId" | "createdAt">;
 
 export type MealDeletionPlan = {
@@ -256,6 +273,7 @@ export interface AppRepository {
   registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
+  learnFoodsFromConfirmedScan(input: LearnFoodsFromConfirmedScanInput): Promise<void>;
   updateMeal(mealId: string, input: UpdateMealInput): Promise<MealSummary | undefined>;
   listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
   summarizeMealsByDate(input?: ListMealsInput): Promise<DailyMealAggregate[]>;

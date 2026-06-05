@@ -2,6 +2,7 @@ import type { NutritionPer100g, PortionUnit } from "./types.js";
 
 export type FoodSource =
   | "logmyplate_seed"
+  | "logmyplate_learned"
   | "ifct_pending"
   | "usda_pending"
   | "open_food_facts_pending";
@@ -263,6 +264,39 @@ export type FoodSearchResult = FoodRecord & {
   score: number;
 };
 
+export type LearnedFoodCandidate = {
+  canonicalName: string;
+  region: "IN" | "GLOBAL";
+  aliases: string[];
+  nutritionPer100g: NutritionPer100g;
+  portion: PortionConversion;
+};
+
+export type LearnedFoodCandidateInput = {
+  name: string;
+  aliases?: string[];
+  region?: string;
+  quantity: number;
+  unit: PortionUnit;
+  grams: number;
+  confidence: number;
+  nutrition: NutritionPer100g;
+};
+
+export const learnedFoodMinConfidence = 0.9;
+
+const genericLearnedFoodNames = new Set([
+  "dish",
+  "food",
+  "item",
+  "meal",
+  "plate",
+  "snack",
+  "unknown",
+  "unknown food",
+  "no food detected",
+]);
+
 export const searchFoods = (
   query: string,
   foods: readonly FoodRecord[] = seedFoods,
@@ -314,3 +348,93 @@ export const normalizeFoodText = (value: string): string =>
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+export const canonicalizeFoodName = (value: string): string =>
+  value
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^[\s,.;:!?-]+|[\s,.;:!?-]+$/g, "");
+
+export const isLearnableFoodName = (value: string): boolean => {
+  const canonicalName = canonicalizeFoodName(value);
+  const normalized = normalizeFoodText(canonicalName);
+  if (canonicalName.length < 3 || canonicalName.length > 80) return false;
+  if (genericLearnedFoodNames.has(normalized)) return false;
+  if (!/[a-z]/i.test(canonicalName)) return false;
+  return normalized.split(" ").some((part) => part.length >= 3);
+};
+
+export const foodNamesAreCompatible = (left: string, right: string): boolean => {
+  const normalizedLeft = normalizeFoodText(left);
+  const normalizedRight = normalizeFoodText(right);
+  if (!normalizedLeft || !normalizedRight) return false;
+  if (normalizedLeft === normalizedRight) return true;
+  return normalizedLeft.includes(normalizedRight) || normalizedRight.includes(normalizedLeft);
+};
+
+export const buildLearnedFoodCandidate = (
+  input: LearnedFoodCandidateInput,
+): LearnedFoodCandidate | undefined => {
+  if (input.confidence < learnedFoodMinConfidence) return undefined;
+  if (!isLearnableFoodName(input.name)) return undefined;
+  if (!Number.isFinite(input.grams) || input.grams < 5 || input.grams > 2_000) return undefined;
+
+  const scale = 100 / input.grams;
+  const nutritionPer100g = roundNutritionPer100g({
+    calories: input.nutrition.calories * scale,
+    proteinG: input.nutrition.proteinG * scale,
+    carbsG: input.nutrition.carbsG * scale,
+    fatG: input.nutrition.fatG * scale,
+    fiberG: input.nutrition.fiberG === undefined ? undefined : input.nutrition.fiberG * scale,
+    sugarG: input.nutrition.sugarG === undefined ? undefined : input.nutrition.sugarG * scale,
+    sodiumMg: input.nutrition.sodiumMg === undefined ? undefined : input.nutrition.sodiumMg * scale,
+  });
+
+  if (!isSaneNutritionPer100g(nutritionPer100g)) return undefined;
+
+  const canonicalName = canonicalizeFoodName(input.name);
+  const normalizedCanonical = normalizeFoodText(canonicalName);
+  const aliases = [...new Set((input.aliases ?? []).map(canonicalizeFoodName))]
+    .filter((alias) => isLearnableFoodName(alias))
+    .filter((alias) => normalizeFoodText(alias) !== normalizedCanonical)
+    .slice(0, 8);
+
+  return {
+    canonicalName,
+    region: input.region === "IN" ? "IN" : "GLOBAL",
+    aliases,
+    nutritionPer100g,
+    portion: {
+      unit: input.unit,
+      grams: Math.round(input.grams * 10) / 10,
+      confidence: Math.min(0.95, Math.max(0.65, Math.round(input.confidence * 100) / 100)),
+    },
+  };
+};
+
+const roundNutritionPer100g = (nutrition: NutritionPer100g): NutritionPer100g => ({
+  calories: Math.round(nutrition.calories * 10) / 10,
+  proteinG: Math.round(nutrition.proteinG * 10) / 10,
+  carbsG: Math.round(nutrition.carbsG * 10) / 10,
+  fatG: Math.round(nutrition.fatG * 10) / 10,
+  fiberG: nutrition.fiberG === undefined ? undefined : Math.round(nutrition.fiberG * 10) / 10,
+  sugarG: nutrition.sugarG === undefined ? undefined : Math.round(nutrition.sugarG * 10) / 10,
+  sodiumMg: nutrition.sodiumMg === undefined ? undefined : Math.round(nutrition.sodiumMg),
+});
+
+const isSaneNutritionPer100g = (nutrition: NutritionPer100g): boolean => {
+  if (nutrition.calories <= 0 || nutrition.calories > 950) return false;
+  if (nutrition.proteinG < 0 || nutrition.proteinG > 120) return false;
+  if (nutrition.carbsG < 0 || nutrition.carbsG > 150) return false;
+  if (nutrition.fatG < 0 || nutrition.fatG > 120) return false;
+  if (nutrition.fiberG !== undefined && (nutrition.fiberG < 0 || nutrition.fiberG > 80)) {
+    return false;
+  }
+  if (nutrition.sugarG !== undefined && (nutrition.sugarG < 0 || nutrition.sugarG > 150)) {
+    return false;
+  }
+  if (nutrition.sodiumMg !== undefined && (nutrition.sodiumMg < 0 || nutrition.sodiumMg > 10_000)) {
+    return false;
+  }
+  return true;
+};

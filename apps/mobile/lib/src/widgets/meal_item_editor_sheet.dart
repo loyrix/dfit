@@ -521,7 +521,7 @@ class _FoodSuggestionStrip extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  searching ? 'Searching foods' : 'Matches from food database',
+                  searching ? 'Searching foods' : 'Suggested foods',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.textSecondary,
                     letterSpacing: 0.4,

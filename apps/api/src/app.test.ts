@@ -480,6 +480,187 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("learns high-confidence confirmed AI foods for manual search", async () => {
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        return {
+          analysis: {
+            scanId: input.scanId,
+            status: "ready_for_review",
+            mealType: "lunch",
+            mealName: "Chicken curry",
+            detectedLanguage: "en",
+            items: [
+              {
+                id: "11111111-1111-4111-8111-111111111111",
+                name: "Chicken Curry",
+                aliases: ["chicken gravy"],
+                quantity: 1,
+                unit: "serving",
+                estimatedGrams: 180,
+                preparation: "home",
+                confidence: 0.94,
+                nutrition: {
+                  calories: 330,
+                  proteinG: 28,
+                  carbsG: 10,
+                  fatG: 20,
+                },
+              },
+            ],
+            totals: {
+              calories: 330,
+              proteinG: 28,
+              carbsG: 10,
+              fatG: 20,
+            },
+          },
+          providerRun: {
+            provider: "mock",
+            model: "test-food-learning-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await testApp({ aiProvider });
+
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "learn-food-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "learn-food-analyze" },
+      payload: { hint: "chicken curry" },
+    });
+    expect(analyzed.statusCode).toBe(200);
+
+    const item = analyzed.json().items[0];
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "learn-food-confirm" },
+      payload: {
+        mealType: "lunch",
+        title: "Chicken curry",
+        items: [
+          {
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          },
+        ],
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+
+    const search = await app.inject({ method: "GET", url: "/v1/foods?q=chicken%20curry" });
+    expect(search.statusCode).toBe(200);
+    expect(search.json().results[0]).toMatchObject({
+      canonicalName: "Chicken Curry",
+      source: "logmyplate_learned",
+    });
+    expect(search.json().results[0].portions[0]).toMatchObject({
+      unit: "serving",
+      grams: 180,
+    });
+    await app.close();
+  });
+
+  it("does not learn low-confidence AI food items", async () => {
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        return {
+          analysis: {
+            scanId: input.scanId,
+            status: "ready_for_review",
+            mealType: "dinner",
+            mealName: "Dragonfruit curry",
+            detectedLanguage: "en",
+            items: [
+              {
+                id: "22222222-2222-4222-8222-222222222222",
+                name: "Dragonfruit Curry",
+                aliases: [],
+                quantity: 1,
+                unit: "serving",
+                estimatedGrams: 160,
+                preparation: "unknown",
+                confidence: 0.72,
+                nutrition: {
+                  calories: 210,
+                  proteinG: 5,
+                  carbsG: 30,
+                  fatG: 8,
+                },
+              },
+            ],
+            totals: {
+              calories: 210,
+              proteinG: 5,
+              carbsG: 30,
+              fatG: 8,
+            },
+          },
+          providerRun: {
+            provider: "mock",
+            model: "test-food-learning-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await testApp({ aiProvider });
+
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "skip-learn-food-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "skip-learn-food-analyze" },
+      payload: { hint: "dragonfruit curry" },
+    });
+    expect(analyzed.statusCode).toBe(200);
+
+    const item = analyzed.json().items[0];
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "skip-learn-food-confirm" },
+      payload: {
+        mealType: "dinner",
+        title: "Dragonfruit curry",
+        items: [
+          {
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          },
+        ],
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+
+    const search = await app.inject({ method: "GET", url: "/v1/foods?q=dragonfruit%20curry" });
+    expect(search.statusCode).toBe(200);
+    expect(search.json().results).toEqual([]);
+    await app.close();
+  });
+
   it("makes anonymous device identity available to repositories", async () => {
     let seenIdentity: RequestIdentity | undefined;
     class IdentityAwareStore extends InMemoryStore {
