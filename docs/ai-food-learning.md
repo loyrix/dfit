@@ -9,6 +9,8 @@ AI scans without exposing raw model guesses.
 - Raw AI output remains evidence in `ai_predictions` and `ai_predicted_items`.
 - When an AI scan is confirmed, the API compares the original AI prediction with the confirmed
   item.
+- When manual food search runs, the API also checks existing confirmed AI-scan meals for matching
+  high-confidence predictions and materializes safe matches into the same catalog on demand.
 - Only matched items with AI confidence `>= 0.90`, sane nutrition, sane portions, and non-generic
   names are promoted into the searchable `foods` catalog.
 - Learned rows use the `LogMyPlate learned` food source and `logmyplate_learned` portion source.
@@ -16,6 +18,7 @@ AI scans without exposing raw model guesses.
 ## Guardrails
 
 - Raw AI predictions are never searched directly.
+- Historical mock-provider scans are ignored so demo data does not become a user-facing suggestion.
 - Low-confidence predictions are ignored.
 - Confirmed items whose names no longer match the AI prediction are ignored.
 - Nutrition is converted into per-100g values from the confirmed grams and macro totals.

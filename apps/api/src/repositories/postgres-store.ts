@@ -9,12 +9,14 @@ import {
 import { promisify } from "node:util";
 import {
   calculateRewardedAdState,
+  buildLearnedFoodCandidate,
   createMealSummary,
   normalizeFoodText,
   sumTotals,
   rewardedAdsPerScan,
   rewardedDailyScanLimit,
   type FoodRecord,
+  type LearnedFoodCandidate,
   type MealSummary,
   type PortionUnit,
   type ScanCreditState,
@@ -64,6 +66,22 @@ type FoodRow = {
   fiber_g_per_100g: string | null;
   sugar_g_per_100g: string | null;
   sodium_mg_per_100g: string | null;
+};
+
+type HistoricalConfirmedFoodRow = {
+  display_name: string;
+  aliases: string[];
+  quantity: string;
+  unit: PortionUnit;
+  grams: string;
+  confidence: string;
+  calories: string;
+  protein_g: string;
+  carbs_g: string;
+  fat_g: string;
+  fiber_g: string | null;
+  sugar_g: string | null;
+  sodium_mg: string | null;
 };
 
 type MealRow = {
@@ -1195,6 +1213,8 @@ export class PostgresStore implements AppRepository {
     const normalized = query.trim();
     if (!normalized) return [];
 
+    await this.learnHistoricalConfirmedFoodsForQuery(normalized);
+
     const rows = await this.sql<
       (FoodRow & { aliases: string[]; matched_alias: string | null; score: number })[]
     >`
@@ -1891,111 +1911,248 @@ export class PostgresStore implements AppRepository {
     if (candidates.length === 0) return;
 
     await this.sql.begin(async (tx) => {
-      const [existingSource] = await tx<{ id: string }[]>`
-        select id::text
-        from food_sources
-        where name = 'LogMyPlate learned'
-        limit 1
-      `;
-      const sourceId =
-        existingSource?.id ??
-        (
-          await tx<{ id: string }[]>`
-            insert into food_sources (name, source_kind, license_note, url)
-            values (
-              'LogMyPlate learned',
-              'ai_confirmed',
-              'High-confidence AI food predictions confirmed by LogMyPlate users.',
-              'https://logmyplate.app'
-            )
-            returning id::text
-          `
-        )[0]?.id;
-
-      if (!sourceId) throw new Error("learned food source could not be created");
-
       for (const candidate of candidates) {
-        const normalizedName = normalizeFoodText(candidate.canonicalName);
-        const [existingFood] = await tx<{ id: string }[]>`
-          select foods.id::text as id
-          from foods
-          left join food_sources on food_sources.id = foods.source_id
-          left join food_aliases on food_aliases.food_id = foods.id
-          where
-            btrim(regexp_replace(lower(foods.canonical_name), '[^a-z0-9]+', ' ', 'g')) = ${normalizedName}
-            or btrim(regexp_replace(lower(coalesce(food_aliases.alias, '')), '[^a-z0-9]+', ' ', 'g')) = ${normalizedName}
-          order by
-            case
-              when food_sources.name = 'LogMyPlate seed' then 0
-              when food_sources.name = 'LogMyPlate learned' then 1
-              else 2
-            end,
-            foods.created_at asc
-          limit 1
-        `;
-
-        const foodId =
-          existingFood?.id ??
-          (
-            await tx<{ id: string }[]>`
-              insert into foods (
-                canonical_name,
-                region,
-                source_id,
-                source_food_id,
-                calories_per_100g,
-                protein_g_per_100g,
-                carbs_g_per_100g,
-                fat_g_per_100g,
-                fiber_g_per_100g,
-                sugar_g_per_100g,
-                sodium_mg_per_100g
-              )
-              values (
-                ${candidate.canonicalName},
-                ${candidate.region},
-                ${sourceId},
-                ${`learned:${normalizedName}`},
-                ${candidate.nutritionPer100g.calories},
-                ${candidate.nutritionPer100g.proteinG},
-                ${candidate.nutritionPer100g.carbsG},
-                ${candidate.nutritionPer100g.fatG},
-                ${candidate.nutritionPer100g.fiberG ?? null},
-                ${candidate.nutritionPer100g.sugarG ?? null},
-                ${candidate.nutritionPer100g.sodiumMg ?? null}
-              )
-              returning id::text
-            `
-          )[0]?.id;
-
-        if (!foodId) continue;
-
-        for (const alias of candidate.aliases) {
-          await tx`
-            insert into food_aliases (food_id, alias, locale)
-            values (${foodId}, ${alias}, 'ai-confirmed')
-            on conflict (food_id, alias, locale) do nothing
-          `;
-        }
-
-        await tx`
-          insert into portion_conversions (food_id, unit, grams, source, confidence)
-          select
-            ${foodId},
-            ${candidate.portion.unit}::portion_unit,
-            ${candidate.portion.grams},
-            'logmyplate_learned',
-            ${candidate.portion.confidence}
-          where not exists (
-            select 1
-            from portion_conversions
-            where food_id = ${foodId}
-              and unit = ${candidate.portion.unit}::portion_unit
-              and abs(grams - ${candidate.portion.grams}) <= 5
-          )
-        `;
+        await this.upsertLearnedFoodCandidate(tx, candidate);
       }
     });
+  }
+
+  private async learnHistoricalConfirmedFoodsForQuery(query: string): Promise<void> {
+    const normalizedQuery = normalizeFoodText(query);
+    if (normalizedQuery.length < 2) return;
+
+    const rows = await this.sql<HistoricalConfirmedFoodRow[]>`
+      with base as (
+        select
+          meal_items.display_name,
+          array_remove(
+            array_append(coalesce(ai_predicted_items.aliases, '{}'::text[]), ai_predicted_items.name),
+            null
+          ) as aliases,
+          meal_items.quantity,
+          meal_items.unit,
+          meal_items.grams,
+          ai_predicted_items.confidence,
+          nutrition_results.calories,
+          nutrition_results.protein_g,
+          nutrition_results.carbs_g,
+          nutrition_results.fat_g,
+          nutrition_results.fiber_g,
+          nutrition_results.sugar_g,
+          nutrition_results.sodium_mg,
+          meal_items.created_at,
+          btrim(regexp_replace(lower(meal_items.display_name), '[^a-z0-9]+', ' ', 'g')) as normalized_display_name,
+          btrim(regexp_replace(lower(ai_predicted_items.name), '[^a-z0-9]+', ' ', 'g')) as normalized_ai_name
+        from meals
+        join meal_items on meal_items.meal_id = meals.id
+        join nutrition_results on nutrition_results.meal_item_id = meal_items.id
+        join ai_predictions on ai_predictions.scan_session_id = meals.scan_session_id
+        join ai_predicted_items on ai_predicted_items.ai_prediction_id = ai_predictions.id
+        left join ai_provider_runs on ai_provider_runs.id = ai_predictions.provider_run_id
+        where meals.source = 'ai_scan'
+          and meals.scan_session_id is not null
+          and ai_predicted_items.confidence >= 0.9
+          and coalesce(ai_provider_runs.provider, '') <> 'mock'
+          and meal_items.grams >= 5
+          and meal_items.grams <= 2000
+          and nutrition_results.calories > 0
+      )
+      select
+        display_name,
+        aliases,
+        quantity,
+        unit,
+        grams,
+        confidence,
+        calories,
+        protein_g,
+        carbs_g,
+        fat_g,
+        fiber_g,
+        sugar_g,
+        sodium_mg
+      from base
+      where (
+          normalized_display_name = normalized_ai_name
+          or normalized_display_name like '%' || normalized_ai_name || '%'
+          or normalized_ai_name like '%' || normalized_display_name || '%'
+        )
+        and (
+          normalized_display_name = ${normalizedQuery}
+          or normalized_ai_name = ${normalizedQuery}
+          or normalized_display_name like ${`${normalizedQuery}%`}
+          or normalized_ai_name like ${`${normalizedQuery}%`}
+          or normalized_display_name like ${`%${normalizedQuery}%`}
+          or normalized_ai_name like ${`%${normalizedQuery}%`}
+          or exists (
+            select 1
+            from unnest(aliases) as alias
+            where btrim(regexp_replace(lower(alias), '[^a-z0-9]+', ' ', 'g')) = ${normalizedQuery}
+               or btrim(regexp_replace(lower(alias), '[^a-z0-9]+', ' ', 'g')) like ${`${normalizedQuery}%`}
+               or btrim(regexp_replace(lower(alias), '[^a-z0-9]+', ' ', 'g')) like ${`%${normalizedQuery}%`}
+          )
+        )
+      order by
+        case
+          when normalized_display_name = ${normalizedQuery} then 94
+          when normalized_ai_name = ${normalizedQuery} then 92
+          when normalized_display_name like ${`${normalizedQuery}%`} then 76
+          when normalized_ai_name like ${`${normalizedQuery}%`} then 74
+          else 54
+        end desc,
+        confidence desc,
+        created_at desc
+      limit 40
+    `;
+
+    const candidates = new Map<string, LearnedFoodCandidate>();
+    for (const row of rows) {
+      const candidate = buildLearnedFoodCandidate({
+        name: row.display_name,
+        aliases: row.aliases,
+        region: currentRequestIdentity().region,
+        quantity: Number(row.quantity),
+        unit: row.unit,
+        grams: Number(row.grams),
+        confidence: Number(row.confidence),
+        nutrition: {
+          calories: Number(row.calories),
+          proteinG: Number(row.protein_g),
+          carbsG: Number(row.carbs_g),
+          fatG: Number(row.fat_g),
+          fiberG: row.fiber_g === null ? undefined : Number(row.fiber_g),
+          sugarG: row.sugar_g === null ? undefined : Number(row.sugar_g),
+          sodiumMg: row.sodium_mg === null ? undefined : Number(row.sodium_mg),
+        },
+      });
+      if (!candidate) continue;
+
+      const key = normalizeFoodText(candidate.canonicalName);
+      const existing = candidates.get(key);
+      if (!existing || candidate.portion.confidence > existing.portion.confidence) {
+        candidates.set(key, candidate);
+      }
+    }
+
+    if (candidates.size === 0) return;
+
+    await this.sql.begin(async (tx) => {
+      for (const candidate of candidates.values()) {
+        await this.upsertLearnedFoodCandidate(tx, candidate);
+      }
+    });
+  }
+
+  private async getOrCreateLearnedFoodSource(tx: SqlExecutor): Promise<string> {
+    const [existingSource] = await tx<{ id: string }[]>`
+      select id::text
+      from food_sources
+      where name = 'LogMyPlate learned'
+      limit 1
+    `;
+    const sourceId =
+      existingSource?.id ??
+      (
+        await tx<{ id: string }[]>`
+          insert into food_sources (name, source_kind, license_note, url)
+          values (
+            'LogMyPlate learned',
+            'ai_confirmed',
+            'High-confidence AI food predictions confirmed by LogMyPlate users.',
+            'https://logmyplate.app'
+          )
+          returning id::text
+        `
+      )[0]?.id;
+
+    if (!sourceId) throw new Error("learned food source could not be created");
+    return sourceId;
+  }
+
+  private async upsertLearnedFoodCandidate(
+    tx: SqlExecutor,
+    candidate: LearnedFoodCandidate,
+  ): Promise<void> {
+    const sourceId = await this.getOrCreateLearnedFoodSource(tx);
+    const normalizedName = normalizeFoodText(candidate.canonicalName);
+    const [existingFood] = await tx<{ id: string }[]>`
+      select foods.id::text as id
+      from foods
+      left join food_sources on food_sources.id = foods.source_id
+      left join food_aliases on food_aliases.food_id = foods.id
+      where
+        btrim(regexp_replace(lower(foods.canonical_name), '[^a-z0-9]+', ' ', 'g')) = ${normalizedName}
+        or btrim(regexp_replace(lower(coalesce(food_aliases.alias, '')), '[^a-z0-9]+', ' ', 'g')) = ${normalizedName}
+      order by
+        case
+          when food_sources.name = 'LogMyPlate seed' then 0
+          when food_sources.name = 'LogMyPlate learned' then 1
+          else 2
+        end,
+        foods.created_at asc
+      limit 1
+    `;
+
+    const foodId =
+      existingFood?.id ??
+      (
+        await tx<{ id: string }[]>`
+          insert into foods (
+            canonical_name,
+            region,
+            source_id,
+            source_food_id,
+            calories_per_100g,
+            protein_g_per_100g,
+            carbs_g_per_100g,
+            fat_g_per_100g,
+            fiber_g_per_100g,
+            sugar_g_per_100g,
+            sodium_mg_per_100g
+          )
+          values (
+            ${candidate.canonicalName},
+            ${candidate.region},
+            ${sourceId},
+            ${`learned:${normalizedName}`},
+            ${candidate.nutritionPer100g.calories},
+            ${candidate.nutritionPer100g.proteinG},
+            ${candidate.nutritionPer100g.carbsG},
+            ${candidate.nutritionPer100g.fatG},
+            ${candidate.nutritionPer100g.fiberG ?? null},
+            ${candidate.nutritionPer100g.sugarG ?? null},
+            ${candidate.nutritionPer100g.sodiumMg ?? null}
+          )
+          returning id::text
+        `
+      )[0]?.id;
+
+    if (!foodId) return;
+
+    for (const alias of candidate.aliases) {
+      await tx`
+        insert into food_aliases (food_id, alias, locale)
+        values (${foodId}, ${alias}, 'ai-confirmed')
+        on conflict (food_id, alias, locale) do nothing
+      `;
+    }
+
+    await tx`
+      insert into portion_conversions (food_id, unit, grams, source, confidence)
+      select
+        ${foodId},
+        ${candidate.portion.unit}::portion_unit,
+        ${candidate.portion.grams},
+        'logmyplate_learned',
+        ${candidate.portion.confidence}
+      where not exists (
+        select 1
+        from portion_conversions
+        where food_id = ${foodId}
+          and unit = ${candidate.portion.unit}::portion_unit
+          and abs(grams - ${candidate.portion.grams}) <= 5
+      )
+    `;
   }
 
   async listMeals(input: ListMealsInput = {}) {
