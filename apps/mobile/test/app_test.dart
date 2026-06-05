@@ -333,7 +333,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 320));
     await tester.pumpAndSettle();
 
-    expect(find.text('Matches from food database'), findsOneWidget);
+    expect(find.text('Suggested foods'), findsOneWidget);
     expect(find.text('Chicken Curry'), findsOneWidget);
 
     await tester.tap(find.text('Chicken Curry'));
