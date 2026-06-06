@@ -396,9 +396,30 @@ const readInterstitialAdsPolicy = (formData: FormData): EngagementPolicy["inters
   },
 });
 
-const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAds"] => ({
-  dailyScanLimit: numberValue(formData, "rewardedAds.dailyScanLimit"),
-});
+const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAds"] => {
+  const iosDailyCredits = numberValue(
+    formData,
+    "rewardedAds.adSuspensionDailyCredits.platform.ios",
+  );
+  const androidDailyCredits = numberValue(
+    formData,
+    "rewardedAds.adSuspensionDailyCredits.platform.android",
+  );
+
+  return {
+    dailyScanLimit: numberValue(formData, "rewardedAds.dailyScanLimit"),
+    adSuspensionDailyCredits: {
+      enabled: booleanValue(formData, "rewardedAds.adSuspensionDailyCredits.enabled"),
+      freeScansPerDay: Math.max(iosDailyCredits, androidDailyCredits),
+      platformFreeScansPerDay: {
+        ios: iosDailyCredits,
+        android: androidDailyCredits,
+      },
+      startsAt: nullableStringValue(formData, "rewardedAds.adSuspensionDailyCredits.startsAt"),
+      endsAt: nullableStringValue(formData, "rewardedAds.adSuspensionDailyCredits.endsAt"),
+    },
+  };
+};
 
 const readNotificationsPolicy = (formData: FormData): EngagementPolicy["notifications"] => ({
   enabled: booleanValue(formData, "notifications.enabled"),

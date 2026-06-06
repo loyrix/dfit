@@ -397,6 +397,16 @@ describe("LogMyPlate API", () => {
     expect(defaults.reviewPrompt.enabled).toBe(false);
     expect(defaults.interstitialAds.enabled).toBe(false);
     expect(defaults.rewardedAds.dailyScanLimit).toBe(5);
+    expect(defaults.rewardedAds.adSuspensionDailyCredits).toEqual({
+      enabled: false,
+      freeScansPerDay: 5,
+      platformFreeScansPerDay: {
+        ios: 5,
+        android: 3,
+      },
+      startsAt: null,
+      endsAt: null,
+    });
     expect(defaults.notifications.enabled).toBe(false);
     expect(defaults.streaks.enabled).toBe(false);
     expect(defaults.streaks.scanRewards.enabled).toBe(false);
@@ -413,6 +423,18 @@ describe("LogMyPlate API", () => {
     expect(
       engagementPolicyConfigSchema.safeParse({
         rewardedAds: { dailyScanLimit: 0 },
+      }).success,
+    ).toBe(false);
+    expect(
+      engagementPolicyConfigSchema.safeParse({
+        rewardedAds: { adSuspensionDailyCredits: { freeScansPerDay: -1 } },
+      }).success,
+    ).toBe(false);
+    expect(
+      engagementPolicyConfigSchema.safeParse({
+        rewardedAds: {
+          adSuspensionDailyCredits: { platformFreeScansPerDay: { android: -1 } },
+        },
       }).success,
     ).toBe(false);
   });

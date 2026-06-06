@@ -24,6 +24,7 @@ import {
 import type postgres from "postgres";
 import type { SqlClient } from "../db/client.js";
 import { currentRequestIdentity } from "../request-context.js";
+import { loadEngagementPolicy } from "../services/engagement-policy.js";
 import type {
   AccountSession,
   AppRepository,
@@ -170,6 +171,7 @@ const passwordResetDurationMs = 15 * 60 * 1000;
 const maxPasswordResetAttempts = 5;
 const lifetimeFreeScanAllowance = 3;
 const lifetimeQuotaDate = "1970-01-01";
+const adSuspensionDailyCreditReason = "ad_suspension_daily_free";
 
 type QuotaRow = {
   free_remaining: number;
@@ -1334,6 +1336,7 @@ export class PostgresStore implements AppRepository {
 
   async getQuota() {
     const profile = await this.getProfile();
+    await this.applyAdSuspensionDailyCredits(profile);
     return quotaFromRow(await this.getOrCreateQuota(profile));
   }
 
@@ -2992,6 +2995,129 @@ export class PostgresStore implements AppRepository {
     return this.usesInstallQuota(profile) ? `install:${installId}` : `profile:${profile.id}`;
   }
 
+  private async applyAdSuspensionDailyCredits(profile: Profile): Promise<void> {
+    const policy = await loadEngagementPolicy(this.sql);
+    const creditsPolicy = policy.rewardedAds.adSuspensionDailyCredits;
+    if (!creditsPolicy.enabled) return;
+
+    const nowMs = Date.now();
+    if (creditsPolicy.startsAt && Date.parse(creditsPolicy.startsAt) > nowMs) return;
+    if (creditsPolicy.endsAt && Date.parse(creditsPolicy.endsAt) < nowMs) return;
+
+    const platform = await this.currentQuotaPlatform(profile);
+    const targetFreeBalance =
+      creditsPolicy.platformFreeScansPerDay[platform] ?? creditsPolicy.freeScansPerDay;
+    if (targetFreeBalance <= 0) return;
+
+    const identity = currentRequestIdentity();
+    const useInstallQuota = this.usesInstallQuota(profile);
+    const installId = useInstallQuota ? identity.installId : undefined;
+    if (useInstallQuota && !installId) return;
+
+    await this.getOrCreateQuota(profile);
+    const today = localDateForTimezone(profile.timezone);
+    await this.sql.begin(async (tx) => {
+      const existing = await tx<{ id: string }[]>`
+        select id::text
+        from quota_events
+        where profile_id = ${profile.id}
+          and event_type = 'grant'
+          and reason = ${adSuspensionDailyCreditReason}
+          and local_date = ${today}
+          and install_id is not distinct from ${installId ?? null}
+        limit 1
+      `;
+      if (existing[0]) return;
+
+      let quota: QuotaRow | undefined;
+      if (useInstallQuota) {
+        if (!installId) return;
+        const rows = await tx<QuotaRow[]>`
+          select free_remaining, rewarded_remaining, premium_remaining
+          from install_scan_credits
+          where install_id = ${installId}
+          for update
+        `;
+        quota = rows[0];
+      } else {
+        const rows = await tx<QuotaRow[]>`
+          select free_remaining, rewarded_remaining, premium_remaining
+          from scan_credits
+          where profile_id = ${profile.id}
+            and local_date = ${lifetimeQuotaDate}
+          for update
+        `;
+        quota = rows[0];
+      }
+      if (!quota) return;
+
+      const creditDelta = targetFreeBalance - quota.free_remaining;
+      if (creditDelta !== 0) {
+        if (useInstallQuota) {
+          if (!installId) return;
+          await tx`
+            update install_scan_credits
+            set
+              free_remaining = ${targetFreeBalance},
+              last_seen_at = now(),
+              updated_at = now()
+            where install_id = ${installId}
+          `;
+        } else {
+          await tx`
+            update scan_credits
+            set
+              free_remaining = ${targetFreeBalance},
+              updated_at = now()
+            where profile_id = ${profile.id}
+              and local_date = ${lifetimeQuotaDate}
+          `;
+        }
+      }
+
+      await tx`
+        insert into quota_events (profile_id, event_type, reason, delta, local_date, install_id)
+        values (
+          ${profile.id},
+          'grant',
+          ${adSuspensionDailyCreditReason},
+          ${creditDelta},
+          ${today},
+          ${installId ?? null}
+        )
+      `;
+    });
+  }
+
+  private async currentQuotaPlatform(profile: Profile): Promise<AppPlatform> {
+    const identity = currentRequestIdentity();
+    if (identity.platform) return identity.platform;
+
+    if (identity.installId) {
+      const [device] = await this.sql<{ platform: AppPlatform | null }[]>`
+        select platform
+        from devices
+        where install_id = ${identity.installId}
+        limit 1
+      `;
+      if (device?.platform === "ios" || device?.platform === "android") return device.platform;
+    }
+
+    const [latestDevice] = await this.sql<{ platform: AppPlatform | null }[]>`
+      select platform
+      from devices
+      where profile_id = ${profile.id}
+        and platform in ('ios', 'android')
+      order by last_seen_at desc
+      limit 1
+    `;
+    if (latestDevice?.platform === "ios" || latestDevice?.platform === "android") {
+      return latestDevice.platform;
+    }
+
+    return "android";
+  }
+
   private async attachInstallToProfile(profileId: string): Promise<void> {
     const identity = currentRequestIdentity();
     if (!identity.installId) return;
@@ -3642,6 +3768,22 @@ export class PostgresStore implements AppRepository {
 }
 
 const localDate = () => new Date().toISOString().slice(0, 10);
+
+const localDateForTimezone = (timezone: string | undefined): string => {
+  if (!timezone) return localDate();
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${byType.year}-${byType.month}-${byType.day}`;
+  } catch {
+    return localDate();
+  }
+};
 
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 

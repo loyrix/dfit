@@ -2454,13 +2454,47 @@ components:
 
     EngagementRewardedAdsPolicy:
       type: object
-      required: [dailyScanLimit]
+      required: [dailyScanLimit, adSuspensionDailyCredits]
       properties:
         dailyScanLimit:
           type: integer
           minimum: 1
           maximum: 100
           description: Maximum rewarded scan credits a signed-in user can earn per local day.
+        adSuspensionDailyCredits:
+          type: object
+          required: [enabled, freeScansPerDay, platformFreeScansPerDay, startsAt, endsAt]
+          description: Temporary platform-specific daily free scan top-up while ad serving is unavailable.
+          properties:
+            enabled:
+              type: boolean
+            freeScansPerDay:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: Legacy fallback free scan balance for unknown older configs.
+            platformFreeScansPerDay:
+              type: object
+              required: [ios, android]
+              properties:
+                ios:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  description: iOS free scan balance to set once per user local day.
+                android:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  description: Android free scan balance to set once per user local day.
+            startsAt:
+              type: string
+              format: date-time
+              nullable: true
+            endsAt:
+              type: string
+              format: date-time
+              nullable: true
 
     EngagementNotificationsPolicy:
       type: object

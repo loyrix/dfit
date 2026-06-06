@@ -81,6 +81,20 @@ export const engagementInterstitialAdsPolicySchema = z.object({
 
 export const engagementRewardedAdsPolicySchema = z.object({
   dailyScanLimit: z.coerce.number().int().min(1).max(100).default(5),
+  adSuspensionDailyCredits: z
+    .object({
+      enabled: z.boolean().default(false),
+      freeScansPerDay: z.coerce.number().int().min(0).max(100).default(5),
+      platformFreeScansPerDay: z
+        .object({
+          ios: z.coerce.number().int().min(0).max(100).default(5),
+          android: z.coerce.number().int().min(0).max(100).default(3),
+        })
+        .default({}),
+      startsAt: z.string().datetime({ offset: true }).nullable().default(null),
+      endsAt: z.string().datetime({ offset: true }).nullable().default(null),
+    })
+    .default({}),
 });
 
 const notificationScenarioPolicySchema = z.object({

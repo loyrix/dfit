@@ -457,6 +457,16 @@ export type EngagementPolicy = {
   };
   rewardedAds: {
     dailyScanLimit: number;
+    adSuspensionDailyCredits: {
+      enabled: boolean;
+      freeScansPerDay: number;
+      platformFreeScansPerDay: {
+        ios: number;
+        android: number;
+      };
+      startsAt: string | null;
+      endsAt: string | null;
+    };
   };
   notifications: {
     enabled: boolean;

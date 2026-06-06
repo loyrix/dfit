@@ -632,6 +632,7 @@ function InterstitialAdsPanel({ policy }: { policy: EngagementPolicy }) {
 }
 
 function RewardedAdsPanel({ policy }: { policy: EngagementPolicy }) {
+  const adSuspensionCredits = policy.rewardedAds.adSuspensionDailyCredits;
   return (
     <div className="panel">
       <div className="section-head">
@@ -656,6 +657,63 @@ function RewardedAdsPanel({ policy }: { policy: EngagementPolicy }) {
           This controls rewarded scan credits only. Interstitial ad frequency remains separate.
           Existing app builds read the cap from quota/progress responses.
         </p>
+      </div>
+
+      <div className="mt-5 border-t border-[color:var(--line)] pt-5">
+        <div className="section-head">
+          <div>
+            <h3 className="text-lg font-bold">Ad suspension daily credits</h3>
+            <p className="muted mt-1 text-sm">
+              Temporary free scan top-up while AdMob serving is unavailable. Grants at most once per
+              user local day and never stacks beyond the configured daily balance.
+            </p>
+          </div>
+          <Badge tone={adSuspensionCredits.enabled ? "green" : "red"}>
+            {adSuspensionCredits.enabled ? "Enabled" : "Disabled"}
+          </Badge>
+        </div>
+
+        <div className="form-grid mt-4">
+          <label className="inline-controls">
+            <input
+              name="rewardedAds.adSuspensionDailyCredits.enabled"
+              type="checkbox"
+              defaultChecked={adSuspensionCredits.enabled}
+            />
+            Enable temporary daily free credits
+          </label>
+          <NumberField
+            label="iOS free scans per day"
+            name="rewardedAds.adSuspensionDailyCredits.platform.ios"
+            value={adSuspensionCredits.platformFreeScansPerDay.ios}
+            min={0}
+            max={100}
+          />
+          <NumberField
+            label="Android free scans per day"
+            name="rewardedAds.adSuspensionDailyCredits.platform.android"
+            value={adSuspensionCredits.platformFreeScansPerDay.android}
+            min={0}
+            max={100}
+          />
+          <TextField
+            label="Starts at"
+            name="rewardedAds.adSuspensionDailyCredits.startsAt"
+            value={adSuspensionCredits.startsAt ?? ""}
+            maxLength={40}
+          />
+          <TextField
+            label="Ends at"
+            name="rewardedAds.adSuspensionDailyCredits.endsAt"
+            value={adSuspensionCredits.endsAt ?? ""}
+            maxLength={40}
+          />
+          <p className="muted text-sm">
+            Use ISO timestamps with timezone offset, such as 2026-07-05T00:00:00+05:30. Leave blank
+            for immediate start or manual disable. Each platform is topped up to its configured
+            daily balance; unused scans do not stack across days.
+          </p>
+        </div>
       </div>
     </div>
   );

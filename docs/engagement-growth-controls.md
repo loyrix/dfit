@@ -119,6 +119,28 @@ behavior is added in later phases.
   - `/v1/ads/rewarded/complete` enforces the configured cap server-side.
   - Missing legacy policy config falls back to 5.
 
+## Phase 4C: Temporary Ad Suspension Daily Credits
+
+- Status: implemented locally, pending deployment.
+- Runtime policy section:
+  `engagement_policy.rewardedAds.adSuspensionDailyCredits`.
+- Purpose: temporary bridge while AdMob/AdSense ad serving is suspended.
+- Default behavior: disabled.
+- Admin behavior:
+  - Growth Controls > Rewarded Unlocks exposes the temporary daily free-credit
+    switch, iOS daily free scan balance, Android daily free scan balance,
+    optional start timestamp, and optional end timestamp.
+- API behavior:
+  - When enabled, quota lookup sets the current profile/install free scan balance
+    to the platform-specific daily balance once per profile local day.
+  - Credits do not stack if the user does not use them. With the default
+    temporary policy, iOS users can hold at most 5 free scans per day and Android
+    users can hold at most 3 free scans per day.
+  - A `quota_events` grant row with reason `ad_suspension_daily_free` records
+    the once-per-day adjustment.
+  - Existing mobile builds see the credits through their normal quota/bootstrap
+    responses; no app release is required.
+
 ## Phase 5: FCM Push Notification Runtime
 
 - Status: implemented and manually verified; scheduled runner implemented
