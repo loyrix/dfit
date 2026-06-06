@@ -2653,6 +2653,9 @@ describe("LogMyPlate API", () => {
     const webhook = await app.inject({
       method: "POST",
       url: "/v1/subscription/revenuecat/webhook",
+      headers: process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN
+        ? { authorization: `Bearer ${process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN}` }
+        : undefined,
       payload: {
         event: {
           id: "evt-premium-initial",
