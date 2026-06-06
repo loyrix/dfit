@@ -9,6 +9,7 @@ import {
   globalFoodPhotoPromptKey,
   indiaFoodPhotoPromptKey,
 } from "./services/food-photo-prompt-routing.js";
+import { parseSubscriberEntitlement } from "./services/revenuecat.js";
 import { analyzeWithMockProvider } from "./services/mock-ai-provider.js";
 import type {
   MealImageStorage,
@@ -2627,6 +2628,116 @@ describe("LogMyPlate API", () => {
       quota: { freeRemaining: 0, rewardedRemaining: 1, premiumRemaining: 0 },
     });
     await app.close();
+  });
+
+  it("applies RevenueCat premium entitlement to scan quota", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-revenuecat-premium",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "premium@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const profileId = signup.json().profile.id as string;
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+    const expirationAtMs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+    const webhook = await app.inject({
+      method: "POST",
+      url: "/v1/subscription/revenuecat/webhook",
+      payload: {
+        event: {
+          id: "evt-premium-initial",
+          type: "INITIAL_PURCHASE",
+          app_user_id: profileId,
+          entitlement_ids: ["premium"],
+          product_id: "com.logmyplate.premium.monthly",
+          store: "APP_STORE",
+          purchased_at_ms: Date.now(),
+          expiration_at_ms: expirationAtMs,
+          environment: "SANDBOX",
+        },
+      },
+    });
+    expect(webhook.statusCode).toBe(200);
+
+    const subscription = await app.inject({
+      method: "GET",
+      url: "/v1/subscription",
+      headers,
+    });
+    expect(subscription.statusCode).toBe(200);
+    expect(subscription.json()).toMatchObject({
+      appUserId: profileId,
+      entitlementId: "premium",
+      active: true,
+      status: "active",
+      store: "app_store",
+      productId: "com.logmyplate.premium.monthly",
+      usage: {
+        monthlyLimit: 300,
+        dailyLimit: 10,
+        usedThisPeriod: 0,
+        usedToday: 0,
+        premiumRemaining: 10,
+      },
+    });
+
+    const quota = await app.inject({ method: "GET", url: "/v1/quota", headers });
+    expect(quota.statusCode).toBe(200);
+    expect(quota.json()).toMatchObject({
+      freeRemaining: 3,
+      rewardedRemaining: 0,
+      premiumRemaining: 10,
+    });
+
+    await consumeOneScanCredit(app, headers, "premium-subscription");
+
+    const afterScan = await app.inject({
+      method: "GET",
+      url: "/v1/subscription",
+      headers,
+    });
+    expect(afterScan.json().usage).toMatchObject({
+      usedThisPeriod: 1,
+      usedToday: 1,
+      premiumRemaining: 9,
+    });
+    const afterQuota = await app.inject({ method: "GET", url: "/v1/quota", headers });
+    expect(afterQuota.json()).toMatchObject({
+      freeRemaining: 3,
+      rewardedRemaining: 0,
+      premiumRemaining: 9,
+    });
+    await app.close();
+  });
+
+  it("does not activate Premium when RevenueCat subscriber has no configured entitlement", () => {
+    const entitlement = parseSubscriberEntitlement(
+      {
+        subscriber: {
+          entitlements: {},
+          subscriptions: {
+            "com.logmyplate.premium.monthly": {
+              store: "app_store",
+              purchase_date: new Date().toISOString(),
+            },
+          },
+        },
+      },
+      "profile_without_premium",
+      "premium",
+    );
+
+    expect(entitlement).toBeUndefined();
   });
 
   it("rejects rewarded ad completion while scan credits remain", async () => {

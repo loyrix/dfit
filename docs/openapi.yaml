@@ -31,6 +31,7 @@ tags:
   - name: Journal
   - name: Meals
   - name: Scans
+  - name: Subscriptions
   - name: Ads
   - name: Devices
   - name: Admin
@@ -922,6 +923,97 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Quota"
+
+  /v1/subscription:
+    get:
+      tags: [Subscriptions]
+      summary: Get subscription status
+      description: Returns the current profile's Premium entitlement state and scan usage limits.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      responses:
+        "200":
+          description: Current subscription entitlement and Premium scan usage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+
+  /v1/subscription/revenuecat/sync:
+    post:
+      tags: [Subscriptions]
+      summary: Sync RevenueCat subscription
+      description: Looks up the signed-in profile in RevenueCat and stores the Premium entitlement returned for the configured entitlement ID. The optional `appUserId` must match the current profile ID.
+      security:
+        - bearerAuth: []
+          installId: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncRevenueCatSubscriptionRequest"
+      responses:
+        "200":
+          description: Synced subscription entitlement and Premium scan usage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionStatus"
+        "400":
+          description: Invalid sync payload or missing idempotency key.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/ErrorWithMessage"
+        "403":
+          description: The requested RevenueCat app user ID does not match the current profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
+
+  /v1/subscription/revenuecat/webhook:
+    post:
+      tags: [Subscriptions]
+      summary: RevenueCat webhook
+      description: Receives RevenueCat customer lifecycle events and records Premium entitlement changes. When `REVENUECAT_WEBHOOK_AUTH_TOKEN` is configured, RevenueCat must send the same value as the `Authorization` header, either raw or as a bearer token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevenueCatWebhookRequest"
+      responses:
+        "200":
+          description: Webhook event accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received]
+                properties:
+                  received:
+                    type: boolean
+        "400":
+          description: RevenueCat webhook event was missing the expected event identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
+        "401":
+          description: RevenueCat webhook authorization header is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimpleError"
 
   /v1/ads/rewarded/complete:
     post:
@@ -1893,6 +1985,111 @@ components:
           type: integer
           minimum: 0
 
+    SubscriptionUsage:
+      type: object
+      required:
+        - monthlyLimit
+        - dailyLimit
+        - usedThisPeriod
+        - usedToday
+        - remainingThisPeriod
+        - remainingToday
+        - premiumRemaining
+      properties:
+        monthlyLimit:
+          type: integer
+          minimum: 1
+        dailyLimit:
+          type: integer
+          minimum: 1
+        usedThisPeriod:
+          type: integer
+          minimum: 0
+        usedToday:
+          type: integer
+          minimum: 0
+        remainingThisPeriod:
+          type: integer
+          minimum: 0
+        remainingToday:
+          type: integer
+          minimum: 0
+        premiumRemaining:
+          type: integer
+          minimum: 0
+
+    SubscriptionStatus:
+      type: object
+      required: [appUserId, entitlementId, active, status, usage]
+      properties:
+        appUserId:
+          type: string
+          minLength: 1
+        entitlementId:
+          type: string
+          minLength: 1
+        active:
+          type: boolean
+        status:
+          type: string
+          enum: [active, inactive, expired, cancelled, billing_issue, unknown]
+        store:
+          type: string
+          enum: [app_store, play_store, stripe, promotional, unknown]
+        productId:
+          type: string
+          minLength: 1
+        currentPeriodStart:
+          type: string
+          format: date-time
+        currentPeriodEnd:
+          type: string
+          format: date-time
+        willRenew:
+          type: boolean
+        usage:
+          $ref: "#/components/schemas/SubscriptionUsage"
+
+    SyncRevenueCatSubscriptionRequest:
+      type: object
+      properties:
+        appUserId:
+          type: string
+          minLength: 1
+          maxLength: 160
+
+    RevenueCatWebhookRequest:
+      type: object
+      required: [event]
+      properties:
+        event:
+          type: object
+          required: [id, type]
+          additionalProperties: true
+          properties:
+            id:
+              type: string
+            type:
+              type: string
+            app_user_id:
+              type: string
+            entitlement_ids:
+              type: array
+              items:
+                type: string
+            entitlement_id:
+              type: string
+            product_id:
+              type: string
+            store:
+              type: string
+            environment:
+              type: string
+            purchased_at_ms:
+              type: integer
+            expiration_at_ms:
+              type: integer
+
     CompleteRewardedAdRequest:
       type: object
       required: [provider, placement]
@@ -2097,7 +2294,7 @@ components:
 
     BootstrapResponse:
       type: object
-      required: [serverTime, profile, updatePolicy, quota, today, weeklySummary]
+      required: [serverTime, profile, updatePolicy, quota, subscription, today, weeklySummary]
       properties:
         serverTime:
           type: string
@@ -2115,6 +2312,8 @@ components:
           $ref: "#/components/schemas/StreakSummary"
         quota:
           $ref: "#/components/schemas/Quota"
+        subscription:
+          $ref: "#/components/schemas/SubscriptionStatus"
         today:
           $ref: "#/components/schemas/TodayJournalResponse"
         weeklySummary:

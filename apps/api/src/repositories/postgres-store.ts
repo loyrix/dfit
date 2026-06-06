@@ -41,6 +41,7 @@ import type {
   ProfileHealthTarget,
   PushTokenRegistrationInput,
   PushTokenRegistrationResult,
+  RecordSubscriptionEventInput,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   RewardedAdProgressState,
@@ -48,12 +49,15 @@ import type {
   RewardedAdServerVerificationInput,
   ScanAnalysisCacheRecord,
   ScanSession,
+  SubscriptionStatusState,
   UpdateMealInput,
   UpsertProfileHealthTargetInput,
   UpsertScanAnalysisCacheInput,
+  UpsertSubscriptionEntitlementInput,
 } from "./app-repository.js";
 import { AccountAuthError } from "./app-repository.js";
 import { buildConfirmedScanLearnedFoodCandidates } from "../services/food-learning.js";
+import { config } from "../config.js";
 
 type FoodRow = {
   id: string;
@@ -190,6 +194,23 @@ type RewardedAdCallbackRow = {
   raw_query: Record<string, string>;
 };
 
+type SubscriptionEntitlementRow = {
+  profile_id: string;
+  app_user_id: string;
+  entitlement_id: string;
+  status: SubscriptionStatusState["status"];
+  store: SubscriptionStatusState["store"] | null;
+  product_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  will_renew: boolean | null;
+};
+
+type PremiumUsageRow = {
+  used_this_period: number;
+  used_today: number;
+};
+
 type HealthTargetRow = {
   profile_id: string;
   height_cm: string;
@@ -213,6 +234,74 @@ const quotaFromRow = (row: QuotaRow): ScanCreditState => ({
   premiumRemaining: row.premium_remaining,
 });
 
+const emptySubscriptionUsage = (
+  monthlyLimit: number,
+  dailyLimit: number,
+): SubscriptionStatusState["usage"] => ({
+  monthlyLimit,
+  dailyLimit,
+  usedThisPeriod: 0,
+  usedToday: 0,
+  remainingThisPeriod: 0,
+  remainingToday: 0,
+  premiumRemaining: 0,
+});
+
+const subscriptionUsageFromCounts = (
+  monthlyLimit: number,
+  dailyLimit: number,
+  usedThisPeriod: number,
+  usedToday: number,
+): SubscriptionStatusState["usage"] => {
+  const remainingThisPeriod = Math.max(0, monthlyLimit - usedThisPeriod);
+  const remainingToday = Math.max(0, dailyLimit - usedToday);
+  return {
+    monthlyLimit,
+    dailyLimit,
+    usedThisPeriod,
+    usedToday,
+    remainingThisPeriod,
+    remainingToday,
+    premiumRemaining: Math.min(remainingThisPeriod, remainingToday),
+  };
+};
+
+const subscriptionEntitlementIsActive = (
+  entitlement: SubscriptionEntitlementRow | UpsertSubscriptionEntitlementInput,
+): boolean => {
+  if (!["active", "cancelled", "billing_issue"].includes(entitlement.status)) return false;
+  const currentPeriodEnd =
+    "current_period_end" in entitlement
+      ? entitlement.current_period_end
+      : entitlement.currentPeriodEnd;
+  if (!currentPeriodEnd) return true;
+  return Date.parse(currentPeriodEnd) > Date.now();
+};
+
+const subscriptionPeriod = (
+  entitlement: SubscriptionEntitlementRow | UpsertSubscriptionEntitlementInput | undefined,
+): { periodStart: string; periodEnd: string } => {
+  const now = new Date();
+  const currentPeriodStart =
+    entitlement && "current_period_start" in entitlement
+      ? entitlement.current_period_start
+      : entitlement?.currentPeriodStart;
+  const currentPeriodEnd =
+    entitlement && "current_period_end" in entitlement
+      ? entitlement.current_period_end
+      : entitlement?.currentPeriodEnd;
+  const start = currentPeriodStart
+    ? new Date(currentPeriodStart)
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = currentPeriodEnd
+    ? new Date(currentPeriodEnd)
+    : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  return {
+    periodStart: start.toISOString().slice(0, 10),
+    periodEnd: end.toISOString().slice(0, 10),
+  };
+};
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type AppPlatform = NonNullable<ScanSession["platform"]>;
 type ProfileLifecycleEventType = "deactivated" | "deleted";
@@ -233,6 +322,13 @@ const rewardedVerificationFromRow = (row: RewardedAdCallbackRow): RewardedAdServ
 const parseInteger = (value: string | undefined): number | undefined => {
   if (!value || !/^\d+$/.test(value)) return undefined;
   return Number(value);
+};
+
+const isoTimestamp = (value: string | null | undefined): string | undefined => {
+  if (!value) return undefined;
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return undefined;
+  return new Date(time).toISOString();
 };
 
 const metricAppVersion = (value: string | null | undefined): string => {
@@ -1337,7 +1433,127 @@ export class PostgresStore implements AppRepository {
   async getQuota() {
     const profile = await this.getProfile();
     await this.applyAdSuspensionDailyCredits(profile);
-    return quotaFromRow(await this.getOrCreateQuota(profile));
+    const quota = quotaFromRow(await this.getOrCreateQuota(profile));
+    const subscription = await this.getSubscriptionStatusForProfile(profile);
+    return {
+      ...quota,
+      premiumRemaining: quota.premiumRemaining + subscription.usage.premiumRemaining,
+    };
+  }
+
+  async getSubscriptionStatus(): Promise<SubscriptionStatusState> {
+    return this.getSubscriptionStatusForProfile(await this.getProfile());
+  }
+
+  async upsertSubscriptionEntitlement(
+    input: UpsertSubscriptionEntitlementInput,
+  ): Promise<SubscriptionStatusState> {
+    if (!uuidPattern.test(input.appUserId)) {
+      throw new AccountAuthError("profile_not_found", "Subscription profile was not found.", 404);
+    }
+
+    const [profile] = await this.sql<Profile[]>`
+      select
+        id::text,
+        auth_method as "authMethod",
+        email,
+        timezone,
+        linked_at::text as "linkedAt",
+        created_at::text as "createdAt"
+      from profiles
+      where id = ${input.appUserId}
+        and deactivated_at is null
+      limit 1
+    `;
+    if (!profile) {
+      throw new AccountAuthError("profile_not_found", "Subscription profile was not found.", 404);
+    }
+
+    await this.sql`
+      insert into profile_subscription_entitlements (
+        profile_id,
+        provider,
+        app_user_id,
+        entitlement_id,
+        status,
+        store,
+        product_id,
+        current_period_start,
+        current_period_end,
+        will_renew,
+        environment,
+        latest_event_id,
+        raw_payload
+      )
+      values (
+        ${profile.id},
+        'revenuecat',
+        ${input.appUserId},
+        ${input.entitlementId},
+        ${input.status},
+        ${input.store ?? null},
+        ${input.productId ?? null},
+        ${input.currentPeriodStart ?? null},
+        ${input.currentPeriodEnd ?? null},
+        ${input.willRenew ?? null},
+        ${input.environment ?? null},
+        ${input.latestEventId ?? null},
+        ${this.sql.json(toJsonValue(input.rawPayload ?? {}))}
+      )
+      on conflict (profile_id) do update
+        set
+          provider = excluded.provider,
+          app_user_id = excluded.app_user_id,
+          entitlement_id = excluded.entitlement_id,
+          status = excluded.status,
+          store = excluded.store,
+          product_id = excluded.product_id,
+          current_period_start = excluded.current_period_start,
+          current_period_end = excluded.current_period_end,
+          will_renew = excluded.will_renew,
+          environment = excluded.environment,
+          latest_event_id = excluded.latest_event_id,
+          raw_payload = excluded.raw_payload,
+          updated_at = now()
+    `;
+
+    return this.getSubscriptionStatusForProfile(profile);
+  }
+
+  async recordSubscriptionEvent(input: RecordSubscriptionEventInput): Promise<boolean> {
+    const [row] = await this.sql<{ id: string }[]>`
+      insert into subscription_events (
+        event_id,
+        profile_id,
+        provider,
+        app_user_id,
+        entitlement_id,
+        event_type,
+        product_id,
+        store,
+        environment,
+        purchased_at,
+        expiration_at,
+        raw_payload
+      )
+      values (
+        ${input.eventId},
+        ${uuidPattern.test(input.appUserId) ? input.appUserId : null},
+        'revenuecat',
+        ${input.appUserId},
+        ${input.entitlementId ?? null},
+        ${input.eventType},
+        ${input.productId ?? null},
+        ${input.store ?? null},
+        ${input.environment ?? null},
+        ${input.purchasedAt ?? null},
+        ${input.expirationAt ?? null},
+        ${this.sql.json(toJsonValue(input.rawPayload))}
+      )
+      on conflict (event_id) do nothing
+      returning event_id as id
+    `;
+    return Boolean(row);
   }
 
   async getRewardedAdProgress(
@@ -1372,6 +1588,21 @@ export class PostgresStore implements AppRepository {
 
   async consumeCredit(reason: "free" | "rewarded" | "premium") {
     const profile = await this.getProfile();
+    if (reason === "premium" && (await this.consumeSubscriptionPremiumCredit(profile))) {
+      await this.sql`
+        insert into quota_events (profile_id, event_type, reason, delta, local_date, install_id)
+        values (
+          ${profile.id},
+          'consume',
+          'premium_subscription',
+          -1,
+          ${localDateForTimezone(profile.timezone)},
+          ${currentRequestIdentity().installId ?? null}
+        )
+      `;
+      return this.getQuota();
+    }
+
     const column =
       reason === "free"
         ? "free_remaining"
@@ -2993,6 +3224,99 @@ export class PostgresStore implements AppRepository {
   private quotaOwnerKey(profile: Profile): string {
     const installId = currentRequestIdentity().installId;
     return this.usesInstallQuota(profile) ? `install:${installId}` : `profile:${profile.id}`;
+  }
+
+  private async getSubscriptionStatusForProfile(
+    profile: Profile,
+  ): Promise<SubscriptionStatusState> {
+    const [entitlement] = await this.sql<SubscriptionEntitlementRow[]>`
+      select
+        profile_id::text,
+        app_user_id,
+        entitlement_id,
+        status,
+        store,
+        product_id,
+        current_period_start::text,
+        current_period_end::text,
+        will_renew
+      from profile_subscription_entitlements
+      where profile_id = ${profile.id}
+        and entitlement_id = ${config.revenueCat.entitlementId}
+      limit 1
+    `;
+
+    const active = entitlement ? subscriptionEntitlementIsActive(entitlement) : false;
+    const usage = active
+      ? await this.getPremiumSubscriptionUsage(profile, entitlement)
+      : emptySubscriptionUsage(
+          config.revenueCat.premiumMonthlyScanLimit,
+          config.revenueCat.premiumDailyScanLimit,
+        );
+
+    return {
+      appUserId: entitlement?.app_user_id ?? profile.id,
+      entitlementId: entitlement?.entitlement_id ?? config.revenueCat.entitlementId,
+      active,
+      status: entitlement?.status ?? "inactive",
+      store: entitlement?.store ?? undefined,
+      productId: entitlement?.product_id ?? undefined,
+      currentPeriodStart: isoTimestamp(entitlement?.current_period_start),
+      currentPeriodEnd: isoTimestamp(entitlement?.current_period_end),
+      willRenew: entitlement?.will_renew ?? undefined,
+      usage,
+    };
+  }
+
+  private async getPremiumSubscriptionUsage(
+    profile: Profile,
+    entitlement: SubscriptionEntitlementRow,
+  ): Promise<SubscriptionStatusState["usage"]> {
+    const monthlyLimit = config.revenueCat.premiumMonthlyScanLimit;
+    const dailyLimit = config.revenueCat.premiumDailyScanLimit;
+    const { periodStart, periodEnd } = subscriptionPeriod(entitlement);
+    const today = localDateForTimezone(profile.timezone);
+    const [usage] = await this.sql<PremiumUsageRow[]>`
+      select
+        coalesce(sum(used), 0)::int as used_this_period,
+        coalesce(sum(used) filter (where local_date = ${today}), 0)::int as used_today
+      from premium_scan_usage
+      where profile_id = ${profile.id}
+        and period_start = ${periodStart}
+        and period_end = ${periodEnd}
+    `;
+
+    return subscriptionUsageFromCounts(
+      monthlyLimit,
+      dailyLimit,
+      usage?.used_this_period ?? 0,
+      usage?.used_today ?? 0,
+    );
+  }
+
+  private async consumeSubscriptionPremiumCredit(profile: Profile): Promise<boolean> {
+    const status = await this.getSubscriptionStatusForProfile(profile);
+    if (!status.active || status.usage.premiumRemaining <= 0) return false;
+
+    const { periodStart, periodEnd } = subscriptionPeriod({
+      appUserId: status.appUserId,
+      entitlementId: status.entitlementId,
+      status: status.status,
+      currentPeriodStart: status.currentPeriodStart,
+      currentPeriodEnd: status.currentPeriodEnd,
+    });
+    const today = localDateForTimezone(profile.timezone);
+    await this.sql`
+      insert into premium_scan_usage (profile_id, period_start, period_end, local_date, used)
+      values (${profile.id}, ${periodStart}, ${periodEnd}, ${today}, 1)
+      on conflict (profile_id, period_start, local_date) do update
+        set
+          used = premium_scan_usage.used + 1,
+          period_end = excluded.period_end,
+          updated_at = now()
+    `;
+
+    return true;
   }
 
   private async applyAdSuspensionDailyCredits(profile: Profile): Promise<void> {

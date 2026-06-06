@@ -42,6 +42,14 @@ export type ApiConfig = {
     firebaseCredentialsJson?: string;
     firebaseCredentialsJsonBase64?: string;
   };
+  revenueCat: {
+    restApiKey?: string;
+    apiBaseUrl: string;
+    entitlementId: string;
+    premiumMonthlyScanLimit: number;
+    premiumDailyScanLimit: number;
+    webhookAuthToken?: string;
+  };
   cron: {
     secret?: string;
   };
@@ -112,6 +120,14 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       firebaseCredentialsJsonBase64:
         emptyToUndefined(env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64) ??
         emptyToUndefined(env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64),
+    },
+    revenueCat: {
+      restApiKey: emptyToUndefined(env.REVENUECAT_REST_API_KEY),
+      apiBaseUrl: env.REVENUECAT_API_BASE_URL ?? "https://api.revenuecat.com/v1",
+      entitlementId: emptyToUndefined(env.REVENUECAT_PREMIUM_ENTITLEMENT_ID) ?? "premium",
+      premiumMonthlyScanLimit: Number(env.PREMIUM_MONTHLY_SCAN_LIMIT ?? 300),
+      premiumDailyScanLimit: Number(env.PREMIUM_DAILY_SCAN_LIMIT ?? 10),
+      webhookAuthToken: emptyToUndefined(env.REVENUECAT_WEBHOOK_AUTH_TOKEN),
     },
     cron: {
       secret: emptyToUndefined(env.CRON_SECRET),
@@ -189,6 +205,28 @@ export const validateApiConfig = (candidate: ApiConfig): void => {
 
   if (!candidate.email.passwordResetFrom.trim()) {
     throw new Error("PASSWORD_RESET_EMAIL_FROM cannot be empty.");
+  }
+
+  if (!candidate.revenueCat.apiBaseUrl.trim()) {
+    throw new Error("REVENUECAT_API_BASE_URL cannot be empty.");
+  }
+
+  if (!candidate.revenueCat.entitlementId.trim()) {
+    throw new Error("REVENUECAT_PREMIUM_ENTITLEMENT_ID cannot be empty.");
+  }
+
+  if (
+    !Number.isFinite(candidate.revenueCat.premiumMonthlyScanLimit) ||
+    candidate.revenueCat.premiumMonthlyScanLimit <= 0
+  ) {
+    throw new Error("PREMIUM_MONTHLY_SCAN_LIMIT must be a positive number.");
+  }
+
+  if (
+    !Number.isFinite(candidate.revenueCat.premiumDailyScanLimit) ||
+    candidate.revenueCat.premiumDailyScanLimit <= 0
+  ) {
+    throw new Error("PREMIUM_DAILY_SCAN_LIMIT must be a positive number.");
   }
 
   if (candidate.nodeEnv === "production" && !candidate.email.resendApiKey?.trim()) {

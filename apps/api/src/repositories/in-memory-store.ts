@@ -27,6 +27,7 @@ import type {
   ProfileHealthTarget,
   PushTokenRegistrationInput,
   PushTokenRegistrationResult,
+  RecordSubscriptionEventInput,
   RewardedAdCompletionInput,
   RewardedAdCreditResult,
   RewardedAdProgressState,
@@ -34,16 +35,93 @@ import type {
   RewardedAdServerVerificationInput,
   ScanAnalysisCacheRecord,
   ScanSession,
+  SubscriptionStatusState,
   UpdateMealInput,
   LearnFoodsFromConfirmedScanInput,
+  UpsertSubscriptionEntitlementInput,
   UpsertScanAnalysisCacheInput,
   UpsertProfileHealthTargetInput,
 } from "./app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AccountAuthError as AuthError } from "./app-repository.js";
 import { buildConfirmedScanLearnedFoodCandidates } from "../services/food-learning.js";
+import { config } from "../config.js";
 
 type ProfileLifecycleEventType = "deactivated" | "deleted";
+
+const emptySubscriptionUsage = (
+  monthlyLimit: number,
+  dailyLimit: number,
+): SubscriptionStatusState["usage"] => ({
+  monthlyLimit,
+  dailyLimit,
+  usedThisPeriod: 0,
+  usedToday: 0,
+  remainingThisPeriod: 0,
+  remainingToday: 0,
+  premiumRemaining: 0,
+});
+
+const subscriptionUsage = (
+  monthlyLimit: number,
+  dailyLimit: number,
+  usedThisPeriod: number,
+  usedToday: number,
+): SubscriptionStatusState["usage"] => {
+  const remainingThisPeriod = Math.max(0, monthlyLimit - usedThisPeriod);
+  const remainingToday = Math.max(0, dailyLimit - usedToday);
+  return {
+    monthlyLimit,
+    dailyLimit,
+    usedThisPeriod,
+    usedToday,
+    remainingThisPeriod,
+    remainingToday,
+    premiumRemaining: Math.min(remainingThisPeriod, remainingToday),
+  };
+};
+
+const subscriptionEntitlementIsActive = (
+  entitlement: UpsertSubscriptionEntitlementInput,
+): boolean => {
+  if (!["active", "cancelled", "billing_issue"].includes(entitlement.status)) return false;
+  if (!entitlement.currentPeriodEnd) return true;
+  return Date.parse(entitlement.currentPeriodEnd) > Date.now();
+};
+
+const subscriptionPeriod = (
+  entitlement: UpsertSubscriptionEntitlementInput | undefined,
+): { periodStart: string; periodEnd: string } => {
+  const now = new Date();
+  const start = entitlement?.currentPeriodStart
+    ? new Date(entitlement.currentPeriodStart)
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = entitlement?.currentPeriodEnd
+    ? new Date(entitlement.currentPeriodEnd)
+    : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1));
+  return {
+    periodStart: start.toISOString().slice(0, 10),
+    periodEnd: end.toISOString().slice(0, 10),
+  };
+};
+
+const localDateForTimezone = (timezone: string): string => {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const year = parts.find((part) => part.type === "year")?.value;
+    const month = parts.find((part) => part.type === "month")?.value;
+    const day = parts.find((part) => part.type === "day")?.value;
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch {
+    // Fall through to UTC when the device sends an invalid timezone.
+  }
+  return new Date().toISOString().slice(0, 10);
+};
 
 export class InMemoryStore implements AppRepository {
   readonly defaultProfile: Profile = {
@@ -92,6 +170,9 @@ export class InMemoryStore implements AppRepository {
   private readonly scanAnalysisCache = new Map<string, ScanAnalysisCacheRecord>();
   private readonly idempotency = new Map<string, IdempotencyRecord>();
   private readonly quotas = new Map<string, ScanCreditState>();
+  private readonly subscriptionEntitlements = new Map<string, UpsertSubscriptionEntitlementInput>();
+  private readonly subscriptionEvents = new Set<string>();
+  private readonly premiumScanUsage = new Map<string, number>();
   private readonly rewardedAdProgress = new Map<
     string,
     { completedAds: number; grantedScans: number }
@@ -516,7 +597,35 @@ export class InMemoryStore implements AppRepository {
   }
 
   async getQuota() {
-    return { ...this.quotaFor(await this.getProfile()) };
+    const profile = await this.getProfile();
+    const quota = this.quotaFor(profile);
+    return {
+      ...quota,
+      premiumRemaining:
+        quota.premiumRemaining + this.subscriptionStatusFor(profile).usage.premiumRemaining,
+    };
+  }
+
+  async getSubscriptionStatus(): Promise<SubscriptionStatusState> {
+    return this.subscriptionStatusFor(await this.getProfile());
+  }
+
+  async upsertSubscriptionEntitlement(
+    input: UpsertSubscriptionEntitlementInput,
+  ): Promise<SubscriptionStatusState> {
+    const profile = this.profiles.get(input.appUserId);
+    if (!profile) {
+      throw new AuthError("profile_not_found", "Subscription profile was not found.", 404);
+    }
+
+    this.subscriptionEntitlements.set(profile.id, { ...input });
+    return this.subscriptionStatusFor(profile);
+  }
+
+  async recordSubscriptionEvent(input: RecordSubscriptionEventInput): Promise<boolean> {
+    if (this.subscriptionEvents.has(input.eventId)) return false;
+    this.subscriptionEvents.add(input.eventId);
+    return true;
   }
 
   async getRewardedAdProgress(
@@ -541,10 +650,13 @@ export class InMemoryStore implements AppRepository {
   }
 
   async consumeCredit(reason: "free" | "rewarded" | "premium") {
-    const quota = this.quotaFor(await this.getProfile());
+    const profile = await this.getProfile();
+    const quota = this.quotaFor(profile);
     if (reason === "free" && quota.freeRemaining > 0) quota.freeRemaining -= 1;
     else if (reason === "rewarded" && quota.rewardedRemaining > 0) quota.rewardedRemaining -= 1;
-    else if (reason === "premium" && quota.premiumRemaining > 0) quota.premiumRemaining -= 1;
+    else if (reason === "premium" && this.consumeSubscriptionPremiumScan(profile)) {
+      return this.getQuota();
+    } else if (reason === "premium" && quota.premiumRemaining > 0) quota.premiumRemaining -= 1;
     else throw new Error(`No ${reason} scan credit remaining`);
 
     return this.getQuota();
@@ -901,6 +1013,58 @@ export class InMemoryStore implements AppRepository {
 
   private profileQuotaKey(profileId: string): string {
     return `profile:${profileId}`;
+  }
+
+  private subscriptionStatusFor(profile: Profile): SubscriptionStatusState {
+    const entitlement = this.subscriptionEntitlements.get(profile.id);
+    const active = entitlement ? subscriptionEntitlementIsActive(entitlement) : false;
+    const usage = this.subscriptionUsageFor(profile, entitlement, active);
+    return {
+      appUserId: profile.id,
+      entitlementId: entitlement?.entitlementId ?? config.revenueCat.entitlementId,
+      active,
+      status: entitlement?.status ?? "inactive",
+      store: entitlement?.store,
+      productId: entitlement?.productId,
+      currentPeriodStart: entitlement?.currentPeriodStart,
+      currentPeriodEnd: entitlement?.currentPeriodEnd,
+      willRenew: entitlement?.willRenew,
+      usage,
+    };
+  }
+
+  private subscriptionUsageFor(
+    profile: Profile,
+    entitlement: UpsertSubscriptionEntitlementInput | undefined,
+    active: boolean,
+  ): SubscriptionStatusState["usage"] {
+    const monthlyLimit = config.revenueCat.premiumMonthlyScanLimit;
+    const dailyLimit = config.revenueCat.premiumDailyScanLimit;
+    if (!active) {
+      return emptySubscriptionUsage(monthlyLimit, dailyLimit);
+    }
+
+    const { periodStart } = subscriptionPeriod(entitlement);
+    const today = localDateForTimezone(profile.timezone);
+    let usedThisPeriod = 0;
+    for (const [key, used] of this.premiumScanUsage.entries()) {
+      if (key.startsWith(`${profile.id}:${periodStart}:`)) usedThisPeriod += used;
+    }
+    const usedToday = this.premiumScanUsage.get(`${profile.id}:${periodStart}:${today}`) ?? 0;
+    return subscriptionUsage(monthlyLimit, dailyLimit, usedThisPeriod, usedToday);
+  }
+
+  private consumeSubscriptionPremiumScan(profile: Profile): boolean {
+    const entitlement = this.subscriptionEntitlements.get(profile.id);
+    if (!entitlement || !subscriptionEntitlementIsActive(entitlement)) return false;
+    const status = this.subscriptionStatusFor(profile);
+    if (status.usage.premiumRemaining <= 0) return false;
+
+    const { periodStart } = subscriptionPeriod(entitlement);
+    const today = localDateForTimezone(profile.timezone);
+    const key = `${profile.id}:${periodStart}:${today}`;
+    this.premiumScanUsage.set(key, (this.premiumScanUsage.get(key) ?? 0) + 1);
+    return true;
   }
 
   private createAnonymousProfile(): Profile {

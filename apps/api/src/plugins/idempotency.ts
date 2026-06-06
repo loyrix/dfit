@@ -8,6 +8,9 @@ const skipsIdempotency = (request: FastifyRequest): boolean => {
   if (request.method === "PUT" && request.url === "/v1/devices/push-token") return true;
   if (request.method === "POST" && request.url === "/v1/profiles/me/deactivate") return true;
   if (request.method === "DELETE" && request.url === "/v1/profiles/me") return true;
+  if (request.method === "POST" && request.url === "/v1/subscription/revenuecat/webhook") {
+    return true;
+  }
   return false;
 };
 

@@ -188,6 +188,66 @@ export type RewardedAdCreditResult = {
 
 export type RewardedAdProgressState = Omit<RewardedAdCreditResult, "grantedScan" | "quota">;
 
+export type SubscriptionStatusValue =
+  | "active"
+  | "inactive"
+  | "expired"
+  | "cancelled"
+  | "billing_issue"
+  | "unknown";
+
+export type SubscriptionStore = "app_store" | "play_store" | "stripe" | "promotional" | "unknown";
+
+export type SubscriptionUsageState = {
+  monthlyLimit: number;
+  dailyLimit: number;
+  usedThisPeriod: number;
+  usedToday: number;
+  remainingThisPeriod: number;
+  remainingToday: number;
+  premiumRemaining: number;
+};
+
+export type SubscriptionStatusState = {
+  appUserId: string;
+  entitlementId: string;
+  active: boolean;
+  status: SubscriptionStatusValue;
+  store?: SubscriptionStore;
+  productId?: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  willRenew?: boolean;
+  usage: SubscriptionUsageState;
+};
+
+export type UpsertSubscriptionEntitlementInput = {
+  appUserId: string;
+  entitlementId: string;
+  status: SubscriptionStatusValue;
+  store?: SubscriptionStore;
+  productId?: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  willRenew?: boolean;
+  environment?: string;
+  latestEventId?: string;
+  rawPayload?: unknown;
+};
+
+export type RecordSubscriptionEventInput = {
+  eventId: string;
+  appUserId: string;
+  entitlementId?: string;
+  eventType: string;
+  productId?: string;
+  store?: SubscriptionStore;
+  environment?: string;
+  purchasedAt?: string;
+  expirationAt?: string;
+  rawPayload: unknown;
+};
+
 export type PushTokenRegistrationInput = {
   provider: "fcm";
   token: string;
@@ -257,6 +317,11 @@ export interface AppRepository {
   searchFoods(query: string): Promise<FoodSearchResult[]>;
   getFood(foodId: string): Promise<FoodRecord | undefined>;
   getQuota(): Promise<ScanCreditState>;
+  getSubscriptionStatus(): Promise<SubscriptionStatusState>;
+  upsertSubscriptionEntitlement(
+    input: UpsertSubscriptionEntitlementInput,
+  ): Promise<SubscriptionStatusState>;
+  recordSubscriptionEvent(input: RecordSubscriptionEventInput): Promise<boolean>;
   getRewardedAdProgress(dailyScanLimit?: number): Promise<RewardedAdProgressState>;
   consumeCredit(reason: "free" | "rewarded" | "premium"): Promise<ScanCreditState>;
   recordRewardedAdServerVerification(

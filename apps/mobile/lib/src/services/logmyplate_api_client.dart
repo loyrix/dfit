@@ -114,6 +114,38 @@ class LogMyPlateApiClient {
     );
   }
 
+  Future<SubscriptionStatus> fetchSubscription() async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v1/subscription'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
+    return SubscriptionStatus.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<SubscriptionStatus> syncRevenueCatSubscription({
+    String? appUserId,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/subscription/revenuecat/sync'),
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey:
+            'subscription-sync-${DateTime.now().microsecondsSinceEpoch}',
+      ),
+      body: jsonEncode({
+        if (appUserId != null && appUserId.trim().isNotEmpty)
+          'appUserId': appUserId.trim(),
+      }),
+    );
+    _throwIfBad(response);
+    return SubscriptionStatus.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<List<FoodSearchResult>> searchFoods(String query) async {
     final normalized = query.trim();
     if (normalized.length < 2) return const [];

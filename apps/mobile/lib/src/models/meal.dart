@@ -1784,6 +1784,45 @@ int _boundedInt(
   return parsed;
 }
 
+int _intFromJson(Object? value, {int fallback = 0}) {
+  return _nullableInt(value) ?? fallback;
+}
+
+String _stringFromJson(Object? value, {String fallback = ''}) {
+  return _stringValue(value, fallback: fallback);
+}
+
+String? _optionalStringFromJson(Object? value) {
+  return _nullableString(value);
+}
+
+DateTime? _dateTimeFromJson(Object? value) {
+  final text = _nullableString(value);
+  if (text == null) return null;
+  return DateTime.tryParse(text)?.toLocal();
+}
+
+SubscriptionAccessStatus _subscriptionAccessStatusFromJson(Object? value) {
+  return switch (_nullableString(value)) {
+    'active' => SubscriptionAccessStatus.active,
+    'inactive' => SubscriptionAccessStatus.inactive,
+    'expired' => SubscriptionAccessStatus.expired,
+    'cancelled' => SubscriptionAccessStatus.cancelled,
+    'billing_issue' => SubscriptionAccessStatus.billingIssue,
+    _ => SubscriptionAccessStatus.unknown,
+  };
+}
+
+SubscriptionStore _subscriptionStoreFromJson(Object? value) {
+  return switch (_nullableString(value)) {
+    'app_store' => SubscriptionStore.appStore,
+    'play_store' => SubscriptionStore.playStore,
+    'stripe' => SubscriptionStore.stripe,
+    'promotional' => SubscriptionStore.promotional,
+    _ => SubscriptionStore.unknown,
+  };
+}
+
 class AppBootstrapData {
   const AppBootstrapData({
     required this.serverTime,
@@ -1791,6 +1830,7 @@ class AppBootstrapData {
     this.healthTarget,
     required this.updatePolicy,
     required this.engagementPolicy,
+    required this.subscription,
     required this.quota,
     required this.rewardedAdProgress,
     required this.today,
@@ -1803,6 +1843,7 @@ class AppBootstrapData {
   final HealthTarget? healthTarget;
   final AppUpdatePolicy updatePolicy;
   final EngagementPolicy engagementPolicy;
+  final SubscriptionStatus subscription;
   final ScanQuota quota;
   final RewardedAdProgress rewardedAdProgress;
   final TodayJournalData today;
@@ -1821,6 +1862,9 @@ class AppBootstrapData {
       ),
       engagementPolicy: EngagementPolicy.fromJson(
         json['engagementPolicy'] as Map<String, dynamic>?,
+      ),
+      subscription: SubscriptionStatus.fromJson(
+        json['subscription'] as Map<String, dynamic>?,
       ),
       quota: ScanQuota.fromJson(json['quota'] as Map<String, dynamic>),
       rewardedAdProgress: json['rewardedAdProgress'] == null
@@ -1890,6 +1934,7 @@ class AppBootstrapData {
         'summary': weeklyRange.summary.toJson(),
       },
       'streakSummary': streakSummary.toJson(),
+      'subscription': subscription.toJson(),
     };
   }
 }
@@ -1941,6 +1986,185 @@ class ScanQuota {
       'freeRemaining': freeRemaining,
       'rewardedRemaining': rewardedRemaining,
       'premiumRemaining': premiumRemaining,
+    };
+  }
+}
+
+enum SubscriptionAccessStatus {
+  active,
+  inactive,
+  expired,
+  cancelled,
+  billingIssue,
+  unknown;
+
+  String get apiName {
+    return switch (this) {
+      SubscriptionAccessStatus.active => 'active',
+      SubscriptionAccessStatus.inactive => 'inactive',
+      SubscriptionAccessStatus.expired => 'expired',
+      SubscriptionAccessStatus.cancelled => 'cancelled',
+      SubscriptionAccessStatus.billingIssue => 'billing_issue',
+      SubscriptionAccessStatus.unknown => 'unknown',
+    };
+  }
+}
+
+enum SubscriptionStore {
+  appStore,
+  playStore,
+  stripe,
+  promotional,
+  unknown;
+
+  String get apiName {
+    return switch (this) {
+      SubscriptionStore.appStore => 'app_store',
+      SubscriptionStore.playStore => 'play_store',
+      SubscriptionStore.stripe => 'stripe',
+      SubscriptionStore.promotional => 'promotional',
+      SubscriptionStore.unknown => 'unknown',
+    };
+  }
+}
+
+class SubscriptionUsage {
+  const SubscriptionUsage({
+    required this.monthlyLimit,
+    required this.dailyLimit,
+    required this.usedThisPeriod,
+    required this.usedToday,
+    required this.remainingThisPeriod,
+    required this.remainingToday,
+    required this.premiumRemaining,
+  });
+
+  final int monthlyLimit;
+  final int dailyLimit;
+  final int usedThisPeriod;
+  final int usedToday;
+  final int remainingThisPeriod;
+  final int remainingToday;
+  final int premiumRemaining;
+
+  factory SubscriptionUsage.inactive() {
+    return const SubscriptionUsage(
+      monthlyLimit: 300,
+      dailyLimit: 10,
+      usedThisPeriod: 0,
+      usedToday: 0,
+      remainingThisPeriod: 0,
+      remainingToday: 0,
+      premiumRemaining: 0,
+    );
+  }
+
+  factory SubscriptionUsage.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return SubscriptionUsage.inactive();
+    return SubscriptionUsage(
+      monthlyLimit: _intFromJson(json['monthlyLimit'], fallback: 300),
+      dailyLimit: _intFromJson(json['dailyLimit'], fallback: 10),
+      usedThisPeriod: _intFromJson(json['usedThisPeriod']),
+      usedToday: _intFromJson(json['usedToday']),
+      remainingThisPeriod: _intFromJson(json['remainingThisPeriod']),
+      remainingToday: _intFromJson(json['remainingToday']),
+      premiumRemaining: _intFromJson(json['premiumRemaining']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'monthlyLimit': monthlyLimit,
+      'dailyLimit': dailyLimit,
+      'usedThisPeriod': usedThisPeriod,
+      'usedToday': usedToday,
+      'remainingThisPeriod': remainingThisPeriod,
+      'remainingToday': remainingToday,
+      'premiumRemaining': premiumRemaining,
+    };
+  }
+}
+
+class SubscriptionStatus {
+  const SubscriptionStatus({
+    required this.appUserId,
+    required this.entitlementId,
+    required this.active,
+    required this.status,
+    required this.store,
+    this.productId,
+    this.currentPeriodStart,
+    this.currentPeriodEnd,
+    this.willRenew,
+    required this.usage,
+  });
+
+  final String appUserId;
+  final String entitlementId;
+  final bool active;
+  final SubscriptionAccessStatus status;
+  final SubscriptionStore store;
+  final String? productId;
+  final DateTime? currentPeriodStart;
+  final DateTime? currentPeriodEnd;
+  final bool? willRenew;
+  final SubscriptionUsage usage;
+
+  bool get hasPremiumAccess => active && usage.premiumRemaining > 0;
+
+  String get shortLabel {
+    if (!active) return 'Not active';
+    if (currentPeriodEnd == null) return 'Active';
+    return willRenew == false ? 'Active until renewal date' : 'Active';
+  }
+
+  factory SubscriptionStatus.inactive({
+    String appUserId = '',
+    String entitlementId = 'premium',
+  }) {
+    return SubscriptionStatus(
+      appUserId: appUserId,
+      entitlementId: entitlementId,
+      active: false,
+      status: SubscriptionAccessStatus.inactive,
+      store: SubscriptionStore.unknown,
+      usage: SubscriptionUsage.inactive(),
+    );
+  }
+
+  factory SubscriptionStatus.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return SubscriptionStatus.inactive();
+    return SubscriptionStatus(
+      appUserId: _stringFromJson(json['appUserId']),
+      entitlementId: _stringFromJson(
+        json['entitlementId'],
+        fallback: 'premium',
+      ),
+      active: json['active'] == true,
+      status: _subscriptionAccessStatusFromJson(json['status']),
+      store: _subscriptionStoreFromJson(json['store']),
+      productId: _optionalStringFromJson(json['productId']),
+      currentPeriodStart: _dateTimeFromJson(json['currentPeriodStart']),
+      currentPeriodEnd: _dateTimeFromJson(json['currentPeriodEnd']),
+      willRenew: json['willRenew'] is bool ? json['willRenew'] as bool : null,
+      usage: SubscriptionUsage.fromJson(json['usage'] as Map<String, dynamic>?),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'appUserId': appUserId,
+      'entitlementId': entitlementId,
+      'active': active,
+      'status': status.apiName,
+      'store': store.apiName,
+      if (productId != null) 'productId': productId,
+      if (currentPeriodStart != null)
+        'currentPeriodStart': currentPeriodStart!.toUtc().toIso8601String(),
+      if (currentPeriodEnd != null)
+        'currentPeriodEnd': currentPeriodEnd!.toUtc().toIso8601String(),
+      if (willRenew != null) 'willRenew': willRenew,
+      'usage': usage.toJson(),
     };
   }
 }

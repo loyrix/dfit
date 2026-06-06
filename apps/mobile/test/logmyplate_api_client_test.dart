@@ -212,6 +212,104 @@ void main() {
     expect(quota.totalRemaining, 3);
   });
 
+  test('fetches subscription status with usage', () async {
+    final client = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      loadDeviceIdentity: testIdentity,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/v1/subscription');
+        expect(request.headers['x-logmyplate-install-id'], 'test-install');
+        return http.Response(
+          jsonEncode({
+            'appUserId': 'profile_1',
+            'entitlementId': 'premium',
+            'active': true,
+            'status': 'active',
+            'store': 'app_store',
+            'productId': 'com.logmyplate.premium.quarterly',
+            'currentPeriodEnd': '2026-09-06T00:00:00.000Z',
+            'willRenew': true,
+            'usage': {
+              'monthlyLimit': 300,
+              'dailyLimit': 10,
+              'usedThisPeriod': 8,
+              'usedToday': 2,
+              'remainingThisPeriod': 292,
+              'remainingToday': 8,
+              'premiumRemaining': 8,
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final subscription = await client.fetchSubscription();
+
+    expect(subscription.active, isTrue);
+    expect(subscription.status, SubscriptionAccessStatus.active);
+    expect(subscription.store, SubscriptionStore.appStore);
+    expect(subscription.productId, 'com.logmyplate.premium.quarterly');
+    expect(subscription.usage.remainingToday, 8);
+    expect(subscription.usage.remainingThisPeriod, 292);
+  });
+
+  test(
+    'syncs RevenueCat subscription with idempotency and auth headers',
+    () async {
+      late http.Request seenRequest;
+      final client = LogMyPlateApiClient(
+        baseUrl: 'http://api.test',
+        loadDeviceIdentity: testIdentity,
+        loadAuthSession: () async => AuthSession(
+          provider: AuthProvider.email,
+          displayName: 'friend@test.com',
+          linkedAt: DateTime(2026, 6, 6),
+          profileId: 'profile_1',
+          accessToken: 'access-token',
+        ),
+        httpClient: MockClient((request) async {
+          seenRequest = request;
+          return http.Response(
+            jsonEncode({
+              'appUserId': 'profile_1',
+              'entitlementId': 'premium',
+              'active': false,
+              'status': 'inactive',
+              'store': 'unknown',
+              'usage': {
+                'monthlyLimit': 300,
+                'dailyLimit': 10,
+                'usedThisPeriod': 0,
+                'usedToday': 0,
+                'remainingThisPeriod': 0,
+                'remainingToday': 0,
+                'premiumRemaining': 0,
+              },
+            }),
+            200,
+          );
+        }),
+      );
+
+      final subscription = await client.syncRevenueCatSubscription(
+        appUserId: 'profile_1',
+      );
+
+      expect(seenRequest.method, 'POST');
+      expect(seenRequest.url.path, '/v1/subscription/revenuecat/sync');
+      expect(seenRequest.headers['authorization'], 'Bearer access-token');
+      expect(seenRequest.headers['content-type'], 'application/json');
+      expect(
+        seenRequest.headers['idempotency-key'],
+        startsWith('subscription-sync-'),
+      );
+      expect(jsonDecode(seenRequest.body), {'appUserId': 'profile_1'});
+      expect(subscription.active, isFalse);
+    },
+  );
+
   test('searches foods and parses portion nutrition', () async {
     final client = LogMyPlateApiClient(
       baseUrl: 'http://api.test',

@@ -40,6 +40,10 @@ allowlisted keys for their platform and pass them to Flutter as dart defines:
 - `LOGMYPLATE_GOOGLE_WEB_CLIENT_ID`
 - `LOGMYPLATE_GOOGLE_IOS_CLIENT_ID`
 - `LOGMYPLATE_GOOGLE_ANDROID_CLIENT_ID`
+- `LOGMYPLATE_REVENUECAT_IOS_API_KEY`
+- `LOGMYPLATE_REVENUECAT_ANDROID_API_KEY`
+- `LOGMYPLATE_REVENUECAT_OFFERING_ID`
+- `LOGMYPLATE_REVENUECAT_ENTITLEMENT_ID`
 - `LOGMYPLATE_REWARDED_AD_UNIT_ID`
 - `LOGMYPLATE_FIREBASE_API_KEY`
 - `LOGMYPLATE_FIREBASE_PROJECT_ID`
@@ -57,6 +61,33 @@ This means Xcode's Play button and Android Studio/Gradle runs use the same
 local config as terminal `flutter run`. Explicit CLI or CI dart defines still
 win over `.env`, so release automation can pass fixed values without editing
 local files.
+
+## RevenueCat Subscription Configuration
+
+RevenueCat public SDK keys come from RevenueCat Dashboard -> Apps -> Public API
+Key. Use the App Store key for `LOGMYPLATE_REVENUECAT_IOS_API_KEY` and the Play
+Store key for `LOGMYPLATE_REVENUECAT_ANDROID_API_KEY`. Do not use the
+`test_...` key for production App Store or Google Play purchase flows.
+
+Current subscription catalog:
+
+```txt
+LOGMYPLATE_REVENUECAT_OFFERING_ID=default
+LOGMYPLATE_REVENUECAT_ENTITLEMENT_ID=premium
+```
+
+iOS local run example:
+
+```sh
+flutter run \
+  --dart-define=LOGMYPLATE_REVENUECAT_IOS_API_KEY=appl_your_public_key \
+  --dart-define=LOGMYPLATE_REVENUECAT_OFFERING_ID=default \
+  --dart-define=LOGMYPLATE_REVENUECAT_ENTITLEMENT_ID=premium
+```
+
+Premium activation also requires the API to receive RevenueCat status through
+either `REVENUECAT_REST_API_KEY` for app-triggered sync or the RevenueCat webhook
+at `/v1/subscription/revenuecat/webhook`.
 
 ## Firebase Analytics Configuration
 

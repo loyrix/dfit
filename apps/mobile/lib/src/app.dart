@@ -19,6 +19,7 @@ import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
+import 'screens/paywall_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/review_meal_screen.dart';
 import 'screens/today_screen.dart';
@@ -31,6 +32,7 @@ import 'services/interstitial_ad_store.dart';
 import 'services/logmyplate_analytics.dart';
 import 'services/logmyplate_api_client.dart';
 import 'services/push_notification_service.dart';
+import 'services/revenuecat_subscription_service.dart';
 import 'services/review_prompt_store.dart';
 import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
@@ -48,6 +50,7 @@ class LogMyPlateApp extends StatefulWidget {
     RewardedAdGateway? rewardedAdGateway,
     InterstitialAdGateway? interstitialAdGateway,
     LogMyPlateAnalytics? analytics,
+    RevenueCatSubscriptionGateway? subscriptionGateway,
     ReviewPromptStore? reviewPromptStore,
     InterstitialAdStore? interstitialAdStore,
     AppBuildInfoStore? appBuildInfoStore,
@@ -57,6 +60,7 @@ class LogMyPlateApp extends StatefulWidget {
        _rewardedAdGateway = rewardedAdGateway,
        _interstitialAdGateway = interstitialAdGateway,
        _analytics = analytics,
+       _subscriptionGateway = subscriptionGateway,
        _reviewPromptStore = reviewPromptStore,
        _interstitialAdStore = interstitialAdStore,
        _appBuildInfoStore = appBuildInfoStore,
@@ -67,6 +71,7 @@ class LogMyPlateApp extends StatefulWidget {
   final RewardedAdGateway? _rewardedAdGateway;
   final InterstitialAdGateway? _interstitialAdGateway;
   final LogMyPlateAnalytics? _analytics;
+  final RevenueCatSubscriptionGateway? _subscriptionGateway;
   final ReviewPromptStore? _reviewPromptStore;
   final InterstitialAdStore? _interstitialAdStore;
   final AppBuildInfoStore? _appBuildInfoStore;
@@ -91,6 +96,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._rewardedAdGateway ?? GoogleRewardedAdService();
   late final InterstitialAdGateway _interstitialAds =
       widget._interstitialAdGateway ?? GoogleInterstitialAdService();
+  late final RevenueCatSubscriptionGateway _subscriptions =
+      widget._subscriptionGateway ?? RevenueCatSubscriptionService();
   late final ReviewPromptStore _reviewPromptStore =
       widget._reviewPromptStore ?? ReviewPromptStore();
   late final InterstitialAdStore _interstitialAdStore =
@@ -258,9 +265,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                       : ProfileScreen(
                           themeMode: _themeMode,
                           session: _authController.session,
+                          subscription: _journalController.subscription,
                           bottomPadding: useTabletLayout ? 32 : 188,
                           onThemeChanged: _setThemeMode,
                           onOpenAccount: _openProfileAccount,
+                          onOpenPaywall: _openPaywall,
                           onDeleteAccount: _deleteProfileFromAccount,
                           onSignOut: _signOutFromProfile,
                         ),
@@ -639,7 +648,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       if (!policy.enabled) return;
 
       final quota = _journalController.quota;
-      final isPremiumUser = (quota?.premiumRemaining ?? 0) > 0;
+      final isPremiumUser =
+          _journalController.subscription?.active == true ||
+          (quota?.premiumRemaining ?? 0) > 0;
       if (!stats.isEligible(
         policy: policy,
         isPremiumUser: isPremiumUser,
@@ -745,6 +756,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
       if (action == _NoScanCreditsAction.watchAd) {
         return _watchRewardedAdForScanUnlock();
+      } else if (action == _NoScanCreditsAction.upgrade) {
+        final upgraded = await _openPaywall();
+        if (upgraded) return true;
+        if ((_journalController.quota?.totalRemaining ?? 0) > 0) return true;
       } else if (action == _NoScanCreditsAction.addManually) {
         await _openManualReview();
       } else if (action == _NoScanCreditsAction.refresh) {
@@ -756,6 +771,106 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     }
 
     return false;
+  }
+
+  Future<bool> _openPaywall() async {
+    var session = _authController.session;
+    if (session == null) {
+      session = await _openAccountHome(
+        AccountGateReason.saveJournal,
+        promptForHealthTarget: false,
+      );
+      if (session == null) return false;
+    }
+
+    final appUserId = session.profileId;
+    if (appUserId == null || appUserId.trim().isEmpty) {
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.error,
+        title: 'Profile unavailable',
+        message: 'Subscription setup needs a synced profile first.',
+      );
+      return false;
+    }
+
+    if (!_subscriptions.hasPlatformKey) {
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.warning,
+        title: 'Premium not configured',
+        message: 'Add the RevenueCat public SDK key to this build.',
+      );
+      return false;
+    }
+
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.info,
+      title: 'Loading Premium',
+      message: 'Fetching live store prices.',
+    );
+
+    late final PremiumOffering offering;
+    try {
+      offering = await _subscriptions.loadOffering(appUserId: appUserId);
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'subscription.offerings.load',
+        error,
+        stackTrace: stackTrace,
+      );
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.error,
+        title: 'Premium unavailable',
+        message: _subscriptionErrorMessage(error),
+      );
+      return false;
+    }
+
+    final context = _navigatorKey.currentContext;
+    if (context == null || !context.mounted) return false;
+
+    final activated = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => PremiumPaywallSheet(
+        offering: offering,
+        subscription: _journalController.subscription,
+        onPurchase: (plan) => _purchasePremiumPlan(plan, appUserId: appUserId),
+        onRestore: () => _restorePremiumPurchase(appUserId: appUserId),
+      ),
+    );
+
+    if (activated != true) return false;
+
+    await _journalController.loadToday();
+    unawaited(_syncPushNotifications());
+    _showJournalNotice(
+      tone: LogMyPlateNoticeTone.success,
+      title: 'Premium active',
+      message: 'Your Premium scan quota is ready.',
+    );
+    return (_journalController.quota?.totalRemaining ?? 0) > 0;
+  }
+
+  Future<bool> _purchasePremiumPlan(
+    PremiumPlan plan, {
+    required String appUserId,
+  }) async {
+    final activeInRevenueCat = await _subscriptions.purchasePlan(plan);
+    final subscription = await _journalController.syncRevenueCatSubscription(
+      appUserId: appUserId,
+    );
+    return activeInRevenueCat && subscription.active;
+  }
+
+  Future<bool> _restorePremiumPurchase({required String appUserId}) async {
+    final restoredInRevenueCat = await _subscriptions.restorePurchases(
+      appUserId: appUserId,
+    );
+    final subscription = await _journalController.syncRevenueCatSubscription(
+      appUserId: appUserId,
+    );
+    return restoredInRevenueCat && subscription.active;
   }
 
   Future<void> _unlockScanFromToday() async {
@@ -975,6 +1090,14 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
+  String _subscriptionErrorMessage(Object error) {
+    if (error is RevenueCatSubscriptionException) return error.message;
+    if (error is LogMyPlateApiException) {
+      return error.message ?? 'Subscription sync failed.';
+    }
+    return 'Could not load Premium right now.';
+  }
+
   Future<AuthSession?> _openAccountHome(
     AccountGateReason reason, {
     bool promptForHealthTarget = true,
@@ -1077,6 +1200,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
             return AccountProfileScreen(
               session: session,
               loading: _authController.loading,
+              subscription: _journalController.subscription,
               error: _authController.error,
               onClearError: _authController.clearError,
               onSignOut: () async {
@@ -1116,6 +1240,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     required String title,
     required String message,
   }) async {
+    await _subscriptions.logOut();
     await _markWelcomeSeen();
     _journalController.resetForAccountChange();
     setState(() {
@@ -1237,6 +1362,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
   Future<void> _signOutFromProfile() async {
     await _authController.signOut();
+    await _subscriptions.logOut();
     await _markWelcomeSeen();
     _journalController.resetForAccountChange();
     setState(() {
@@ -2029,7 +2155,7 @@ class _JournalTabLoadingScreen extends StatelessWidget {
   }
 }
 
-enum _NoScanCreditsAction { watchAd, addManually, refresh }
+enum _NoScanCreditsAction { upgrade, watchAd, addManually, refresh }
 
 class _ReviewPromptSheet extends StatelessWidget {
   const _ReviewPromptSheet({required this.policy});
@@ -2134,7 +2260,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
     final title = 'No scans left';
     final description = progress.dailyLimitReached
         ? 'You have reached today\'s ad unlock limit. Add this meal manually or refresh later.'
-        : 'Watch one rewarded ad to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.';
+        : 'Upgrade for 300 monthly AI scans or watch one rewarded ad to unlock 1 scan.';
     final buttonLabel = 'Watch ad';
 
     return SafeArea(
@@ -2162,11 +2288,8 @@ class _NoScanCreditsSheet extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: progress.dailyLimitReached
-                    ? null
-                    : () => Navigator.of(
-                        context,
-                      ).pop(_NoScanCreditsAction.watchAd),
+                onPressed: () =>
+                    Navigator.of(context).pop(_NoScanCreditsAction.upgrade),
                 style: FilledButton.styleFrom(
                   backgroundColor: colors.primaryAction,
                   foregroundColor: colors.primaryActionText,
@@ -2175,7 +2298,25 @@ class _NoScanCreditsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: Text(buttonLabel),
+                child: const Text('Upgrade to Premium'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: progress.dailyLimitReached
+                    ? null
+                    : () => Navigator.of(
+                        context,
+                      ).pop(_NoScanCreditsAction.watchAd),
+                icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
+                label: Text(buttonLabel),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.textPrimary,
+                  side: BorderSide(color: colors.border),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
               ),
               const SizedBox(height: 8),
               OutlinedButton(

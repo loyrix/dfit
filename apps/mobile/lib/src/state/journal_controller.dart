@@ -27,6 +27,7 @@ class JournalController extends ChangeNotifier {
   List<MealLog> _meals = [];
   MacroTotals _totals = MacroTotals.zero;
   ScanQuota? _quota;
+  SubscriptionStatus? _subscription;
   RewardedAdProgress _rewardedAdProgress = RewardedAdProgress.initial();
   HealthTarget? _healthTarget;
   AppUpdatePolicy _updatePolicy = AppUpdatePolicy.current();
@@ -40,6 +41,7 @@ class JournalController extends ChangeNotifier {
   List<MealLog> get meals => List.unmodifiable(_meals);
   MacroTotals get totals => _totals;
   ScanQuota? get quota => _quota;
+  SubscriptionStatus? get subscription => _subscription;
   RewardedAdProgress get rewardedAdProgress => _rewardedAdProgress;
   HealthTarget? get healthTarget => _healthTarget;
   AppUpdatePolicy get updatePolicy => _updatePolicy;
@@ -58,6 +60,7 @@ class JournalController extends ChangeNotifier {
     _meals = [];
     _totals = MacroTotals.zero;
     _quota = null;
+    _subscription = null;
     _rewardedAdProgress = RewardedAdProgress.initial();
     _healthTarget = null;
     _updatePolicy = AppUpdatePolicy.current();
@@ -243,6 +246,25 @@ class JournalController extends ChangeNotifier {
 
   Future<void> refreshQuota() => _refreshQuota();
 
+  Future<SubscriptionStatus> refreshSubscription() async {
+    final subscription = await _apiClient.fetchSubscription();
+    _subscription = subscription;
+    notifyListeners();
+    return subscription;
+  }
+
+  Future<SubscriptionStatus> syncRevenueCatSubscription({
+    String? appUserId,
+  }) async {
+    final subscription = await _apiClient.syncRevenueCatSubscription(
+      appUserId: appUserId,
+    );
+    _subscription = subscription;
+    await _refreshQuota(notify: false);
+    notifyListeners();
+    return subscription;
+  }
+
   Future<HealthTarget> saveHealthTarget(HealthTargetInput input) async {
     try {
       final target = await _apiClient.saveHealthTarget(
@@ -362,6 +384,7 @@ class JournalController extends ChangeNotifier {
     _weeklyRange = bootstrap.weeklyRange;
     _streakSummary = bootstrap.streakSummary;
     _quota = bootstrap.quota;
+    _subscription = bootstrap.subscription;
     _rewardedAdProgress = bootstrap.rewardedAdProgress;
     _lastLoadedAt =
         DateTime.tryParse(bootstrap.serverTime)?.toLocal() ?? DateTime.now();

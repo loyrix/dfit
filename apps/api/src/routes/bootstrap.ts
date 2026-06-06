@@ -27,8 +27,9 @@ export const registerBootstrapRoutes = async (
     const engagementPolicy = await timer.measure("engagementPolicy", () =>
       loadEngagementPolicy(sql),
     );
-    const [quota, rawRewardedAdProgress, healthTarget] = await Promise.all([
+    const [quota, subscription, rawRewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
+      timer.measure("subscription", () => repository.getSubscriptionStatus()),
       timer.measure("rewardedAdProgress", () =>
         repository.getRewardedAdProgress(engagementPolicy.rewardedAds.dailyScanLimit),
       ),
@@ -70,6 +71,7 @@ export const registerBootstrapRoutes = async (
       updatePolicy: resolveAppUpdatePolicy(updatePolicyConfig, readClientAppBuild(request)),
       engagementPolicy,
       quota,
+      subscription,
       rewardedAdProgress,
       today,
       weeklySummary,

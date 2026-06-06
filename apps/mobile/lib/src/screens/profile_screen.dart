@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
+import '../models/meal.dart';
 import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
@@ -11,7 +12,9 @@ class ProfileScreen extends StatelessWidget {
     required this.themeMode,
     required this.onThemeChanged,
     required this.session,
+    this.subscription,
     required this.onOpenAccount,
+    this.onOpenPaywall,
     required this.onDeleteAccount,
     required this.onSignOut,
     this.bottomPadding = 188,
@@ -20,7 +23,9 @@ class ProfileScreen extends StatelessWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeChanged;
   final AuthSession? session;
+  final SubscriptionStatus? subscription;
   final VoidCallback onOpenAccount;
+  final VoidCallback? onOpenPaywall;
   final Future<bool> Function() onDeleteAccount;
   final Future<void> Function() onSignOut;
   final double bottomPadding;
@@ -53,6 +58,16 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _AccountHero(session: session, onTap: onOpenAccount),
+            if (onOpenPaywall != null) ...[
+              const SizedBox(height: 18),
+              _ProfileSection(
+                title: 'Premium',
+                child: _PremiumAccessCard(
+                  subscription: subscription,
+                  onTap: onOpenPaywall!,
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             _ProfileSection(
               title: 'Theme',
@@ -254,6 +269,79 @@ class _AccountHero extends StatelessWidget {
     final name = session.displayName.trim();
     if (name.isEmpty) return 'L';
     return name.characters.first.toUpperCase();
+  }
+}
+
+class _PremiumAccessCard extends StatelessWidget {
+  const _PremiumAccessCard({required this.subscription, required this.onTap});
+
+  final SubscriptionStatus? subscription;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final active = subscription?.active == true;
+    final usage = subscription?.usage;
+    final title = active ? 'Premium active' : 'Upgrade to Premium';
+    final subtitle = active && usage != null
+        ? '${usage.remainingToday}/${usage.dailyLimit} scans today - ${usage.remainingThisPeriod}/${usage.monthlyLimit} this month'
+        : '300 AI meal scans/month - up to 10 scans/day';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.workspace_premium_rounded,
+                color: colors.accentText,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: colors.textSecondary,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

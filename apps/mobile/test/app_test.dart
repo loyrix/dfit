@@ -21,6 +21,7 @@ import 'package:logmyplate_mobile/src/services/app_links.dart';
 import 'package:logmyplate_mobile/src/services/app_diagnostics.dart';
 import 'package:logmyplate_mobile/src/services/logmyplate_api_client.dart';
 import 'package:logmyplate_mobile/src/services/oauth_sign_in_service.dart';
+import 'package:logmyplate_mobile/src/services/revenuecat_subscription_service.dart';
 import 'package:logmyplate_mobile/src/services/rewarded_ad_service.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
 import 'package:logmyplate_mobile/src/state/journal_controller.dart';
@@ -1816,6 +1817,65 @@ void main() {
     expect(find.text('AI Meal Scan'), findsOneWidget);
   });
 
+  testWidgets('signed-in users can unlock scanning with Premium purchase', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+
+    final subscriptionGateway = _FakeSubscriptionGateway();
+    final controller = _testJournalController(
+      quota: const {
+        'freeRemaining': 0,
+        'rewardedRemaining': 0,
+        'premiumRemaining': 0,
+      },
+      quotaAfterSubscriptionSync: const {
+        'freeRemaining': 0,
+        'rewardedRemaining': 0,
+        'premiumRemaining': 10,
+      },
+      subscriptionSyncResponse: _activeSubscriptionPayload(),
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        journalController: controller,
+        subscriptionGateway: subscriptionGateway,
+      ),
+    );
+    await _pumpAppFrame(tester);
+
+    await tester.tap(find.byKey(const ValueKey('shell-scan-action')));
+    await _pumpAppFrame(tester);
+
+    expect(find.text('Upgrade to Premium'), findsOneWidget);
+    await tester.tap(find.text('Upgrade to Premium'));
+    await _pumpAppFrame(tester);
+
+    expect(find.text('LogMyPlate Premium'), findsOneWidget);
+    expect(find.text('Quarterly'), findsOneWidget);
+    await tester.ensureVisible(find.text('Continue with Quarterly'));
+    await tester.tap(find.text('Continue with Quarterly'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(subscriptionGateway.purchaseCount, 1);
+    expect(subscriptionGateway.lastAppUserId, 'profile_test');
+    expect(find.text('AI Meal Scan'), findsOneWidget);
+    expect(controller.subscription?.active, isTrue);
+    expect(controller.quota?.premiumRemaining, 10);
+  });
+
   testWidgets('today quota pill does not offer ad unlock while scans remain', (
     tester,
   ) async {
@@ -2256,6 +2316,74 @@ class _FakeRewardedAdGateway implements RewardedAdGateway {
   void dispose() {}
 }
 
+class _FakeSubscriptionGateway implements RevenueCatSubscriptionGateway {
+  int loadCount = 0;
+  int purchaseCount = 0;
+  int restoreCount = 0;
+  int logOutCount = 0;
+  String? lastAppUserId;
+
+  @override
+  bool get hasPlatformKey => true;
+
+  @override
+  Future<PremiumOffering> loadOffering({required String appUserId}) async {
+    loadCount += 1;
+    lastAppUserId = appUserId;
+    return const PremiumOffering(
+      identifier: 'default',
+      plans: [
+        PremiumPlan(
+          kind: PremiumPlanKind.monthly,
+          productId: 'com.logmyplate.premium.monthly',
+          packageId: r'$rc_monthly',
+          price: '₹299',
+          cadence: 'per month',
+          valueCopy: 'Flexible monthly access',
+        ),
+        PremiumPlan(
+          kind: PremiumPlanKind.quarterly,
+          productId: 'com.logmyplate.premium.quarterly',
+          packageId: r'$rc_three_month',
+          price: '₹799',
+          pricePerMonth: '₹266.33',
+          cadence: 'every 3 months',
+          badge: 'Most Popular',
+          valueCopy: 'Lower commitment, better savings',
+        ),
+        PremiumPlan(
+          kind: PremiumPlanKind.annual,
+          productId: 'com.logmyplate.premium.annual',
+          packageId: r'$rc_annual',
+          price: '₹1,999',
+          pricePerMonth: '₹166.58',
+          cadence: 'per year',
+          badge: 'Best Value',
+          valueCopy: 'Lowest effective monthly price',
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<bool> purchasePlan(PremiumPlan plan) async {
+    purchaseCount += 1;
+    return true;
+  }
+
+  @override
+  Future<bool> restorePurchases({required String appUserId}) async {
+    restoreCount += 1;
+    lastAppUserId = appUserId;
+    return false;
+  }
+
+  @override
+  Future<void> logOut() async {
+    logOutCount += 1;
+  }
+}
+
 class _SuccessfulAuthGateway implements AccountAuthGateway {
   int emailAuthCount = 0;
 
@@ -2325,6 +2453,9 @@ Future<void> _pumpAppFrame(WidgetTester tester) async {
 
 JournalController _testJournalController({
   Map<String, int>? quota,
+  Map<String, int>? quotaAfterSubscriptionSync,
+  Map<String, dynamic>? subscription,
+  Map<String, dynamic>? subscriptionSyncResponse,
   Map<String, dynamic>? rewardedAdResponse,
   List<Map<String, dynamic>>? rewardedAdResponses,
   List<http.Response>? rewardedAdHttpResponses,
@@ -2334,6 +2465,9 @@ JournalController _testJournalController({
   final quotaPayload =
       quota ??
       const {'freeRemaining': 3, 'rewardedRemaining': 0, 'premiumRemaining': 0};
+  var currentQuotaPayload = quotaPayload;
+  var currentSubscriptionPayload =
+      subscription ?? _inactiveSubscriptionPayload();
 
   final adResponses =
       rewardedAdResponses ??
@@ -2349,7 +2483,8 @@ JournalController _testJournalController({
           return http.Response(
             jsonEncode(
               _emptyBootstrapPayload(
-                quota: quotaPayload,
+                quota: currentQuotaPayload,
+                subscription: currentSubscriptionPayload,
                 rewardedAdProgress: rewardedAdProgress,
                 updatePolicy: updatePolicy,
               ),
@@ -2358,7 +2493,17 @@ JournalController _testJournalController({
           );
         }
         if (request.url.path == '/v1/quota') {
-          return http.Response(jsonEncode(quotaPayload), 200);
+          return http.Response(jsonEncode(currentQuotaPayload), 200);
+        }
+        if (request.url.path == '/v1/subscription') {
+          return http.Response(jsonEncode(currentSubscriptionPayload), 200);
+        }
+        if (request.url.path == '/v1/subscription/revenuecat/sync') {
+          currentQuotaPayload =
+              quotaAfterSubscriptionSync ?? currentQuotaPayload;
+          currentSubscriptionPayload =
+              subscriptionSyncResponse ?? currentSubscriptionPayload;
+          return http.Response(jsonEncode(currentSubscriptionPayload), 200);
         }
         if (request.url.path == '/v1/meals' && request.method == 'POST') {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -2421,6 +2566,7 @@ JournalController _testJournalController({
 
 Map<String, dynamic> _emptyBootstrapPayload({
   Map<String, int>? quota,
+  Map<String, dynamic>? subscription,
   Map<String, int>? rewardedAdProgress,
   Map<String, dynamic>? updatePolicy,
 }) {
@@ -2439,6 +2585,7 @@ Map<String, dynamic> _emptyBootstrapPayload({
       'linkedAt': '2026-05-19T10:00:00.000Z',
       'createdAt': '2026-05-19T10:00:00.000Z',
     },
+    'subscription': subscription ?? _inactiveSubscriptionPayload(),
     'quota': quotaPayload,
     'rewardedAdProgress':
         rewardedAdProgress ??
@@ -2467,4 +2614,46 @@ Map<String, dynamic> _emptyBootstrapPayload({
 
   if (updatePolicy != null) payload['updatePolicy'] = updatePolicy;
   return payload;
+}
+
+Map<String, dynamic> _inactiveSubscriptionPayload() {
+  return {
+    'appUserId': 'profile_test',
+    'entitlementId': 'premium',
+    'active': false,
+    'status': 'inactive',
+    'store': 'unknown',
+    'usage': {
+      'monthlyLimit': 300,
+      'dailyLimit': 10,
+      'usedThisPeriod': 0,
+      'usedToday': 0,
+      'remainingThisPeriod': 0,
+      'remainingToday': 0,
+      'premiumRemaining': 0,
+    },
+  };
+}
+
+Map<String, dynamic> _activeSubscriptionPayload() {
+  return {
+    'appUserId': 'profile_test',
+    'entitlementId': 'premium',
+    'active': true,
+    'status': 'active',
+    'store': 'app_store',
+    'productId': 'com.logmyplate.premium.quarterly',
+    'currentPeriodStart': '2026-06-06T00:00:00.000Z',
+    'currentPeriodEnd': '2026-09-06T00:00:00.000Z',
+    'willRenew': true,
+    'usage': {
+      'monthlyLimit': 300,
+      'dailyLimit': 10,
+      'usedThisPeriod': 0,
+      'usedToday': 0,
+      'remainingThisPeriod': 300,
+      'remainingToday': 10,
+      'premiumRemaining': 10,
+    },
+  };
 }

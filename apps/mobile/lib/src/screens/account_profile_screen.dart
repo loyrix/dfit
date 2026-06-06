@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_session.dart';
+import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
@@ -11,6 +12,7 @@ class AccountProfileScreen extends StatelessWidget {
     super.key,
     required this.session,
     required this.loading,
+    this.subscription,
     this.error,
     this.onClearError,
     required this.onSignOut,
@@ -20,6 +22,7 @@ class AccountProfileScreen extends StatelessWidget {
 
   final AuthSession session;
   final bool loading;
+  final SubscriptionStatus? subscription;
   final String? error;
   final VoidCallback? onClearError;
   final Future<bool> Function() onSignOut;
@@ -95,16 +98,19 @@ class AccountProfileScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 _ProfileSection(
                   title: 'Access',
-                  children: const [
-                    _ProfileRow(
+                  children: [
+                    const _ProfileRow(
                       label: 'Free scans',
                       value: 'First 3 before login',
                     ),
-                    _ProfileRow(
+                    const _ProfileRow(
                       label: 'Ad unlocks',
                       value: 'Available after login',
                     ),
-                    _ProfileRow(label: 'Premium', value: 'Not active'),
+                    _ProfileRow(
+                      label: 'Premium',
+                      value: _premiumStatusLabel(subscription),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -192,6 +198,12 @@ class AccountProfileScreen extends StatelessWidget {
     final navigator = Navigator.of(context);
     if (navigator.canPop()) navigator.pop();
   }
+}
+
+String _premiumStatusLabel(SubscriptionStatus? subscription) {
+  if (subscription?.active != true) return 'Not active';
+  final usage = subscription!.usage;
+  return '${usage.remainingToday}/${usage.dailyLimit} today';
 }
 
 class _AccountAvatar extends StatelessWidget {

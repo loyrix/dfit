@@ -18,6 +18,7 @@ import { registerFoodRoutes } from "./routes/foods.js";
 import { registerJournalRoutes } from "./routes/journal.js";
 import { registerProfileRoutes } from "./routes/profiles.js";
 import { registerScanRoutes } from "./routes/scans.js";
+import { registerSubscriptionRoutes } from "./routes/subscriptions.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerCronRoutes } from "./routes/cron.js";
 import { config } from "./config.js";
@@ -111,6 +112,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
     oauthVerifier,
     passwordResetEmailSender,
   );
+  await registerSubscriptionRoutes(app, repository, config.revenueCat);
   await registerBootstrapRoutes(app, repository, mealImageStorage, sql);
   await registerJournalRoutes(app, repository, mealImageStorage);
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
