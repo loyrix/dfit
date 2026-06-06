@@ -37,6 +37,45 @@ const testApp = (options: BuildAppOptions = {}) =>
     ...options,
   });
 
+const exhaustFreeScanCredits = async (
+  app: Awaited<ReturnType<typeof testApp>>,
+  headers: Record<string, string>,
+  keyPrefix: string,
+) => {
+  for (let index = 1; index <= 3; index += 1) {
+    await consumeOneScanCredit(app, headers, `${keyPrefix}-${index}`);
+  }
+};
+
+const consumeOneScanCredit = async (
+  app: Awaited<ReturnType<typeof testApp>>,
+  headers: Record<string, string>,
+  key: string,
+) => {
+  const imageBytes = Buffer.from(`${key}-image`);
+  const prepared = await app.inject({
+    method: "POST",
+    url: "/v1/scans/prepare",
+    headers: { ...headers, "idempotency-key": `${key}-prepare` },
+  });
+  expect(prepared.statusCode).toBe(201);
+
+  const analyzed = await app.inject({
+    method: "POST",
+    url: `/v1/scans/${prepared.json().scanId}/analyze`,
+    headers: { ...headers, "idempotency-key": `${key}-analyze` },
+    payload: {
+      hint: "dal rice",
+      image: {
+        mimeType: "image/jpeg",
+        base64: imageBytes.toString("base64"),
+        byteSize: imageBytes.byteLength,
+      },
+    },
+  });
+  expect(analyzed.statusCode).toBe(200);
+};
+
 class TestRewardedAdVerifier implements AdMobRewardedAdVerifier {
   async verifyCallbackUrl(rawUrl: string): Promise<AdMobRewardedSsvCallback> {
     const query = rawUrl.includes("?") ? rawUrl.slice(rawUrl.indexOf("?") + 1) : rawUrl;
@@ -2441,6 +2480,10 @@ describe("LogMyPlate API", () => {
     expect(signup.statusCode).toBe(201);
     const profileId = signup.json().profile.id as string;
     const token = "reward-token-ssv-123456";
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
 
     const callback = await app.inject({
       method: "GET",
@@ -2452,12 +2495,13 @@ describe("LogMyPlate API", () => {
     expect(callback.statusCode).toBe(200);
     expect(callback.json()).toEqual({ ok: true });
 
+    await exhaustFreeScanCredits(app, headers, "rewarded-ssv-exhaust");
+
     const complete = await app.inject({
       method: "POST",
       url: "/v1/ads/rewarded/complete",
       headers: {
-        ...installHeaders,
-        authorization: `Bearer ${signup.json().accessToken}`,
+        ...headers,
         "idempotency-key": "rewarded-ssv-complete",
       },
       payload: {
@@ -2472,7 +2516,7 @@ describe("LogMyPlate API", () => {
       grantedScan: true,
       adsWatchedToday: 1,
       scansGrantedToday: 1,
-      quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
+      quota: { freeRemaining: 0, rewardedRemaining: 1, premiumRemaining: 0 },
     });
     await app.close();
   });
@@ -2495,13 +2539,18 @@ describe("LogMyPlate API", () => {
     expect(signup.statusCode).toBe(201);
     const profileId = signup.json().profile.id as string;
     const token = "reward-token-missing-123456";
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    await exhaustFreeScanCredits(app, headers, "rewarded-ssv-pending-exhaust");
 
     const response = await app.inject({
       method: "POST",
       url: "/v1/ads/rewarded/complete",
       headers: {
-        ...installHeaders,
-        authorization: `Bearer ${signup.json().accessToken}`,
+        ...headers,
         "idempotency-key": "rewarded-ssv-pending",
       },
       payload: {
@@ -2524,8 +2573,7 @@ describe("LogMyPlate API", () => {
       method: "POST",
       url: "/v1/ads/rewarded/complete",
       headers: {
-        ...installHeaders,
-        authorization: `Bearer ${signup.json().accessToken}`,
+        ...headers,
         "idempotency-key": "rewarded-ssv-pending",
       },
       payload: {
@@ -2557,6 +2605,8 @@ describe("LogMyPlate API", () => {
       authorization: `Bearer ${signup.json().accessToken}`,
     };
 
+    await exhaustFreeScanCredits(app, headers, "rewarded-ad-one-exhaust");
+
     const first = await app.inject({
       method: "POST",
       url: "/v1/ads/rewarded/complete",
@@ -2574,7 +2624,40 @@ describe("LogMyPlate API", () => {
       adsNeededForNextScan: 1,
       scansGrantedToday: 1,
       dailyScanLimit: 5,
-      quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
+      quota: { freeRemaining: 0, rewardedRemaining: 1, premiumRemaining: 0 },
+    });
+    await app.close();
+  });
+
+  it("rejects rewarded ad completion while scan credits remain", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-has-credit",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads-has-credit@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "idempotency-key": "rewarded-has-credit",
+      },
+      payload: { provider: "admob", placement: "scan_unlock" },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      error: "scan_credit_available",
+      quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
     });
     await app.close();
   });
@@ -2597,8 +2680,10 @@ describe("LogMyPlate API", () => {
       authorization: `Bearer ${signup.json().accessToken}`,
     };
 
+    await exhaustFreeScanCredits(app, headers, "rewarded-cap-exhaust");
+
     let lastPayload: Record<string, unknown> = {};
-    for (let index = 1; index <= 6; index += 1) {
+    for (let index = 1; index <= 5; index += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/v1/ads/rewarded/complete",
@@ -2606,15 +2691,26 @@ describe("LogMyPlate API", () => {
         payload: { provider: "admob", placement: "scan_unlock" },
       });
       expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ grantedScan: true });
       lastPayload = response.json();
+      await consumeOneScanCredit(app, headers, `rewarded-cap-consume-${index}`);
     }
+
+    const capped = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...headers, "idempotency-key": "rewarded-cap-6" },
+      payload: { provider: "admob", placement: "scan_unlock" },
+    });
+    expect(capped.statusCode).toBe(200);
+    lastPayload = capped.json();
 
     expect(lastPayload).toMatchObject({
       grantedScan: false,
       adsWatchedToday: 6,
       adsNeededForNextScan: 0,
       scansGrantedToday: 5,
-      quota: { freeRemaining: 3, rewardedRemaining: 5, premiumRemaining: 0 },
+      quota: { freeRemaining: 0, rewardedRemaining: 0, premiumRemaining: 0 },
     });
     await app.close();
   });
@@ -2653,8 +2749,10 @@ describe("LogMyPlate API", () => {
       authorization: `Bearer ${signup.json().accessToken}`,
     };
 
+    await exhaustFreeScanCredits(app, headers, "rewarded-custom-cap-exhaust");
+
     let lastPayload: Record<string, unknown> = {};
-    for (let index = 1; index <= 3; index += 1) {
+    for (let index = 1; index <= 2; index += 1) {
       const response = await app.inject({
         method: "POST",
         url: "/v1/ads/rewarded/complete",
@@ -2662,8 +2760,19 @@ describe("LogMyPlate API", () => {
         payload: { provider: "admob", placement: "scan_unlock" },
       });
       expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ grantedScan: true });
       lastPayload = response.json();
+      await consumeOneScanCredit(app, headers, `rewarded-custom-cap-consume-${index}`);
     }
+
+    const capped = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...headers, "idempotency-key": "rewarded-custom-cap-3" },
+      payload: { provider: "admob", placement: "scan_unlock" },
+    });
+    expect(capped.statusCode).toBe(200);
+    lastPayload = capped.json();
 
     expect(lastPayload).toMatchObject({
       grantedScan: false,
@@ -2671,7 +2780,7 @@ describe("LogMyPlate API", () => {
       adsNeededForNextScan: 0,
       scansGrantedToday: 2,
       dailyScanLimit: 2,
-      quota: { freeRemaining: 3, rewardedRemaining: 2, premiumRemaining: 0 },
+      quota: { freeRemaining: 0, rewardedRemaining: 0, premiumRemaining: 0 },
     });
     await app.close();
   });

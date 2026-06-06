@@ -1816,6 +1816,56 @@ void main() {
     expect(find.text('AI Meal Scan'), findsOneWidget);
   });
 
+  testWidgets('today quota pill does not offer ad unlock while scans remain', (
+    tester,
+  ) async {
+    final session = AuthSession(
+      provider: AuthProvider.email,
+      displayName: 'friend@test.com',
+      linkedAt: DateTime(2026, 5, 20),
+      profileId: 'profile_test',
+      accessToken: 'token_test',
+    );
+    SharedPreferences.setMockInitialValues({
+      'logmyplate.has_seen_welcome': true,
+      AccountSessionStore.sessionKey: jsonEncode(session.toJson()),
+    });
+    final adGateway = _FakeRewardedAdGateway(
+      outcomes: const [
+        RewardedAdOutcome(
+          earnedReward: true,
+          adUnitId: 'ca-app-pub-3940256099942544/1712485313',
+          rewardType: 'coin',
+          rewardAmount: 1,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      LogMyPlateApp(
+        rewardedAdGateway: adGateway,
+        journalController: _testJournalController(
+          quota: const {
+            'freeRemaining': 2,
+            'rewardedRemaining': 0,
+            'premiumRemaining': 0,
+          },
+        ),
+      ),
+    );
+    await _pumpAppFrame(tester);
+
+    expect(find.text('2 scans'), findsOneWidget);
+    expect(find.text('2 scans +'), findsNothing);
+    expect(find.text('ad unlock'), findsNothing);
+
+    await tester.tap(find.text('2 scans'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(adGateway.showCount, 0);
+    expect(find.text('Preparing ad'), findsNothing);
+  });
+
   testWidgets('saved rewarded ad progress unlocks with one ad', (tester) async {
     final session = AuthSession(
       provider: AuthProvider.email,

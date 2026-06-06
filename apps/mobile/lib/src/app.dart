@@ -759,10 +759,20 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _unlockScanFromToday() async {
+    if ((_journalController.quota?.totalRemaining ?? 0) > 0) {
+      _showJournalNotice(
+        tone: LogMyPlateNoticeTone.info,
+        title: 'Scans available',
+        message: 'Use your available scans before watching an ad.',
+      );
+      return;
+    }
+
     if (!_authController.isSignedIn) {
       final session = await _openAccountHome(AccountGateReason.quotaExhausted);
       if (session == null) return;
       await _journalController.refreshQuota();
+      if ((_journalController.quota?.totalRemaining ?? 0) > 0) return;
     }
 
     if (_journalController.rewardedAdProgress.dailyLimitReached) {
@@ -2121,26 +2131,11 @@ class _NoScanCreditsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final adsNeeded = progress.adsNeededForNextScan;
-    final completed = progress.dailyLimitReached
-        ? progress.adsPerScan
-        : progress.adsCompletedTowardNextScan;
-    final usesSingleAd = progress.adsPerScan <= 1;
-    final title = usesSingleAd || adsNeeded != 1
-        ? 'No scans left'
-        : 'Almost there';
+    final title = 'No scans left';
     final description = progress.dailyLimitReached
         ? 'You have reached today\'s ad unlock limit. Add this meal manually or refresh later.'
-        : usesSingleAd
-        ? 'Watch one rewarded ad to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.'
-        : adsNeeded == 1
-        ? 'Watch 1 more rewarded ad to unlock 1 scan.'
-        : 'Watch $adsNeeded rewarded ads to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.';
-    final buttonLabel = usesSingleAd
-        ? 'Watch ad'
-        : adsNeeded == 1
-        ? 'Watch final ad'
-        : 'Start earning scan';
+        : 'Watch one rewarded ad to unlock 1 scan. You can unlock up to ${progress.dailyScanLimit} scans per day.';
+    final buttonLabel = 'Watch ad';
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -2165,15 +2160,6 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              if (!progress.dailyLimitReached && !usesSingleAd) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Progress $completed of ${progress.adsPerScan} ads',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: progress.dailyLimitReached

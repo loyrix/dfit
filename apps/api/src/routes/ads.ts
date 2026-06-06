@@ -64,6 +64,15 @@ export const registerAdRoutes = async (
       });
     }
 
+    const quota = await repository.getQuota();
+    if (quota.freeRemaining + quota.rewardedRemaining + quota.premiumRemaining > 0) {
+      return reply.status(409).send({
+        error: "scan_credit_available",
+        message: "Use available scan credits before unlocking another scan with ads.",
+        quota,
+      });
+    }
+
     const input = { ...parsed.data };
     if (input.verificationToken) {
       const verification = await repository.findRewardedAdServerVerification({

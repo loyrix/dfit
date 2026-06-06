@@ -986,11 +986,9 @@ class _QuotaPill extends StatelessWidget {
     final colors = context.logmyplate;
     final remaining = quota.totalRemaining;
     final canUnlockWithAd =
-        onUnlockWithAd != null && !progress.dailyLimitReached;
+        remaining <= 0 && onUnlockWithAd != null && !progress.dailyLimitReached;
     final label = remaining > 0
-        ? canUnlockWithAd
-              ? '$remaining scans +'
-              : '$remaining scans'
+        ? '$remaining scans'
         : progress.dailyLimitReached
         ? 'limit hit'
         : 'ad unlock';
