@@ -80,6 +80,7 @@ export const engagementInterstitialAdsPolicySchema = z.object({
 });
 
 export const engagementRewardedAdsPolicySchema = z.object({
+  enabled: z.boolean().default(true),
   dailyScanLimit: z.coerce.number().int().min(1).max(100).default(5),
   adSuspensionDailyCredits: z
     .object({

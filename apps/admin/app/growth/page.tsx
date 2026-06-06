@@ -642,10 +642,20 @@ function RewardedAdsPanel({ policy }: { policy: EngagementPolicy }) {
             Daily cap for scans a signed-in user can earn by watching rewarded ads.
           </p>
         </div>
-        <Badge tone="green">Configurable</Badge>
+        <Badge tone={policy.rewardedAds.enabled ? "green" : "red"}>
+          {policy.rewardedAds.enabled ? "Enabled" : "Disabled"}
+        </Badge>
       </div>
 
       <div className="form-grid mt-4">
+        <label className="inline-controls">
+          <input
+            name="rewardedAds.enabled"
+            type="checkbox"
+            defaultChecked={policy.rewardedAds.enabled}
+          />
+          Enable rewarded ad scan unlocks
+        </label>
         <NumberField
           label="Rewarded scans per day"
           name="rewardedAds.dailyScanLimit"
@@ -696,22 +706,21 @@ function RewardedAdsPanel({ policy }: { policy: EngagementPolicy }) {
             min={0}
             max={100}
           />
-          <TextField
+          <DateTimeField
             label="Starts at"
             name="rewardedAds.adSuspensionDailyCredits.startsAt"
-            value={adSuspensionCredits.startsAt ?? ""}
-            maxLength={40}
+            value={adSuspensionCredits.startsAt}
           />
-          <TextField
+          <DateTimeField
             label="Ends at"
             name="rewardedAds.adSuspensionDailyCredits.endsAt"
-            value={adSuspensionCredits.endsAt ?? ""}
-            maxLength={40}
+            value={adSuspensionCredits.endsAt}
           />
           <p className="muted text-sm">
-            Use ISO timestamps with timezone offset, such as 2026-07-05T00:00:00+05:30. Leave blank
-            for immediate start or manual disable. Each platform is topped up to its configured
-            daily balance; unused scans do not stack across days.
+            Times are saved with the India timezone offset. Leave blank for immediate start or
+            manual disable. Credits are applied automatically when a user opens the app or checks
+            quota on that local day; no midnight cron run is needed. Each platform is topped up to
+            its configured daily balance, and unused scans do not stack across days.
           </p>
         </div>
       </div>
@@ -1062,6 +1071,35 @@ function TextField({
   );
 }
 
+function DateTimeField({
+  label,
+  name,
+  value,
+}: {
+  label: string;
+  name: string;
+  value: string | null;
+}) {
+  return (
+    <label>
+      <span className="font-semibold">{label}</span>
+      <input
+        className="input mt-2"
+        name={name}
+        type="datetime-local"
+        step="60"
+        defaultValue={toDateTimeLocalValue(value)}
+      />
+    </label>
+  );
+}
+
+function toDateTimeLocalValue(value: string | null) {
+  if (!value) return "";
+  const match = value.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+  return match?.[1] ?? "";
+}
+
 function TextareaField({
   label,
   name,
@@ -1096,6 +1134,8 @@ function anyEnabled(policy: EngagementPolicy) {
     policy.analytics.firebaseEnabled ||
     policy.reviewPrompt.enabled ||
     policy.interstitialAds.enabled ||
+    policy.rewardedAds.enabled ||
+    policy.rewardedAds.adSuspensionDailyCredits.enabled ||
     policy.notifications.enabled ||
     policy.streaks.enabled ||
     policy.streaks.scanRewards.enabled

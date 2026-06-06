@@ -27,13 +27,20 @@ export const registerBootstrapRoutes = async (
     const engagementPolicy = await timer.measure("engagementPolicy", () =>
       loadEngagementPolicy(sql),
     );
-    const [quota, rewardedAdProgress, healthTarget] = await Promise.all([
+    const [quota, rawRewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
       timer.measure("rewardedAdProgress", () =>
         repository.getRewardedAdProgress(engagementPolicy.rewardedAds.dailyScanLimit),
       ),
       timer.measure("healthTarget", () => repository.getHealthTarget(profile.id)),
     ]);
+    const rewardedAdProgress = engagementPolicy.rewardedAds.enabled
+      ? rawRewardedAdProgress
+      : {
+          ...rawRewardedAdProgress,
+          adsNeededForNextScan: 0,
+          scansGrantedToday: rawRewardedAdProgress.dailyScanLimit,
+        };
     const [today, weeklySummary, streakSummary] = await Promise.all([
       timer.measure("today", () =>
         buildTodayJournal(repository, profile, mealImageStorage, healthTarget ?? null),

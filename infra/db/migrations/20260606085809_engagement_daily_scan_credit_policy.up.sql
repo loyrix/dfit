@@ -5,6 +5,7 @@ values (
   'engagement_policy',
   '{
     "rewardedAds": {
+      "enabled": true,
       "dailyScanLimit": 5,
       "adSuspensionDailyCredits": {
         "enabled": false,
@@ -27,7 +28,8 @@ set
     jsonb_set(
       app_runtime_config.value,
       '{rewardedAds}',
-      coalesce(app_runtime_config.value -> 'rewardedAds', '{}'::jsonb),
+      coalesce(excluded.value -> 'rewardedAds', '{}'::jsonb)
+        || coalesce(app_runtime_config.value -> 'rewardedAds', '{}'::jsonb),
       true
     ),
     '{rewardedAds,adSuspensionDailyCredits}',

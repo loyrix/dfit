@@ -396,6 +396,7 @@ describe("LogMyPlate API", () => {
 
     expect(defaults.reviewPrompt.enabled).toBe(false);
     expect(defaults.interstitialAds.enabled).toBe(false);
+    expect(defaults.rewardedAds.enabled).toBe(true);
     expect(defaults.rewardedAds.dailyScanLimit).toBe(5);
     expect(defaults.rewardedAds.adSuspensionDailyCredits).toEqual({
       enabled: false,
@@ -2672,6 +2673,65 @@ describe("LogMyPlate API", () => {
       dailyScanLimit: 2,
       quota: { freeRemaining: 3, rewardedRemaining: 2, premiumRemaining: 0 },
     });
+    await app.close();
+  });
+
+  it("disables rewarded ad scan unlocks through engagement policy", async () => {
+    const fakeSql = Object.assign(
+      () =>
+        Promise.resolve([
+          {
+            value: {
+              rewardedAds: {
+                enabled: false,
+                dailyScanLimit: 5,
+              },
+            },
+          },
+        ]),
+      { end: async () => undefined },
+    );
+    const app = await testApp({
+      repository: new InMemoryStore(),
+      sql: fakeSql as never,
+    });
+    const installHeaders = {
+      "x-logmyplate-install-id": "install-rewarded-disabled",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "ads-disabled@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+    const headers = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    const bootstrap = await app.inject({
+      method: "GET",
+      url: "/v1/app/bootstrap",
+      headers,
+    });
+    expect(bootstrap.statusCode).toBe(200);
+    expect(bootstrap.json().engagementPolicy.rewardedAds.enabled).toBe(false);
+    expect(bootstrap.json().rewardedAdProgress).toMatchObject({
+      adsNeededForNextScan: 0,
+      scansGrantedToday: 5,
+      dailyScanLimit: 5,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/ads/rewarded/complete",
+      headers: { ...headers, "idempotency-key": "rewarded-disabled" },
+      payload: { provider: "admob", placement: "scan_unlock" },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: "rewarded_ads_disabled" });
     await app.close();
   });
 

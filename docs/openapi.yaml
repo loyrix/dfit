@@ -927,7 +927,7 @@ paths:
     post:
       tags: [Ads]
       summary: Complete rewarded ad
-      description: Records a completed rewarded ad. One completed rewarded ad grants one rewarded scan credit, capped by the configured rewarded ad daily scan limit. Production can require a matching AdMob server-side verification token before granting.
+      description: Records a completed rewarded ad when rewarded ad unlocks are enabled. One completed rewarded ad grants one rewarded scan credit, capped by the configured rewarded ad daily scan limit. Production can require a matching AdMob server-side verification token before granting.
       security:
         - bearerAuth: []
           installId: []
@@ -956,6 +956,12 @@ paths:
                   - $ref: "#/components/schemas/ErrorWithMessage"
         "401":
           description: Account is required before rewarded scan unlocks.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+        "403":
+          description: Rewarded ad scan unlocks are disabled by runtime policy.
           content:
             application/json:
               schema:
@@ -2454,8 +2460,11 @@ components:
 
     EngagementRewardedAdsPolicy:
       type: object
-      required: [dailyScanLimit, adSuspensionDailyCredits]
+      required: [enabled, dailyScanLimit, adSuspensionDailyCredits]
       properties:
+        enabled:
+          type: boolean
+          description: Enables rewarded ad scan unlock UI/progress for new clients and server-side reward grants for all clients.
         dailyScanLimit:
           type: integer
           minimum: 1

@@ -56,6 +56,14 @@ export const registerAdRoutes = async (
       });
     }
 
+    const engagementPolicy = await loadEngagementPolicy(sql);
+    if (!engagementPolicy.rewardedAds.enabled) {
+      return reply.status(403).send({
+        error: "rewarded_ads_disabled",
+        message: "Rewarded ad scan unlocks are currently disabled.",
+      });
+    }
+
     const input = { ...parsed.data };
     if (input.verificationToken) {
       const verification = await repository.findRewardedAdServerVerification({
@@ -81,7 +89,6 @@ export const registerAdRoutes = async (
       });
     }
 
-    const engagementPolicy = await loadEngagementPolicy(sql);
     return repository.completeRewardedAd(input, engagementPolicy.rewardedAds.dailyScanLimit);
   });
 };

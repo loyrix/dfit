@@ -109,14 +109,18 @@ behavior is added in later phases.
 - Status: implemented locally, pending deployment.
 - Runtime policy section: `engagement_policy.rewardedAds`.
 - Default behavior: signed-in users can earn up to 5 rewarded scan credits per
-  day.
+  day, and rewarded ad scan unlocks are enabled.
 - Admin behavior:
   - Growth Controls exposes `Rewarded Unlocks`.
+  - `enabled` controls whether rewarded ad scan unlocks can grant credits.
   - `dailyScanLimit` controls the maximum rewarded scan credits granted per
     profile/install local day.
 - API behavior:
   - `/v1/app/bootstrap` reports the configured cap in `rewardedAdProgress`.
-  - `/v1/ads/rewarded/complete` enforces the configured cap server-side.
+  - When disabled, `/v1/app/bootstrap` reports rewarded progress as capped so
+    existing app builds hide the ad-unlock path without a mobile release.
+  - `/v1/ads/rewarded/complete` enforces the enabled switch and configured cap
+    server-side.
   - Missing legacy policy config falls back to 5.
 
 ## Phase 4C: Temporary Ad Suspension Daily Credits
@@ -129,10 +133,14 @@ behavior is added in later phases.
 - Admin behavior:
   - Growth Controls > Rewarded Unlocks exposes the temporary daily free-credit
     switch, iOS daily free scan balance, Android daily free scan balance,
-    optional start timestamp, and optional end timestamp.
+    optional start datetime picker, and optional end datetime picker. Admin
+    date/time selections are stored with the India timezone offset.
 - API behavior:
   - When enabled, quota lookup sets the current profile/install free scan balance
     to the platform-specific daily balance once per profile local day.
+  - Credits are lazy-applied when the app/API loads quota, such as bootstrap,
+    `/v1/quota`, scan preparation, or today refresh. There is no midnight grant
+    job; users receive that day's balance when they next open or use the app.
   - Credits do not stack if the user does not use them. With the default
     temporary policy, iOS users can hold at most 5 free scans per day and Android
     users can hold at most 3 free scans per day.

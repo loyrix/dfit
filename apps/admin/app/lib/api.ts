@@ -456,6 +456,7 @@ export type EngagementPolicy = {
     };
   };
   rewardedAds: {
+    enabled: boolean;
     dailyScanLimit: number;
     adSuspensionDailyCredits: {
       enabled: boolean;

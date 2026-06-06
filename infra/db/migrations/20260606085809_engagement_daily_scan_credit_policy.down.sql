@@ -4,7 +4,9 @@ drop index if exists quota_events_ad_suspension_daily_credit_idx;
 
 update app_runtime_config
 set
-  value = value #- '{rewardedAds,adSuspensionDailyCredits}',
+  value = value
+    #- '{rewardedAds,adSuspensionDailyCredits}'
+    #- '{rewardedAds,enabled}',
   updated_at = now()
 where key = 'engagement_policy';
 

@@ -305,6 +305,14 @@ const nullableStringValue = (formData: FormData, key: string) => {
   return value ? value : null;
 };
 
+const nullableDateTimeValue = (formData: FormData, key: string) => {
+  const value = nullableStringValue(formData, key);
+  if (!value) return null;
+  if (/(?:z|[+-]\d{2}:\d{2})$/i.test(value)) return value;
+  const withSeconds = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) ? `${value}:00` : value;
+  return `${withSeconds}+05:30`;
+};
+
 const booleanValue = (formData: FormData, key: string) => formData.get(key) === "on";
 
 const numberValue = (formData: FormData, key: string) => Number(formData.get(key) ?? 0);
@@ -407,6 +415,7 @@ const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAd
   );
 
   return {
+    enabled: booleanValue(formData, "rewardedAds.enabled"),
     dailyScanLimit: numberValue(formData, "rewardedAds.dailyScanLimit"),
     adSuspensionDailyCredits: {
       enabled: booleanValue(formData, "rewardedAds.adSuspensionDailyCredits.enabled"),
@@ -415,8 +424,8 @@ const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAd
         ios: iosDailyCredits,
         android: androidDailyCredits,
       },
-      startsAt: nullableStringValue(formData, "rewardedAds.adSuspensionDailyCredits.startsAt"),
-      endsAt: nullableStringValue(formData, "rewardedAds.adSuspensionDailyCredits.endsAt"),
+      startsAt: nullableDateTimeValue(formData, "rewardedAds.adSuspensionDailyCredits.startsAt"),
+      endsAt: nullableDateTimeValue(formData, "rewardedAds.adSuspensionDailyCredits.endsAt"),
     },
   };
 };
