@@ -1,0 +1,4 @@
+LOGMYPLATE_ADMOB_IOS_APP_ID=ca-app-pub-6936425975956435~6044171348
+
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"
+#include "Generated.xcconfig"

@@ -307,10 +307,10 @@ class _PlanCard extends StatelessWidget {
     final colors = context.logmyplate;
     final borderColor = selected
         ? LogMyPlateColors.accent
-        : colors.border.withValues(alpha: 0.9);
+        : colors.border;
     final fillColor = selected
         ? LogMyPlateColors.accent.withValues(alpha: 0.11)
-        : colors.mutedFill.withValues(alpha: 0.45);
+        : colors.mutedFill;
 
     return InkWell(
       onTap: onTap,

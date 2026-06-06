@@ -69,6 +69,16 @@ Key. Use the App Store key for `LOGMYPLATE_REVENUECAT_IOS_API_KEY` and the Play
 Store key for `LOGMYPLATE_REVENUECAT_ANDROID_API_KEY`. Do not use the
 `test_...` key for production App Store or Google Play purchase flows.
 
+For local paywall testing before store approval, create RevenueCat Test Store
+products/packages that mirror the live product IDs and set:
+
+```txt
+LOGMYPLATE_REVENUECAT_TEST_API_KEY=test_your_public_key
+```
+
+Non-release Flutter builds prefer `LOGMYPLATE_REVENUECAT_TEST_API_KEY` when it is
+present. Release builds ignore the test key and use the platform store key.
+
 Current subscription catalog:
 
 ```txt

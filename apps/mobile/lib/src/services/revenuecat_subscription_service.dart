@@ -81,12 +81,14 @@ class RevenueCatSubscriptionService implements RevenueCatSubscriptionGateway {
     TargetPlatform? platform,
     String? iosApiKey,
     String? androidApiKey,
+    String? testApiKey,
     String? offeringId,
     String? entitlementId,
   }) : _platform = platform ?? defaultTargetPlatform,
        _iosApiKey = iosApiKey ?? RevenueCatSubscriptionConfig.iosApiKey,
        _androidApiKey =
            androidApiKey ?? RevenueCatSubscriptionConfig.androidApiKey,
+       _testApiKey = testApiKey ?? RevenueCatSubscriptionConfig.testApiKey,
        _offeringId = offeringId ?? RevenueCatSubscriptionConfig.offeringId,
        _entitlementId =
            entitlementId ?? RevenueCatSubscriptionConfig.entitlementId;
@@ -94,6 +96,7 @@ class RevenueCatSubscriptionService implements RevenueCatSubscriptionGateway {
   final TargetPlatform _platform;
   final String _iosApiKey;
   final String _androidApiKey;
+  final String _testApiKey;
   final String _offeringId;
   final String _entitlementId;
   String? _configuredAppUserId;
@@ -196,6 +199,11 @@ class RevenueCatSubscriptionService implements RevenueCatSubscriptionGateway {
   }
 
   String _apiKeyForPlatform() {
+    final testApiKey = _testApiKey.trim();
+    if (!kReleaseMode && testApiKey.isNotEmpty) {
+      return testApiKey;
+    }
+
     return switch (_platform) {
       TargetPlatform.android => _androidApiKey.trim(),
       TargetPlatform.iOS => _iosApiKey.trim(),
@@ -268,6 +276,9 @@ class RevenueCatSubscriptionConfig {
   );
   static const androidApiKey = String.fromEnvironment(
     'LOGMYPLATE_REVENUECAT_ANDROID_API_KEY',
+  );
+  static const testApiKey = String.fromEnvironment(
+    'LOGMYPLATE_REVENUECAT_TEST_API_KEY',
   );
 }
 
