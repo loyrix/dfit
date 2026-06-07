@@ -248,6 +248,10 @@ export async function updateRewardedAdsAction(formData: FormData) {
   );
 }
 
+export async function updateAdmobAction(formData: FormData) {
+  await updateEngagementPolicySection(formData, "admob", readAdmobPolicy(formData), "admob");
+}
+
 export async function updateNotificationsAction(formData: FormData) {
   await updateEngagementPolicySection(
     formData,
@@ -390,6 +394,7 @@ const readEngagementPolicy = (formData: FormData) => ({
   reviewPrompt: readReviewPromptPolicy(formData),
   interstitialAds: readInterstitialAdsPolicy(formData),
   rewardedAds: readRewardedAdsPolicy(formData),
+  admob: readAdmobPolicy(formData),
   notifications: readNotificationsPolicy(formData),
   streaks: readStreaksPolicy(formData),
   reason: stringValue(formData, "reason"),
@@ -439,6 +444,16 @@ const readInterstitialAdsPolicy = (formData: FormData): EngagementPolicy["inters
     android: nullableStringValue(formData, "interstitialAds.adUnitIds.android"),
   },
 });
+
+const readAdmobPolicy = (formData: FormData): EngagementPolicy["admob"] => {
+  const idsStr = stringValue(formData, "admob.testDeviceIds");
+  const testDeviceIds = idsStr
+    .split(/[\n,]+/)
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+
+  return { testDeviceIds };
+};
 
 const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAds"] => {
   const iosDailyCredits = numberValue(

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -12,6 +13,13 @@ void main() {
   test(
     'applies analytics policy from bootstrap and logs bootstrap event',
     () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/google_mobile_ads'),
+        (_) async => null,
+      );
+
       final analytics = _RecordingAnalytics();
       final controller = JournalController(
         analytics: analytics,
@@ -74,6 +82,9 @@ Map<String, dynamic> _bootstrapPayload() {
           'accountLinked': true,
           'healthTargetSaved': true,
         },
+      },
+      'admob': {
+        'testDeviceIds': [],
       },
     },
     'quota': {

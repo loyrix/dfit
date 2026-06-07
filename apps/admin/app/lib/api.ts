@@ -469,6 +469,9 @@ export type EngagementPolicy = {
       endsAt: string | null;
     };
   };
+  admob: {
+    testDeviceIds: string[];
+  };
   notifications: {
     enabled: boolean;
     dailyCap: number;

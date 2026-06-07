@@ -1331,6 +1331,24 @@ class EngagementInterstitialAdsPolicy {
   }
 }
 
+class EngagementAdmobPolicy {
+  const EngagementAdmobPolicy({this.testDeviceIds = const []});
+
+  final List<String> testDeviceIds;
+
+  factory EngagementAdmobPolicy.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const EngagementAdmobPolicy();
+    final ids = json['testDeviceIds'] as List<dynamic>?;
+    return EngagementAdmobPolicy(
+      testDeviceIds: ids?.map((e) => e.toString()).toList() ?? const [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'testDeviceIds': testDeviceIds};
+  }
+}
+
 class EngagementRewardedAdsPolicy {
   const EngagementRewardedAdsPolicy({this.dailyScanLimit = 5});
 
@@ -1683,6 +1701,7 @@ class EngagementPolicy {
     this.reviewPrompt = const EngagementReviewPromptPolicy(),
     this.interstitialAds = const EngagementInterstitialAdsPolicy(),
     this.rewardedAds = const EngagementRewardedAdsPolicy(),
+    this.admob = const EngagementAdmobPolicy(),
     this.notifications = const EngagementNotificationsPolicy(),
     this.streaks = const EngagementStreaksPolicy(),
   });
@@ -1691,6 +1710,7 @@ class EngagementPolicy {
   final EngagementReviewPromptPolicy reviewPrompt;
   final EngagementInterstitialAdsPolicy interstitialAds;
   final EngagementRewardedAdsPolicy rewardedAds;
+  final EngagementAdmobPolicy admob;
   final EngagementNotificationsPolicy notifications;
   final EngagementStreaksPolicy streaks;
 
@@ -1713,6 +1733,9 @@ class EngagementPolicy {
       rewardedAds: EngagementRewardedAdsPolicy.fromJson(
         json['rewardedAds'] as Map<String, dynamic>?,
       ),
+      admob: EngagementAdmobPolicy.fromJson(
+        json['admob'] as Map<String, dynamic>?,
+      ),
       notifications: EngagementNotificationsPolicy.fromJson(
         json['notifications'] as Map<String, dynamic>?,
       ),
@@ -1728,6 +1751,7 @@ class EngagementPolicy {
       'reviewPrompt': reviewPrompt.toJson(),
       'interstitialAds': interstitialAds.toJson(),
       'rewardedAds': rewardedAds.toJson(),
+      'admob': admob.toJson(),
       'notifications': notifications.toJson(),
       'streaks': streaks.toJson(),
     };

@@ -37,6 +37,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
   const appLinksEvents = EventChannel('com.llfbandit.app_links/events');
+  const googleMobileAdsChannel = MethodChannel('plugins.flutter.io/google_mobile_ads');
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -48,6 +49,8 @@ void main() {
           appLinksEvents,
           MockStreamHandler.inline(onListen: (_, _) {}),
         );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(googleMobileAdsChannel, (_) async => null);
   });
 
   testWidgets('renders LogMyPlate welcome screen', (tester) async {

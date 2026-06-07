@@ -207,11 +207,16 @@ export const engagementStreaksPolicySchema = z.object({
     .default({}),
 });
 
+export const engagementAdmobPolicySchema = z.object({
+  testDeviceIds: z.array(z.string().trim().max(100)).max(20).default([]),
+});
+
 export const engagementPolicyConfigSchema = z.object({
   analytics: engagementAnalyticsPolicySchema.default({}),
   reviewPrompt: engagementReviewPromptPolicySchema.default({}),
   interstitialAds: engagementInterstitialAdsPolicySchema.default({}),
   rewardedAds: engagementRewardedAdsPolicySchema.default({}),
+  admob: engagementAdmobPolicySchema.default({}),
   notifications: engagementNotificationsPolicySchema.default({}),
   streaks: engagementStreaksPolicySchema.default({}),
 });

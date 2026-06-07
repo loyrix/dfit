@@ -4,6 +4,7 @@ import {
   sendPushNotificationAction,
   updateEngagementAnalyticsAction,
   updateInterstitialAdsAction,
+  updateAdmobAction,
   updateNotificationsAction,
   updateRewardedAdsAction,
   updateReviewPromptAction,
@@ -59,6 +60,7 @@ type GrowthSection =
   | "review"
   | "ads"
   | "rewarded"
+  | "admob"
   | "notifications"
   | "streaks"
   | "push";
@@ -123,6 +125,12 @@ export default async function GrowthControlsPage({
             label: "Rewarded unlocks",
             detail: "Free scan earning limit",
             active: section === "rewarded",
+          },
+          {
+            href: "/growth?section=admob",
+            label: "AdMob",
+            detail: "Test device IDs",
+            active: section === "admob",
           },
           {
             href: "/growth?section=notifications",
@@ -205,6 +213,21 @@ export default async function GrowthControlsPage({
         </form>
       ) : null}
 
+      {section === "admob" ? (
+        <form action={updateAdmobAction} className="focused-page">
+          <input
+            name="idempotencyKey"
+            type="hidden"
+            value={createMutationKey("engagement-policy:admob:update")}
+          />
+          <AdmobPanel policy={policy} />
+          <SectionSavePanel
+            buttonLabel="Save AdMob settings"
+            placeholder="Why AdMob settings are changing"
+          />
+        </form>
+      ) : null}
+
       {section === "notifications" ? (
         <form action={updateNotificationsAction} className="focused-page">
           <input
@@ -245,6 +268,7 @@ function normalizeGrowthSection(value: string | undefined): GrowthSection {
     value === "review" ||
     value === "ads" ||
     value === "rewarded" ||
+    value === "admob" ||
     value === "notifications" ||
     value === "streaks" ||
     value === "push"
@@ -625,6 +649,32 @@ function InterstitialAdsPanel({ policy }: { policy: EngagementPolicy }) {
           name="interstitialAds.adUnitIds.android"
           value={policy.interstitialAds.adUnitIds.android ?? ""}
           maxLength={160}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AdmobPanel({ policy }: { policy: EngagementPolicy }) {
+  return (
+    <div className="panel">
+      <div className="section-head">
+        <div>
+          <h2 className="text-xl font-bold">AdMob test devices</h2>
+          <p className="muted mt-1 text-sm">
+            Enter test device IDs to ensure test ads load on specific devices, even in production or
+            TestFlight.
+          </p>
+        </div>
+      </div>
+
+      <div className="form-grid mt-4">
+        <TextareaField
+          label="Test device IDs (one per line or comma-separated)"
+          name="admob.testDeviceIds"
+          value={policy.admob?.testDeviceIds?.join("\n") || ""}
+          minLength={0}
+          maxLength={1000}
         />
       </div>
     </div>

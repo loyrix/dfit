@@ -8,6 +8,7 @@ import '../services/app_diagnostics.dart';
 import '../services/journal_cache_store.dart';
 import '../services/logmyplate_analytics.dart';
 import '../services/logmyplate_api_client.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class JournalController extends ChangeNotifier {
   JournalController({
@@ -88,6 +89,13 @@ class JournalController extends ChangeNotifier {
     if (cached != null) {
       _applyBootstrap(cached);
       await _analytics.applyPolicy(cached.engagementPolicy.analytics);
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          testDeviceIds: cached.engagementPolicy.admob.testDeviceIds,
+          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
+          tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
+        ),
+      );
       notifyListeners();
     }
 
@@ -95,6 +103,13 @@ class JournalController extends ChangeNotifier {
       final bootstrap = await _apiClient.fetchBootstrap();
       _applyBootstrap(bootstrap);
       await _analytics.applyPolicy(bootstrap.engagementPolicy.analytics);
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          testDeviceIds: bootstrap.engagementPolicy.admob.testDeviceIds,
+          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
+          tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
+        ),
+      );
       unawaited(
         _analytics.logEvent(
           'bootstrap_loaded',
