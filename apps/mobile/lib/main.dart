@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'src/app.dart';
 import 'src/screens/startup_error_screen.dart';
 import 'src/services/app_diagnostics.dart';
+import 'src/services/journal_cache_store.dart';
 import 'src/services/rewarded_ad_service.dart';
 
 void main() {
@@ -49,8 +50,12 @@ void main() {
 
       LogMyPlateAdConfig.validateForCurrentBuild();
       
+      final cachedBootstrap = await JournalCacheStore().load();
+      final testDeviceIds = cachedBootstrap?.engagementPolicy.admob.testDeviceIds ?? const [];
+
       await MobileAds.instance.updateRequestConfiguration(
         RequestConfiguration(
+          testDeviceIds: testDeviceIds,
           tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
           tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
         ),
