@@ -48,6 +48,13 @@ void main() {
       };
 
       LogMyPlateAdConfig.validateForCurrentBuild();
+      
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(
+          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
+          tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
+        ),
+      );
       await MobileAds.instance.initialize();
 
       runApp(const LogMyPlateApp());

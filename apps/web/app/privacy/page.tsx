@@ -5,11 +5,11 @@ import { APP_CONFIG } from "@/config/app";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "LogMyPlate Privacy Policy covering meal photos, AI analysis, account data, health targets, AdMob rewarded ads, app store data disclosures, and deletion rights.",
+    "LogMyPlate Privacy Policy covering meal photos, AI analysis, account data, health targets, subscriptions, RevenueCat, push tokens, AdMob rewarded ads, app store data disclosures, and deletion rights.",
   alternates: { canonical: "/privacy" },
 };
 
-const lastUpdated = "May 24, 2026";
+const lastUpdated = "June 7, 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
     "@type": "PrivacyPolicy",
     name: `${APP_CONFIG.appName} Privacy Policy`,
     url: `${APP_CONFIG.websiteUrl}/privacy`,
-    dateModified: "2026-05-24",
+    dateModified: "2026-06-07",
     publisher: {
       "@type": "Organization",
       name: APP_CONFIG.brandName,
@@ -73,7 +73,8 @@ export default function PrivacyPage() {
             }}
           >
             This policy explains what LogMyPlate collects, why it is used, when it may be shared,
-            and how you can delete your account and app data.
+            and how you can delete your account and app data. It also covers Premium subscription
+            entitlement data and optional push notification tokens.
           </div>
         </header>
 
@@ -142,6 +143,23 @@ export default function PrivacyPage() {
             BMI estimate, calorie target, and macro targets.
           </p>
           <p>
+            <strong style={{ color: "var(--text-primary)" }}>
+              Subscription and purchase entitlement data:
+            </strong>{" "}
+            if you buy or restore Premium, we may store your subscription status, product ID,
+            entitlement ID, store or provider, purchase date, expiration date, renewal or
+            cancellation status, billing issue status, and RevenueCat event identifiers needed to
+            unlock Premium and prevent duplicate processing. LogMyPlate does not receive or store
+            full payment card details.
+          </p>
+          <p>
+            <strong style={{ color: "var(--text-primary)" }}>Push notification data:</strong> if
+            push notifications are enabled and you grant permission, the app may register a platform
+            push token, provider type, platform, permission status, app version, build number, and
+            sandbox or production routing flag. iOS uses Apple Push Notification service tokens for
+            direct APNs delivery; Android uses Firebase Cloud Messaging tokens.
+          </p>
+          <p>
             <strong style={{ color: "var(--text-primary)" }}>Support communications:</strong> if you
             email us, we collect the email address and message contents needed to answer your
             request.
@@ -155,6 +173,8 @@ export default function PrivacyPage() {
             <li>Save and display your meal journal, daily totals, weekly summaries, and targets</li>
             <li>Authenticate accounts and sync account-backed app data</li>
             <li>Manage free scan quotas and rewarded-ad scan credits</li>
+            <li>Verify Premium entitlements, enforce subscription scan limits, and show usage</li>
+            <li>Send optional push reminders and operational notifications when permitted</li>
             <li>Detect abuse, protect the service, debug errors, and improve reliability</li>
             <li>Respond to support, privacy, and data deletion requests</li>
           </ul>
@@ -202,7 +222,45 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="6. App stores and third-party services">
+        <Section title="6. Subscriptions, RevenueCat, and app stores">
+          <p>
+            Premium subscriptions are sold through Apple App Store and Google Play. Those stores
+            process payment, taxes, billing, cancellation, refunds, and store account management
+            under their own terms and privacy policies.
+          </p>
+          <p>
+            We use RevenueCat to manage subscription products, customer entitlements, purchase
+            lifecycle events, restore purchases, and subscription status sync. RevenueCat may
+            receive an app user or profile identifier, product identifiers, store transaction
+            metadata, entitlement status, purchase and expiration dates, billing issue signals, and
+            related diagnostics needed to operate subscriptions.
+          </p>
+          <p>
+            LogMyPlate uses this data to decide whether Premium is active and to apply the Premium
+            scan allowance. The current Premium allowance is up to 300 AI meal scans per month and
+            up to 10 scans per day, unless a later in-app offer or store listing states otherwise.
+          </p>
+        </Section>
+
+        <Section title="7. Push notifications">
+          <p>
+            Push notifications are optional. If notification policy is enabled and you grant device
+            permission, we store the minimum token and routing data needed to send meal reminders,
+            streak reminders, account notices, or operational notifications.
+          </p>
+          <p>
+            iOS notifications are sent through Apple Push Notification service using APNs tokens.
+            Android notifications are sent through Firebase Cloud Messaging using FCM registration
+            tokens. Push tokens are treated as sensitive operational identifiers and are not sold or
+            used for ad targeting.
+          </p>
+          <p>
+            You can disable notifications in your device settings. If a token becomes invalid,
+            replaced, or unregistered, we may disable it for future sends.
+          </p>
+        </Section>
+
+        <Section title="8. App stores and third-party services">
           <p>
             The app is distributed through Apple App Store and Google Play. Those stores may collect
             download, purchase, crash, analytics, device, and account information under their own
@@ -210,16 +268,27 @@ export default function PrivacyPage() {
           </p>
           <p>
             We may use trusted service providers for hosting, security, analytics, customer support,
-            data storage, email delivery, AI analysis, and advertising. These providers are allowed
-            to process data only as needed to perform services for LogMyPlate.
+            data storage, email delivery, AI analysis, subscriptions, push delivery, and
+            advertising. These providers are allowed to process data only as needed to perform
+            services for LogMyPlate.
           </p>
         </Section>
 
-        <Section title="7. Data retention">
+        <Section title="9. Data retention">
           <p>
             Meal journal data, health targets, and stored meal photos are retained while your
             account or app installation remains active, unless you delete them in the app or request
             deletion when you cannot access the app.
+          </p>
+          <p>
+            Subscription entitlement records are retained while needed to provide Premium, resolve
+            billing or support issues, prevent duplicate webhook processing, and meet legal,
+            accounting, security, or abuse-prevention needs.
+          </p>
+          <p>
+            Push tokens are retained while they remain active and notifications are permitted. We
+            may disable or remove tokens when permission is revoked, the app registers a replacement
+            token, or a push provider reports that a token is invalid.
           </p>
           <p>
             Technical logs are retained for a limited operational period, typically up to 90 days,
@@ -228,7 +297,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="8. Deletion and account removal">
+        <Section title="10. Deletion and account removal">
           <p>
             You can permanently delete your account and associated app data directly in the app from{" "}
             <strong style={{ color: "var(--text-primary)" }}>
@@ -250,7 +319,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="9. Security">
+        <Section title="11. Security">
           <p>
             We use reasonable technical and organizational safeguards designed to protect app data,
             including encrypted connections, password protection measures, access controls, and
@@ -258,7 +327,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="10. Children">
+        <Section title="12. Children">
           <p>
             LogMyPlate is not directed to children under 13. In regions where a higher minimum age
             applies, such as 16 for certain EU users, users must meet that age requirement. If you
@@ -266,7 +335,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="11. International processing">
+        <Section title="13. International processing">
           <p>
             We operate from India and may use service providers in India, the United States, and
             other countries. By using the app, you understand that data may be processed where we or
@@ -274,17 +343,19 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="12. Your choices">
+        <Section title="14. Your choices">
           <ul className="ml-5 flex list-disc flex-col gap-2">
             <li>You can use the app without creating an account, subject to app behavior.</li>
             <li>You can choose whether to watch rewarded ads for extra scans.</li>
             <li>You can edit AI estimates before saving meal logs.</li>
             <li>You can request account and data deletion.</li>
+            <li>You can manage or cancel subscriptions through Apple App Store or Google Play.</li>
+            <li>You can disable push notifications in your device settings.</li>
             <li>You can manage ad personalization in your device or Google settings.</li>
           </ul>
         </Section>
 
-        <Section title="13. Changes to this policy">
+        <Section title="15. Changes to this policy">
           <p>
             We may update this Privacy Policy as the app changes. Material changes may be announced
             in the app or on this page. The "Last updated" date shows when this policy was most
@@ -292,7 +363,7 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="14. Contact">
+        <Section title="16. Contact">
           <p>
             Email privacy questions or deletion requests to{" "}
             <a
