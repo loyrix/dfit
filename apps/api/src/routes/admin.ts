@@ -20,6 +20,7 @@ import {
 import {
   FirebaseCloudMessagingSender,
   PushNotificationConfigurationError,
+  pushNotificationFailureKey,
 } from "../services/push-notifications.js";
 
 const usdToInr = Number(process.env.AI_COST_USD_TO_INR ?? 95.4);
@@ -410,6 +411,7 @@ export const registerAdminRoutes = async (
             sent: delivery.sent,
             failed: delivery.failed,
             disabledTokens: delivery.disabledTokens,
+            failures: delivery.failures,
           },
         });
         return { delivery };
@@ -3185,7 +3187,7 @@ const sendPushNotificationToTargets = async (
     }
 
     failed += 1;
-    const key = result.errorCode ?? `http_${result.status}`;
+    const key = pushNotificationFailureKey(result);
     failures[key] = (failures[key] ?? 0) + 1;
     if (
       result.status === 404 ||

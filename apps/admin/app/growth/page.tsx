@@ -89,7 +89,7 @@ export default async function GrowthControlsPage({
 
       {params.push === "sent" ? (
         <div className="panel panel-light mb-4 border border-emerald-200 text-sm font-semibold text-emerald-700">
-          Push notification request sent.
+          {params.message ?? "Push notification request sent."}
         </div>
       ) : null}
       {params.push === "error" ? (

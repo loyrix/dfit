@@ -12,6 +12,7 @@ export type PushNotificationSendResult = {
   success: boolean;
   status: number;
   errorCode?: string;
+  errorReason?: string;
 };
 
 export class PushNotificationConfigurationError extends Error {
@@ -78,14 +79,13 @@ export class FirebaseCloudMessagingSender {
 
     if (response.ok) return { success: true, status: response.status };
 
-    let errorCode: string | undefined;
+    let sendError: Pick<PushNotificationSendResult, "errorCode" | "errorReason"> = {};
     try {
-      const payload = (await response.json()) as { error?: { status?: string } };
-      errorCode = payload.error?.status;
+      sendError = parsePushNotificationSendError(await response.json());
     } catch {
-      errorCode = undefined;
+      sendError = {};
     }
-    return { success: false, status: response.status, errorCode };
+    return { success: false, status: response.status, ...sendError };
   }
 
   private get rawCredentialsJson(): string | undefined {
@@ -127,4 +127,47 @@ export class FirebaseCloudMessagingSender {
   }
 }
 
+export const pushNotificationFailureKey = (result: PushNotificationSendResult): string => {
+  const code = result.errorCode ?? `http_${result.status}`;
+  return result.errorReason ? `${code}:${result.errorReason}` : code;
+};
+
+export const parsePushNotificationSendError = (
+  payload: unknown,
+): Pick<PushNotificationSendResult, "errorCode" | "errorReason"> => {
+  if (!isObject(payload) || !isObject(payload.error)) return {};
+  const details = Array.isArray(payload.error.details) ? payload.error.details : [];
+  const fcmError = details.find(
+    (detail): detail is FcmErrorDetail =>
+      isObject(detail) &&
+      typeof detail["@type"] === "string" &&
+      detail["@type"].includes("google.firebase.fcm.v1.FcmError"),
+  );
+  const apnsError = details.find(
+    (detail): detail is FcmErrorDetail =>
+      isObject(detail) &&
+      typeof detail["@type"] === "string" &&
+      detail["@type"].includes("google.firebase.fcm.v1.ApnsError"),
+  );
+
+  return {
+    errorCode:
+      typeof fcmError?.errorCode === "string"
+        ? fcmError.errorCode
+        : typeof payload.error.status === "string"
+          ? payload.error.status
+          : undefined,
+    errorReason: typeof apnsError?.reason === "string" ? apnsError.reason : undefined,
+  };
+};
+
 const normalizePrivateKey = (value: string) => value.replace(/\\n/g, "\n");
+
+type FcmErrorDetail = {
+  "@type"?: string;
+  errorCode?: string;
+  reason?: string;
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;

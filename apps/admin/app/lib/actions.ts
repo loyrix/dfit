@@ -264,8 +264,9 @@ export async function updateStreaksAction(formData: FormData) {
 export async function sendPushNotificationAction(formData: FormData) {
   await requireAdminSession();
   let pushError: string | undefined;
+  let pushMessage: string | undefined;
   try {
-    await adminSend(
+    const response = await adminSend<PushNotificationSendResponse>(
       "/admin/push-notifications/send",
       {
         targetType: stringValue(formData, "targetType"),
@@ -281,6 +282,13 @@ export async function sendPushNotificationAction(formData: FormData) {
       },
       { idempotencyKey: readMutationKey(formData) },
     );
+    if (response.delivery.failed > 0) {
+      pushError = formatPushDeliveryFailure(response.delivery);
+    } else {
+      pushMessage = `Push sent to ${response.delivery.sent} active token${
+        response.delivery.sent === 1 ? "" : "s"
+      }.`;
+    }
   } catch (error) {
     pushError = error instanceof Error ? error.message : "Push notification send failed.";
   }
@@ -290,8 +298,36 @@ export async function sendPushNotificationAction(formData: FormData) {
       `/growth?section=push&push=error&message=${encodeURIComponent(pushError.slice(0, 220))}`,
     );
   }
-  redirect("/growth?section=push&push=sent");
+  redirect(
+    `/growth?section=push&push=sent${
+      pushMessage ? `&message=${encodeURIComponent(pushMessage)}` : ""
+    }`,
+  );
 }
+
+type PushNotificationDelivery = {
+  attempted: number;
+  sent: number;
+  failed: number;
+  disabledTokens: number;
+  failures: Record<string, number>;
+};
+
+type PushNotificationSendResponse = {
+  delivery: PushNotificationDelivery;
+};
+
+const formatPushDeliveryFailure = (delivery: PushNotificationDelivery): string => {
+  const failureSummary = Object.entries(delivery.failures)
+    .sort(([, left], [, right]) => right - left)
+    .map(([key, count]) => `${key} (${count})`)
+    .join(", ");
+  return `Push attempted ${delivery.attempted} token${
+    delivery.attempted === 1 ? "" : "s"
+  }: sent ${delivery.sent}, failed ${delivery.failed}${
+    failureSummary ? `. Failures: ${failureSummary}.` : "."
+  }`;
+};
 
 const stringValue = (formData: FormData, key: string) => String(formData.get(key) ?? "").trim();
 

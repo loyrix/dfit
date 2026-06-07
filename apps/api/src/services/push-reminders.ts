@@ -1,6 +1,7 @@
 import type { EngagementPolicyConfig } from "./engagement-policy.js";
 import {
   FirebaseCloudMessagingSender,
+  pushNotificationFailureKey,
   type PushNotificationSendResult,
 } from "./push-notifications.js";
 import type { SqlClient } from "../db/client.js";
@@ -570,7 +571,7 @@ const sendReminderToCandidate = async (
     }
 
     failed += 1;
-    const key = failureKey(result);
+    const key = pushNotificationFailureKey(result);
     failures[key] = (failures[key] ?? 0) + 1;
     if (shouldDisableToken(result)) {
       disabledHashes.push(target.tokenHash);
@@ -657,9 +658,6 @@ const timeToMinutes = (value: string): number => {
 const bump = (bucket: Record<string, number>, key: string): void => {
   bucket[key] = (bucket[key] ?? 0) + 1;
 };
-
-const failureKey = (result: PushNotificationSendResult): string =>
-  result.errorCode ?? `http_${result.status}`;
 
 const shouldDisableToken = (result: PushNotificationSendResult): boolean =>
   result.status === 404 || result.errorCode === "NOT_FOUND" || result.errorCode === "UNREGISTERED";
