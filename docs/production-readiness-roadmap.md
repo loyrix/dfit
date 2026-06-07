@@ -11,13 +11,17 @@ This document captures the current production-readiness decisions so we can exec
 - Apple and Google login buttons should become functional, not hidden permanently.
 - Auth session tokens must move from plain shared preferences to secure device storage.
 - Account deletion must delete the user account and all related user data.
-- Privacy policy, terms, disclaimers, and legal copy need to be created before launch.
+- Privacy policy, terms, disclaimers, and legal copy need to stay aligned with
+  subscriptions, rewarded ads, push tokens, and account deletion before launch.
 - Backend rate limiting is required, but the exact limits need product discussion before implementation.
 - Pre-AI image validation is required to reduce bad UX and avoid wasting Gemini calls.
 - Mobile API client needs production-grade timeout/retry handling.
 - Vercel production domain/env validation remains part of release readiness.
-- Subscriptions and ads are not implemented yet and need their own product/backend/store design discussion.
-- Current launch scan quota is lifetime-based, not daily: 3 free scan credits per install/profile, no automatic daily reset, no rewarded ad credits yet.
+- Subscriptions, rewarded ads, and server-side push notification controls now
+  have implementation baselines and need production store/provider verification.
+- Current launch quota path: new installs receive 3 initial scans; free users can
+  earn scans through rewarded ads when enabled; Premium receives 300 scans per
+  month with a maximum of 10 scans per day.
 
 ## Phase 1: Auth Hardening
 
@@ -92,13 +96,14 @@ Acceptance:
 
 Goal: produce launch-ready policy documents aligned with actual app behavior.
 
-Documents to create:
+Documents to maintain:
 
 - Privacy Policy.
 - Terms of Service.
 - AI/Nutrition Accuracy Disclaimer.
 - Data Deletion Policy.
-- Subscription and ads terms later, once monetization is finalized.
+- Subscription, RevenueCat, rewarded ads, app-store purchase, and push-token
+  disclosures.
 
 Important facts to include:
 
@@ -106,6 +111,10 @@ Important facts to include:
 - AI-generated nutrition estimates may be inaccurate and should not be treated as medical advice.
 - Users can delete their account and associated data.
 - Data processors include hosting/database/storage/AI providers once finalized.
+- RevenueCat and app stores are used for subscription entitlement and purchase
+  lifecycle handling; LogMyPlate does not store full payment card details.
+- Push reminders use platform device tokens. iOS routes through APNs; Android
+  routes through FCM.
 - The app is not a replacement for a doctor, dietitian, or medical professional.
 
 Note:
@@ -176,35 +185,46 @@ Acceptance:
 
 ## Phase 8: Subscriptions And Ads
 
-Goal: design monetization cleanly before implementation.
+Goal: verify monetization end to end before production launch.
 
 Current quota source of truth:
 
-- Launch free allowance is 3 lifetime scan credits, not 3 scans per day.
+- Launch free allowance is 3 initial scan credits.
 - Install-aware quota uses `install_scan_credits` when the app sends an install ID.
 - Profile fallback quota uses `scan_credits` with the sentinel date `1970-01-01`.
-- Current `/v1/config` reports `freeLifetime: 3`, `rewardedCap: 5`, `rewardedAdsPerScan: 2`, and `launchTotalCap: 8`.
-- Anonymous users who exhaust free lifetime credits are routed to account linking before more scan unlock options.
-- Signed-in users can unlock rewarded scan credits after quota exhaustion.
+- Anonymous users who exhaust initial free credits are routed to account linking
+  before more scan unlock options.
+- Signed-in free users can unlock rewarded scan credits after quota exhaustion.
+- Premium users receive 300 scans per month with a maximum of 10 scans per day.
 
 Current rewarded ad rule:
 
-- 2 completed rewarded ads = 1 rewarded scan credit.
+- 1 completed rewarded ad = 1 rewarded scan credit.
 - Rewarded scan credits are capped at 5 scans per local day.
 - Rewarded ad completions and grants are tracked server-side; mobile uses AdMob test ad units until production IDs are supplied.
 - app-ads.txt should be hosted at the root of the developer website listed for each app. The current AdMob publisher line is `google.com, pub-6936425975956435, DIRECT, f08c47fec0942fa0`.
 
-Discussion needed:
+Current subscription rule:
 
-- Premium scan limits.
-- Premium features: ad-free, macro insights, micronutrient profile, weekly reports, advanced analytics.
-- App Store / Play Store subscription products.
-- Server-side entitlement validation.
-- Full AdMob server-side verification before enabling live ad unit IDs.
+- RevenueCat manages offerings and entitlements.
+- Backend stores Premium entitlement state from RevenueCat sync and webhooks.
+- Current Premium entitlement ID is `premium`.
+- Store products are monthly, quarterly, and annual.
+- Launch pricing target is India-led: Rs 299/month, Rs 799/quarter, and
+  Rs 2,499/year, with global storefront prices localized from that base rather
+  than premium-marked-up by region during early launch.
 
-Recommendation:
+Remaining production verification:
 
-- Treat this as a separate architecture/product phase because it touches mobile UI, backend entitlements, store products, analytics, and legal terms.
+- App Store subscription products must be approved before production purchases.
+- Google Play subscription configuration can remain pending until Android launch,
+  but RevenueCat Play Store credentials must be validated before Android paid
+  launch.
+- RevenueCat production offerings must point at approved store products; Test
+  Store products can be used for local or pre-approval flow testing only.
+- Full AdMob server-side verification should be enabled before live ad unit IDs.
+- App Store privacy details and Google Play Data safety forms must match the
+  Privacy Policy.
 
 ## Final Launch Checklist
 

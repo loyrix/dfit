@@ -46,7 +46,7 @@ export const registerCronRoutes = async (app: FastifyInstance, sql?: SqlClient):
     if (!sender.configured && !query.dryRun) {
       return reply.status(503).send({
         error: "push_provider_not_configured",
-        message: "Firebase Cloud Messaging server credentials are not configured.",
+        message: "Push provider credentials are not configured.",
       });
     }
 

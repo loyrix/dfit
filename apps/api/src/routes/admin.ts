@@ -387,7 +387,7 @@ export const registerAdminRoutes = async (
       if (!sender.configured) {
         return reply.status(503).send({
           error: "push_provider_not_configured",
-          message: "Firebase Cloud Messaging server credentials are not configured.",
+          message: "Push provider credentials are not configured.",
         });
       }
 
@@ -2909,7 +2909,7 @@ const updateEngagementPolicy = async (
       values (
         ${ENGAGEMENT_POLICY_KEY},
         ${tx.json(nextPolicy)},
-        'Controls review prompts, interstitial ads, FCM push reminder scenarios, and streak celebrations for mobile clients.',
+        'Controls review prompts, interstitial ads, push reminder scenarios, and streak celebrations for mobile clients.',
         ${actor}
       )
       on conflict (key) do update

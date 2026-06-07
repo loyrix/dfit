@@ -5,11 +5,11 @@ import { APP_CONFIG } from "@/config/app";
 export const metadata: Metadata = {
   title: "Terms of Service",
   description:
-    "LogMyPlate Terms of Service covering app use, AI calorie estimates, health disclaimers, accounts, user content, rewarded ads, and limitations.",
+    "LogMyPlate Terms of Service covering app use, AI calorie estimates, health disclaimers, accounts, user content, rewarded ads, subscriptions, and limitations.",
   alternates: { canonical: "/terms" },
 };
 
-const lastUpdated = "May 24, 2026";
+const lastUpdated = "June 7, 2026";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -33,7 +33,7 @@ export default function TermsPage() {
     "@type": "TermsOfService",
     name: `${APP_CONFIG.appName} Terms of Service`,
     url: `${APP_CONFIG.websiteUrl}/terms`,
-    dateModified: "2026-05-24",
+    dateModified: "2026-06-07",
     publisher: {
       "@type": "Organization",
       name: APP_CONFIG.brandName,
@@ -73,7 +73,7 @@ export default function TermsPage() {
             }}
           >
             These terms explain the rules for using LogMyPlate, including AI estimates, account
-            access, app stores, rewarded ads, and responsible use.
+            access, app stores, rewarded ads, subscriptions, and responsible use.
           </div>
         </header>
 
@@ -172,7 +172,38 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="8. App stores and platform terms">
+        <Section title="8. Subscriptions and Premium">
+          <p>
+            LogMyPlate may offer Premium as an auto-renewing subscription through Apple App Store
+            and Google Play. Premium currently provides up to 300 AI meal scans per month, with a
+            maximum of 10 scans per day, unless a later in-app offer or store listing states
+            otherwise.
+          </p>
+          <p>
+            Subscription products, prices, local currency, taxes, trial terms, introductory offers,
+            renewal dates, and billing periods are shown during store checkout. The checkout terms
+            displayed by Apple App Store or Google Play control the transaction.
+          </p>
+          <p>
+            Subscriptions renew automatically unless cancelled before renewal through your Apple App
+            Store or Google Play account settings. Cancelling stops future renewals; it does not
+            automatically refund past charges or remove access that remains available for the paid
+            billing period.
+          </p>
+          <p>
+            Refunds, charge disputes, payment methods, taxes, and billing support are handled by the
+            store where you purchased the subscription. We can help investigate entitlement or
+            access issues, but store payments are processed by Apple or Google rather than
+            LogMyPlate.
+          </p>
+          <p>
+            We use RevenueCat to manage subscription entitlement status, restore purchases, and sync
+            Premium access with our backend. If a purchase cannot be verified, Premium access may be
+            delayed until store or RevenueCat status is confirmed.
+          </p>
+        </Section>
+
+        <Section title="9. App stores and platform terms">
           <p>
             Your use of the iOS app is also subject to Apple App Store terms, and your use of the
             Android app is also subject to Google Play terms. Apple and Google are not responsible
@@ -184,7 +215,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="9. Intellectual property">
+        <Section title="10. Intellectual property">
           <p>
             The LogMyPlate name, logo, design, website, app interface, copy, screenshots, code, and
             related materials are owned by us or our licensors. You may not copy, modify,
@@ -192,15 +223,16 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="10. Availability and changes">
+        <Section title="11. Availability and changes">
           <p>
             We may modify, suspend, limit, or discontinue any part of the app or website at any
-            time. We may update AI models, quotas, features, ads, data storage, legal pages, and
-            supported platforms as the product evolves.
+            time. We may update AI models, quotas, Premium benefits, features, ads, data storage,
+            legal pages, and supported platforms as the product evolves. Material subscription
+            changes will apply according to store rules and applicable law.
           </p>
         </Section>
 
-        <Section title="11. Disclaimers">
+        <Section title="12. Disclaimers">
           <p>
             To the fullest extent permitted by law, LogMyPlate is provided "as is" and "as
             available" without warranties of any kind. We do not guarantee uninterrupted service,
@@ -209,7 +241,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="12. Limitation of liability">
+        <Section title="13. Limitation of liability">
           <p>
             To the fullest extent permitted by law, we will not be liable for indirect, incidental,
             special, consequential, exemplary, or punitive damages, or for loss of data, health
@@ -217,7 +249,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="13. Indemnity">
+        <Section title="14. Indemnity">
           <p>
             You agree to defend, indemnify, and hold us harmless from claims arising from your
             misuse of the app, violation of these terms, unlawful content, or misrepresentation of
@@ -225,7 +257,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="14. Termination and deletion">
+        <Section title="15. Termination and deletion">
           <p>
             You may stop using the app at any time. If you created an account, you may permanently
             delete your account and associated app data directly in the app from Profile &gt;
@@ -243,7 +275,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="15. Governing law">
+        <Section title="16. Governing law">
           <p>
             These terms are governed by the laws of India, without regard to conflict-of-law rules.
             Courts in India will have exclusive jurisdiction unless applicable consumer law requires
@@ -251,7 +283,7 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="16. Contact">
+        <Section title="17. Contact">
           <p>
             Questions about these terms can be sent to{" "}
             <a

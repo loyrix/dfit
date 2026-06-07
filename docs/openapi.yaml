@@ -87,7 +87,7 @@ paths:
     get:
       tags: [Admin]
       summary: Get engagement policy
-      description: Returns the backoffice-managed growth policy used by Firebase Analytics, review prompts, interstitial ads, FCM push reminders, and streaks.
+      description: Returns the backoffice-managed growth policy used by Firebase Analytics, review prompts, interstitial ads, platform push reminders, and streaks.
       security:
         - adminBasic: []
       responses:
@@ -152,8 +152,8 @@ paths:
   /admin/push-notifications/send:
     post:
       tags: [Admin]
-      summary: Send manual FCM push notification
-      description: Sends a server-side Firebase Cloud Messaging notification to a profile, install, or guarded broadcast target using active registered device tokens.
+      summary: Send manual push notification
+      description: Sends a server-side push notification to a profile, install, or guarded broadcast target using active registered device tokens. iOS tokens are routed through APNs and Android tokens are routed through FCM.
       security:
         - adminBasic: []
       requestBody:
@@ -184,7 +184,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorWithMessage"
         "503":
-          description: Database or Firebase Cloud Messaging server credentials are unavailable.
+          description: Database or push provider credentials are unavailable.
           content:
             application/json:
               schema:
@@ -193,17 +193,17 @@ paths:
   /internal/cron/push-reminders:
     get:
       tags: [Internal]
-      summary: Run scheduled FCM push reminders
+      summary: Run scheduled push reminders
       description: |
         Internal scheduler endpoint that evaluates the Growth Controls notification policy and sends
-        due FCM meal reminders. Requires `Authorization: Bearer <CRON_SECRET>`.
+        due meal reminders through the registered token provider. Requires `Authorization: Bearer <CRON_SECRET>`.
       security:
         - cronBearer: []
       parameters:
         - name: dryRun
           in: query
           required: false
-          description: When true, evaluates eligibility and records a run without sending FCM notifications.
+          description: When true, evaluates eligibility and records a run without sending push notifications.
           schema:
             type: boolean
             default: false
@@ -230,7 +230,7 @@ paths:
         "401":
           description: Missing or invalid cron bearer secret.
         "503":
-          description: Cron secret, database, or Firebase Cloud Messaging server credentials are unavailable.
+          description: Cron secret, database, or push provider credentials are unavailable.
           content:
             application/json:
               schema:
@@ -266,7 +266,7 @@ paths:
     put:
       tags: [Devices]
       summary: Register device push token
-      description: Idempotently registers the current mobile install's FCM token so backend jobs and admin actions can send server-side push notifications. Mobile apps call this only when remote notifications are enabled by engagement policy and the user has granted push permission.
+      description: Idempotently registers the current mobile install's platform push token so backend jobs and admin actions can send server-side push notifications. iOS registers APNs tokens for direct APNs delivery; Android registers FCM tokens. Mobile apps call this only when remote notifications are enabled by engagement policy and the user has granted push permission.
       security:
         - bearerAuth: []
           installId: []
@@ -2360,13 +2360,13 @@ components:
       properties:
         provider:
           type: string
-          enum: [fcm]
+          enum: [fcm, apns]
           default: fcm
         token:
           type: string
           minLength: 16
           maxLength: 4096
-          description: Firebase Cloud Messaging registration token. The API stores the token and a hash; operational logs and admin responses must not expose the raw value.
+          description: Platform push token. The API stores the token and a hash; operational logs and admin responses must not expose the raw value.
         platform:
           type: string
           enum: [ios, android]
@@ -2374,6 +2374,9 @@ components:
           type: string
           enum: [authorized, provisional, denied, not_determined, unknown]
           default: unknown
+        apnsSandbox:
+          type: boolean
+          description: iOS-only routing hint. True sends through APNs sandbox; false sends through APNs production.
 
     RegisterPushTokenResponse:
       type: object
@@ -2417,7 +2420,7 @@ components:
             type: string
             maxLength: 256
           maxProperties: 20
-          description: Optional FCM data payload. Keys are sanitized before delivery.
+          description: Optional push data payload. Keys are sanitized before delivery.
         reason:
           type: string
           minLength: 8

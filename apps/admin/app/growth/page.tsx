@@ -79,7 +79,7 @@ export default async function GrowthControlsPage({
       <PageHeader
         eyebrow="Growth"
         title="Growth Controls"
-        description="Prepare review prompts, interstitial ads, FCM push reminders, and streak policies from backoffice. Push delivery is server-driven; mobile only registers device tokens when enabled."
+        description="Prepare review prompts, interstitial ads, push reminders, and streak policies from backoffice. Push delivery is server-driven; mobile only registers device tokens when enabled."
         action={
           <div className="inline-controls">
             <Badge tone={anyEnabled(policy) ? "green" : "red"}>
@@ -147,7 +147,7 @@ export default async function GrowthControlsPage({
           {
             href: "/growth?section=push",
             label: "Manual push",
-            detail: "Send a targeted FCM notification",
+            detail: "Send a targeted push notification",
             active: section === "push",
           },
         ]}
@@ -319,7 +319,7 @@ function ManualPushPanel() {
         <div>
           <h2 className="text-xl font-bold">Manual push</h2>
           <p className="muted mt-1 text-sm">
-            Send an FCM notification to an active profile, install, or guarded broadcast target.
+            Send a push notification to an active profile, install, or guarded broadcast target.
           </p>
         </div>
         <Badge tone="amber">Server push</Badge>
@@ -783,7 +783,7 @@ function NotificationsPanel({ policy }: { policy: EngagementPolicy }) {
     <section className="panel">
       <div className="section-head">
         <div>
-          <h2 className="text-xl font-bold">FCM push reminders</h2>
+          <h2 className="text-xl font-bold">Push reminders</h2>
           <p className="muted mt-1 text-sm">
             Message timing and copy for backend-sent meal reminders.
           </p>
@@ -1198,7 +1198,7 @@ function friendlyPushError(message?: string) {
     return "Broadcast push blocked. Select all-active only when you type SEND_TO_ALL in Broadcast confirmation.";
   }
   if (message.includes("push_provider_not_configured")) {
-    return "Firebase push provider is not configured in the API environment.";
+    return "Push provider credentials are not configured in the API environment.";
   }
   if (message.includes("push_target_not_found")) {
     return "No active push token matched this target. Open the latest app once after enabling notifications.";

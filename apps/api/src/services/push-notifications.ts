@@ -24,7 +24,7 @@ export type PushNotificationSendResult = {
 };
 
 export class PushNotificationConfigurationError extends Error {
-  constructor(message = "Firebase Cloud Messaging is not configured.") {
+  constructor(message = "Push provider credentials are not configured.") {
     super(message);
     this.name = "PushNotificationConfigurationError";
   }

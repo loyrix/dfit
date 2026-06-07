@@ -10,8 +10,10 @@ prematurely taking on hardware risk.
 
 - December 2026 target: Rs 5-6 lakh gross revenue, starting from the May 25 launch window.
 - Primary product wedge: best Indian AI food logging.
-- First paid motion: annual-first subscriptions.
-- Pricing assumption: Rs 199/month and Rs 1,999/year.
+- First paid motion: subscription upgrade after scan need is proven.
+- Pricing assumption: Rs 299/month, Rs 799/quarter, and Rs 2,499/year in India,
+  with global storefront prices localized from the India base during early
+  launch instead of using a higher US/EU premium.
 - Growth assumption: mostly organic founder-led growth.
 - Hardware strategy: start with a wearable waitlist/preorder signal, not inventory.
 - First hardware assumption: basic fitness band, not smartwatch or smart ring.
@@ -37,12 +39,14 @@ To reach Rs 5-6 lakh gross revenue by December 31:
 
 | Plan    |    Price |   Buyers for Rs 5L |   Buyers for Rs 6L |
 | ------- | -------: | -----------------: | -----------------: |
-| Annual  | Rs 1,999 |               ~251 |               ~301 |
-| Monthly |   Rs 199 | ~2,513 user-months | ~3,015 user-months |
+| Annual  | Rs 2,499 |               ~200 |               ~240 |
+| Quarter |   Rs 799 | ~626 quarters sold | ~751 quarters sold |
+| Monthly |   Rs 299 | ~1,672 user-months | ~2,007 user-months |
 
 Recommended December target:
 
-- 250-300 annual subscribers.
+- 200-240 annual subscribers, or a blended base that includes quarterly
+  subscribers.
 - Monthly subscriptions and rewarded ad revenue are upside, not the main path.
 - Passive App Store discovery is not enough; founder-led distribution is required.
 
@@ -50,18 +54,23 @@ Recommended December target:
 
 Launch with a small free allowance and clear paid upgrade path:
 
-- Free users get limited lifetime scans.
+- New installs get 3 initial scans.
 - After free scans, users must register or sign in.
-- Rewarded ads can unlock extra scans for free users.
-- Premium users get higher scan limits, no ad interruptions, full history, and
-  advanced insights over time.
+- Free users can unlock extra scans with rewarded ads when the ad policy is
+  enabled.
+- Premium users get 300 AI meal scans per month, capped at 10 scans per day,
+  without waiting for rewarded ad unlocks.
+- Premium can add higher-value features over time: full history, insights,
+  coaching, and wearable priority.
 
-Annual should be visually dominant:
+Plan positioning:
 
-- Best value.
-- Founding member price.
-- Early access to future LogMyPlate Band preorder.
-- Priority access to new metabolic insights.
+- Monthly: flexible entry plan.
+- Quarterly: recommended default and "Most Popular" plan because it reduces
+  month-to-month churn without asking for a full-year commitment.
+- Annual: "Best Value" plan for committed users and founder-led campaigns.
+- Annual subscribers can receive priority access to future LogMyPlate Band
+  preorder and metabolic insights.
 
 The annual plan should be sold as convenience, consistency, and better health
 visibility, not only as a scan bundle.
@@ -196,6 +205,8 @@ Wearable demand:
 ### June 2026
 
 - Stabilize scan flow, paywall, rewarded ads, and subscription purchase path.
+- Keep RevenueCat Test Store available for flow testing until App Store products
+  are approved, then switch production offerings back to approved store products.
 - Verify AI cost and latency dashboard.
 - Launch early organic content tests.
 - Validate whether users exhaust free scans and convert.
@@ -203,28 +214,29 @@ Wearable demand:
 ### July-August 2026
 
 - Improve AI prompt/schema and correction UX.
-- Push annual-first subscription positioning.
+- Push quarterly default and annual best-value subscription positioning.
 - Start LogMyPlate Band waitlist.
-- Target first 50-100 annual subscribers.
+- Target first 50-100 paying subscribers across quarterly and annual plans.
 
 ### September-October 2026
 
 - Add Health Connect and Apple Health integration if scan retention is healthy.
 - Add weekly insights and personalized food memory.
 - Strengthen annual plan and founding member offer.
-- Target 150-220 annual subscribers.
+- Target 150-220 paying subscribers, with annual mix increasing through founder
+  campaigns.
 
 ### November-December 2026
 
 - Run annual founding member campaign.
 - Test wearable preorder interest.
 - Push creator/community distribution.
-- Target 250-300 annual subscribers.
+- Target 200-240 annual-equivalent subscribers or equivalent blended revenue.
 
 ## Risks
 
 - Rs 5-6 lakh gross revenue is possible, but not guaranteed with organic growth.
-- 250-300 annual subscribers require sharp positioning and consistent founder-led
+- 200-240 annual subscribers require sharp positioning and consistent founder-led
   distribution.
 - Weak AI accuracy will hurt paid conversion more than weak feature count.
 - Hardware inventory before PMF can damage cash flow.
@@ -238,7 +250,7 @@ The wearable strategy is directionally strong, but it should be used as a
 future-retention and preorder narrative first. The immediate company-building
 task is to prove that users will pay annually for Indian AI food logging.
 
-If LogMyPlate reaches 250-300 annual subscribers by December, the wearable idea
-becomes much more credible. At that point, the app has proof of demand, a list of
-committed users, and a reason to negotiate with wearable ODMs from a position of
-strength instead of hope.
+If LogMyPlate reaches Rs 5-6 lakh gross revenue or roughly 200-240 annual
+subscribers by December, the wearable idea becomes much more credible. At that
+point, the app has proof of demand, a list of committed users, and a reason to
+negotiate with wearable ODMs from a position of strength instead of hope.

@@ -8,7 +8,7 @@ behavior is added in later phases.
 
 - Status: implemented, pending deployment.
 - Runtime config key: `engagement_policy`.
-- Default behavior: review prompts, interstitial ads, FCM push reminders,
+- Default behavior: review prompts, interstitial ads, push reminders,
   streaks, and scan rewards are disabled. Rewarded ad scan earning keeps the
   existing default cap of 5 scans per day unless changed in Growth Controls.
 - Compatibility rule: old mobile builds ignore the new bootstrap field, and the
@@ -149,7 +149,7 @@ behavior is added in later phases.
   - Existing mobile builds see the credits through their normal quota/bootstrap
     responses; no app release is required.
 
-## Phase 5: FCM Push Notification Runtime
+## Phase 5: Platform Push Notification Runtime
 
 - Status: implemented and manually verified; scheduled runner implemented
   locally, pending deployment and scheduler activation.
@@ -157,9 +157,12 @@ behavior is added in later phases.
 - Default behavior: disabled.
 - Mobile behavior:
   - The app does not schedule local reminders.
-  - When `notifications.enabled` is true and Firebase options are present, the
-    app requests push permission and registers its FCM token with
+  - When `notifications.enabled` is true, the app requests push permission and
+    registers a platform push token with
     `PUT /v1/devices/push-token`.
+  - iOS registers the raw APNs token and marks whether that token should route
+    through APNs sandbox or production.
+  - Android registers the Firebase Cloud Messaging registration token.
   - When `notifications.enabled` is false, the app does not request push
     permission or register tokens.
   - Token registration is diagnostics-only and does not affect bootstrap,
@@ -172,10 +175,12 @@ behavior is added in later phases.
   - Scheduled reminder attempts are tracked in `push_reminder_runs` and
     `push_reminder_deliveries`.
   - Raw tokens are treated as sensitive and are not returned through bootstrap.
+  - Manual and scheduled sends route iOS tokens through APNs and Android tokens
+    through FCM.
   - Manual admin sends use `POST /admin/push-notifications/send`.
   - Broadcast sends require `confirmAll = SEND_TO_ALL`.
-  - Firebase server credentials are optional at boot; sends return
-    `push_provider_not_configured` until configured.
+  - Push provider credentials are optional at boot; sends return
+    `push_provider_not_configured` until at least one provider is configured.
   - Scheduled sends use `GET /internal/cron/push-reminders` with
     `Authorization: Bearer <CRON_SECRET>`.
   - The runner reads Growth Controls notification scenario timing, quiet hours,
@@ -185,11 +190,15 @@ behavior is added in later phases.
   - Target setup can use a primary and secondary window, allowing up to two
     target setup reminders per user local day when the user has not set a
     target.
-  - Invalid/unregistered FCM tokens are disabled after failed delivery.
+  - Invalid/unregistered push tokens are disabled after failed delivery.
   - Scheduler run and delivery history is retained for 14 days, then cleaned up
     by the runner.
 - Scheduler operations:
-  - Required API env: `CRON_SECRET`, `FIREBASE_PROJECT_ID`, and
+  - Required scheduler env: `CRON_SECRET`.
+  - Required iOS APNs API env: `APNS_KEY_BASE64`, `APNS_KEY_ID`,
+    `APNS_TEAM_ID`, and optional `APNS_BUNDLE_ID` when the bundle ID differs
+    from `com.logmyplate.app`.
+  - Required Android FCM API env: `FIREBASE_PROJECT_ID`, and
     `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64` or `FIREBASE_SERVICE_ACCOUNT_JSON`.
   - Recommended free scheduler: GitHub Actions workflow
     `.github/workflows/push-reminders.yml`, running every 15 minutes.
