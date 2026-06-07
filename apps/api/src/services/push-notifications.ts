@@ -1,3 +1,5 @@
+import * as crypto from "node:crypto";
+import * as http2 from "node:http2";
 import { JWT } from "google-auth-library";
 import type { ApiConfig } from "../config.js";
 
@@ -6,6 +8,12 @@ export type PushNotificationMessage = {
   title: string;
   body: string;
   data?: Record<string, string>;
+};
+
+/** Extended message type that includes routing info for the push notification router. */
+export type RoutedPushNotificationMessage = PushNotificationMessage & {
+  provider: "fcm" | "apns";
+  apnsSandbox?: boolean | null;
 };
 
 export type PushNotificationSendResult = {
@@ -126,6 +134,197 @@ export class FirebaseCloudMessagingSender {
     };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Apple Push Notification service (APNs) — direct HTTP/2 sender
+// ---------------------------------------------------------------------------
+
+export type ApnsConfig = {
+  apnsKeyBase64?: string;
+  apnsKeyId?: string;
+  apnsTeamId?: string;
+  apnsBundleId?: string;
+};
+
+type CachedApnsJwt = { token: string; expiresAt: number };
+
+const APNS_JWT_LIFETIME_MS = 50 * 60 * 1_000; // 50 minutes (Apple allows 1 hour)
+const APNS_PRODUCTION_HOST = "api.push.apple.com";
+const APNS_SANDBOX_HOST = "api.sandbox.push.apple.com";
+
+export class ApplePushNotificationSender {
+  private readonly keyId: string;
+  private readonly teamId: string;
+  private readonly bundleId: string;
+  private readonly privateKey: string;
+  private cachedJwt: CachedApnsJwt | null = null;
+
+  constructor(options: ApnsConfig) {
+    const keyBase64 = options.apnsKeyBase64?.trim();
+    const keyId = options.apnsKeyId?.trim();
+    const teamId = options.apnsTeamId?.trim();
+    if (!keyBase64 || !keyId || !teamId) {
+      throw new PushNotificationConfigurationError(
+        "APNS_KEY_BASE64, APNS_KEY_ID, and APNS_TEAM_ID are all required for direct APNs.",
+      );
+    }
+    this.keyId = keyId;
+    this.teamId = teamId;
+    this.bundleId = options.apnsBundleId?.trim() || "com.logmyplate.app";
+    this.privateKey = Buffer.from(keyBase64, "base64").toString("utf8").trim();
+    if (!this.privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
+      throw new PushNotificationConfigurationError(
+        "APNS_KEY_BASE64 does not contain a valid PKCS#8 PEM private key.",
+      );
+    }
+  }
+
+  static isConfigured(options: ApnsConfig): boolean {
+    return Boolean(
+      options.apnsKeyBase64?.trim() && options.apnsKeyId?.trim() && options.apnsTeamId?.trim(),
+    );
+  }
+
+  async send(
+    message: PushNotificationMessage,
+    sandbox?: boolean | null,
+  ): Promise<PushNotificationSendResult> {
+    const jwt = this.getOrCreateJwt();
+    const host = sandbox ? APNS_SANDBOX_HOST : APNS_PRODUCTION_HOST;
+
+    return new Promise<PushNotificationSendResult>((resolve, reject) => {
+      const client = http2.connect(`https://${host}:443`);
+
+      client.on("error", (error) => {
+        reject(new Error(`APNs HTTP/2 connection failed: ${error.message}`));
+      });
+
+      const requestBody = JSON.stringify({
+        aps: {
+          alert: {
+            title: message.title,
+            body: message.body,
+          },
+          sound: "default",
+        },
+        ...Object.fromEntries(
+          Object.entries(message.data ?? {}).map(([key, value]) => [key, value]),
+        ),
+      });
+
+      const req = client.request({
+        ":method": "POST",
+        ":path": `/3/device/${message.token}`,
+        authorization: `bearer ${jwt}`,
+        "apns-topic": this.bundleId,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "content-type": "application/json",
+        "content-length": String(Buffer.byteLength(requestBody)),
+      });
+
+      let responseData = "";
+      let statusCode = 0;
+
+      req.on("response", (headers) => {
+        statusCode = Number(headers[":status"]);
+      });
+
+      req.on("data", (chunk: Buffer) => {
+        responseData += chunk.toString();
+      });
+
+      req.on("end", () => {
+        client.close();
+        if (statusCode >= 200 && statusCode < 300) {
+          resolve({ success: true, status: statusCode });
+          return;
+        }
+
+        let apnsReason: string | undefined;
+        try {
+          const body = JSON.parse(responseData) as { reason?: string };
+          apnsReason = body.reason;
+        } catch {
+          // ignore parse failures
+        }
+        resolve({
+          success: false,
+          status: statusCode,
+          errorCode: apnsReason ?? `apns_http_${statusCode}`,
+          errorReason: apnsReason,
+        });
+      });
+
+      req.on("error", (error) => {
+        client.close();
+        reject(error);
+      });
+
+      req.write(requestBody);
+      req.end();
+
+      // Timeout safety — Vercel functions have a 10s limit
+      setTimeout(() => {
+        client.close();
+        resolve({
+          success: false,
+          status: 504,
+          errorCode: "APNS_TIMEOUT",
+          errorReason: "APNs request timed out",
+        });
+      }, 8_000);
+    });
+  }
+
+  private getOrCreateJwt(): string {
+    const now = Date.now();
+    if (this.cachedJwt && now < this.cachedJwt.expiresAt) {
+      return this.cachedJwt.token;
+    }
+
+    const header = { alg: "ES256", kid: this.keyId };
+    const payload = { iss: this.teamId, iat: Math.floor(now / 1_000) };
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const signingInput = `${encodedHeader}.${encodedPayload}`;
+
+    const signature = crypto.sign("SHA256", Buffer.from(signingInput), {
+      key: this.privateKey,
+      dsaEncoding: "ieee-p1363",
+    });
+
+    const token = `${signingInput}.${signature.toString("base64url")}`;
+    this.cachedJwt = { token, expiresAt: now + APNS_JWT_LIFETIME_MS };
+    return token;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Router — sends iOS via APNs, Android via FCM
+// ---------------------------------------------------------------------------
+
+export class PushNotificationRouter {
+  constructor(
+    private readonly fcm: FirebaseCloudMessagingSender,
+    private readonly apns: ApplePushNotificationSender | null,
+  ) {}
+
+  get configured(): boolean {
+    return this.fcm.configured || this.apns !== null;
+  }
+
+  async send(message: RoutedPushNotificationMessage): Promise<PushNotificationSendResult> {
+    if (message.provider === "apns" && this.apns) {
+      return this.apns.send(message, message.apnsSandbox);
+    }
+    return this.fcm.send(message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 export const pushNotificationFailureKey = (result: PushNotificationSendResult): string => {
   const code = result.errorCode ?? `http_${result.status}`;

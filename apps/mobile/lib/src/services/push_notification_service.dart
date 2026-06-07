@@ -72,10 +72,38 @@ class FirebasePushNotificationRegistrar implements PushNotificationRegistrar {
         badge: true,
         sound: true,
       );
-      final token = await messaging.getToken();
-      if (token == null || token.trim().isEmpty) return;
-      await _registerToken(token.trim(), permissionStatus);
-      _listenForTokenRefresh(messaging);
+
+      if (_isIos) {
+        // iOS: Register the raw APNs device token for direct APNs delivery,
+        // bypassing Firebase's broken APNs key handling.
+        final apnsToken = await messaging.getAPNSToken();
+        if (apnsToken == null || apnsToken.trim().isEmpty) return;
+
+        // Detect APNs sandbox: debug/profile builds always use sandbox.
+        // Release builds use production unless the API points at a non-prod URL,
+        // which covers TestFlight testing against staging environments.
+        final isSandbox = kDebugMode ||
+            kProfileMode ||
+            _apiClient.baseUrl.contains('staging') ||
+            _apiClient.baseUrl.contains('sandbox') ||
+            _apiClient.baseUrl.contains('localhost') ||
+            _apiClient.baseUrl.contains('127.0.0.1');
+
+        await _registerToken(
+          apnsToken.trim(),
+          permissionStatus,
+          provider: 'apns',
+          apnsSandbox: isSandbox,
+        );
+        // No token refresh listener for APNs tokens — they are re-fetched on
+        // each sync call (triggered by app lifecycle).
+      } else {
+        // Android: Keep using FCM tokens as before.
+        final token = await messaging.getToken();
+        if (token == null || token.trim().isEmpty) return;
+        await _registerToken(token.trim(), permissionStatus);
+        _listenForTokenRefresh(messaging);
+      }
     } catch (error, stackTrace) {
       AppDiagnostics.instance.record(
         'push_notifications.sync',
@@ -100,16 +128,22 @@ class FirebasePushNotificationRegistrar implements PushNotificationRegistrar {
     return _messaging ?? FirebaseMessaging.instance;
   }
 
-  Future<void> _registerToken(String token, String permissionStatus) async {
+  Future<void> _registerToken(
+    String token,
+    String permissionStatus, {
+    String provider = 'fcm',
+    bool? apnsSandbox,
+  }) async {
     if (_lastRegisteredToken == token &&
         _lastPermissionStatus == permissionStatus) {
       return;
     }
     await _apiClient.registerPushToken(
       token: token,
-      provider: 'fcm',
+      provider: provider,
       platform: _platformName,
       permissionStatus: permissionStatus,
+      apnsSandbox: apnsSandbox,
     );
     _lastRegisteredToken = token;
     _lastPermissionStatus = permissionStatus;
@@ -147,6 +181,8 @@ class FirebasePushNotificationRegistrar implements PushNotificationRegistrar {
       defaultTargetPlatform == TargetPlatform.iOS ||
       defaultTargetPlatform == TargetPlatform.android;
 
+  bool get _isIos => defaultTargetPlatform == TargetPlatform.iOS;
+
   String get _platformName =>
       defaultTargetPlatform == TargetPlatform.android ? 'android' : 'ios';
 
@@ -164,3 +200,4 @@ class FirebasePushNotificationRegistrar implements PushNotificationRegistrar {
     };
   }
 }
+

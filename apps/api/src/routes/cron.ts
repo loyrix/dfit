@@ -4,8 +4,10 @@ import { config } from "../config.js";
 import type { SqlClient } from "../db/client.js";
 import { loadEngagementPolicy } from "../services/engagement-policy.js";
 import {
+  ApplePushNotificationSender,
   FirebaseCloudMessagingSender,
   PushNotificationConfigurationError,
+  PushNotificationRouter,
 } from "../services/push-notifications.js";
 import { runScheduledPushReminders } from "../services/push-reminders.js";
 
@@ -36,7 +38,11 @@ export const registerCronRoutes = async (app: FastifyInstance, sql?: SqlClient):
     }
 
     const query = cronQuerySchema.parse(request.query ?? {});
-    const sender = new FirebaseCloudMessagingSender(config.push);
+    const fcmSender = new FirebaseCloudMessagingSender(config.push);
+    const apnsSender = ApplePushNotificationSender.isConfigured(config.push)
+      ? new ApplePushNotificationSender(config.push)
+      : null;
+    const sender = new PushNotificationRouter(fcmSender, apnsSender);
     if (!sender.configured && !query.dryRun) {
       return reply.status(503).send({
         error: "push_provider_not_configured",

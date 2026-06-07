@@ -24,6 +24,8 @@ const candidate = (overrides: Partial<ReminderCandidate> = {}): ReminderCandidat
       id: "token-1",
       token: "fcm-token",
       tokenHash: "token-hash",
+      provider: "fcm",
+      apnsSandbox: null,
     },
   ],
   ...overrides,

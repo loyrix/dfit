@@ -62,16 +62,19 @@ class LogMyPlateApiClient {
     required String provider,
     required String platform,
     required String permissionStatus,
+    bool? apnsSandbox,
   }) async {
+    final body = <String, dynamic>{
+      'provider': provider,
+      'token': token,
+      'platform': platform,
+      'permissionStatus': permissionStatus,
+    };
+    if (apnsSandbox != null) body['apnsSandbox'] = apnsSandbox;
     final response = await _httpClient.put(
       Uri.parse('$baseUrl/v1/devices/push-token'),
       headers: await _headers(contentTypeJson: true),
-      body: jsonEncode({
-        'provider': provider,
-        'token': token,
-        'platform': platform,
-        'permissionStatus': permissionStatus,
-      }),
+      body: jsonEncode(body),
     );
     _throwIfBad(response);
   }

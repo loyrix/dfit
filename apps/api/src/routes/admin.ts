@@ -18,8 +18,10 @@ import {
   parseEngagementPolicy,
 } from "../services/engagement-policy.js";
 import {
+  ApplePushNotificationSender,
   FirebaseCloudMessagingSender,
   PushNotificationConfigurationError,
+  PushNotificationRouter,
   pushNotificationFailureKey,
 } from "../services/push-notifications.js";
 
@@ -377,7 +379,11 @@ export const registerAdminRoutes = async (
         });
       }
       const body = parsed.data;
-      const sender = new FirebaseCloudMessagingSender(config.push);
+      const fcmSender = new FirebaseCloudMessagingSender(config.push);
+      const apnsSender = ApplePushNotificationSender.isConfigured(config.push)
+        ? new ApplePushNotificationSender(config.push)
+        : null;
+      const sender = new PushNotificationRouter(fcmSender, apnsSender);
       if (!sender.configured) {
         return reply.status(503).send({
           error: "push_provider_not_configured",
@@ -3131,6 +3137,8 @@ type PushNotificationTargetRow = {
   id: string;
   token: string;
   token_hash: string;
+  provider: "fcm" | "apns";
+  apns_sandbox: boolean | null;
 };
 
 type PushNotificationDelivery = {
@@ -3148,7 +3156,7 @@ const listPushNotificationTargets = async (
   const targetProfileId = input.targetType === "profile" ? input.profileId : undefined;
   const targetInstallId = input.targetType === "install" ? input.installId : undefined;
   return sql<PushNotificationTargetRow[]>`
-    select id::text, token, token_hash
+    select id::text, token, token_hash, provider, apns_sandbox
     from push_notification_tokens
     where enabled = true
       and permission_status in ('authorized', 'provisional')
@@ -3161,7 +3169,7 @@ const listPushNotificationTargets = async (
 
 const sendPushNotificationToTargets = async (
   sql: SqlClient,
-  sender: FirebaseCloudMessagingSender,
+  sender: PushNotificationRouter,
   input: z.infer<typeof sendPushNotificationSchema>,
   targets: PushNotificationTargetRow[],
 ): Promise<PushNotificationDelivery> => {
@@ -3180,6 +3188,8 @@ const sendPushNotificationToTargets = async (
       title: input.title,
       body: input.body,
       data,
+      provider: target.provider,
+      apnsSandbox: target.apns_sandbox,
     });
     if (result.success) {
       sent += 1;

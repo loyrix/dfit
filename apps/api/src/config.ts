@@ -41,6 +41,10 @@ export type ApiConfig = {
     firebaseProjectId?: string;
     firebaseCredentialsJson?: string;
     firebaseCredentialsJsonBase64?: string;
+    apnsKeyBase64?: string;
+    apnsKeyId?: string;
+    apnsTeamId?: string;
+    apnsBundleId?: string;
   };
   revenueCat: {
     restApiKey?: string;
@@ -120,6 +124,10 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       firebaseCredentialsJsonBase64:
         emptyToUndefined(env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64) ??
         emptyToUndefined(env.GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64),
+      apnsKeyBase64: emptyToUndefined(env.APNS_KEY_BASE64),
+      apnsKeyId: emptyToUndefined(env.APNS_KEY_ID),
+      apnsTeamId: emptyToUndefined(env.APNS_TEAM_ID),
+      apnsBundleId: emptyToUndefined(env.APNS_BUNDLE_ID),
     },
     revenueCat: {
       restApiKey: emptyToUndefined(env.REVENUECAT_REST_API_KEY),

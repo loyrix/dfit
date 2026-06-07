@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const pushProviderSchema = z.enum(["fcm"]);
+export const pushProviderSchema = z.enum(["fcm", "apns"]);
 
 export const pushTokenPlatformSchema = z.enum(["ios", "android"]);
 
@@ -17,6 +17,7 @@ export const registerPushTokenRequestSchema = z.object({
   token: z.string().trim().min(16).max(4096),
   platform: pushTokenPlatformSchema.optional(),
   permissionStatus: pushPermissionStatusSchema.default("unknown"),
+  apnsSandbox: z.boolean().optional(),
 });
 
 export const registerPushTokenResponseSchema = z.object({

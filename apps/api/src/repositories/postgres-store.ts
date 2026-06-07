@@ -1889,7 +1889,7 @@ export class PostgresStore implements AppRepository {
       {
         profile_id: string;
         install_id: string;
-        provider: "fcm";
+        provider: "fcm" | "apns";
         platform: "ios" | "android";
         registered_at: string;
       }[]
@@ -1906,7 +1906,8 @@ export class PostgresStore implements AppRepository {
         region,
         timezone,
         app_version,
-        app_build
+        app_build,
+        apns_sandbox
       )
       values (
         ${profile.id},
@@ -1920,7 +1921,8 @@ export class PostgresStore implements AppRepository {
         ${identity.region ?? null},
         ${identity.timezone ?? null},
         ${identity.appVersion ?? null},
-        ${identity.appBuild ?? null}
+        ${identity.appBuild ?? null},
+        ${input.apnsSandbox ?? null}
       )
       on conflict (provider, token_hash) do update
       set
@@ -1934,6 +1936,7 @@ export class PostgresStore implements AppRepository {
         timezone = excluded.timezone,
         app_version = coalesce(excluded.app_version, push_notification_tokens.app_version),
         app_build = coalesce(excluded.app_build, push_notification_tokens.app_build),
+        apns_sandbox = excluded.apns_sandbox,
         enabled = true,
         disabled_at = null,
         last_registered_at = now(),

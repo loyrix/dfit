@@ -249,16 +249,17 @@ export type RecordSubscriptionEventInput = {
 };
 
 export type PushTokenRegistrationInput = {
-  provider: "fcm";
+  provider: "fcm" | "apns";
   token: string;
   platform?: "ios" | "android";
   permissionStatus?: "authorized" | "provisional" | "denied" | "not_determined" | "unknown";
+  apnsSandbox?: boolean;
 };
 
 export type PushTokenRegistrationResult = {
   profileId: string;
   installId: string;
-  provider: "fcm";
+  provider: "fcm" | "apns";
   platform: "ios" | "android";
   registeredAt: string;
 };

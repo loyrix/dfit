@@ -1,6 +1,6 @@
 import type { EngagementPolicyConfig } from "./engagement-policy.js";
 import {
-  FirebaseCloudMessagingSender,
+  PushNotificationRouter,
   pushNotificationFailureKey,
   type PushNotificationSendResult,
 } from "./push-notifications.js";
@@ -21,6 +21,8 @@ type ReminderToken = {
   id: string;
   token: string;
   tokenHash: string;
+  provider: "fcm" | "apns";
+  apnsSandbox: boolean | null;
 };
 
 type ReminderMealSummary = {
@@ -102,7 +104,7 @@ export type ScheduledPushReminderSummary = {
 export type RunScheduledPushRemindersInput = {
   sql: SqlClient;
   policy: EngagementPolicyConfig;
-  sender: FirebaseCloudMessagingSender;
+  sender: PushNotificationRouter;
   now?: Date;
   dryRun?: boolean;
   limit?: number;
@@ -400,7 +402,9 @@ const listReminderCandidates = async (
         jsonb_build_object(
           'id', push_notification_tokens.id::text,
           'token', push_notification_tokens.token,
-          'tokenHash', push_notification_tokens.token_hash
+          'tokenHash', push_notification_tokens.token_hash,
+          'provider', push_notification_tokens.provider,
+          'apnsSandbox', push_notification_tokens.apns_sandbox
         )
         order by push_notification_tokens.last_seen_at desc
       ) as tokens,
@@ -535,7 +539,7 @@ type PushReminderDeliveryResult = {
 
 const sendReminderToCandidate = async (
   sql: SqlClient,
-  sender: FirebaseCloudMessagingSender,
+  sender: PushNotificationRouter,
   candidate: ReminderCandidate,
   decision: Extract<ReminderDecision, { shouldSend: true }>,
 ): Promise<PushReminderDeliveryResult> => {
@@ -558,6 +562,8 @@ const sendReminderToCandidate = async (
           localDate: candidate.localDate,
           deeplink: decision.deeplink,
         },
+        provider: target.provider,
+        apnsSandbox: target.apnsSandbox,
       });
     } catch {
       failed += 1;
@@ -624,7 +630,15 @@ const updateReminderDelivery = async (
 const parseTokens = (value: unknown): ReminderToken[] =>
   parseJsonArray<Partial<ReminderToken>>(value).flatMap((token) => {
     if (!token.id || !token.token || !token.tokenHash) return [];
-    return [{ id: token.id, token: token.token, tokenHash: token.tokenHash }];
+    return [
+      {
+        id: token.id,
+        token: token.token,
+        tokenHash: token.tokenHash,
+        provider: token.provider === "apns" ? "apns" : "fcm",
+        apnsSandbox: token.apnsSandbox ?? null,
+      },
+    ];
   });
 
 const parseJsonArray = <T>(value: unknown): T[] => {
