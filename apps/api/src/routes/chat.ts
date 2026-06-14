@@ -271,14 +271,23 @@ export const registerChatRoutes = async (
       });
     }
 
+    const toIso = (d: string | null | undefined): string => {
+      if (!d) return new Date().toISOString();
+      try {
+        return new Date(d).toISOString();
+      } catch {
+        return new Date().toISOString();
+      }
+    };
+
     return chatHistoryResponseSchema.parse({
       ...history,
       sessionId: params.sessionId,
-      createdAt: new Date(history.createdAt).toISOString(),
+      createdAt: toIso(history.createdAt),
       messages: history.messages.map((m) => ({
         role: m.role,
         content: m.content,
-        createdAt: new Date(m.createdAt).toISOString(),
+        createdAt: toIso(m.createdAt),
       })),
     });
   });
