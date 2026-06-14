@@ -4162,14 +4162,14 @@ export class PostgresStore implements AppRepository {
         }?,
       ]
     >`
-      select id, turn_count, max_turns, created_at::text
+      select id, turn_count, max_turns, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.USOF') as created_at
       from chat_sessions
       where id = ${sessionId}
     `;
     if (!session) return undefined;
 
     const messages = await this.sql<Array<{ role: string; content: string; created_at: string }>>`
-      select role, content, created_at::text
+      select role, content, to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.USOF') as created_at
       from chat_messages
       where session_id = ${sessionId}
       order by turn_number, created_at

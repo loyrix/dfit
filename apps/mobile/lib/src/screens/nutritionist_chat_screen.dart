@@ -221,6 +221,8 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   }
                 },
               ),
+              if (ctrl.readOnly && ctrl.messages.isNotEmpty)
+                _ReadOnlyBanner(colors: colors, messageCount: ctrl.turnNumber),
               Expanded(
                 child: _buildMessageList(ctrl, colors),
               ),
@@ -238,10 +240,11 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 ),
               if (ctrl.readOnly && ctrl.messages.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
+                    height: 52,
+                    child: FilledButton.icon(
                       onPressed: () {
                         final fresh = NutritionistController(
                           apiClient: widget.controller.apiClient,
@@ -256,6 +259,13 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                       },
                       icon: const Icon(Icons.add_rounded, size: 18),
                       label: const Text('Start new chat'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.primaryAction,
+                        foregroundColor: colors.primaryActionText,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -283,29 +293,56 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
     if (ctrl.error != null && ctrl.messages.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                ctrl.error!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
+          padding: const EdgeInsets.all(40),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: colors.surfaceCard,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.border, width: 0.5),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive.withValues(alpha: 0.7), size: 36),
+                const SizedBox(height: 12),
+                Text(
+                  'Unable to load',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  if (widget.existingSessionId != null) {
-                    widget.controller.loadExistingSession(widget.existingSessionId!);
-                  } else {
-                    ctrl.startSession(focusMealId: widget.focusMealId);
-                  }
-                },
-                child: const Text('Retry'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  ctrl.error!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      if (widget.existingSessionId != null) {
+                        widget.controller.loadExistingSession(widget.existingSessionId!);
+                      } else {
+                        ctrl.startSession(focusMealId: widget.focusMealId);
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primaryAction,
+                      foregroundColor: colors.primaryActionText,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -374,6 +411,11 @@ class _ChatAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: readOnly ? BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: colors.border, width: 0.3),
+        ),
+      ) : null,
       child: Row(
         children: [
           GestureDetector(onTap: onBack, child: const BackMark()),
@@ -383,13 +425,15 @@ class _ChatAppBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  readOnly ? 'Chat history' : 'AI Nutritionist',
+                  'AI Nutritionist',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.textPrimary,
                   ),
                 ),
                 Text(
-                  readOnly ? '' : 'Based on your last 7 days',
+                  readOnly
+                      ? 'Past session · $turnNumber message${turnNumber == 1 ? '' : 's'}'
+                      : 'Based on your last 7 days',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -398,16 +442,21 @@ class _ChatAppBar extends StatelessWidget {
             ),
           ),
           if (readOnly && onNewChat != null)
-            TextButton.icon(
+            FilledButton.icon(
               onPressed: onNewChat,
-              icon: const Icon(Icons.add_rounded, size: 16),
+              icon: const Icon(Icons.add_rounded, size: 14),
               label: const Text('New chat'),
-              style: TextButton.styleFrom(
+              style: FilledButton.styleFrom(
+                backgroundColor: LogMyPlateColors.accent.withValues(alpha: 0.15),
+                foregroundColor: LogMyPlateColors.accentWarm,
                 visualDensity: VisualDensity.compact,
-                foregroundColor: LogMyPlateColors.accent,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             ),
-          if (!readOnly && !sessionComplete)
+          if (!readOnly && onNewChat == null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -542,6 +591,43 @@ class _SessionCompleteCard extends StatelessWidget {
           ElevatedButton(
             onPressed: onNewSession,
             child: const Text('New session'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadOnlyBanner extends StatelessWidget {
+  const _ReadOnlyBanner({
+    required this.colors,
+    required this.messageCount,
+  });
+
+  final LogMyPlateThemeColors colors;
+  final int messageCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.mutedFill,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.history_rounded, size: 16, color: colors.textTertiary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Viewing a past conversation with $messageCount message${messageCount == 1 ? '' : 's'}. Start a new session to ask fresh questions.',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textSecondary,
+                height: 1.3,
+              ),
+            ),
           ),
         ],
       ),
