@@ -11,6 +11,7 @@ const skipsIdempotency = (request: FastifyRequest): boolean => {
   if (request.method === "POST" && request.url === "/v1/subscription/revenuecat/webhook") {
     return true;
   }
+  if (request.method === "POST" && request.url.startsWith("/v1/chat/")) return true;
   return false;
 };
 

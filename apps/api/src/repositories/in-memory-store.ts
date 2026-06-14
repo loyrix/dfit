@@ -180,6 +180,30 @@ export class InMemoryStore implements AppRepository {
   private readonly rewardedAdServerVerifications = new Map<string, RewardedAdServerVerification>();
   private readonly rewardedAdTransactions = new Set<string>();
   private readonly pushTokens = new Map<string, PushTokenRegistrationResult>();
+  private readonly chatSessions = new Map<
+    string,
+    {
+      id: string;
+      profileId: string;
+      sessionDate: string;
+      turnCount: number;
+      maxTurns: number;
+      contextSnapshot: unknown;
+      messages: Array<{
+        id: string;
+        sessionId: string;
+        role: "system" | "user" | "assistant";
+        content: string;
+        turnNumber: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        latencyMs?: number;
+        createdAt: string;
+      }>;
+      createdAt: string;
+      closedAt?: string;
+    }
+  >();
   private readonly profileLifecycleEvents: Array<{
     profileId: string;
     eventType: ProfileLifecycleEventType;
@@ -1222,6 +1246,117 @@ export class InMemoryStore implements AppRepository {
     imageHash: string,
   ): string {
     return `${profileId}:${hashAlgorithm}:${imageHash}`;
+  }
+
+  async countChatSessionsToday(profileId: string): Promise<number> {
+    const today = localDateForTimezone("UTC");
+    let count = 0;
+    for (const session of this.chatSessions.values()) {
+      if (session.profileId === profileId && session.sessionDate === today) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  async createChatSession(input: {
+    profileId: string;
+    maxTurns: number;
+    contextSnapshot: unknown;
+  }): Promise<{ id: string; sessionDate: string; createdAt: string }> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const sessionDate = localDateForTimezone("UTC");
+    this.chatSessions.set(id, {
+      id,
+      profileId: input.profileId,
+      sessionDate,
+      turnCount: 0,
+      maxTurns: input.maxTurns,
+      contextSnapshot: input.contextSnapshot,
+      messages: [],
+      createdAt: now,
+    });
+    return { id, sessionDate, createdAt: now };
+  }
+
+  async closeChatSession(sessionId: string, turnCount: number): Promise<void> {
+    const session = this.chatSessions.get(sessionId);
+    if (session) {
+      session.turnCount = turnCount;
+      session.closedAt = new Date().toISOString();
+    }
+  }
+
+  async appendChatMessage(input: {
+    sessionId: string;
+    role: "system" | "user" | "assistant";
+    content: string;
+    turnNumber: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    latencyMs?: number;
+  }): Promise<void> {
+    const session = this.chatSessions.get(input.sessionId);
+    if (!session) return;
+    session.messages.push({
+      id: randomUUID(),
+      sessionId: input.sessionId,
+      role: input.role,
+      content: input.content,
+      turnNumber: input.turnNumber,
+      inputTokens: input.inputTokens,
+      outputTokens: input.outputTokens,
+      latencyMs: input.latencyMs,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async getChatHistory(sessionId: string): Promise<
+    | {
+        messages: Array<{ role: string; content: string; createdAt: string }>;
+        turnCount: number;
+        maxTurns: number;
+        createdAt: string;
+      }
+    | undefined
+  > {
+    const session = this.chatSessions.get(sessionId);
+    if (!session) return undefined;
+    return {
+      messages: session.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        createdAt: m.createdAt,
+      })),
+      turnCount: session.turnCount,
+      maxTurns: session.maxTurns,
+      createdAt: session.createdAt,
+    };
+  }
+
+  async listChatSessions(
+    profileId: string,
+    limit?: number,
+  ): Promise<
+    Array<{
+      id: string;
+      turnCount: number;
+      createdAt: string;
+      closedAt?: string;
+    }>
+  > {
+    const sessions = Array.from(this.chatSessions.values())
+      .filter((s) => s.profileId === profileId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
+      .map((s) => ({
+        id: s.id,
+        turnCount: s.turnCount,
+        createdAt: s.createdAt,
+        closedAt: s.closedAt,
+      }));
+    return sessions;
   }
 }
 

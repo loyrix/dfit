@@ -21,8 +21,10 @@ import { registerScanRoutes } from "./routes/scans.js";
 import { registerSubscriptionRoutes } from "./routes/subscriptions.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerCronRoutes } from "./routes/cron.js";
+import { registerChatRoutes } from "./routes/chat.js";
 import { config } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
+import { createChatAiProvider, type ChatAiProvider } from "./services/chat-ai-provider.js";
 import {
   GoogleAdMobRewardedAdVerifier,
   type AdMobRewardedAdVerifier,
@@ -32,6 +34,7 @@ import {
   type OAuthIdentityVerifier,
 } from "./services/oauth-identity-verifier.js";
 import { MockAiProvider } from "./services/mock-ai-provider.js";
+import { MockChatAiProvider } from "./services/mock-chat-ai-provider.js";
 import { registerBootstrapRoutes } from "./routes/bootstrap.js";
 import { createMealImageStorage, type MealImageStorage } from "./services/meal-image-storage.js";
 import {
@@ -43,6 +46,7 @@ export type BuildAppOptions = {
   repository?: AppRepository;
   sql?: SqlClient;
   aiProvider?: AiProvider;
+  chatAiProvider?: ChatAiProvider;
   rewardedAdVerifier?: AdMobRewardedAdVerifier;
   requireRewardedAdServerVerification?: boolean;
   oauthVerifier?: OAuthIdentityVerifier;
@@ -68,6 +72,9 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   const aiProvider =
     options.aiProvider ??
     (config.nodeEnv === "test" ? new MockAiProvider() : createAiProvider(config, sql));
+  const chatAiProvider =
+    options.chatAiProvider ??
+    (config.nodeEnv === "test" ? new MockChatAiProvider() : createChatAiProvider(config));
   const mealImageStorage = options.mealImageStorage ?? createMealImageStorage(config);
   const oauthVerifier = options.oauthVerifier ?? new ConfiguredOAuthIdentityVerifier(config.auth);
   const passwordResetEmailSender =
@@ -118,6 +125,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
   await registerAdminRoutes(app, sql, mealImageStorage);
   await registerCronRoutes(app, sql);
+  await registerChatRoutes(app, repository, chatAiProvider, config.chat);
 
   return app;
 };

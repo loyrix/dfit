@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/captured_meal_photo.dart';
 import '../models/auth_session.dart';
+import '../models/chat.dart';
 import '../models/meal.dart';
 import 'account_session_store.dart';
 import 'app_build_info.dart';
@@ -480,6 +481,64 @@ class LogMyPlateApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw LogMyPlateApiException(response.statusCode, response.body);
     }
+  }
+
+  Future<ChatSession> createNutritionistSession({String? focusMealId}) async {
+    final body = <String, dynamic>{};
+    if (focusMealId != null) body['focusMealId'] = focusMealId;
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/chat/nutritionist/session'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode(body),
+    );
+    _throwIfBad(response);
+    return ChatSession.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<ChatReply> sendNutritionistMessage({
+    required String sessionId,
+    required String message,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/chat/nutritionist/message'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode({
+        'sessionId': sessionId,
+        'message': message,
+      }),
+    );
+    _throwIfBad(response);
+    return ChatReply.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<ChatSessionSummary>> listNutritionistSessions() async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v1/chat/nutritionist/sessions'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = body['sessions'] as List<dynamic>;
+    return list
+        .map((s) => ChatSessionSummary.fromJson(s as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<ChatMessage>> getNutritionistSessionMessages(String sessionId) async {
+    final response = await _httpClient.get(
+      Uri.parse('$baseUrl/v1/chat/nutritionist/sessions/$sessionId/messages'),
+      headers: await _headers(),
+    );
+    _throwIfBad(response);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = body['messages'] as List<dynamic>;
+    return list
+        .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Map<String, String>> _headers({

@@ -10,6 +10,7 @@ import '../widgets/logmyplate_notice.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
 import '../widgets/meal_delete_controls.dart';
+import '../widgets/nutritionist_entry_button.dart';
 import '../widgets/primitive_icons.dart';
 
 class TodayScreen extends StatelessWidget {
@@ -37,6 +38,7 @@ class TodayScreen extends StatelessWidget {
     required this.onOpenMeal,
     required this.onDeleteMeal,
     required this.onOpenWeeklyJournal,
+    this.onOpenNutritionist,
   });
 
   final List<MealLog> meals;
@@ -61,6 +63,7 @@ class TodayScreen extends StatelessWidget {
   final ValueChanged<MealLog> onOpenMeal;
   final Future<void> Function(MealLog meal) onDeleteMeal;
   final VoidCallback onOpenWeeklyJournal;
+  final VoidCallback? onOpenNutritionist;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +147,13 @@ class TodayScreen extends StatelessWidget {
                         syncing: loading || weeklyJournalOpening,
                         opening: weeklyJournalOpening,
                         hasSyncIssue: syncMessage != null,
+                      ),
+                    ],
+                    if (onOpenNutritionist != null) ...[
+                      const SizedBox(height: 12),
+                      NutritionistEntryButton(
+                        isPremium: false,
+                        onTap: onOpenNutritionist!,
                       ),
                     ],
                     const SizedBox(height: 22),

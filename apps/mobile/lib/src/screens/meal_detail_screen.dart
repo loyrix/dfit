@@ -15,12 +15,14 @@ class MealDetailScreen extends StatefulWidget {
     required this.meal,
     this.onUpdateMeal,
     this.onDeleteMeal,
+    this.onAskNutritionist,
   });
 
   final MealLog meal;
   final Future<MealLog> Function(MealLog meal, List<MealItem> items)?
   onUpdateMeal;
   final Future<void> Function(MealLog meal)? onDeleteMeal;
+  final void Function(MealLog meal)? onAskNutritionist;
 
   @override
   State<MealDetailScreen> createState() => _MealDetailScreenState();

@@ -464,6 +464,8 @@ void main() {
     );
     await _pumpAppFrame(tester);
 
+    await tester.ensureVisible(find.text('Add manually'));
+    await tester.pump();
     await tester.tap(find.text('Add manually'));
     await _pumpAppFrame(tester);
 

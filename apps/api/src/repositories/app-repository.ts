@@ -359,4 +359,42 @@ export interface AppRepository {
   countNoFoodScanAttemptsSince(sinceIso: string): Promise<number>;
   getIdempotent(key: string): Promise<IdempotencyRecord | undefined>;
   setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">): Promise<void>;
+
+  // Chat
+  countChatSessionsToday(profileId: string): Promise<number>;
+  createChatSession(input: {
+    profileId: string;
+    maxTurns: number;
+    contextSnapshot: unknown;
+  }): Promise<{ id: string; sessionDate: string; createdAt: string }>;
+  closeChatSession(sessionId: string, turnCount: number): Promise<void>;
+  appendChatMessage(input: {
+    sessionId: string;
+    role: "system" | "user" | "assistant";
+    content: string;
+    turnNumber: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    latencyMs?: number;
+  }): Promise<void>;
+  getChatHistory(sessionId: string): Promise<
+    | {
+        messages: Array<{ role: string; content: string; createdAt: string }>;
+        turnCount: number;
+        maxTurns: number;
+        createdAt: string;
+      }
+    | undefined
+  >;
+  listChatSessions(
+    profileId: string,
+    limit?: number,
+  ): Promise<
+    Array<{
+      id: string;
+      turnCount: number;
+      createdAt: string;
+      closedAt?: string;
+    }>
+  >;
 }

@@ -100,7 +100,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'More AI meal scans without waiting on ad unlocks.',
+                          'Your personal AI nutrition coach, more meal scans, and no ads.',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: colors.textSecondary,
@@ -113,6 +113,11 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 ],
               ),
               const SizedBox(height: 18),
+              _FeatureRow(
+                icon: Icons.psychology_rounded,
+                title: 'AI Nutritionist — personalized nutrition advice',
+              ),
+              const SizedBox(height: 10),
               _FeatureRow(
                 icon: Icons.auto_awesome_rounded,
                 title: '300 AI meal scans/month',

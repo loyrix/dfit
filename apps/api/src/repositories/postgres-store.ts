@@ -4092,6 +4092,135 @@ export class PostgresStore implements AppRepository {
         : undefined,
     });
   }
+
+  async countChatSessionsToday(profileId: string): Promise<number> {
+    const rows = await this.sql<{ count: number | string }[]>`
+      select count(*)::integer as count
+      from chat_sessions
+      where profile_id = ${profileId}
+        and session_date = current_date
+    `;
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  async createChatSession(input: {
+    profileId: string;
+    maxTurns: number;
+    contextSnapshot: unknown;
+  }): Promise<{ id: string; sessionDate: string; createdAt: string }> {
+    const [row] = await this.sql<[{ id: string; session_date: string; created_at: string }?]>`
+      insert into chat_sessions (profile_id, max_turns, context_snapshot)
+      values (${input.profileId}, ${input.maxTurns}, ${JSON.stringify(input.contextSnapshot)})
+      returning id, session_date::text, created_at::text
+    `;
+    return {
+      id: row!.id,
+      sessionDate: row!.session_date,
+      createdAt: row!.created_at,
+    };
+  }
+
+  async closeChatSession(sessionId: string, turnCount: number): Promise<void> {
+    await this.sql`
+      update chat_sessions
+      set closed_at = now(), turn_count = ${turnCount}
+      where id = ${sessionId}
+    `;
+  }
+
+  async appendChatMessage(input: {
+    sessionId: string;
+    role: "system" | "user" | "assistant";
+    content: string;
+    turnNumber: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    latencyMs?: number;
+  }): Promise<void> {
+    await this.sql`
+      insert into chat_messages (session_id, role, content, turn_number, input_tokens, output_tokens, latency_ms)
+      values (${input.sessionId}, ${input.role}, ${input.content}, ${input.turnNumber}, ${input.inputTokens ?? null}, ${input.outputTokens ?? null}, ${input.latencyMs ?? null})
+    `;
+  }
+
+  async getChatHistory(sessionId: string): Promise<
+    | {
+        messages: Array<{ role: string; content: string; createdAt: string }>;
+        turnCount: number;
+        maxTurns: number;
+        createdAt: string;
+      }
+    | undefined
+  > {
+    const [session] = await this.sql<
+      [
+        {
+          id: string;
+          turn_count: number;
+          max_turns: number;
+          created_at: string;
+        }?,
+      ]
+    >`
+      select id, turn_count, max_turns, created_at::text
+      from chat_sessions
+      where id = ${sessionId}
+    `;
+    if (!session) return undefined;
+
+    const messages = await this.sql<Array<{ role: string; content: string; created_at: string }>>`
+      select role, content, created_at::text
+      from chat_messages
+      where session_id = ${sessionId}
+      order by turn_number, created_at
+    `;
+
+    return {
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        createdAt: m.created_at,
+      })),
+      turnCount: session.turn_count,
+      maxTurns: session.max_turns,
+      createdAt: session.created_at,
+    };
+  }
+
+  async listChatSessions(
+    profileId: string,
+    limit?: number,
+  ): Promise<
+    Array<{
+      id: string;
+      turnCount: number;
+      createdAt: string;
+      closedAt?: string;
+    }>
+  > {
+    const rows = await this.sql<
+      Array<{
+        id: string;
+        turn_count: number;
+        created_at: string;
+        closed_at: string | null;
+      }>
+    >`
+      select id, turn_count, created_at::text, closed_at::text
+      from chat_sessions
+      where profile_id = ${profileId}
+      order by created_at desc
+      limit ${limit ?? 100}
+    `;
+    return rows.map(
+      (r: { id: string; turn_count: number; created_at: string; closed_at: string | null }) => ({
+        id: r.id,
+        turnCount: r.turn_count,
+        createdAt: r.created_at,
+        closedAt: r.closed_at ?? undefined,
+      }),
+    );
+  }
 }
 
 const localDate = () => new Date().toISOString().slice(0, 10);

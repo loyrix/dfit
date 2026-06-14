@@ -79,6 +79,13 @@ export type ApiConfig = {
     s3SecretAccessKey?: string;
     mealImagesBucket: string;
   };
+  chat: {
+    maxOutputTokens: number;
+    maxTurnsPerSession: number;
+    maxSessionsPerDay: number;
+    sessionTtlMs: number;
+    temperature: number;
+  };
 };
 
 type ConfigEnv = Record<string, string | undefined>;
@@ -161,6 +168,13 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       s3AccessKeyId: env.STORAGE_S3_ACCESS_KEY_ID,
       s3SecretAccessKey: env.STORAGE_S3_SECRET_ACCESS_KEY,
       mealImagesBucket: env.STORAGE_BUCKET_MEAL_IMAGES ?? "meal-images",
+    },
+    chat: {
+      maxOutputTokens: Number(env.CHAT_MAX_OUTPUT_TOKENS ?? 1024),
+      maxTurnsPerSession: Number(env.CHAT_MAX_TURNS_PER_SESSION ?? 15),
+      maxSessionsPerDay: Number(env.CHAT_MAX_SESSIONS_PER_DAY ?? 5),
+      sessionTtlMs: Number(env.CHAT_SESSION_TTL_MS ?? 1_800_000),
+      temperature: Number(env.CHAT_TEMPERATURE ?? 0.7),
     },
   };
 

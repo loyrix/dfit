@@ -20,6 +20,7 @@ class JournalController extends ChangeNotifier {
        _analytics = analytics ?? const NoopLogMyPlateAnalytics();
 
   final LogMyPlateApiClient _apiClient;
+  LogMyPlateApiClient get apiClient => _apiClient;
   final JournalCacheStore _cacheStore;
   final LogMyPlateAnalytics _analytics;
 

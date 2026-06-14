@@ -19,6 +19,7 @@ import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
 import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
+import 'screens/nutritionist_chat_screen.dart';
 import 'screens/paywall_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/review_meal_screen.dart';
@@ -37,6 +38,7 @@ import 'services/review_prompt_store.dart';
 import 'services/rewarded_ad_service.dart';
 import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
+import 'state/nutritionist_controller.dart';
 import 'theme/logmyplate_colors.dart';
 import 'theme/logmyplate_theme.dart';
 import 'widgets/logmyplate_notice.dart';
@@ -313,6 +315,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           onOpenMeal: (meal) => _openMealDetail(meal),
           onDeleteMeal: _deleteMeal,
           onOpenWeeklyJournal: _openWeeklyJournal,
+          onOpenNutritionist: _openNutritionistChat,
         );
       },
     );
@@ -475,6 +478,28 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     if (!await _ensureScanAllowed()) return;
     if (!await _confirmDailyTargetScan()) return;
     await _pushCameraFlow();
+  }
+
+  Future<void> _openNutritionistChat({String? focusMealId}) async {
+    if (!_authController.isSignedIn) {
+      final session = await _openAccountHome(AccountGateReason.saveJournal);
+      if (session == null) return;
+    }
+
+    final controller = NutritionistController(
+      apiClient: _journalController.apiClient,
+    );
+
+    await _navigatorKey.currentState!.push<void>(
+      logmyplatePageRoute<void>(
+        builder: (_) => NutritionistChatScreen(
+          controller: controller,
+          focusMealId: focusMealId,
+        ),
+      ),
+    );
+
+    controller.dispose();
   }
 
   Future<void> _pushCameraFlow() async {
@@ -720,6 +745,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
             meal: meal,
             onUpdateMeal: _updateMeal,
             onDeleteMeal: _deleteMeal,
+            onAskNutritionist: (m) => _openNutritionistChat(focusMealId: m.id),
           ),
         ),
       ),
@@ -1381,6 +1407,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           meal: meal,
           onUpdateMeal: _updateMeal,
           onDeleteMeal: _deleteMeal,
+          onAskNutritionist: (m) => _openNutritionistChat(focusMealId: m.id),
         ),
       ),
     );
