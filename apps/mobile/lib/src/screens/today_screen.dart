@@ -28,6 +28,7 @@ class TodayScreen extends StatelessWidget {
     this.weeklyJournalOpening = false,
     this.showScanAction = true,
     this.showSettingsAction = true,
+    this.isPremium = false,
     this.bottomPadding = 120,
     this.syncMessage,
     required this.onRefresh,
@@ -53,6 +54,7 @@ class TodayScreen extends StatelessWidget {
   final bool weeklyJournalOpening;
   final bool showScanAction;
   final bool showSettingsAction;
+  final bool isPremium;
   final double bottomPadding;
   final String? syncMessage;
   final Future<void> Function() onRefresh;
@@ -102,6 +104,16 @@ class TodayScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                       ],
+                      if (onOpenNutritionist != null)
+                        IconButton(
+                          tooltip: 'AI Nutritionist',
+                          onPressed: onOpenNutritionist,
+                          icon: Icon(
+                            Icons.psychology_rounded,
+                            color: colors.icon,
+                            size: 22,
+                          ),
+                        ),
                       if (showSettingsAction)
                         IconButton(
                           tooltip: 'Settings',
@@ -152,7 +164,7 @@ class TodayScreen extends StatelessWidget {
                     if (onOpenNutritionist != null) ...[
                       const SizedBox(height: 12),
                       NutritionistEntryButton(
-                        isPremium: false,
+                        isPremium: isPremium,
                         onTap: onOpenNutritionist!,
                       ),
                     ],

@@ -89,6 +89,28 @@ class ChatReply {
   }
 }
 
+class ChatHistory {
+  const ChatHistory({
+    required this.messages,
+    required this.turnCount,
+    required this.maxTurns,
+  });
+
+  final List<ChatMessage> messages;
+  final int turnCount;
+  final int maxTurns;
+
+  factory ChatHistory.fromJson(Map<String, dynamic> json) {
+    return ChatHistory(
+      messages: (json['messages'] as List<dynamic>)
+          .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+          .toList(),
+      turnCount: json['turnCount'] as int,
+      maxTurns: json['maxTurns'] as int,
+    );
+  }
+}
+
 class ChatSessionSummary {
   const ChatSessionSummary({
     required this.id,

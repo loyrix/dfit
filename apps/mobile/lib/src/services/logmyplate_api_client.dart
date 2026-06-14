@@ -528,17 +528,15 @@ class LogMyPlateApiClient {
         .toList();
   }
 
-  Future<List<ChatMessage>> getNutritionistSessionMessages(String sessionId) async {
+  Future<ChatHistory> getNutritionistSessionMessages(String sessionId) async {
     final response = await _httpClient.get(
       Uri.parse('$baseUrl/v1/chat/nutritionist/sessions/$sessionId/messages'),
       headers: await _headers(),
     );
     _throwIfBad(response);
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final list = body['messages'] as List<dynamic>;
-    return list
-        .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
-        .toList();
+    return ChatHistory.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 
   Future<Map<String, String>> _headers({

@@ -271,6 +271,9 @@ export const registerChatRoutes = async (
       });
     }
 
-    return chatHistoryResponseSchema.parse(history);
+    return chatHistoryResponseSchema.parse({
+      ...history,
+      sessionId: params.sessionId,
+    });
   });
 };

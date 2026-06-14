@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/auth_session.dart';
 import 'models/captured_meal_photo.dart';
+import 'models/chat.dart';
 import 'models/meal.dart';
 import 'models/meal_type_resolver.dart';
 import 'navigation/logmyplate_page_route.dart';
@@ -305,6 +306,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           weeklyJournalOpening: _openingWeeklyJournal,
           showScanAction: showScanAction,
           showSettingsAction: showSettingsAction,
+          isPremium: _journalController.subscription?.active ?? false,
           bottomPadding: bottomPadding,
           syncMessage: _journalController.error,
           onRefresh: _refreshToday,
@@ -486,6 +488,37 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       if (session == null) return;
     }
 
+    const newChatKey = '__new__';
+
+    final pastSessions = await _journalController.apiClient.listNutritionistSessions();
+
+    final initialCtx = _navigatorKey.currentContext;
+    if (initialCtx == null || !initialCtx.mounted) return;
+    final initialColors = initialCtx.logmyplate;
+
+    final selection = await showModalBottomSheet<String>(
+      context: initialCtx,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AiNutritionistPickerSheet(
+        colors: initialColors,
+        newChatKey: newChatKey,
+        pastSessions: pastSessions,
+      ),
+    );
+    if (selection == null) return;
+
+    if (selection == newChatKey) {
+      final confirmCtx = _navigatorKey.currentContext;
+      if (confirmCtx == null || !confirmCtx.mounted) return;
+      final confirmColors = confirmCtx.logmyplate;
+      final confirmed = await showModalBottomSheet<bool>(
+        context: confirmCtx,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _StartChatConfirmationSheet(colors: confirmColors),
+      );
+      if (confirmed != true) return;
+    }
+
     final controller = NutritionistController(
       apiClient: _journalController.apiClient,
     );
@@ -494,7 +527,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       logmyplatePageRoute<void>(
         builder: (_) => NutritionistChatScreen(
           controller: controller,
-          focusMealId: focusMealId,
+          focusMealId: selection == newChatKey ? focusMealId : null,
+          existingSessionId: selection == newChatKey ? null : selection,
         ),
       ),
     );
@@ -2679,6 +2713,235 @@ class _DailyTargetReachedSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AiNutritionistPickerSheet extends StatelessWidget {
+  const _AiNutritionistPickerSheet({
+    required this.colors,
+    required this.newChatKey,
+    required this.pastSessions,
+  });
+
+  final LogMyPlateThemeColors colors;
+  final String newChatKey;
+  final List<ChatSessionSummary> pastSessions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: colors.surfaceCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 38, height: 5,
+              decoration: BoxDecoration(
+                color: colors.textTertiary.withValues(alpha: 0.36),
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.psychology_rounded, color: LogMyPlateColors.accentDeep, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Text('AI Nutritionist', style: Theme.of(context).textTheme.titleLarge),
+            ],
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(newChatKey),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Start new chat'),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.primaryAction,
+              foregroundColor: colors.primaryActionText,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+          if (pastSessions.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  width: 30, height: 30,
+                  decoration: BoxDecoration(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.history_rounded, color: LogMyPlateColors.accentWarm, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Past sessions',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...pastSessions.take(5).map((s) => InkWell(
+              onTap: () => Navigator.of(context).pop(s.id),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: colors.mutedFill,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.chat_rounded, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${s.createdAt.day}/${s.createdAt.month}/${s.createdAt.year}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${s.turnCount} message${s.turnCount == 1 ? '' : 's'}',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 20),
+                  ],
+                ),
+              ),
+            )),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StartChatConfirmationSheet extends StatelessWidget {
+  const _StartChatConfirmationSheet({required this.colors});
+
+  final LogMyPlateThemeColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: colors.surfaceCard,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 38, height: 5,
+              decoration: BoxDecoration(
+                color: colors.textTertiary.withValues(alpha: 0.36),
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.psychology_rounded, color: LogMyPlateColors.accentDeep, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI Nutritionist', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      'A new chat session will begin. Your conversation will include your logged meals and health data.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.primaryAction,
+              foregroundColor: colors.primaryActionText,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text('Start chat'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     );
   }

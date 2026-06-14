@@ -9,8 +9,13 @@ class NutritionistController extends ChangeNotifier {
 
   final LogMyPlateApiClient _apiClient;
 
-  ChatSession? _session;
-  ChatSession? get session => _session;
+  LogMyPlateApiClient get apiClient => _apiClient;
+
+  bool _readOnly = false;
+  bool get readOnly => _readOnly;
+
+  String? _sessionId;
+  String? get sessionId => _sessionId;
 
   final List<ChatMessage> _messages = [];
   List<ChatMessage> get messages => List.unmodifiable(_messages);
@@ -24,16 +29,43 @@ class NutritionistController extends ChangeNotifier {
   bool _sendingMessage = false;
   bool get sendingMessage => _sendingMessage;
 
+  bool _loadingHistory = false;
+  bool get loadingHistory => _loadingHistory;
+
   int _turnNumber = 0;
   int get turnNumber => _turnNumber;
 
   int _maxTurns = 15;
   int get maxTurns => _maxTurns;
 
-  bool get sessionComplete => _turnNumber >= _maxTurns;
+  bool get sessionComplete => !_readOnly && _turnNumber >= _maxTurns;
 
   String? _error;
   String? get error => _error;
+
+  Future<void> loadExistingSession(String sessionId) async {
+    _loadingHistory = true;
+    _readOnly = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final history = await _apiClient.getNutritionistSessionMessages(sessionId);
+      _sessionId = sessionId;
+      _messages.clear();
+      _messages.addAll(history.messages);
+      _turnNumber = history.turnCount;
+      _maxTurns = history.maxTurns;
+      _suggestedFollowUps = [];
+    } on LogMyPlateApiException catch (e) {
+      _error = _parseError(e);
+    } catch (e) {
+      _error = 'Could not load chat history.';
+    } finally {
+      _loadingHistory = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> startSession({String? focusMealId}) async {
     _creatingSession = true;
@@ -44,7 +76,8 @@ class NutritionistController extends ChangeNotifier {
       final chatSession = await _apiClient.createNutritionistSession(
         focusMealId: focusMealId,
       );
-      _session = chatSession;
+      _readOnly = false;
+      _sessionId = chatSession.sessionId;
       _messages.clear();
       _messages.add(chatSession.welcomeMessage);
       _suggestedFollowUps = chatSession.suggestedPrompts;
@@ -61,7 +94,7 @@ class NutritionistController extends ChangeNotifier {
   }
 
   Future<void> sendMessage(String text) async {
-    if (_session == null || sessionComplete || _sendingMessage) return;
+    if (_sessionId == null || _readOnly || sessionComplete || _sendingMessage) return;
 
     final userMessage = ChatMessage(
       role: ChatMessageRole.user,
@@ -76,7 +109,7 @@ class NutritionistController extends ChangeNotifier {
 
     try {
       final reply = await _apiClient.sendNutritionistMessage(
-        sessionId: _session!.sessionId,
+        sessionId: _sessionId!,
         message: text,
       );
       _messages.add(reply.reply);
