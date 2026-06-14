@@ -274,6 +274,12 @@ export const registerChatRoutes = async (
     return chatHistoryResponseSchema.parse({
       ...history,
       sessionId: params.sessionId,
+      createdAt: new Date(history.createdAt).toISOString(),
+      messages: history.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        createdAt: new Date(m.createdAt).toISOString(),
+      })),
     });
   });
 };
