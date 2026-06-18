@@ -92,25 +92,39 @@ class EnergyHeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 hasTarget
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: style.chipFill,
-                          borderRadius: BorderRadius.circular(99),
-                          border: Border.all(color: style.chipBorder),
-                        ),
-                        child: Text(
-                          'Target $targetCalories kCal',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: style.accentText,
-                            letterSpacing: 0,
+                    ? GestureDetector(
+                        onTap: onSetTarget,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: style.chipFill,
+                            borderRadius: BorderRadius.circular(99),
+                            border: Border.all(color: style.chipBorder),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Target $targetCalories kCal',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: style.accentText,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 14,
+                                color: style.accentText,
+                              ),
+                            ],
                           ),
                         ),
                       )
-                    : _PremiumNoTargetCTA(onSetTarget: onSetTarget, style: style),
+                    : _TargetCTA(onSetTarget: onSetTarget, style: style, hasTarget: false),
               ],
             ),
           ),
@@ -260,11 +274,12 @@ class _HeroRings extends StatelessWidget {
   }
 }
 
-class _PremiumNoTargetCTA extends StatelessWidget {
-  const _PremiumNoTargetCTA({required this.onSetTarget, required this.style});
+class _TargetCTA extends StatelessWidget {
+  const _TargetCTA({required this.onSetTarget, required this.style, required this.hasTarget});
 
   final VoidCallback? onSetTarget;
   final LogMyPlateHeroSurfaceStyle style;
+  final bool hasTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -291,13 +306,13 @@ class _PremiumNoTargetCTA extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.auto_awesome_rounded,
+              hasTarget ? Icons.edit_rounded : Icons.auto_awesome_rounded,
               size: 16,
               color: style.accentText,
             ),
             const SizedBox(width: 8),
             Text(
-              'Set daily target',
+              hasTarget ? 'Edit daily target' : 'Set daily target',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: style.textPrimary,
                     fontWeight: FontWeight.w600,

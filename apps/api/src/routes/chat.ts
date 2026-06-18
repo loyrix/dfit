@@ -72,7 +72,10 @@ export const registerChatRoutes = async (
       assembleNutritionistContext(repository, healthTarget, identity.timezone, focusMealId),
     );
 
-    const systemPrompt = buildNutritionistSystemPrompt(context);
+    const basePrompt = await timer.measure("basePrompt", () =>
+      repository.getAiPrompt("nutritionist_prompt"),
+    );
+    const systemPrompt = buildNutritionistSystemPrompt(context, basePrompt);
     const suggestedPrompts = generateSuggestedPrompts(context);
 
     const welcomeMessageContent = await timer.measure("welcome", async () => {
@@ -184,7 +187,14 @@ export const registerChatRoutes = async (
       }),
     );
 
-    activeSession.messages.push({ role: "assistant", content: aiResult.content });
+    let finalAiContent = aiResult.content;
+    let shouldEndSession = false;
+    if (finalAiContent.includes("[END_SESSION]")) {
+      shouldEndSession = true;
+      finalAiContent = finalAiContent.replace(/\[END_SESSION\]/g, "").trim();
+    }
+
+    activeSession.messages.push({ role: "assistant", content: finalAiContent });
 
     await timer.measure("persistUserMessage", () =>
       repository.appendChatMessage({
@@ -199,7 +209,7 @@ export const registerChatRoutes = async (
       repository.appendChatMessage({
         sessionId: activeSession.dbSessionId,
         role: "assistant",
-        content: aiResult.content,
+        content: finalAiContent,
         turnNumber: turnNumber,
         inputTokens: aiResult.inputTokens,
         outputTokens: aiResult.outputTokens,
@@ -207,13 +217,16 @@ export const registerChatRoutes = async (
       }),
     );
 
-    if (turnNumber >= activeSession.maxTurns) {
+    if (turnNumber >= activeSession.maxTurns || shouldEndSession) {
       await timer.measure("closeSession", () =>
         repository.closeChatSession(activeSession.dbSessionId, turnNumber),
       );
+      if (shouldEndSession) {
+        activeSession.turnCount = activeSession.maxTurns;
+      }
     }
 
-    const suggestedFollowUps = generateFollowUpSuggestions(aiResult.content, activeSession.context);
+    const suggestedFollowUps = generateFollowUpSuggestions(finalAiContent, activeSession.context);
 
     request.log.info(
       {
@@ -233,12 +246,12 @@ export const registerChatRoutes = async (
       sessionId: body.sessionId,
       reply: {
         role: "assistant",
-        content: aiResult.content,
+        content: finalAiContent,
         createdAt: new Date().toISOString(),
       },
       suggestedFollowUps,
       usage: {
-        turnNumber,
+        turnNumber: activeSession.turnCount,
         maxTurns: activeSession.maxTurns,
         sessionsUsedToday: 0,
         maxSessionsPerDay: chatConfig.maxSessionsPerDay,

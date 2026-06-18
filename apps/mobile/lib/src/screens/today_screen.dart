@@ -39,6 +39,7 @@ class TodayScreen extends StatelessWidget {
     required this.onOpenMeal,
     required this.onDeleteMeal,
     required this.onOpenWeeklyJournal,
+    required this.onOpenStreak,
     this.onOpenNutritionist,
     this.onSetTarget,
   });
@@ -66,6 +67,7 @@ class TodayScreen extends StatelessWidget {
   final ValueChanged<MealLog> onOpenMeal;
   final Future<void> Function(MealLog meal) onDeleteMeal;
   final VoidCallback onOpenWeeklyJournal;
+  final VoidCallback onOpenStreak;
   final VoidCallback? onOpenNutritionist;
   final VoidCallback? onSetTarget;
 
@@ -158,7 +160,8 @@ class TodayScreen extends StatelessWidget {
                       _WeeklySummaryCard(
                         range: weeklyRange!,
                         streak: streakSummary,
-                        onTap: onOpenWeeklyJournal,
+                        onOpenJournal: onOpenWeeklyJournal,
+                        onOpenStreak: onOpenStreak,
                         syncing: loading || weeklyJournalOpening,
                         opening: weeklyJournalOpening,
                         hasSyncIssue: syncMessage != null,
@@ -235,11 +238,12 @@ class TodayScreen extends StatelessWidget {
   }
 }
 
-class _WeeklySummaryCard extends StatelessWidget {
+class _WeeklySummaryCard extends StatefulWidget {
   const _WeeklySummaryCard({
     required this.range,
     this.streak,
-    required this.onTap,
+    required this.onOpenJournal,
+    required this.onOpenStreak,
     required this.syncing,
     required this.opening,
     required this.hasSyncIssue,
@@ -247,25 +251,28 @@ class _WeeklySummaryCard extends StatelessWidget {
 
   final JournalRangeData range;
   final StreakSummary? streak;
-  final VoidCallback onTap;
+  final VoidCallback onOpenJournal;
+  final VoidCallback onOpenStreak;
   final bool syncing;
   final bool opening;
   final bool hasSyncIssue;
 
   @override
+  State<_WeeklySummaryCard> createState() => _WeeklySummaryCardState();
+}
+
+class _WeeklySummaryCardState extends State<_WeeklySummaryCard> {
+  int _selectedIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final summary = range.summary;
-    final activeStreak = streak?.enabled == true && streak!.hasHistory
-        ? streak
+    final summary = widget.range.summary;
+    final activeStreak = widget.streak?.enabled == true && widget.streak!.hasHistory
+        ? widget.streak
         : null;
-    final trackedText = summary.activeDays == summary.windowDays
-        ? '${summary.activeDays} days tracked'
-        : '${summary.activeDays} active ${summary.activeDays == 1 ? 'day' : 'days'}';
-    final titleText = activeStreak == null
-        ? trackedText
-        : _streakHeadline(activeStreak);
-    final targetCalories = range.target?.calories;
+    
+    final targetCalories = widget.range.target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
     final averageCalories = summary.trackedDayAverage.calories > 0
         ? summary.trackedDayAverage.calories
@@ -273,11 +280,13 @@ class _WeeklySummaryCard extends StatelessWidget {
         ? (summary.totals.calories / summary.activeDays).round()
         : 0;
 
+    final isJournal = _selectedIndex == 0;
+
     return Material(
       color: colors.surfaceCard,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        onTap: opening ? null : onTap,
+        onTap: widget.opening ? null : (isJournal ? widget.onOpenJournal : widget.onOpenStreak),
         borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -290,88 +299,74 @@ class _WeeklySummaryCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    activeStreak == null
-                                        ? 'Weekly rhythm'
-                                        : 'Streak & rhythm',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: colors.textSecondary,
-                                          letterSpacing: 1.4,
-                                        ),
+                    child: Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: colors.mutedFill,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedIndex = 0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isJournal ? colors.surfaceCard : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: isJournal ? Border.all(color: colors.border) : null,
+                                ),
+                                margin: const EdgeInsets.all(2),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'Journal',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: isJournal ? colors.textPrimary : colors.textSecondary,
+                                    fontWeight: isJournal ? FontWeight.bold : FontWeight.normal,
                                   ),
-                                  if (syncing || hasSyncIssue) ...[
-                                    const SizedBox(width: 8),
-                                    _SyncDot(
-                                      color: hasSyncIssue
-                                          ? colors.accentText
-                                          : LogMyPlateColors.accent,
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 7),
-                              Text(
-                                titleText,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              if (activeStreak != null &&
-                                  !activeStreak.todayLogged) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Log today to keep it alive',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: colors.textSecondary),
                                 ),
-                              ],
-                            ],
+                              ),
+                            ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.mutedFill,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(
-                            '${summary.mealCount} ${summary.mealCount == 1 ? 'meal' : 'meals'}',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colors.textSecondary,
-                                  letterSpacing: 0,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _selectedIndex = 1),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: !isJournal ? colors.surfaceCard : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: !isJournal ? Border.all(color: colors.border) : null,
                                 ),
+                                margin: const EdgeInsets.all(2),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'Streak',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: !isJournal ? colors.textPrimary : colors.textSecondary,
+                                    fontWeight: !isJournal ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
-                    width: 36,
-                    height: 36,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
-                      color: opening
+                      color: widget.opening
                           ? LogMyPlateColors.accent.withValues(alpha: 0.16)
                           : colors.mutedFill,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 180),
-                      child: opening
+                      child: widget.opening
                           ? SizedBox(
                               key: const ValueKey('weekly-card-spinner'),
                               width: 15,
@@ -386,27 +381,36 @@ class _WeeklySummaryCard extends StatelessWidget {
                               key: const ValueKey('weekly-card-chevron'),
                               Icons.chevron_right_rounded,
                               color: colors.textSecondary,
-                              size: 22,
+                              size: 20,
                             ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              _WeeklyCoveragePanel(
-                activeDays: summary.activeDays,
-                totalDays: summary.windowDays,
-                averageCalories: averageCalories,
-                targetCalories: hasTarget ? targetCalories : null,
-                streak: activeStreak,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: isJournal
+                    ? _WeeklyCoveragePanel(
+                        key: const ValueKey('journal'),
+                        activeDays: summary.activeDays,
+                        totalDays: summary.windowDays,
+                        averageCalories: averageCalories,
+                        targetCalories: hasTarget ? targetCalories : null,
+                        streak: activeStreak,
+                      )
+                    : _CardStreakPanel(
+                        key: const ValueKey('streak'),
+                        streak: activeStreak,
+                      ),
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
                   Text(
-                    hasSyncIssue
-                        ? 'Showing saved journal'
-                        : opening
+                    widget.hasSyncIssue
+                        ? 'Showing saved data'
+                        : widget.opening
                         ? 'Loading details'
                         : 'Tap for details',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -423,7 +427,7 @@ class _WeeklySummaryCard extends StatelessWidget {
               ),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: syncing
+                child: widget.syncing
                     ? Padding(
                         key: const ValueKey('weekly-syncing'),
                         padding: const EdgeInsets.only(top: 12),
@@ -441,18 +445,84 @@ class _WeeklySummaryCard extends StatelessWidget {
       ),
     );
   }
-
-  String _streakHeadline(StreakSummary streak) {
-    if (streak.currentStreakDays <= 0) {
-      return streak.todayLogged ? 'Started today' : 'Start today';
-    }
-    final unit = streak.currentStreakDays == 1 ? 'day' : 'days';
-    return '${streak.currentStreakDays} $unit streak';
-  }
 }
 
+class _CardStreakPanel extends StatelessWidget {
+  const _CardStreakPanel({super.key, this.streak});
+  final StreakSummary? streak;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    if (streak == null || !streak!.hasHistory) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: colors.mutedFill,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Log today to start your streak!',
+          style: Theme.of(context).textTheme.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Current Streak',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${streak!.currentStreakDays}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      'days',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Longest',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${streak!.longestStreakDays} days',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 class _WeeklyCoveragePanel extends StatelessWidget {
   const _WeeklyCoveragePanel({
+    super.key,
     required this.activeDays,
     required this.totalDays,
     required this.averageCalories,
@@ -669,20 +739,7 @@ class _WeeklyInfoPill extends StatelessWidget {
   }
 }
 
-class _SyncDot extends StatelessWidget {
-  const _SyncDot({required this.color});
 
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
 
 class _TodayLoadingBody extends StatefulWidget {
   const _TodayLoadingBody();

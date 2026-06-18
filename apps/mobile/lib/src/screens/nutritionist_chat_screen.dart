@@ -197,6 +197,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 turnNumber: ctrl.turnNumber,
                 maxTurns: ctrl.maxTurns,
                 sessionComplete: ctrl.sessionComplete,
+                focusMealId: widget.focusMealId,
                 onNewChat: ctrl.readOnly
                     ? () {
                         final fresh = NutritionistController(
@@ -221,6 +222,8 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   }
                 },
               ),
+              if (widget.focusMealId != null)
+                _FocusMealBanner(colors: colors),
               if (ctrl.readOnly && ctrl.messages.isNotEmpty)
                 _ReadOnlyBanner(colors: colors, messageCount: ctrl.turnNumber),
               Expanded(
@@ -354,26 +357,36 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: ctrl.messages.length + (ctrl.sendingMessage ? 1 : 0) + ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == 0 && ctrl.sessionComplete && !ctrl.readOnly) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: _SessionCompleteCard(
-              colors: colors,
-              onNewSession: () => ctrl.startSession(focusMealId: widget.focusMealId),
-            ),
-          );
+        int currentIndex = index;
+
+        if (ctrl.sessionComplete && !ctrl.readOnly) {
+          if (currentIndex == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: _SessionCompleteCard(
+                colors: colors,
+                onNewSession: () => ctrl.startSession(focusMealId: widget.focusMealId),
+              ),
+            );
+          }
+          currentIndex--;
         }
 
-        final adjusted = (ctrl.sessionComplete && !ctrl.readOnly) ? index - 1 : index;
-
-        if (adjusted >= ctrl.messages.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: ChatTypingIndicator(),
-          );
+        if (ctrl.sendingMessage) {
+          if (currentIndex == 0) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: ChatTypingIndicator(),
+            );
+          }
+          currentIndex--;
         }
 
-        final messageIndex = ctrl.messages.length - 1 - adjusted;
+        if (currentIndex < 0 || currentIndex >= ctrl.messages.length) {
+          return const SizedBox.shrink();
+        }
+
+        final messageIndex = ctrl.messages.length - 1 - currentIndex;
         if (messageIndex < 0 || messageIndex >= ctrl.messages.length) {
           return const SizedBox.shrink();
         }
@@ -396,6 +409,7 @@ class _ChatAppBar extends StatelessWidget {
     required this.maxTurns,
     required this.sessionComplete,
     required this.onBack,
+    this.focusMealId,
     this.onNewChat,
   });
 
@@ -405,6 +419,7 @@ class _ChatAppBar extends StatelessWidget {
   final int maxTurns;
   final bool sessionComplete;
   final VoidCallback onBack;
+  final String? focusMealId;
   final VoidCallback? onNewChat;
 
   @override
@@ -433,7 +448,9 @@ class _ChatAppBar extends StatelessWidget {
                 Text(
                   readOnly
                       ? 'Past session · $turnNumber message${turnNumber == 1 ? '' : 's'}'
-                      : 'Based on your last 7 days',
+                      : focusMealId != null 
+                          ? 'Analyzing specific meal'
+                          : 'Based on your last 7 days',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -509,6 +526,8 @@ class _ChatInputBar extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               textInputAction: TextInputAction.send,
+              minLines: 1,
+              maxLines: 5,
               onSubmitted: (_) => onSend(),
               decoration: InputDecoration(
                 hintText: 'Ask anything about your nutrition...',
@@ -625,6 +644,42 @@ class _ReadOnlyBanner extends StatelessWidget {
               'Viewing a past conversation with $messageCount message${messageCount == 1 ? '' : 's'}. Start a new session to ask fresh questions.',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: colors.textSecondary,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusMealBanner extends StatelessWidget {
+  const _FocusMealBanner({required this.colors});
+
+  final LogMyPlateThemeColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: LogMyPlateColors.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: LogMyPlateColors.accent.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome_rounded, size: 18, color: LogMyPlateColors.accentDeep),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'The AI Nutritionist is currently focused on analyzing this specific meal. It still considers your daily and weekly progress.',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.textPrimary,
                 height: 1.3,
               ),
             ),

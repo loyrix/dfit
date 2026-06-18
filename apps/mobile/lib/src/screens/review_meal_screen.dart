@@ -17,6 +17,7 @@ class ReviewMealScreen extends StatefulWidget {
     this.lockInitialItems = false,
     this.photo,
     this.onFoodSearch,
+    this.isPremium = false,
   });
 
   final List<MealItem> initialItems;
@@ -24,7 +25,8 @@ class ReviewMealScreen extends StatefulWidget {
   final bool lockInitialItems;
   final CapturedMealPhoto? photo;
   final Future<List<FoodSearchResult>> Function(String query)? onFoodSearch;
-  final Future<void> Function(MealType type, List<MealItem> items) onConfirm;
+  final Future<void> Function(MealType type, List<MealItem> items, {bool analyzeWithAI}) onConfirm;
+  final bool isPremium;
 
   @override
   State<ReviewMealScreen> createState() => _ReviewMealScreenState();
@@ -139,36 +141,102 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
                 const SizedBox(height: 10),
               ],
-              FilledButton(
-                onPressed: _items.isEmpty
-                    ? null
-                    : _saving
-                    ? () {}
-                    : _confirm,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  disabledBackgroundColor: _reviewMutedFill(context),
-                  disabledForegroundColor: secondaryText,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _items.isEmpty
+                          ? null
+                          : _saving
+                          ? () {}
+                          : () => _confirm(analyzeWithAI: false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: primaryText,
+                        side: BorderSide(color: borderColor),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text('Confirm meal', key: ValueKey('confirm')),
+                    ),
                   ),
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 160),
-                  child: _saving
-                      ? SizedBox(
-                          key: ValueKey('saving'),
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: colors.primaryActionText,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton(
+                      onPressed: _items.isEmpty
+                          ? null
+                          : _saving
+                          ? () {}
+                          : () => _confirm(analyzeWithAI: true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: LogMyPlateColors.accent.withValues(alpha: 0.15),
+                        foregroundColor: primaryText,
+                        disabledBackgroundColor: _reviewMutedFill(context),
+                        disabledForegroundColor: secondaryText,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: LogMyPlateColors.accent.withValues(alpha: 0.3),
                           ),
-                        )
-                      : const Text('Confirm meal', key: ValueKey('confirm')),
-                ),
+                        ),
+                      ),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 160),
+                        child: _saving
+                            ? SizedBox(
+                                key: const ValueKey('saving'),
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: LogMyPlateColors.accent,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                key: const ValueKey('confirm-analyze'),
+                                children: [
+                                  Icon(Icons.auto_awesome_rounded, size: 18, color: LogMyPlateColors.accent),
+                                  const SizedBox(width: 6),
+                                  const Text('Analyze with AI'),
+                                  if (!widget.isPremium) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: LogMyPlateColors.accent.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.lock_rounded,
+                                            size: 10,
+                                            color: LogMyPlateColors.accent,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            'PRO',
+                                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                              color: LogMyPlateColors.accent,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -177,14 +245,14 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     );
   }
 
-  Future<void> _confirm() async {
+  Future<void> _confirm({bool analyzeWithAI = false}) async {
     setState(() {
       _saving = true;
       _error = null;
     });
 
     try {
-      await widget.onConfirm(_mealType, _items);
+      await widget.onConfirm(_mealType, _items, analyzeWithAI: analyzeWithAI);
     } catch (_) {
       if (!mounted) return;
       setState(() {

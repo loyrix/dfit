@@ -1000,6 +1000,10 @@ export class InMemoryStore implements AppRepository {
     return count;
   }
 
+  async getAiPrompt(key: string): Promise<string | undefined> {
+    return "You are an AI Nutritionist...";
+  }
+
   async getIdempotent(key: string) {
     return this.idempotency.get(key);
   }
@@ -1310,6 +1314,7 @@ export class InMemoryStore implements AppRepository {
       latencyMs: input.latencyMs,
       createdAt: new Date().toISOString(),
     });
+    session.turnCount = input.turnNumber;
   }
 
   async getChatHistory(sessionId: string): Promise<

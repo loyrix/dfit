@@ -16,6 +16,7 @@ class MealDetailScreen extends StatefulWidget {
     this.onUpdateMeal,
     this.onDeleteMeal,
     this.onAskNutritionist,
+    this.isPremium = false,
   });
 
   final MealLog meal;
@@ -23,6 +24,7 @@ class MealDetailScreen extends StatefulWidget {
   onUpdateMeal;
   final Future<void> Function(MealLog meal)? onDeleteMeal;
   final void Function(MealLog meal)? onAskNutritionist;
+  final bool isPremium;
 
   @override
   State<MealDetailScreen> createState() => _MealDetailScreenState();
@@ -113,6 +115,79 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               _MealDetailSummaryCard(meal: _draftMeal),
               const SizedBox(height: 18),
               MacroProfileCard(meal: _draftMeal),
+              if (widget.onAskNutritionist != null) ...[
+                const SizedBox(height: 18),
+                InkWell(
+                  onTap: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: _hasChanges 
+                          ? colors.mutedFill 
+                          : LogMyPlateColors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _hasChanges 
+                            ? colors.border 
+                            : LogMyPlateColors.accent.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 18,
+                          color: _hasChanges 
+                              ? colors.textSecondary 
+                              : LogMyPlateColors.accent,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Analyze this meal with AI',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: _hasChanges 
+                                ? colors.textSecondary 
+                                : colors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (!widget.isPremium && !_hasChanges) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: LogMyPlateColors.accent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.lock_rounded,
+                                  size: 10,
+                                  color: LogMyPlateColors.accent,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'PRO',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: LogMyPlateColors.accent,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 22),
               Text('Items', style: Theme.of(context).textTheme.labelSmall),
               const SizedBox(height: 10),

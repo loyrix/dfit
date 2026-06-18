@@ -644,7 +644,12 @@ const updateModelSchema = z.object({
   reason: requiredReasonSchema,
 });
 
-const aiPromptKeySchema = z.enum(["food_photo", "food_photo_IN", "food_photo_GLOBAL"]);
+const aiPromptKeySchema = z.enum([
+  "food_photo",
+  "food_photo_IN",
+  "food_photo_GLOBAL",
+  "nutritionist_prompt",
+]);
 
 const createPromptSchema = z.object({
   key: aiPromptKeySchema.default("food_photo"),

@@ -2963,28 +2963,32 @@ export class PostgresStore implements AppRepository {
     };
   }
 
-  async setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">) {
-    const profile = await this.getProfile();
-    const responseBody = record.responseBody ?? {};
+  async setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">): Promise<void> {
     await this.sql`
       insert into idempotency_keys (
-        profile_id,
         idempotency_key,
-        method,
-        path,
         response_status,
         response_body
       )
       values (
-        ${profile.id},
         ${key},
-        'unknown',
-        'unknown',
         ${record.responseStatus},
-        ${this.sql.json(toJsonValue(responseBody))}
+        ${this.sql.json(toJsonValue(record.responseBody) ?? {})}
       )
-      on conflict (profile_id, idempotency_key) do nothing
+      on conflict (idempotency_key) do nothing
     `;
+  }
+
+  async getAiPrompt(key: string): Promise<string | undefined> {
+    const [row] = await this.sql<{ body: string }[]>`
+      select body
+      from ai_prompt_versions
+      where key = ${key}
+        and is_active = true
+      order by created_at desc
+      limit 1
+    `;
+    return row?.body;
   }
 
   private async findCredentialByEmail(email: string) {
@@ -4137,10 +4141,18 @@ export class PostgresStore implements AppRepository {
     outputTokens?: number;
     latencyMs?: number;
   }): Promise<void> {
-    await this.sql`
-      insert into chat_messages (session_id, role, content, turn_number, input_tokens, output_tokens, latency_ms)
-      values (${input.sessionId}, ${input.role}, ${input.content}, ${input.turnNumber}, ${input.inputTokens ?? null}, ${input.outputTokens ?? null}, ${input.latencyMs ?? null})
-    `;
+    await this.sql.begin(async (tx) => {
+      await tx`
+        insert into chat_messages (session_id, role, content, turn_number, input_tokens, output_tokens, latency_ms)
+        values (${input.sessionId}, ${input.role}, ${input.content}, ${input.turnNumber}, ${input.inputTokens ?? null}, ${input.outputTokens ?? null}, ${input.latencyMs ?? null})
+      `;
+      await tx`
+        update chat_sessions
+        set turn_count = ${input.turnNumber}
+        where id = ${input.sessionId}
+          and turn_count < ${input.turnNumber}
+      `;
+    });
   }
 
   async getChatHistory(sessionId: string): Promise<

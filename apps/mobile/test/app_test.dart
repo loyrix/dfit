@@ -232,7 +232,7 @@ void main() {
       MaterialApp(
         home: ReviewMealScreen(
           initialItems: const [],
-          onConfirm: (_, _) async {},
+          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
         ),
       ),
     );
@@ -264,7 +264,7 @@ void main() {
       MaterialApp(
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().take(1).toList(),
-          onConfirm: (_, _) async {},
+          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
         ),
       ),
     );
@@ -321,7 +321,7 @@ void main() {
               ),
             ];
           },
-          onConfirm: (_, items) async {
+          onConfirm: (_, items, {bool analyzeWithAI = false}) async {
             confirmedItems = items;
           },
         ),
@@ -371,7 +371,7 @@ void main() {
           initialItems: sampleDetectedItems().take(1).toList(),
           lockInitialItems: true,
           photo: photo,
-          onConfirm: (_, _) async {},
+          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
         ),
       ),
     );
@@ -404,7 +404,7 @@ void main() {
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().take(1).toList(),
           lockInitialItems: true,
-          onConfirm: (_, items) async {
+          onConfirm: (_, items, {bool analyzeWithAI = false}) async {
             confirmedItems = items;
           },
         ),
@@ -440,7 +440,7 @@ void main() {
         theme: ThemeData.dark(useMaterial3: true),
         home: ReviewMealScreen(
           initialItems: sampleDetectedItems().toList(),
-          onConfirm: (_, _) async {},
+          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
         ),
       ),
     );
@@ -450,6 +450,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Add custom item'), findsOneWidget);
     expect(find.text('Confirm meal'), findsOneWidget);
+  });
+
+  testWidgets('ReviewMealScreen shows PRO badge when not premium', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReviewMealScreen(
+          isPremium: false,
+          initialItems: const [],
+          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+        ),
+      ),
+    );
+    expect(find.text('PRO'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReviewMealScreen(
+          isPremium: true,
+          initialItems: const [],
+          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+        ),
+      ),
+    );
+    expect(find.text('PRO'), findsNothing);
+  });
+
+  testWidgets('MealDetailScreen shows PRO badge when not premium', (tester) async {
+    final meal = MealLog(
+      id: 'm1',
+      title: 'Lunch',
+      type: MealType.lunch,
+      loggedAt: DateTime.now(),
+      items: [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MealDetailScreen(
+          isPremium: false,
+          meal: meal,
+          onAskNutritionist: (_) {},
+        ),
+      ),
+    );
+    expect(find.text('PRO'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MealDetailScreen(
+          isPremium: true,
+          meal: meal,
+          onAskNutritionist: (_) {},
+        ),
+      ),
+    );
+    expect(find.text('PRO'), findsNothing);
   });
 
   testWidgets('confirmed manual meal opens result then back returns to today', (
@@ -551,6 +607,7 @@ void main() {
           onOpenMeal: (_) {},
           onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () {},
+          onOpenStreak: () {},
         ),
       ),
     );
@@ -597,11 +654,15 @@ void main() {
           onOpenMeal: (_) {},
           onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () => openedWeeklyJournal = true,
+          onOpenStreak: () {},
         ),
       ),
     );
 
-    await tester.tap(find.text('Weekly rhythm'));
+    final target = find.text('Tap for details');
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
     await tester.pump();
 
     expect(openedWeeklyJournal, isTrue);
@@ -639,11 +700,15 @@ void main() {
           onOpenMeal: (_) {},
           onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () => openedWeeklyJournal = true,
+          onOpenStreak: () {},
         ),
       ),
     );
 
-    await tester.tap(find.text('Weekly rhythm'));
+    final target = find.text('Loading details');
+    await tester.ensureVisible(target);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(target);
     await tester.pump();
 
     expect(openedWeeklyJournal, isFalse);
@@ -685,6 +750,7 @@ void main() {
                 setState(() => meals = []);
               },
               onOpenWeeklyJournal: () {},
+              onOpenStreak: () {},
               showScanAction: false,
             );
           },
@@ -1054,6 +1120,7 @@ void main() {
           onOpenMeal: (_) {},
           onDeleteMeal: (_) async {},
           onOpenWeeklyJournal: () {},
+          onOpenStreak: () {},
         ),
       ),
     );

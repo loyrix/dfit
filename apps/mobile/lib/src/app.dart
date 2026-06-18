@@ -24,6 +24,8 @@ import 'screens/nutritionist_chat_screen.dart';
 import 'screens/paywall_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/review_meal_screen.dart';
+
+import 'screens/streak_screen.dart';
 import 'screens/today_screen.dart';
 import 'screens/weekly_journal_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -319,6 +321,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           onOpenMeal: (meal) => _openMealDetail(meal),
           onDeleteMeal: _deleteMeal,
           onOpenWeeklyJournal: _openWeeklyJournal,
+          onOpenStreak: _openStreakScreen,
           onOpenNutritionist: _openNutritionistChat,
           onSetTarget: _openHealthTargetEditor,
         );
@@ -558,6 +561,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                     _navigatorKey.currentState!.pushReplacement<void, void>(
                       logmyplatePageRoute<void>(
                         builder: (_) => ReviewMealScreen(
+                          isPremium: _journalController.subscription?.active ?? false,
                           initialItems: analysis.items,
                           initialMealType: mealTypeForReview(
                             localTime: DateTime.now(),
@@ -566,13 +570,14 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           lockInitialItems: true,
                           photo: photo,
                           onFoodSearch: _journalController.searchFoods,
-                          onConfirm: (type, items) {
+                          onConfirm: (type, items, {bool analyzeWithAI = false}) {
                             return _confirmAnalyzedMeal(
                               scanId: analysis.scanId,
                               title: analysis.mealName,
                               type: type,
                               items: items,
                               photo: analysis.imageStored ? null : photo,
+                              analyzeWithAI: analyzeWithAI,
                             );
                           },
                         ),
@@ -592,6 +597,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     await _navigatorKey.currentState!.push<void>(
       logmyplatePageRoute<void>(
         builder: (_) => ReviewMealScreen(
+          isPremium: _journalController.subscription?.active ?? false,
           initialItems: const [],
           initialMealType: mealTypeForLocalTime(DateTime.now()),
           onFoodSearch: _journalController.searchFoods,
@@ -601,7 +607,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  Future<void> _saveMeal(MealType type, List<MealItem> items) async {
+  Future<void> _saveMeal(MealType type, List<MealItem> items, {bool analyzeWithAI = false}) async {
     final meal = await _journalController.saveMeal(type, items);
     setState(() {
       _journalTabRange = null;
@@ -614,6 +620,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       title: 'Meal saved',
       message: 'Your journal is up to date.',
     );
+    if (analyzeWithAI) {
+      _openNutritionistChat(focusMealId: meal.id);
+    }
   }
 
   Future<void> _confirmAnalyzedMeal({
@@ -622,6 +631,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     required MealType type,
     required List<MealItem> items,
     CapturedMealPhoto? photo,
+    bool analyzeWithAI = false,
   }) async {
     final meal = await _journalController.confirmAnalyzedMeal(
       scanId: scanId,
@@ -641,7 +651,12 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       title: 'Scan saved',
       message: 'Your meal log is ready.',
     );
-    unawaited(_runPostConfirmGrowthPrompts());
+    
+    if (analyzeWithAI) {
+      _openNutritionistChat(focusMealId: meal.id);
+    } else {
+      unawaited(_runPostConfirmGrowthPrompts());
+    }
   }
 
   Future<void> _runPostConfirmGrowthPrompts() async {
@@ -779,6 +794,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       navigator.pushReplacement<bool, void>(
         logmyplatePageRoute<bool>(
           builder: (_) => MealDetailScreen(
+            isPremium: _journalController.subscription?.active ?? false,
             meal: meal,
             onUpdateMeal: _updateMeal,
             onDeleteMeal: _deleteMeal,
@@ -1441,6 +1457,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     final deleted = await _navigatorKey.currentState!.push<bool>(
       logmyplatePageRoute<bool>(
         builder: (_) => MealDetailScreen(
+          isPremium: _journalController.subscription?.active ?? false,
           meal: meal,
           onUpdateMeal: _updateMeal,
           onDeleteMeal: _deleteMeal,
@@ -1448,7 +1465,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         ),
       ),
     );
-    return deleted == true;
+    return deleted ?? false;
   }
 
   Future<void> _deleteMeal(MealLog meal) async {
@@ -1459,6 +1476,15 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       tone: LogMyPlateNoticeTone.success,
       title: 'Meal deleted',
       message: 'Today\'s totals were updated.',
+    );
+  }
+
+  Future<void> _openStreakScreen() async {
+    final streak = _journalController.streakSummary;
+    await _navigatorKey.currentState!.push<void>(
+      logmyplatePageRoute<void>(
+        builder: (_) => StreakScreen(streak: streak),
+      ),
     );
   }
 

@@ -359,6 +359,7 @@ export interface AppRepository {
   countNoFoodScanAttemptsSince(sinceIso: string): Promise<number>;
   getIdempotent(key: string): Promise<IdempotencyRecord | undefined>;
   setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">): Promise<void>;
+  getAiPrompt(key: string): Promise<string | undefined>;
 
   // Chat
   countChatSessionsToday(profileId: string): Promise<number>;
