@@ -51,7 +51,7 @@ class _AiBubble extends StatelessWidget {
                 ),
               ),
               child: const Icon(
-                Icons.psychology_rounded,
+                Icons.auto_awesome_rounded,
                 size: 16,
                 color: Color(0xFF3D2E07),
               ),

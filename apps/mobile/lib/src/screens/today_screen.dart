@@ -113,7 +113,7 @@ class TodayScreen extends StatelessWidget {
                           tooltip: 'AI Nutritionist',
                           onPressed: onOpenNutritionist,
                           icon: Icon(
-                            Icons.psychology_rounded,
+                            Icons.auto_awesome_rounded,
                             color: colors.icon,
                             size: 22,
                           ),

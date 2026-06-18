@@ -2797,7 +2797,7 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
                   color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.psychology_rounded, color: LogMyPlateColors.accentDeep, size: 21),
+                child: const Icon(Icons.auto_awesome_rounded, color: LogMyPlateColors.accentDeep, size: 21),
               ),
               const SizedBox(width: 12),
               Text('AI Nutritionist', style: Theme.of(context).textTheme.titleLarge),
@@ -2931,7 +2931,7 @@ class _StartChatConfirmationSheet extends StatelessWidget {
                   color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.psychology_rounded, color: LogMyPlateColors.accentDeep, size: 21),
+                child: const Icon(Icons.auto_awesome_rounded, color: LogMyPlateColors.accentDeep, size: 21),
               ),
               const SizedBox(width: 12),
               Expanded(

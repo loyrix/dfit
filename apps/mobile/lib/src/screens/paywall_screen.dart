@@ -114,7 +114,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
               ),
               const SizedBox(height: 18),
               _FeatureRow(
-                icon: Icons.psychology_rounded,
+                icon: Icons.auto_awesome_rounded,
                 title: 'AI Nutritionist — personalized nutrition advice',
               ),
               const SizedBox(height: 10),

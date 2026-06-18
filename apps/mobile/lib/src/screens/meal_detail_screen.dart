@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
@@ -76,35 +81,51 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ),
                   const Spacer(),
                   if (_hasChanges) const _UnsavedChangesPill(),
-                  if (canDelete) ...[
-                    const SizedBox(width: 8),
-                    PopupMenuButton<_MealAction>(
-                      tooltip: 'Meal actions',
-                      enabled: !_deleting,
-                      icon: Icon(Icons.more_horiz_rounded, color: colors.icon),
-                      onSelected: (action) {
-                        if (action == _MealAction.delete) {
-                          _requestDeleteMeal();
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem<_MealAction>(
-                          value: _MealAction.delete,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.delete_outline_rounded,
-                                color: LogMyPlateColors.destructive,
-                                size: 19,
-                              ),
-                              const SizedBox(width: 10),
-                              const Text('Delete meal'),
-                            ],
-                          ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.surfaceCard,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: colors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.border.withValues(alpha: 0.5),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Share meal',
+                          onPressed: _deleting ? null : _shareMeal,
+                          icon: Icon(
+                            Icons.ios_share_rounded,
+                            color: colors.textPrimary,
+                            size: 20,
+                          ),
+                        ),
+                        if (canDelete) ...[
+                          Container(
+                            width: 1,
+                            height: 20,
+                            color: colors.border,
+                          ),
+                          IconButton(
+                            tooltip: 'Delete meal',
+                            onPressed: _deleting ? null : _requestDeleteMeal,
+                            icon: Icon(
+                              Icons.delete_outline_rounded,
+                              color: LogMyPlateColors.destructive,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
               if (_meal.image != null) ...[
@@ -328,9 +349,35 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       });
     }
   }
-}
 
-enum _MealAction { delete }
+  Future<void> _shareMeal() async {
+    final text = 'I just logged my meal: ${_meal.title} (${_meal.totals.calories} kCal) on LogMyPlate!\n\nDownload the app to track your meals with AI:\nhttps://logmyplate.com';
+    
+    if (_meal.image != null && _meal.image!.url.isNotEmpty) {
+      try {
+        final uri = Uri.tryParse(_meal.image!.url);
+        if (uri != null) {
+          final response = await http.get(uri);
+          if (response.statusCode == 200) {
+            final tempDir = await getTemporaryDirectory();
+            final file = File('${tempDir.path}/shared_meal_image.jpg');
+            await file.writeAsBytes(response.bodyBytes);
+            await Share.shareXFiles(
+              [XFile(file.path)],
+              text: text,
+              subject: 'My Meal on LogMyPlate',
+            );
+            return;
+          }
+        }
+      } catch (_) {
+        // Fallback to text sharing if image download fails
+      }
+    }
+    
+    await Share.share(text, subject: 'My Meal on LogMyPlate');
+  }
+}
 
 class _MealDetailSummaryCard extends StatelessWidget {
   const _MealDetailSummaryCard({required this.meal});

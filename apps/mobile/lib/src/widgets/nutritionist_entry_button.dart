@@ -44,7 +44,7 @@ class NutritionistEntryButton extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                Icons.psychology_rounded,
+                Icons.auto_awesome_rounded,
                 size: 20,
                 color: LogMyPlateColors.accent,
               ),

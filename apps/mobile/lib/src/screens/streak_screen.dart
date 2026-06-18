@@ -233,7 +233,9 @@ class _MilestoneSection extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Only ${streak.daysUntilNextMilestone} days left to reach this milestone. Keep logging your meals daily!',
+                streak.nextRewardScans > 0
+                    ? 'Only ${streak.daysUntilNextMilestone} days left to reach this milestone. Keep logging your meals daily to earn +${streak.nextRewardScans} scans as a reward!'
+                    : 'Only ${streak.daysUntilNextMilestone} days left to reach this milestone. Keep logging your meals daily!',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: colors.textSecondary,
                 ),

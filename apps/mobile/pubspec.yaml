@@ -48,6 +48,8 @@ dependencies:
   firebase_analytics: ^12.4.2
   firebase_messaging: ^16.3.0
   purchases_flutter: ^10.2.2
+  share_plus: ^13.1.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
