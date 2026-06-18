@@ -149,137 +149,139 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               _MealDetailSummaryCard(meal: _draftMeal),
               const SizedBox(height: 18),
               MacroProfileCard(meal: _draftMeal),
-              if (widget.onAskNutritionist != null) ...[
-                const SizedBox(height: 18),
-                InkWell(
-                  onTap: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: _hasChanges 
-                          ? colors.mutedFill 
-                          : LogMyPlateColors.accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
+              if (!_isCapturing) ...[
+                if (widget.onAskNutritionist != null) ...[
+                  const SizedBox(height: 18),
+                  InkWell(
+                    onTap: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                      decoration: BoxDecoration(
                         color: _hasChanges 
-                            ? colors.border 
-                            : LogMyPlateColors.accent.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.auto_awesome_rounded,
-                          size: 18,
+                            ? colors.mutedFill 
+                            : LogMyPlateColors.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
                           color: _hasChanges 
-                              ? colors.textSecondary 
-                              : LogMyPlateColors.accent,
+                              ? colors.border 
+                              : LogMyPlateColors.accent.withValues(alpha: 0.2),
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Analyze this meal with AI',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 18,
                             color: _hasChanges 
                                 ? colors.textSecondary 
-                                : colors.textPrimary,
-                            fontWeight: FontWeight.w600,
+                                : LogMyPlateColors.accent,
                           ),
-                        ),
-                        if (!widget.isPremium && !_hasChanges) ...[
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(4),
+                          Text(
+                            'Analyze this meal with AI',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: _hasChanges 
+                                  ? colors.textSecondary 
+                                  : colors.textPrimary,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.lock_rounded,
-                                  size: 10,
-                                  color: LogMyPlateColors.accent,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'PRO',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          ),
+                          if (!widget.isPremium && !_hasChanges) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: LogMyPlateColors.accent.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.lock_rounded,
+                                    size: 10,
                                     color: LogMyPlateColors.accent,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    'PRO',
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: LogMyPlateColors.accent,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-              const SizedBox(height: 22),
-              Text('Items', style: Theme.of(context).textTheme.labelSmall),
-              const SizedBox(height: 10),
-              for (var index = 0; index < _draftItems.length; index++)
-                _MealDetailItemRow(
-                  item: _draftItems[index],
-                  editable: canEdit,
-                  onEdit: () => _openEditItemSheet(index),
-                ),
-              if (_error != null) ...[
-                const SizedBox(height: 14),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.accentText),
-                ),
-              ],
-              if (canEdit) ...[
-                const SizedBox(height: 18),
-                FilledButton(
-                  onPressed: !_hasChanges || _saving || _deleting
-                      ? null
-                      : _saveChanges,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.primaryAction,
-                    foregroundColor: colors.primaryActionText,
-                    disabledBackgroundColor: colors.mutedFill,
-                    disabledForegroundColor: colors.textSecondary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                ],
+                const SizedBox(height: 22),
+                Text('Items', style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 10),
+                for (var index = 0; index < _draftItems.length; index++)
+                  _MealDetailItemRow(
+                    item: _draftItems[index],
+                    editable: canEdit,
+                    onEdit: () => _openEditItemSheet(index),
                   ),
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: _saving
-                        ? SizedBox(
-                            key: const ValueKey('saving-updated-meal'),
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colors.primaryActionText,
+                if (_error != null) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colors.accentText),
+                  ),
+                ],
+                if (canEdit) ...[
+                  const SizedBox(height: 18),
+                  FilledButton(
+                    onPressed: !_hasChanges || _saving || _deleting
+                        ? null
+                        : _saveChanges,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.primaryAction,
+                      foregroundColor: colors.primaryActionText,
+                      disabledBackgroundColor: colors.mutedFill,
+                      disabledForegroundColor: colors.textSecondary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: _saving
+                          ? SizedBox(
+                              key: const ValueKey('saving-updated-meal'),
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colors.primaryActionText,
+                              ),
+                            )
+                          : const Text(
+                              'Save updated meal',
+                              key: ValueKey('save-updated-meal'),
                             ),
-                          )
-                        : const Text(
-                            'Save updated meal',
-                            key: ValueKey('save-updated-meal'),
-                          ),
+                    ),
                   ),
-                ),
-                if (_hasChanges)
-                  TextButton(
-                    onPressed: _saving || _deleting ? null : _resetChanges,
-                    child: const Text('Reset changes'),
-                  ),
+                  if (_hasChanges)
+                    TextButton(
+                      onPressed: _saving || _deleting ? null : _resetChanges,
+                      child: const Text('Reset changes'),
+                    ),
+                ],
               ],
               if (_isCapturing) ...[
                 const SizedBox(height: 32),
