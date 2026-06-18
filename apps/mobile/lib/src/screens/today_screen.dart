@@ -353,38 +353,7 @@ class _WeeklySummaryCardState extends State<_WeeklySummaryCard> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: widget.opening
-                          ? LogMyPlateColors.accent.withValues(alpha: 0.16)
-                          : colors.mutedFill,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: widget.opening
-                          ? SizedBox(
-                              key: const ValueKey('weekly-card-spinner'),
-                              width: 15,
-                              height: 15,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: LogMyPlateColors.accent,
-                                backgroundColor: colors.mutedFill,
-                              ),
-                            )
-                          : Icon(
-                              key: const ValueKey('weekly-card-chevron'),
-                              Icons.chevron_right_rounded,
-                              color: colors.textSecondary,
-                              size: 20,
-                            ),
-                    ),
-                  ),
+
                 ],
               ),
               const SizedBox(height: 14),
@@ -397,7 +366,6 @@ class _WeeklySummaryCardState extends State<_WeeklySummaryCard> {
                         totalDays: summary.windowDays,
                         averageCalories: averageCalories,
                         targetCalories: hasTarget ? targetCalories : null,
-                        streak: activeStreak,
                       )
                     : _CardStreakPanel(
                         key: const ValueKey('streak'),
@@ -418,11 +386,22 @@ class _WeeklySummaryCardState extends State<_WeeklySummaryCard> {
                     ),
                   ),
                   const Spacer(),
-                  Icon(
-                    Icons.arrow_forward_rounded,
-                    color: colors.textSecondary,
-                    size: 17,
-                  ),
+                  widget.opening
+                      ? SizedBox(
+                          key: const ValueKey('weekly-card-spinner'),
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: LogMyPlateColors.accent,
+                            backgroundColor: colors.mutedFill,
+                          ),
+                        )
+                      : Icon(
+                          Icons.arrow_forward_rounded,
+                          color: colors.textSecondary,
+                          size: 17,
+                        ),
                 ],
               ),
               AnimatedSwitcher(
@@ -469,30 +448,43 @@ class _CardStreakPanel extends StatelessWidget {
         ),
       );
     }
+    final nextMilestone = streak!.nextMilestoneDays;
+    final streakProgress = nextMilestone == null
+        ? 1.0
+        : (streak!.currentStreakDays / nextMilestone).clamp(0.0, 1.0).toDouble();
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        SizedBox(
+          width: 72,
+          height: 72,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              Text(
-                'Current Streak',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
+              SizedBox.expand(
+                child: CircularProgressIndicator(
+                  strokeWidth: 8,
+                  value: streakProgress,
+                  strokeCap: StrokeCap.round,
+                  color: LogMyPlateColors.accent,
+                  backgroundColor: colors.mutedFill,
+                ),
               ),
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${streak!.currentStreakDays}',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    streak!.currentStreakDays.toString(),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
-                  const SizedBox(width: 4),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text(
-                      'days',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+                  Text(
+                    streak!.currentStreakDays == 1 ? 'day' : 'days',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.textSecondary,
+                      letterSpacing: 0,
                     ),
                   ),
                 ],
@@ -500,19 +492,27 @@ class _CardStreakPanel extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(width: 14),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Text(
-                'Longest',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
+              _WeeklyInfoPill(
+                label: 'Best',
+                value: '${streak!.longestStreakDays}d',
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${streak!.longestStreakDays} days',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              if (streak!.nextMilestoneDays != null)
+                _WeeklyInfoPill(
+                  label: 'Next',
+                  value: '${streak!.nextMilestoneDays}d',
+                ),
+              if (streak!.nextRewardScans > 0)
+                _WeeklyInfoPill(
+                  label: 'Reward',
+                  value: '+${streak!.nextRewardScans} ${streak!.nextRewardScans == 1 ? 'scan' : 'scans'}',
+                  highlighted: true,
+                ),
             ],
           ),
         ),
@@ -527,14 +527,12 @@ class _WeeklyCoveragePanel extends StatelessWidget {
     required this.totalDays,
     required this.averageCalories,
     this.targetCalories,
-    this.streak,
   });
 
   final int activeDays;
   final int totalDays;
   final int averageCalories;
   final int? targetCalories;
-  final StreakSummary? streak;
 
   @override
   Widget build(BuildContext context) {
@@ -542,22 +540,6 @@ class _WeeklyCoveragePanel extends StatelessWidget {
     final visibleDays = totalDays <= 0 ? 7 : totalDays.clamp(1, 7);
     final filledDays = activeDays.clamp(0, visibleDays);
     final coverage = visibleDays == 0 ? 0.0 : filledDays / visibleDays;
-    final activeStreak = streak;
-    final nextMilestone = activeStreak?.nextMilestoneDays;
-    final streakProgress = activeStreak == null || nextMilestone == null
-        ? coverage
-        : (activeStreak.currentStreakDays / nextMilestone)
-              .clamp(0.0, 1.0)
-              .toDouble();
-    final ringProgress = activeStreak == null ? coverage : streakProgress;
-    final ringTitle = activeStreak == null
-        ? '$filledDays/$visibleDays'
-        : activeStreak.currentStreakDays.toString();
-    final ringLabel = activeStreak == null
-        ? 'days'
-        : activeStreak.currentStreakDays == 1
-        ? 'day'
-        : 'streak';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -571,7 +553,7 @@ class _WeeklyCoveragePanel extends StatelessWidget {
               SizedBox.expand(
                 child: CircularProgressIndicator(
                   strokeWidth: 8,
-                  value: ringProgress,
+                  value: coverage,
                   strokeCap: StrokeCap.round,
                   color: LogMyPlateColors.accent,
                   backgroundColor: colors.mutedFill,
@@ -581,13 +563,13 @@ class _WeeklyCoveragePanel extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    ringTitle,
+                    '$filledDays/$visibleDays',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   Text(
-                    ringLabel,
+                    'days',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.textSecondary,
                       letterSpacing: 0,
@@ -612,34 +594,15 @@ class _WeeklyCoveragePanel extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  if (activeStreak != null) ...[
+                  _WeeklyInfoPill(
+                    label: 'Avg/day',
+                    value: '$averageCalories kCal',
+                  ),
+                  if (targetCalories != null)
                     _WeeklyInfoPill(
-                      label: 'Best',
-                      value: '${activeStreak.longestStreakDays}d',
+                      label: 'Target/day',
+                      value: '$targetCalories kCal',
                     ),
-                    if (activeStreak.nextMilestoneDays != null)
-                      _WeeklyInfoPill(
-                        label: 'Next',
-                        value: '${activeStreak.nextMilestoneDays}d',
-                      ),
-                    if (activeStreak.nextRewardScans > 0)
-                      _WeeklyInfoPill(
-                        label: 'Reward',
-                        value:
-                            '+${activeStreak.nextRewardScans} ${activeStreak.nextRewardScans == 1 ? 'scan' : 'scans'}',
-                        highlighted: true,
-                      ),
-                  ] else ...[
-                    _WeeklyInfoPill(
-                      label: 'Avg/day',
-                      value: '$averageCalories kCal',
-                    ),
-                    if (targetCalories != null)
-                      _WeeklyInfoPill(
-                        label: 'Target/day',
-                        value: '$targetCalories kCal',
-                      ),
-                  ],
                 ],
               ),
             ],
