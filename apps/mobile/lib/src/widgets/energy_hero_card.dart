@@ -13,12 +13,14 @@ class EnergyHeroCard extends StatelessWidget {
     required this.mealCount,
     this.label = 'Energy',
     this.target,
+    this.onSetTarget,
   });
 
   final MacroTotals totals;
   final int mealCount;
   final String label;
   final MacroTotals? target;
+  final VoidCallback? onSetTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -89,26 +91,26 @@ class EnergyHeroCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: style.chipFill,
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: style.chipBorder),
-                  ),
-                  child: Text(
-                    hasTarget
-                        ? 'Target $targetCalories kCal'
-                        : 'Building your rhythm',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: style.accentText,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                ),
+                hasTarget
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 11,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: style.chipFill,
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: style.chipBorder),
+                        ),
+                        child: Text(
+                          'Target $targetCalories kCal',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: style.accentText,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      )
+                    : _PremiumNoTargetCTA(onSetTarget: onSetTarget, style: style),
               ],
             ),
           ),
@@ -253,6 +255,56 @@ class _HeroRings extends StatelessWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _PremiumNoTargetCTA extends StatelessWidget {
+  const _PremiumNoTargetCTA({required this.onSetTarget, required this.style});
+
+  final VoidCallback? onSetTarget;
+  final LogMyPlateHeroSurfaceStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (onSetTarget == null) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: onSetTarget,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              style.accentText.withValues(alpha: 0.15),
+              style.accentText.withValues(alpha: 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: style.accentText.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.auto_awesome_rounded,
+              size: 16,
+              color: style.accentText,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Set daily target',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: style.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
       ),
     );
   }

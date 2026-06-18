@@ -256,7 +256,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                       !_journalController.initialLoading,
                   onSelect: _selectTab,
                   onScan: _openCamera,
-                  onTarget: _openHealthTargetEditor,
+                  onChat: _openNutritionistChat,
                   child: _selectedTab == 0
                       ? _todayScreen(
                           showScanAction: false,
@@ -269,6 +269,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           themeMode: _themeMode,
                           session: _authController.session,
                           subscription: _journalController.subscription,
+                          healthTarget: _journalController.healthTarget,
+                          onSetTarget: _openHealthTargetEditor,
                           bottomPadding: useTabletLayout ? 32 : 188,
                           onThemeChanged: _setThemeMode,
                           onOpenAccount: _openProfileAccount,
@@ -318,6 +320,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           onDeleteMeal: _deleteMeal,
           onOpenWeeklyJournal: _openWeeklyJournal,
           onOpenNutritionist: _openNutritionistChat,
+          onSetTarget: _openHealthTargetEditor,
         );
       },
     );
@@ -1586,7 +1589,7 @@ class _LogMyPlateShell extends StatelessWidget {
     required this.scanPulsing,
     required this.onSelect,
     required this.onScan,
-    required this.onTarget,
+    required this.onChat,
   });
 
   final Widget child;
@@ -1594,7 +1597,7 @@ class _LogMyPlateShell extends StatelessWidget {
   final bool scanPulsing;
   final ValueChanged<int> onSelect;
   final VoidCallback onScan;
-  final VoidCallback onTarget;
+  final VoidCallback onChat;
 
   static const _tabletShortestSideBreakpoint = 600.0;
   static const _tabletContentMaxWidth = 760.0;
@@ -1621,7 +1624,7 @@ class _LogMyPlateShell extends StatelessWidget {
                     selectedIndex: selectedIndex,
                     onSelect: onSelect,
                     onScan: onScan,
-                    onTarget: onTarget,
+                    onChat: onChat,
                     scanPulsing: scanPulsing,
                   ),
                   Expanded(
@@ -1673,7 +1676,7 @@ class _LogMyPlateShell extends StatelessWidget {
                     selectedIndex: selectedIndex,
                     onSelect: onSelect,
                     onScan: onScan,
-                    onTarget: onTarget,
+                    onChat: onChat,
                     scanPulsing: scanPulsing,
                   ),
                 ),
@@ -1722,14 +1725,14 @@ class _ShellSideRail extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelect,
     required this.onScan,
-    required this.onTarget,
+    required this.onChat,
     required this.scanPulsing,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onScan;
-  final VoidCallback onTarget;
+  final VoidCallback onChat;
   final bool scanPulsing;
 
   @override
@@ -1764,10 +1767,10 @@ class _ShellSideRail extends StatelessWidget {
             _ShellRailScanButton(onTap: onScan, pulsing: scanPulsing),
             const SizedBox(height: 10),
             _ShellRailButton(
-              label: 'Target',
-              icon: Icons.track_changes_rounded,
+              label: 'AI Chat',
+              icon: Icons.auto_awesome_rounded,
               selected: false,
-              onTap: onTarget,
+              onTap: onChat,
             ),
             const SizedBox(height: 8),
             _ShellRailButton(
@@ -1933,14 +1936,14 @@ class _ShellNavBar extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelect,
     required this.onScan,
-    required this.onTarget,
+    required this.onChat,
     required this.scanPulsing,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final VoidCallback onScan;
-  final VoidCallback onTarget;
+  final VoidCallback onChat;
   final bool scanPulsing;
 
   @override
@@ -1985,10 +1988,10 @@ class _ShellNavBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 70),
                   _ShellTabButton(
-                    label: 'Target',
-                    icon: Icons.track_changes_rounded,
+                    label: 'AI Chat',
+                    icon: Icons.auto_awesome_rounded,
                     selected: false,
-                    onTap: onTarget,
+                    onTap: onChat,
                   ),
                   _ShellTabButton(
                     label: 'Profile',

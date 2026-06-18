@@ -652,104 +652,117 @@ class _PlateHintField extends StatelessWidget {
     final colors = context.logmyplate;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(15, 14, 12, 12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.045)
-            : Colors.white.withValues(alpha: 0.76),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colors.border.withValues(alpha: 0.82)),
-      ),
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: controller,
-        builder: (context, value, _) {
-          final text = value.text.trim();
-          final wordCount = text.isEmpty
-              ? 0
-              : text
-                    .split(RegExp(r'\s+'))
-                    .where((word) => word.isNotEmpty)
-                    .length;
-          final overLimit = wordCount > 50;
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final text = value.text.trim();
+        final empty = text.isEmpty;
 
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      maxLength: 280,
-                      minLines: keyboardOpen
-                          ? 2
-                          : compact
-                          ? 3
-                          : 4,
-                      maxLines: null,
-                      onChanged: (_) => onChanged(),
-                      textInputAction: TextInputAction.newline,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colors.textPrimary,
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(15, 14, 12, 12),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.045)
+                : Colors.white.withValues(alpha: 0.76),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: empty
+                  ? colors.accentText.withValues(alpha: 0.45)
+                  : colors.border.withValues(alpha: 0.82),
+            ),
+          ),
+          child: _buildContent(context, colors, empty),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(BuildContext context, LogMyPlateThemeColors colors, bool empty) {
+    final text = controller.text.trim();
+    final wordCount = empty
+        ? 0
+        : text
+              .split(RegExp(r'\s+'))
+              .where((word) => word.isNotEmpty)
+              .length;
+    final overLimit = wordCount > 50;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                maxLength: 280,
+                minLines: keyboardOpen
+                    ? 2
+                    : compact
+                    ? 3
+                    : 4,
+                maxLines: keyboardOpen ? 5 : 8,
+                onChanged: (_) => onChanged(),
+                textInputAction: TextInputAction.newline,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textPrimary,
+                  letterSpacing: 0,
+                ),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: 'e.g. 2 eggs, toast, and orange juice',
+                  labelText: 'Food note *',
+                  labelStyle: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(
+                        color: colors.textSecondary,
+                        letterSpacing: 0.8,
+                      ),
+                  hintStyle: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(
+                        color: colors.textTertiary,
                         letterSpacing: 0,
+                        height: 1.3,
                       ),
-                      decoration: InputDecoration(
-                        counterText: '',
-                        hintText: 'Example: small tea and two methi thepla',
-                        labelText: 'Food note',
-                        labelStyle: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(
-                              color: colors.textSecondary,
-                              letterSpacing: 0.8,
-                            ),
-                        hintStyle: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(
-                              color: colors.textTertiary,
-                              letterSpacing: 0,
-                              height: 1.3,
-                            ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const _VoiceHintButton(),
-                ],
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Required for accuracy',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: overLimit
-                            ? colors.accentText
-                            : colors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$wordCount / 50 words',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: overLimit
-                          ? colors.accentText
-                          : colors.textSecondary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(width: 8),
+            const _VoiceHintButton(),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Required for accuracy',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: empty
+                      ? colors.accentText
+                      : overLimit
+                      ? colors.accentText
+                      : colors.textSecondary,
+                ),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$wordCount / 50 words',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: overLimit
+                    ? colors.accentText
+                    : colors.textSecondary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -845,11 +858,22 @@ class _VoiceHintButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    return Tooltip(
-      message: 'Voice input coming soon',
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Voice input coming soon'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      },
       child: Semantics(
         button: true,
-        enabled: false,
         label: 'Voice input coming soon',
         child: Container(
           width: 42,

@@ -100,7 +100,7 @@ void main() {
     expect(find.byType(TodayScreen, skipOffstage: false), findsNothing);
     expect(find.text('Start first scan', skipOffstage: false), findsOneWidget);
     expect(find.text('Photo plus food note'), findsOneWidget);
-    expect(find.text('Food note'), findsOneWidget);
+    expect(find.text('Food note *'), findsOneWidget);
     expect(find.text('Gallery'), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
@@ -1603,7 +1603,7 @@ void main() {
     );
   });
 
-  testWidgets('profile keeps target editing in the dedicated target tab', (
+  testWidgets('profile tab includes health target section', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -1617,6 +1617,7 @@ void main() {
             linkedAt: DateTime(2026, 5, 12),
           ),
           onThemeChanged: (_) {},
+          onSetTarget: () {},
           onOpenAccount: () {},
           onDeleteAccount: () async => false,
           onSignOut: () async {},
@@ -1626,16 +1627,18 @@ void main() {
 
     expect(find.text('friend@test.com'), findsOneWidget);
     expect(find.text('Theme'), findsOneWidget);
+    expect(find.text('Health Target'), findsOneWidget);
+    expect(find.text('No target set'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pump();
+
     expect(find.text('Privacy & legal'), findsOneWidget);
     expect(find.text('Support'), findsOneWidget);
     expect(find.text('Contact support'), findsOneWidget);
     expect(find.text('Privacy policy'), findsOneWidget);
     expect(find.text('Delete account and data'), findsOneWidget);
     expect(find.text('Legal terms'), findsOneWidget);
-    expect(find.text('Food photos are saved with meal logs'), findsNothing);
-    expect(find.text('Nutrition estimates are approximate'), findsNothing);
-    expect(find.text('Daily target'), findsNothing);
-    expect(find.text('2124 kCal'), findsNothing);
   });
 
   testWidgets('profile tab deletes signed-in account data in app', (
@@ -1654,6 +1657,7 @@ void main() {
             linkedAt: DateTime(2026, 5, 12),
           ),
           onThemeChanged: (_) {},
+          onSetTarget: () {},
           onOpenAccount: () {},
           onDeleteAccount: () async {
             deleted = true;

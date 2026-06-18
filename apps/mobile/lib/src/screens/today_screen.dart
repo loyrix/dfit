@@ -40,6 +40,7 @@ class TodayScreen extends StatelessWidget {
     required this.onDeleteMeal,
     required this.onOpenWeeklyJournal,
     this.onOpenNutritionist,
+    this.onSetTarget,
   });
 
   final List<MealLog> meals;
@@ -66,6 +67,7 @@ class TodayScreen extends StatelessWidget {
   final Future<void> Function(MealLog meal) onDeleteMeal;
   final VoidCallback onOpenWeeklyJournal;
   final VoidCallback? onOpenNutritionist;
+  final VoidCallback? onSetTarget;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +148,7 @@ class TodayScreen extends StatelessWidget {
                       totals: totals,
                       mealCount: meals.length,
                       target: target,
+                      onSetTarget: onSetTarget,
                     ),
                     const SizedBox(height: 12),
                     MacroBarGroup(totals: totals),

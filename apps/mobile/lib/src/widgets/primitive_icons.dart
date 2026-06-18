@@ -20,30 +20,50 @@ class PrimitiveCameraIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bodyTop = size * 0.18;
+    final bodyHeight = size * 0.82;
+
     return SizedBox(
       width: size,
-      height: size * 0.72,
+      height: bodyTop + bodyHeight,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            top: size * 0.16,
+          Positioned(
+            top: bodyTop,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border.all(color: color, width: 1.6),
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(size * 0.09),
               ),
             ),
           ),
           Positioned(
             top: 0,
-            left: size * 0.28,
-            right: size * 0.28,
+            left: size * 0.32,
+            right: size * 0.32,
             child: Container(
-              height: 3,
+              height: size * 0.18,
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(size * 0.04),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: bodyTop + bodyHeight * 0.12,
+            right: size * 0.14,
+            child: Container(
+              width: size * 0.08,
+              height: size * 0.08,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
               ),
             ),
           ),
@@ -54,6 +74,15 @@ class PrimitiveCameraIcon extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border.all(color: color, width: 1.3),
                 shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Container(
+                width: size * 0.14,
+                height: size * 0.14,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ),

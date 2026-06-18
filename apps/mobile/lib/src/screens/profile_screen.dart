@@ -13,6 +13,8 @@ class ProfileScreen extends StatelessWidget {
     required this.onThemeChanged,
     required this.session,
     this.subscription,
+    this.healthTarget,
+    required this.onSetTarget,
     required this.onOpenAccount,
     this.onOpenPaywall,
     required this.onDeleteAccount,
@@ -24,6 +26,8 @@ class ProfileScreen extends StatelessWidget {
   final ValueChanged<ThemeMode> onThemeChanged;
   final AuthSession? session;
   final SubscriptionStatus? subscription;
+  final HealthTarget? healthTarget;
+  final VoidCallback onSetTarget;
   final VoidCallback onOpenAccount;
   final VoidCallback? onOpenPaywall;
   final Future<bool> Function() onDeleteAccount;
@@ -58,6 +62,14 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _AccountHero(session: session, onTap: onOpenAccount),
+            const SizedBox(height: 18),
+            _ProfileSection(
+              title: 'Health Target',
+              child: _HealthTargetCard(
+                target: healthTarget,
+                onTap: onSetTarget,
+              ),
+            ),
             if (onOpenPaywall != null) ...[
               const SizedBox(height: 18),
               _ProfileSection(
@@ -588,6 +600,95 @@ class DeleteAccountSheet extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthTargetCard extends StatelessWidget {
+  const _HealthTargetCard({required this.target, required this.onTap});
+
+  final HealthTarget? target;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final hasTarget = target != null && target!.dailyCalorieTarget > 0;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                hasTarget ? Icons.track_changes_rounded : Icons.add_circle_outline_rounded,
+                color: colors.accentText,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasTarget ? '${target!.dailyCalorieTarget} kCal / day' : 'No target set',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: colors.textPrimary,
+                        ),
+                  ),
+                  if (hasTarget) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${target!.goal.label} • ${target!.friendlyBmiCategory}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.textSecondary,
+                            height: 1.3,
+                          ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Set a daily goal for guidance',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.textSecondary,
+                            height: 1.3,
+                          ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).dividerColor),
+              ),
+              child: Text(
+                hasTarget ? 'Edit' : 'Set',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.textPrimary,
+                      letterSpacing: 0,
+                    ),
+              ),
+            ),
+          ],
         ),
       ),
     );
