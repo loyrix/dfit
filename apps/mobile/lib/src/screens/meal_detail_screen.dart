@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/meal.dart';
@@ -38,8 +39,10 @@ class MealDetailScreen extends StatefulWidget {
 class _MealDetailScreenState extends State<MealDetailScreen> {
   late MealLog _meal = widget.meal;
   late List<MealItem> _draftItems = widget.meal.items.toList();
+  final ScreenshotController _screenshotController = ScreenshotController();
   bool _saving = false;
   bool _deleting = false;
+  bool _isCapturing = false;
   String? _error;
 
   MealLog get _draftMeal => MealLog(
@@ -69,10 +72,18 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
       backgroundColor: colors.background,
       body: LogMyPlateAmbientBackground(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-              Row(
+          child: SingleChildScrollView(
+            child: Screenshot(
+              controller: _screenshotController,
+              child: ColoredBox(
+                color: _isCapturing ? colors.background : Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!_isCapturing) ...[
+                        Row(
                 children: [
                   IconButton(
                     tooltip: 'Back',
@@ -128,7 +139,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ),
                 ],
               ),
-              if (_meal.image != null) ...[
+              if (!_isCapturing && _meal.image != null) const SizedBox(height: 12),
+            ],
+            if (_meal.image != null) ...[
                 const SizedBox(height: 12),
                 _MealHeroImage(image: _meal.image!),
               ],
@@ -268,9 +281,36 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     child: const Text('Reset changes'),
                   ),
               ],
+              if (_isCapturing) ...[
+                const SizedBox(height: 32),
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        'Tracked with LogMyPlate AI',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: colors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'logmyplate.com',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: colors.textTertiary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
+      ),
+      ),
+      ),
+      ),
       ),
     );
   }
@@ -351,31 +391,28 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   }
 
   Future<void> _shareMeal() async {
-    final text = 'I just logged my meal: ${_meal.title} (${_meal.totals.calories} kCal) on LogMyPlate!\n\nDownload the app to track your meals with AI:\nhttps://logmyplate.com';
+    setState(() => _isCapturing = true);
+    // Give the UI a frame to update
+    await Future.delayed(const Duration(milliseconds: 50));
     
-    if (_meal.image != null && _meal.image!.url.isNotEmpty) {
-      try {
-        final uri = Uri.tryParse(_meal.image!.url);
-        if (uri != null) {
-          final response = await http.get(uri);
-          if (response.statusCode == 200) {
-            final tempDir = await getTemporaryDirectory();
-            final file = File('${tempDir.path}/shared_meal_image.jpg');
-            await file.writeAsBytes(response.bodyBytes);
-            await Share.shareXFiles(
-              [XFile(file.path)],
-              text: text,
-              subject: 'My Meal on LogMyPlate',
-            );
-            return;
-          }
-        }
-      } catch (_) {
-        // Fallback to text sharing if image download fails
-      }
-    }
+    final image = await _screenshotController.capture(
+      delay: const Duration(milliseconds: 20),
+      pixelRatio: 2.0,
+    );
     
-    await Share.share(text, subject: 'My Meal on LogMyPlate');
+    setState(() => _isCapturing = false);
+
+    if (image == null) return;
+
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/shared_meal_page.png');
+    await file.writeAsBytes(image);
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Check out my meal on LogMyPlate!\n\nhttps://logmyplate.com',
+      subject: 'My Meal on LogMyPlate',
+    );
   }
 }
 
