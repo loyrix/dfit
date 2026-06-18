@@ -50,15 +50,25 @@ export const registerIdempotency = async (
     }
 
     try {
-      await repository.setIdempotent(key, {
-        responseStatus: reply.statusCode,
-        responseBody: payload ? JSON.parse(String(payload)) : null,
-      });
+      await repository.setIdempotent(
+        key,
+        {
+          responseStatus: reply.statusCode,
+          responseBody: payload ? JSON.parse(String(payload)) : null,
+        },
+        request.method,
+        request.url,
+      );
     } catch {
-      await repository.setIdempotent(key, {
-        responseStatus: reply.statusCode,
-        responseBody: payload,
-      });
+      await repository.setIdempotent(
+        key,
+        {
+          responseStatus: reply.statusCode,
+          responseBody: payload,
+        },
+        request.method,
+        request.url,
+      );
     }
 
     return payload;

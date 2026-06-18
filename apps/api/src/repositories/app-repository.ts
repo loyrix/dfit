@@ -358,7 +358,7 @@ export interface AppRepository {
   upsertScanAnalysisCache(input: UpsertScanAnalysisCacheInput): Promise<ScanAnalysisCacheRecord>;
   countNoFoodScanAttemptsSince(sinceIso: string): Promise<number>;
   getIdempotent(key: string): Promise<IdempotencyRecord | undefined>;
-  setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">): Promise<void>;
+  setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">, method: string, path: string): Promise<void>;
   getAiPrompt(key: string): Promise<string | undefined>;
 
   // Chat
