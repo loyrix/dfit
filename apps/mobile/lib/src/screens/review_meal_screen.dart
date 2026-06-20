@@ -144,26 +144,20 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
                 const SizedBox(height: 10),
               ],
-              PremiumButton(
+              PremiumButton.icon(
                 onPressed: _items.isEmpty
                     ? null
                     : _saving
                     ? () {}
                     : () => _confirm(analyzeWithAI: false),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_saving) ...[
-                      const SizedBox(
+                icon: _saving
+                    ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    const Text('Confirm meal', key: ValueKey('confirm')),
-                  ],
-                ),
+                      )
+                    : const Icon(Icons.check_rounded, size: 20),
+                label: const Text('Confirm meal', key: ValueKey('confirm')),
               ),
             ],
           ),

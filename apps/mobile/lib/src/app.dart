@@ -20,6 +20,7 @@ import 'screens/account_gate_screen.dart';
 import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
+import 'screens/chat_history_screen.dart';
 import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
 import 'screens/nutritionist_chat_screen.dart';
@@ -517,6 +518,17 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       ),
     );
     if (selection == null) return;
+
+    if (selection == '__history__') {
+      await _navigatorKey.currentState!.push<void>(
+        logmyplatePageRoute<void>(
+          builder: (_) => ChatHistoryScreen(
+            apiClient: _journalController.apiClient,
+          ),
+        ),
+      );
+      return;
+    }
 
     if (selection == newChatKey) {
       final confirmCtx = _navigatorKey.currentContext;
@@ -2764,6 +2776,16 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
                   style: Theme.of(
                     context,
                   ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('__history__'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: colors.textSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
+                  ),
+                  child: const Text('View All'),
                 ),
               ],
             ),

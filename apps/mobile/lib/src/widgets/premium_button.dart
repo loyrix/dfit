@@ -30,7 +30,7 @@ class PremiumButton extends StatelessWidget {
 
     final gradientColors = [const Color(0xFFFFE3A3), LogMyPlateColors.accent];
         
-    final textColor = isDark ? LogMyPlateColors.accentDeep : colors.textPrimary;
+    final textColor = LogMyPlateColors.bgInk;
     final shadowColor = LogMyPlateColors.accent.withValues(alpha: isDark ? 0.3 : 0.4);
 
     return Container(
