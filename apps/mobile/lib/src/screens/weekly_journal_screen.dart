@@ -97,14 +97,14 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
                 onRefresh: widget.onRefresh,
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _WeeklyJournalHero(range: _range),
             const SizedBox(height: 12),
             _LabeledPanel(
               label: 'Tracked Day Average',
               child: MacroBarGroup(totals: _range.summary.trackedDayAverage),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
             _SectionLabel('Day Wise'),
             const SizedBox(height: 10),
             if (days.isEmpty)
@@ -262,7 +262,7 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
               MacroBarGroup(totals: _day.totals),
             ] else
               _EmptyDayOverview(day: _day),
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
             _SectionLabel('Meals'),
             const SizedBox(height: 10),
             if (meals.isEmpty)
@@ -618,7 +618,7 @@ class _WeekSelector extends StatelessWidget {
           onTap: loading ? null : onTap,
           borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               Expanded(
@@ -727,7 +727,7 @@ class _WeeklyJournalHero extends StatelessWidget {
         : (summary.activeDays / summary.windowDays).clamp(0.0, 1.0);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: surface.decoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,7 +747,7 @@ class _WeeklyJournalHero extends StatelessWidget {
                 '${summary.activeDays}/${summary.windowDays}',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: surface.textPrimary,
-                  fontSize: 40,
+                  fontSize: 36,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -890,7 +890,7 @@ class _EmptyWeekCard extends StatelessWidget {
     final colors = context.logmyplate;
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       borderRadius: BorderRadius.circular(16),
       child: Row(
         children: [
