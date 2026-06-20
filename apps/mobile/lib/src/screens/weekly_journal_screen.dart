@@ -5,11 +5,15 @@ import '../navigation/logmyplate_page_route.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/glass/fake_glass_row.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 
 class WeeklyJournalScreen extends StatefulWidget {
   const WeeklyJournalScreen({
@@ -62,8 +66,10 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
         .toList(growable: false);
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
           padding: EdgeInsets.fromLTRB(16, 12, 16, widget.bottomPadding),
           children: [
             _JournalHeader(
@@ -111,6 +117,7 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
                 ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -231,8 +238,10 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
     final hasMeals = meals.isNotEmpty;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
             _JournalHeader(
@@ -266,6 +275,7 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
                 ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -332,18 +342,15 @@ class _DayMealRow extends StatelessWidget {
     final totals = meal.totals;
     final itemNames = meal.items.map((item) => item.name).join(', ');
 
-    final row = Material(
-      color: colors.surfaceCard,
+    final row = FakeGlassRow(
       borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
           child: Row(
             children: [
               _MealBadge(type: meal.type),
@@ -388,6 +395,7 @@ class _DayMealRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
 
@@ -601,18 +609,15 @@ class _WeekSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Material(
-      color: colors.surfaceCard,
+    return FakeGlassRow(
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: loading ? null : onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: loading ? null : onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
               Expanded(
@@ -650,6 +655,7 @@ class _WeekSelector extends StatelessWidget {
                 ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -672,12 +678,9 @@ class _WeekPickerSheet extends StatelessWidget {
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
+        child: GlassCard(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -703,6 +706,7 @@ class _WeekPickerSheet extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -884,13 +888,9 @@ class _EmptyWeekCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+      borderRadius: BorderRadius.circular(16),
       child: Row(
         children: [
           Container(
@@ -956,19 +956,16 @@ class _JournalDayRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: colors.surfaceCard,
+      child: FakeGlassRow(
         borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border, width: 0.5),
-            ),
-            child: Row(
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
               children: [
                 _DateBadge(date: date, active: hasMeals),
                 const SizedBox(width: 14),
@@ -1026,6 +1023,7 @@ class _JournalDayRow extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -1220,13 +1218,9 @@ class _EmptyDayOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: Row(
         children: [
           _DateBadge(date: _parseDate(day.date), active: false),
@@ -1262,13 +1256,9 @@ class _EmptyDayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+      borderRadius: BorderRadius.circular(16),
       child: Text(
         'No meals logged for this day.',
         style: Theme.of(

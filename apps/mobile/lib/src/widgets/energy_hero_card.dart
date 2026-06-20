@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
+import '../widgets/glass/glass_cards.dart';
 
 class EnergyHeroCard extends StatelessWidget {
   const EnergyHeroCard({
@@ -32,9 +33,9 @@ class EnergyHeroCard extends StatelessWidget {
         : 0.0;
     final style = LogMyPlateHeroSurfaceStyle.of(context);
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(18),
-      decoration: style.decoration(),
+      borderRadius: BorderRadius.circular(20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

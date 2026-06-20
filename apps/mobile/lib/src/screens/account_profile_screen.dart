@@ -5,6 +5,8 @@ import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
 
 class AccountProfileScreen extends StatelessWidget {
@@ -34,10 +36,13 @@ class AccountProfileScreen extends StatelessWidget {
     final colors = context.logmyplate;
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            ListView(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: Stack(
+            children: [
+              ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 Align(
@@ -167,6 +172,7 @@ class AccountProfileScreen extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -310,12 +316,8 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+        LiteGlassCard(
+          borderRadius: BorderRadius.circular(14),
           child: Column(children: children),
         ),
       ],
@@ -412,13 +414,9 @@ class _ProfileLifecycleSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        child: Container(
+        child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: colors.border, width: 0.6),
-          ),
+          borderRadius: BorderRadius.circular(26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

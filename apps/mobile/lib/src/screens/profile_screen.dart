@@ -5,6 +5,8 @@ import '../models/meal.dart';
 import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
@@ -40,9 +42,12 @@ class ProfileScreen extends StatelessWidget {
     final signedIn = session != null;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
           children: [
             Text(
               'Profile',
@@ -164,7 +169,7 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _requestAccountDeletion(BuildContext context) async {
@@ -206,20 +211,9 @@ class _AccountHero extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
-      child: Container(
+      child: GlassCard(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: signedIn
-              ? colors.surfaceCard
-              : LogMyPlateColors.accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: signedIn
-                ? colors.border
-                : LogMyPlateColors.accent.withValues(alpha: 0.35),
-            width: 0.6,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(18),
         child: Row(
           children: [
             Container(
@@ -372,12 +366,9 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+        LiteGlassCard(
+          borderRadius: BorderRadius.circular(16),
+          padding: EdgeInsets.zero,
           child: child,
         ),
       ],
@@ -539,13 +530,9 @@ class DeleteAccountSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        child: Container(
+        child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: colors.border, width: 0.6),
-          ),
+          borderRadius: BorderRadius.circular(26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

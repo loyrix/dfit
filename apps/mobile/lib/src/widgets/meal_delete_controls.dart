@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
 
 Future<bool> confirmMealDeletion(BuildContext context) async {
   final confirmed = await showModalBottomSheet<bool>(
@@ -85,14 +86,11 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
     final colors = context.logmyplate;
 
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: LiteGlassCard(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,6 +129,7 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

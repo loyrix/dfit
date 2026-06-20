@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+
 import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,8 +9,10 @@ import 'package:share_plus/share_plus.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import '../widgets/logmyplate_background.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/macro_chips.dart';
 import '../widgets/macro_profile_card.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
@@ -69,8 +71,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final canDelete = widget.onDeleteMeal != null;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
         child: SafeArea(
           child: SingleChildScrollView(
             child: Screenshot(
@@ -93,19 +96,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   const Spacer(),
                   if (_hasChanges) const _UnsavedChangesPill(),
                   const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colors.surfaceCard,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.border.withValues(alpha: 0.5),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                  GlassCard(
+                    padding: EdgeInsets.zero,
+                    borderRadius: BorderRadius.circular(16),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -468,19 +461,19 @@ class _MealDetailSummaryCard extends StatelessWidget {
           const SizedBox(height: 13),
           Row(
             children: [
-              _DetailMacroChip(
+              MacroTextChip(
                 label: 'Protein',
                 value: totals.proteinG,
                 color: LogMyPlateColors.macroProtein,
               ),
               const SizedBox(width: 8),
-              _DetailMacroChip(
+              MacroTextChip(
                 label: 'Carbs',
                 value: totals.carbsG,
                 color: LogMyPlateColors.macroCarbs,
               ),
               const SizedBox(width: 8),
-              _DetailMacroChip(
+              MacroTextChip(
                 label: 'Fat',
                 value: totals.fatG,
                 color: LogMyPlateColors.macroFat,
@@ -501,42 +494,7 @@ class _MealDetailSummaryCard extends StatelessWidget {
   }
 }
 
-class _DetailMacroChip extends StatelessWidget {
-  const _DetailMacroChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
 
-  final String label;
-  final double value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.11),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: color.withValues(alpha: 0.24), width: 0.6),
-        ),
-        child: Text(
-          '$label ${value.round()}g',
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.textPrimary,
-            letterSpacing: 0,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _MealHeroImage extends StatelessWidget {
   const _MealHeroImage({required this.image});
@@ -550,11 +508,9 @@ class _MealHeroImage extends StatelessWidget {
       aspectRatio: 1.55,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            border: Border.all(color: colors.border),
-          ),
+        child: LiteGlassCard(
+          borderRadius: BorderRadius.circular(22),
+          padding: EdgeInsets.zero,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -598,8 +554,8 @@ class _MealHeroPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    return DecoratedBox(
-      decoration: BoxDecoration(color: colors.surfaceCard),
+    return LiteGlassCard(
+      padding: EdgeInsets.zero,
       child: Center(
         child: active
             ? SizedBox(

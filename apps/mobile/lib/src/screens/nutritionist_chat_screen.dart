@@ -6,9 +6,11 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/chat_typing_indicator.dart';
-import '../widgets/logmyplate_background.dart';
-import '../widgets/nutritionist_suggested_chip.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import '../widgets/glass/glass_surface.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/nutritionist_suggested_chip.dart';
 
 class NutritionistChatScreen extends StatefulWidget {
   const NutritionistChatScreen({
@@ -74,21 +76,11 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: LiteGlassCard(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -154,7 +146,8 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
     if (confirmed == true && mounted) {
       Navigator.of(context).pop();
     }
@@ -186,8 +179,9 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
         }
       },
       child: Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
         child: SafeArea(
           child: Column(
             children: [
@@ -297,13 +291,9 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
-          child: Container(
+          child: LiteGlassCard(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.border, width: 0.5),
-            ),
+            borderRadius: BorderRadius.circular(14),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -511,14 +501,14 @@ class _ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.85),
-        border: Border(
-          top: BorderSide(color: colors.border, width: 0.3),
+    return GlassSurface(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: colors.border, width: 0.3),
+          ),
         ),
-      ),
       child: Row(
         children: [
           Expanded(
@@ -565,7 +555,7 @@ class _ChatInputBar extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -580,38 +570,36 @@ class _SessionCompleteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.symmetric(horizontal: 32),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: LiteGlassCard(
+        padding: const EdgeInsets.all(20),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.check_circle_rounded, color: LogMyPlateColors.accent, size: 40),
-          const SizedBox(height: 12),
-          Text(
-            'Session complete',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: colors.textPrimary,
+        child: Column(
+          children: [
+            Icon(Icons.check_circle_rounded, color: LogMyPlateColors.accent, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'Session complete',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: colors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You can start a new session anytime.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
+            const SizedBox(height: 8),
+            Text(
+              'You can start a new session anytime.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textSecondary,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onNewSession,
-            child: const Text('New session'),
-          ),
-        ],
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onNewSession,
+              child: const Text('New session'),
+            ),
+          ],
+        ),
       ),
     );
   }

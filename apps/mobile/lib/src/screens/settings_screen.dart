@@ -4,6 +4,8 @@ import '../models/auth_session.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -23,8 +25,10 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             Row(
@@ -72,6 +76,7 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -176,12 +181,9 @@ class _SettingsSection extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+        LiteGlassCard(
+          borderRadius: BorderRadius.circular(14),
+          padding: EdgeInsets.zero,
           child: Column(children: children),
         ),
       ],

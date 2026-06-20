@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
 import 'primitive_icons.dart';
 
 const logMyPlateAppIconAsset =
@@ -37,33 +39,22 @@ class LogMyPlateBrandMark extends StatelessWidget {
           AnimatedScale(
             duration: const Duration(milliseconds: 260),
             scale: pulsing ? 0.96 : 1,
-            child: Container(
+            child: SizedBox(
               width: size,
               height: size,
-              padding: EdgeInsets.all(size * 0.05),
-              decoration: BoxDecoration(
-                color: colors.surfaceCard,
+              child: LiteGlassCard(
                 borderRadius: BorderRadius.circular(size * 0.24),
-                border: Border.all(color: colors.border, width: 0.6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: Theme.of(context).brightness == Brightness.dark
-                          ? 0.28
-                          : 0.10,
+                child: Padding(
+                  padding: EdgeInsets.all(size * 0.05),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(size * 0.18),
+                    child: Image.asset(
+                      logMyPlateAppIconAsset,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _BrandFallback(size: size),
                     ),
-                    blurRadius: size * 0.24,
-                    offset: Offset(0, size * 0.12),
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(size * 0.18),
-                child: Image.asset(
-                  logMyPlateAppIconAsset,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      _BrandFallback(size: size),
                 ),
               ),
             ),

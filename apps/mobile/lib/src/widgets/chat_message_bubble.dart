@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/chat.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
 
 class ChatMessageBubble extends StatelessWidget {
   const ChatMessageBubble({
@@ -58,17 +59,13 @@ class _AiBubble extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Flexible(
-              child: Container(
+              child: LiteGlassCard(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: colors.surfaceCard.withValues(alpha: 0.85),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4),
-                    topRight: Radius.circular(18),
-                    bottomLeft: Radius.circular(18),
-                    bottomRight: Radius.circular(18),
-                  ),
-                  border: Border.all(color: colors.border, width: 0.5),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4),
+                  topRight: Radius.circular(18),
+                  bottomLeft: Radius.circular(18),
+                  bottomRight: Radius.circular(18),
                 ),
                 child: Text(
                   _parseMarkdown(content),
@@ -106,20 +103,13 @@ class _UserBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.80,
         ),
-        child: Container(
+        child: LiteGlassCard(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: LogMyPlateColors.accent.withValues(alpha: 0.14),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(4),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
-            ),
-            border: Border.all(
-              color: LogMyPlateColors.accent.withValues(alpha: 0.24),
-              width: 0.5,
-            ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(4),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
           ),
           child: Text(
             content,

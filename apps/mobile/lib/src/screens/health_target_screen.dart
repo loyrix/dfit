@@ -9,6 +9,8 @@ import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
 
 class HealthTargetScreen extends StatefulWidget {
@@ -96,9 +98,12 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
     final canSave = _canSave;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 128),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 128),
           children: [
             Row(
               children: [
@@ -208,6 +213,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
             ],
           ],
         ),
+      ),
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -582,70 +588,74 @@ class _HealthSourcesSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Calculation sources',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: colors.textPrimary,
-                      height: 1.1,
+        padding: const EdgeInsets.only(top: 8),
+        child: GlassCard(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Calculation sources',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: colors.textPrimary,
+                        height: 1.1,
+                      ),
                     ),
                   ),
+                  IconButton(
+                    tooltip: 'Close sources',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: colors.textSecondary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: colors.accent.withValues(alpha: 0.16),
+                    width: 0.7,
+                  ),
                 ),
-                IconButton(
-                  tooltip: 'Close sources',
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded),
+                child: Text(
+                  'Review the public references used for BMI ranges and calorie-target math.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Open source',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colors.textSecondary,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: colors.accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: colors.accent.withValues(alpha: 0.16),
-                  width: 0.7,
+                  letterSpacing: 1.1,
                 ),
               ),
-              child: Text(
-                'Review the public references used for BMI ranges and calorie-target math.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.35,
-                ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final source in _healthSources)
+                    _HealthSourceButton(source: source, accent: colors.accent),
+                ],
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Open source',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 1.1,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final source in _healthSources)
-                  _HealthSourceButton(source: source, accent: colors.accent),
-              ],
-            ),
-            const SizedBox(height: 4),
-          ],
+              const SizedBox(height: 4),
+            ],
+          ),
         ),
       ),
     );
@@ -656,12 +666,9 @@ void _showHealthSources(BuildContext context) {
   final colors = context.logmyplate;
   showModalBottomSheet<void>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: colors.surfaceCard,
+    showDragHandle: false,
+    backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.48),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (_) => const _HealthSourcesSheet(),
   );
 }
@@ -1280,16 +1287,9 @@ class _InputSurface extends StatelessWidget {
     final colors = context.logmyplate;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    return LiteGlassCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: enabled
-            ? colors.surfaceCard
-            : colors.surfaceCard.withValues(alpha: isDark ? 0.82 : 0.92),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: child,
     );
   }
@@ -1457,7 +1457,7 @@ class _ChoiceChipButton extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? LogMyPlateColors.accent : colors.surfaceCard,
+          color: selected ? LogMyPlateColors.accent : Colors.transparent,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
             color: selected ? LogMyPlateColors.accent : colors.border,

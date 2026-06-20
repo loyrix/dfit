@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
 
 class MealItemEditResult {
   const MealItemEditResult.update(this.item) : delete = false;
@@ -96,27 +97,11 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottomInset),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 680),
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF17201B)
-                : colors.surfaceCard.withValues(alpha: 0.98),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: colors.border, width: 0.6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 0.30
-                      : 0.10,
-                ),
-                blurRadius: 30,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: ListView(
+        child: LiteGlassCard(
+          borderRadius: BorderRadius.circular(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 680),
+            child: ListView(
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             children: [
@@ -322,8 +307,9 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _save() {
     final name = _nameController.text.trim();
@@ -576,39 +562,37 @@ class _FoodSuggestionChip extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () => onSelect(food),
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border.withValues(alpha: 0.82)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              food.canonicalName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0,
+      child: LiteGlassCard(
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                food.canonicalName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${portion.grams.round()}g ${portion.unit} · $calories kCal',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 0,
+              const SizedBox(height: 4),
+              Text(
+                '${portion.grams.round()}g ${portion.unit} · $calories kCal',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.textSecondary,
+                  letterSpacing: 0,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -825,9 +809,7 @@ class _EditTextField extends StatelessWidget {
 InputDecoration _fieldDecoration(BuildContext context, String label) {
   final colors = context.logmyplate;
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final enabledFill = isDark
-      ? Colors.white.withValues(alpha: 0.035)
-      : colors.surfaceCard;
+  final enabledFill = colors.mutedFill;
   final enabledBorder = colors.border.withValues(alpha: 0.86);
 
   return InputDecoration(

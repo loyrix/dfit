@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_cards.dart';
+import '../widgets/macro_chips.dart';
 
 class MacroBarGroup extends StatelessWidget {
   const MacroBarGroup({super.key, required this.totals});
@@ -18,13 +20,9 @@ class MacroBarGroup extends StatelessWidget {
     final macroCalories = proteinCalories + carbsCalories + fatCalories;
     final hasMacros = macroCalories > 0;
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+      borderRadius: BorderRadius.circular(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -57,21 +55,21 @@ class MacroBarGroup extends StatelessWidget {
           const SizedBox(height: 13),
           Row(
             children: [
-              _MacroMetric(
+              MacroDetailChip(
                 label: 'Protein',
                 value: totals.proteinG,
                 share: hasMacros ? proteinCalories / macroCalories : 0,
                 color: _MacroColors.protein,
               ),
               const SizedBox(width: 8),
-              _MacroMetric(
+              MacroDetailChip(
                 label: 'Carbs',
                 value: totals.carbsG,
                 share: hasMacros ? carbsCalories / macroCalories : 0,
                 color: _MacroColors.carbs,
               ),
               const SizedBox(width: 8),
-              _MacroMetric(
+              MacroDetailChip(
                 label: 'Fat',
                 value: totals.fatG,
                 share: hasMacros ? fatCalories / macroCalories : 0,
@@ -143,79 +141,6 @@ class _MacroStackedBar extends StatelessWidget {
                     ),
                 ],
               ),
-      ),
-    );
-  }
-}
-
-class _MacroMetric extends StatelessWidget {
-  const _MacroMetric({
-    required this.label,
-    required this.value,
-    required this.share,
-    required this.color,
-  });
-
-  final String label;
-  final double value;
-  final double share;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: color.withValues(alpha: 0.18), width: 0.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${(share * 100).round()}%',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textTertiary,
-                    letterSpacing: 0,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 9),
-            Text(
-              '${value.round()}g',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: colors.textPrimary,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 0,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

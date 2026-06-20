@@ -5,7 +5,8 @@ import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
-import '../widgets/logmyplate_background.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
 
 class AccountGateScreen extends StatefulWidget {
@@ -58,8 +59,9 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
     final showAppleSignIn = Theme.of(context).platform == TargetPlatform.iOS;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -272,13 +274,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
     final isSignUp = _mode == EmailAuthMode.signUp;
     final isResetting = _resetEmail != null;
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
+      borderRadius: BorderRadius.circular(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -632,7 +630,7 @@ class _ModeTab extends StatelessWidget {
           height: 34,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? colors.surfaceCard : Colors.transparent,
+            color: selected ? colors.mutedFill : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -813,7 +811,7 @@ class _ProviderButton extends StatelessWidget {
       child: FilledButton(
         onPressed: loading ? null : onTap,
         style: FilledButton.styleFrom(
-          backgroundColor: isApple ? colors.textPrimary : colors.surfaceCard,
+          backgroundColor: isApple ? colors.textPrimary : colors.mutedFill,
           foregroundColor: isApple ? colors.background : colors.textPrimary,
           disabledBackgroundColor: colors.mutedFill,
           disabledForegroundColor: colors.textSecondary,

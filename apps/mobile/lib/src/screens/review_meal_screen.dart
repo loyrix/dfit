@@ -4,8 +4,10 @@ import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import '../widgets/logmyplate_background.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
 
 class ReviewMealScreen extends StatefulWidget {
@@ -63,8 +65,10 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     final colors = context.logmyplate;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        photo: widget.photo,
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -97,12 +101,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: colors.surfaceCard,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
+              LiteGlassCard(
+                borderRadius: BorderRadius.circular(18),
+                padding: EdgeInsets.zero,
                 child: Column(
                   children: [
                     for (var index = 0; index < _entries.length; index++)
@@ -407,21 +408,21 @@ class _ReviewSummaryCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _MacroChip(
+              MacroTextChip(
                 label: 'Protein',
-                value: totals.proteinG.round(),
+                value: totals.proteinG,
                 color: LogMyPlateColors.macroProtein,
               ),
               const SizedBox(width: 8),
-              _MacroChip(
+              MacroTextChip(
                 label: 'Carbs',
-                value: totals.carbsG.round(),
+                value: totals.carbsG,
                 color: LogMyPlateColors.macroCarbs,
               ),
               const SizedBox(width: 8),
-              _MacroChip(
+              MacroTextChip(
                 label: 'Fat',
-                value: totals.fatG.round(),
+                value: totals.fatG,
                 color: LogMyPlateColors.macroFat,
               ),
             ],
@@ -478,42 +479,7 @@ class _MealTypePill extends StatelessWidget {
   }
 }
 
-class _MacroChip extends StatelessWidget {
-  const _MacroChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
 
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: color.withValues(alpha: 0.20), width: 0.5),
-        ),
-        child: Text(
-          '$label ${value}g',
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.textPrimary,
-            letterSpacing: 0,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ReviewItemRow extends StatelessWidget {
   const _ReviewItemRow({

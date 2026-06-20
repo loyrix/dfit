@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/fake_glass_row.dart';
 import 'meal_delete_controls.dart';
 
 class MealCard extends StatelessWidget {
@@ -23,18 +24,15 @@ class MealCard extends StatelessWidget {
     final totals = meal.totals;
     final names = meal.items.map((item) => item.name).join(', ');
 
-    final card = Material(
-      color: colors.surfaceCard,
+    final card = FakeGlassRow(
       borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               _MealTimeDisk(type: meal.type),
@@ -97,6 +95,7 @@ class MealCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
 

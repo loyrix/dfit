@@ -5,6 +5,7 @@ import '../services/revenuecat_subscription_service.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
+import '../widgets/glass/glass_cards.dart';
 
 class PremiumPaywallSheet extends StatefulWidget {
   const PremiumPaywallSheet({
@@ -45,22 +46,12 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        child: Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: GlassCard(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border, width: 0.6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Column(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -208,7 +199,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _purchase(PremiumPlan plan) async {
