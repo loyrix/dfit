@@ -8,6 +8,7 @@ import '../widgets/app_brand_mark.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class AccountGateScreen extends StatefulWidget {
   const AccountGateScreen({
@@ -153,7 +154,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                 const SizedBox(height: 8),
               ],
               if (!_passwordResetMode) ...[
-                TextButton(
+                GlassWrapper(child: TextButton(
                   onPressed: widget.loading
                       ? null
                       : widget.reason == AccountGateReason.quotaExhausted
@@ -164,7 +165,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                         ? 'Log manually instead'
                         : 'Maybe later',
                   ),
-                ),
+                )),
                 const SizedBox(height: 6),
                 Text(
                   widget.reason == AccountGateReason.accountDeletion
@@ -356,7 +357,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             if (!isSignUp)
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
+                child: GlassWrapper(child: TextButton(
                   onPressed: widget.loading ? null : _requestReset,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -364,7 +365,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text('Forgot password?'),
-                ),
+                )),
               ),
           ],
           if (_validation != null) ...[
@@ -396,7 +397,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
           ),
           if (isResetting) ...[
             const SizedBox(height: 4),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: widget.loading
                   ? null
                   : () {
@@ -410,7 +411,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                       widget.onClearError?.call();
                     },
               child: const Text('Back to login'),
-            ),
+            )),
           ],
         ],
       ),
@@ -587,7 +588,7 @@ class _InlineAuthError extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
+              child: GlassWrapper(child: TextButton.icon(
                 onPressed: () => openLogMyPlateLink(
                   context,
                   LogMyPlateLinks.accountSupport,
@@ -601,7 +602,7 @@ class _InlineAuthError extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.support_agent_rounded, size: 16),
                 label: const Text('Contact support'),
-              ),
+              )),
             ),
           ],
         ],

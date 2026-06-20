@@ -9,6 +9,7 @@ import '../widgets/glass/glass_cards.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class ReviewMealScreen extends StatefulWidget {
   const ReviewMealScreen({
@@ -119,7 +120,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              OutlinedButton(
+              GlassWrapper(child: OutlinedButton(
                 onPressed: _openAddCustomItemSheet,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: primaryText,
@@ -130,7 +131,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   ),
                 ),
                 child: const Text('Add custom item'),
-              ),
+              )),
               const SizedBox(height: 10),
               if (_error != null) ...[
                 Text(
@@ -145,7 +146,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: GlassWrapper(child: OutlinedButton(
                       onPressed: _items.isEmpty
                           ? null
                           : _saving
@@ -160,7 +161,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                         ),
                       ),
                       child: const Text('Confirm meal', key: ValueKey('confirm')),
-                    ),
+                    )),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -466,7 +467,7 @@ class _MealTypePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
+    return GlassWrapper(child: TextButton(
       onPressed: onTap,
       child: Text(
         type.label,
@@ -475,7 +476,7 @@ class _MealTypePill extends StatelessWidget {
           letterSpacing: 1.6,
         ),
       ),
-    );
+    ));
   }
 }
 

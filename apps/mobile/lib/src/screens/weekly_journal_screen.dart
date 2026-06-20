@@ -14,6 +14,7 @@ import '../widgets/primitive_icons.dart';
 import '../widgets/glass/fake_glass_row.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class WeeklyJournalScreen extends StatefulWidget {
   const WeeklyJournalScreen({
@@ -560,7 +561,7 @@ class _JournalSyncStrip extends StatelessWidget {
                 ),
               ),
               if (hasError && onRefresh != null)
-                TextButton(
+                GlassWrapper(child: TextButton(
                   onPressed: () {
                     onRefresh?.call();
                   },
@@ -571,7 +572,7 @@ class _JournalSyncStrip extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text('Retry'),
-                ),
+                )),
             ],
           ),
           AnimatedSwitcher(

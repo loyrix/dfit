@@ -7,6 +7,7 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
@@ -153,7 +154,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 22),
               SizedBox(
                 height: 52,
-                child: OutlinedButton(
+                child: GlassWrapper(child: OutlinedButton(
                   onPressed: onSignOut,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colors.textPrimary,
@@ -163,7 +164,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   child: const Text('Log out'),
-                ),
+                )),
               ),
             ],
           ],
@@ -580,10 +581,10 @@ class DeleteAccountSheet extends StatelessWidget {
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: TextButton(
+                child: GlassWrapper(child: TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('Keep account'),
-                ),
+                )),
               ),
             ],
           ),

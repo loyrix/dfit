@@ -12,6 +12,7 @@ import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
@@ -333,14 +334,14 @@ class _FailureActions extends StatelessWidget {
           child: Text(isQuota ? 'Open account' : 'Retry scan'),
         ),
         const SizedBox(height: 4),
-        TextButton(
+        GlassWrapper(child: TextButton(
           onPressed: isQuota && onAddManually != null
               ? onAddManually
               : () => Navigator.of(context).pop(),
           child: Text(
             isQuota && onAddManually != null ? 'Add manually' : 'Back',
           ),
-        ),
+        )),
       ],
     );
   }

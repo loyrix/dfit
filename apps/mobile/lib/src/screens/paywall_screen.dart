@@ -6,6 +6,7 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
 import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class PremiumPaywallSheet extends StatefulWidget {
   const PremiumPaywallSheet({
@@ -183,10 +184,10 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 ),
               ),
               const SizedBox(height: 8),
-              TextButton(
+              GlassWrapper(child: TextButton(
                 onPressed: _busy ? null : _restore,
                 child: Text(_restoring ? 'Restoring...' : 'Restore purchase'),
-              ),
+              )),
               Text(
                 'Subscription renews through the App Store or Google Play. Cancel anytime in store account settings.',
                 textAlign: TextAlign.center,

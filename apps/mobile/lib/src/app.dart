@@ -47,6 +47,7 @@ import 'theme/logmyplate_theme.dart';
 import 'widgets/glass/glass_cards.dart';
 import 'widgets/logmyplate_notice.dart';
 import 'widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class LogMyPlateApp extends StatefulWidget {
   const LogMyPlateApp({
@@ -2219,10 +2220,10 @@ class _JournalTabLoadingScreen extends StatelessWidget {
                     ),
                     if (message != null) ...[
                       const SizedBox(height: 12),
-                      TextButton(
+                      GlassWrapper(child: TextButton(
                         onPressed: onRetry,
                         child: const Text('Retry'),
-                      ),
+                      )),
                     ],
                   ],
                 ),
@@ -2308,10 +2309,10 @@ class _ReviewPromptSheet extends StatelessWidget {
               child: Text(policy.copy.positiveLabel),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: Text(policy.copy.negativeLabel),
-            ),
+            )),
           ],
         ),
       ),
@@ -2367,7 +2368,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
                 child: const Text('Upgrade to Premium'),
               ),
               const SizedBox(height: 8),
-              OutlinedButton.icon(
+              GlassWrapper(child: OutlinedButton.icon(
                 onPressed: progress.dailyLimitReached
                     ? null
                     : () => Navigator.of(
@@ -2383,9 +2384,9 @@ class _NoScanCreditsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-              ),
+              )),
               const SizedBox(height: 8),
-              OutlinedButton(
+              GlassWrapper(child: OutlinedButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.addManually),
                 style: OutlinedButton.styleFrom(
@@ -2397,13 +2398,13 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   ),
                 ),
                 child: const Text('Add manually'),
-              ),
+              )),
               const SizedBox(height: 8),
-              TextButton(
+              GlassWrapper(child: TextButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.refresh),
                 child: const Text('Refresh quota'),
-              ),
+              )),
             ],
           ),
         ),
@@ -2600,10 +2601,10 @@ class _AppUpdateOverlay extends StatelessWidget {
                   ),
                   if (!policy.isMandatory) ...[
                     const SizedBox(height: 8),
-                    TextButton(
+                    GlassWrapper(child: TextButton(
                       onPressed: onDismissOptional,
                       child: const Text('Later'),
-                    ),
+                    )),
                   ],
                 ],
               ),
@@ -2693,10 +2694,10 @@ class _DailyTargetReachedSheet extends StatelessWidget {
               ),
               child: const Text('Scan anyway'),
             ),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Stay on journal'),
-            ),
+            )),
           ],
         ),
       ),
@@ -2934,10 +2935,10 @@ class _StartChatConfirmationSheet extends StatelessWidget {
             child: const Text('Start chat'),
           ),
           const SizedBox(height: 8),
-          TextButton(
+          GlassWrapper(child: TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
-          ),
+          )),
         ],
       ),
     );

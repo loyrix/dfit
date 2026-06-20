@@ -15,6 +15,7 @@ import '../widgets/meal_delete_controls.dart';
 import '../widgets/nutritionist_entry_button.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_backdrop.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({
@@ -951,7 +952,7 @@ class _SyncBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          TextButton(
+          GlassWrapper(child: TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(
               foregroundColor: colors.accentText,
@@ -960,7 +961,7 @@ class _SyncBanner extends StatelessWidget {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: const Text('Retry'),
-          ),
+          )),
         ],
       ),
     );
@@ -1066,7 +1067,7 @@ class _MealsList extends StatelessWidget {
             onDelete: () => _deleteMeal(context, meal),
           ),
         const SizedBox(height: 8),
-        TextButton(onPressed: onAddManually, child: const Text('Add manually')),
+        GlassWrapper(child: TextButton(onPressed: onAddManually, child: const Text('Add manually'))),
       ],
     );
   }
@@ -1209,7 +1210,7 @@ class _EmptyTodayBody extends StatelessWidget {
                     const SizedBox(height: 11),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: TextButton(
+                      child: GlassWrapper(child: TextButton(
                         onPressed: onAddManually,
                         style: TextButton.styleFrom(
                           foregroundColor: colors.accentText,
@@ -1224,7 +1225,7 @@ class _EmptyTodayBody extends StatelessWidget {
                           ),
                         ),
                         child: const Text('Add manually'),
-                      ),
+                      )),
                     ),
                   ],
                 ),

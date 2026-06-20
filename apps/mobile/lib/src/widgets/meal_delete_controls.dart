@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import 'glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 Future<bool> confirmMealDeletion(BuildContext context) async {
   final confirmed = await showModalBottomSheet<bool>(
@@ -122,10 +123,10 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
               child: const Text('Delete meal'),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
-            ),
+            )),
           ],
         ),
       ),

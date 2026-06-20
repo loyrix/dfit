@@ -11,6 +11,7 @@ import '../widgets/glass/glass_cards.dart';
 import '../widgets/glass/glass_surface.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/nutritionist_suggested_chip.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class NutritionistChatScreen extends StatefulWidget {
   const NutritionistChatScreen({
@@ -138,10 +139,10 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 child: const Text('Exit'),
               ),
               const SizedBox(height: 8),
-              TextButton(
+              GlassWrapper(child: TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: const Text('Stay'),
-              ),
+              )),
             ],
           ),
         ),
@@ -594,10 +595,10 @@ class _SessionCompleteCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
+            GlassWrapper(child: ElevatedButton(
               onPressed: onNewSession,
               child: const Text('New session'),
-            ),
+            )),
           ],
         ),
       ),

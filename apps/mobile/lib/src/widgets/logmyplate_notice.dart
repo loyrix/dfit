@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import 'glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 enum LogMyPlateNoticeTone { success, info, warning, error }
 
@@ -294,7 +295,7 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
                     ),
                     if (actionLabel != null && onAction != null) ...[
                       const SizedBox(width: 10),
-                      TextButton(
+                      GlassWrapper(child: TextButton(
                         onPressed: onAction,
                         style: TextButton.styleFrom(
                           foregroundColor: toneColor,
@@ -303,7 +304,7 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(actionLabel!),
-                      ),
+                      )),
                     ],
                   ],
                 ),

@@ -8,6 +8,7 @@ import '../widgets/app_brand_mark.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class AccountProfileScreen extends StatelessWidget {
   const AccountProfileScreen({
@@ -147,7 +148,7 @@ class AccountProfileScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 SizedBox(
                   height: 54,
-                  child: OutlinedButton(
+                  child: GlassWrapper(child: OutlinedButton(
                     onPressed: loading ? null : () => _signOut(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colors.textPrimary,
@@ -157,7 +158,7 @@ class AccountProfileScreen extends StatelessWidget {
                       ),
                     ),
                     child: const Text('Log out'),
-                  ),
+                  )),
                 ),
               ],
             ),
@@ -470,10 +471,10 @@ class _ProfileLifecycleSheet extends StatelessWidget {
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: TextButton(
+                child: GlassWrapper(child: TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('Keep profile'),
-                ),
+                )),
               ),
             ],
           ),

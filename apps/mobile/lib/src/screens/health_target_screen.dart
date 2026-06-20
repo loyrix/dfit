@@ -12,6 +12,7 @@ import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class HealthTargetScreen extends StatefulWidget {
   const HealthTargetScreen({
@@ -112,12 +113,12 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   icon: const BackMark(),
                 ),
                 const Spacer(),
-                TextButton(
+                GlassWrapper(child: TextButton(
                   onPressed: _saving ? null : () => Navigator.of(context).pop(),
                   child: Text(
                     widget.initialTarget == null ? 'Set later' : 'Close',
                   ),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 6),
@@ -560,7 +561,7 @@ class _HealthSourcesButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
+    return GlassWrapper(child: TextButton.icon(
       onPressed: () => _showHealthSources(context),
       style: TextButton.styleFrom(
         foregroundColor: surface.accentText,
@@ -575,7 +576,7 @@ class _HealthSourcesButton extends StatelessWidget {
       ),
       icon: const Icon(Icons.open_in_new_rounded, size: 13),
       label: const Text('Sources'),
-    );
+    ));
   }
 }
 

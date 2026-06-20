@@ -16,6 +16,7 @@ import '../widgets/macro_chips.dart';
 import '../widgets/macro_profile_card.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class MealDetailScreen extends StatefulWidget {
   const MealDetailScreen({
@@ -270,10 +271,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     ),
                   ),
                   if (_hasChanges)
-                    TextButton(
+                    GlassWrapper(child: TextButton(
                       onPressed: _saving || _deleting ? null : _resetChanges,
                       child: const Text('Reset changes'),
-                    ),
+                    )),
                 ],
               ],
               if (_isCapturing) ...[
