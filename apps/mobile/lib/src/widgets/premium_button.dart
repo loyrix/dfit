@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/logmyplate_theme.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -25,7 +24,6 @@ class PremiumButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final gradientColors = [const Color(0xFFFFE3A3), LogMyPlateColors.accent];

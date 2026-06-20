@@ -4144,6 +4144,15 @@ export class PostgresStore implements AppRepository {
     `;
   }
 
+  async setChatSessionTitle(sessionId: string, title: string): Promise<void> {
+    await this.sql`
+      update chat_sessions
+      set title = ${title}
+      where id = ${sessionId}
+        and title is null
+    `;
+  }
+
   async appendChatMessage(input: {
     sessionId: string;
     role: "system" | "user" | "assistant";
@@ -4217,6 +4226,7 @@ export class PostgresStore implements AppRepository {
   ): Promise<
     Array<{
       id: string;
+      title?: string;
       turnCount: number;
       createdAt: string;
       closedAt?: string;
@@ -4225,20 +4235,28 @@ export class PostgresStore implements AppRepository {
     const rows = await this.sql<
       Array<{
         id: string;
+        title: string | null;
         turn_count: number;
         created_at: string;
         closed_at: string | null;
       }>
     >`
-      select id, turn_count, created_at::text, closed_at::text
+      select id, title, turn_count, created_at::text, closed_at::text
       from chat_sessions
       where profile_id = ${profileId}
       order by created_at desc
       limit ${limit ?? 100}
     `;
     return rows.map(
-      (r: { id: string; turn_count: number; created_at: string; closed_at: string | null }) => ({
+      (r: {
+        id: string;
+        title: string | null;
+        turn_count: number;
+        created_at: string;
+        closed_at: string | null;
+      }) => ({
         id: r.id,
+        title: r.title ?? undefined,
         turnCount: r.turn_count,
         createdAt: r.created_at,
         closedAt: r.closed_at ?? undefined,

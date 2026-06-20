@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -233,7 +232,6 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
     final colors = context.logmyplate;
     final toneColor = _toneColor(context);
     final icon = _toneIcon();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
       liveRegion: true,

@@ -65,7 +65,6 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     final primaryText = _reviewPrimaryText(context);
     final secondaryText = _reviewSecondaryText(context);
     final borderColor = _reviewBorder(context);
-    final colors = context.logmyplate;
 
     return Scaffold(
       extendBodyBehindAppBar: true,

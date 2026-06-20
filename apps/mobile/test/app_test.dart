@@ -26,6 +26,7 @@ import 'package:logmyplate_mobile/src/services/rewarded_ad_service.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
 import 'package:logmyplate_mobile/src/state/journal_controller.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:logmyplate_mobile/src/widgets/primitive_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,7 +60,7 @@ void main() {
 
     expect(find.text('LogMyPlate'), findsOneWidget);
     expect(
-      find.text('AI-powered food tracking, without the hassle.'),
+      find.text('Eat smarter with AI'),
       findsOneWidget,
     );
     expect(find.text('Start first scan'), findsOneWidget);
@@ -96,11 +97,11 @@ void main() {
     await tester.pump();
     await _pumpAppFrame(tester);
 
-    expect(find.text('AI Meal Scan'), findsOneWidget);
+    expect(find.text('AI powered meal scan'), findsOneWidget);
     expect(find.byType(TodayScreen, skipOffstage: false), findsNothing);
     expect(find.text('Start first scan', skipOffstage: false), findsOneWidget);
-    expect(find.text('Photo plus food note'), findsOneWidget);
-    expect(find.text('Food note *'), findsOneWidget);
+    expect(find.text('Add meal photo plus food note'), findsOneWidget);
+    expect(find.text('Food note:*'), findsOneWidget);
     expect(find.text('Gallery'), findsOneWidget);
     expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
@@ -452,7 +453,7 @@ void main() {
     expect(find.text('Confirm meal'), findsOneWidget);
   });
 
-  testWidgets('ReviewMealScreen shows PRO badge when not premium', (tester) async {
+  testWidgets('ReviewMealScreen confirms without an AI/PRO upsell', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: ReviewMealScreen(
@@ -462,18 +463,12 @@ void main() {
         ),
       ),
     );
-    expect(find.text('PRO'), findsOneWidget);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ReviewMealScreen(
-          isPremium: true,
-          initialItems: const [],
-          onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
-        ),
-      ),
-    );
+    // Manual review just confirms the meal now; AI analysis lives on the
+    // meal detail screen, so there is no PRO upsell on this screen.
+    expect(find.widgetWithText(PremiumButton, 'Confirm meal'), findsOneWidget);
     expect(find.text('PRO'), findsNothing);
+    expect(find.text('Analyze with AI'), findsNothing);
   });
 
   testWidgets('MealDetailScreen shows PRO badge when not premium', (tester) async {
@@ -520,7 +515,11 @@ void main() {
     );
     await _pumpAppFrame(tester);
 
-    await tester.ensureVisible(find.text('Add manually'));
+    await tester.scrollUntilVisible(
+      find.text('Add manually'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump();
     await tester.tap(find.text('Add manually'));
     await _pumpAppFrame(tester);
@@ -853,6 +852,8 @@ void main() {
     await tester.scrollUntilVisible(find.text('MON 11 MAY'), 220);
     expect(find.text('MON 11 MAY'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('MON 11 MAY'));
+    await tester.pump();
     await tester.tap(find.text('MON 11 MAY'));
     await tester.pumpAndSettle();
 
@@ -1019,7 +1020,7 @@ void main() {
       ),
     );
 
-    await tester.drag(find.byType(ListView), const Offset(0, -420));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -420));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_rounded));
     await tester.pumpAndSettle();
@@ -1090,9 +1091,7 @@ void main() {
 
     await tester.tap(find.text('Open meal'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete meal'));
+    await tester.tap(find.byTooltip('Delete meal'));
     await tester.pumpAndSettle();
 
     expect(find.text('Delete this meal?'), findsOneWidget);
@@ -1400,7 +1399,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), 'newpass1');
     await tester.drag(find.byType(ListView), const Offset(0, -180));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.widgetWithText(FilledButton, 'Reset password'));
+    await tester.tap(find.widgetWithText(PremiumButton, 'Reset password'));
     await tester.pump();
 
     expect(confirmedCode, '123456');
@@ -1613,8 +1612,8 @@ void main() {
     );
 
     expect(find.text('Edit daily target'), findsOneWidget);
-    var saveButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Save target'),
+    var saveButton = tester.widget<PremiumButton>(
+      find.widgetWithText(PremiumButton, 'Save target'),
     );
     expect(saveButton.onPressed, isNull);
 
@@ -1632,8 +1631,8 @@ void main() {
     await tester.enterText(ageInput, '31');
     await tester.pump();
 
-    saveButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Save target'),
+    saveButton = tester.widget<PremiumButton>(
+      find.widgetWithText(PremiumButton, 'Save target'),
     );
     expect(saveButton.onPressed, isNotNull);
   });
@@ -1740,7 +1739,7 @@ void main() {
 
     expect(find.text('Delete account and data?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete account'));
+    await tester.tap(find.widgetWithText(PremiumButton, 'Delete account'));
     await tester.pumpAndSettle();
 
     expect(deleted, isTrue);
@@ -1890,7 +1889,7 @@ void main() {
     expect(adGateway.lastServerSideUserId, 'profile_test');
     expect(adGateway.lastVerificationToken, isNotNull);
     expect(adGateway.lastVerificationToken!.length, greaterThanOrEqualTo(16));
-    expect(find.text('AI Meal Scan'), findsOneWidget);
+    expect(find.text('AI powered meal scan'), findsOneWidget);
   });
 
   testWidgets('signed-in users can unlock scanning with Premium purchase', (
@@ -1947,7 +1946,7 @@ void main() {
 
     expect(subscriptionGateway.purchaseCount, 1);
     expect(subscriptionGateway.lastAppUserId, 'profile_test');
-    expect(find.text('AI Meal Scan'), findsOneWidget);
+    expect(find.text('AI powered meal scan'), findsOneWidget);
     expect(controller.subscription?.active, isTrue);
     expect(controller.quota?.premiumRemaining, 10);
   });
@@ -1991,11 +1990,11 @@ void main() {
     );
     await _pumpAppFrame(tester);
 
-    expect(find.text('2 scans'), findsOneWidget);
+    expect(find.text('Total Scans available: 2'), findsOneWidget);
     expect(find.text('2 scans +'), findsNothing);
     expect(find.text('ad unlock'), findsNothing);
 
-    await tester.tap(find.text('2 scans'));
+    await tester.tap(find.text('Total Scans available: 2'));
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(adGateway.showCount, 0);
@@ -2072,7 +2071,7 @@ void main() {
     expect(adGateway.showCount, 1);
     expect(adGateway.lastServerSideUserId, 'profile_test');
     expect(adGateway.lastVerificationToken, isNotNull);
-    expect(find.text('AI Meal Scan'), findsOneWidget);
+    expect(find.text('AI powered meal scan'), findsOneWidget);
   });
 
   testWidgets('rewarded unlock does not chain ads when no scan is granted', (
@@ -2142,7 +2141,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(adGateway.showCount, 1);
-    expect(find.text('AI Meal Scan'), findsNothing);
+    expect(find.text('AI powered meal scan'), findsNothing);
   });
 
   testWidgets('rewarded unlock retries while server verification is pending', (
@@ -2217,7 +2216,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     expect(adGateway.showCount, 1);
-    expect(find.text('AI Meal Scan'), findsOneWidget);
+    expect(find.text('AI powered meal scan'), findsOneWidget);
   });
 
   testWidgets('save journal account gate backs out without manual review', (
@@ -2318,6 +2317,8 @@ void main() {
 
     expect(find.text('Log out'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Log out'));
+    await tester.pump();
     await tester.tap(find.text('Log out'));
     await tester.pumpAndSettle();
 
@@ -2356,7 +2357,7 @@ void main() {
 
     expect(find.text('Delete account and data?'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete account'));
+    await tester.tap(find.widgetWithText(PremiumButton, 'Delete account'));
     await tester.pumpAndSettle();
 
     expect(deleted, isTrue);

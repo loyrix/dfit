@@ -12,6 +12,9 @@ const skipsIdempotency = (request: FastifyRequest): boolean => {
     return true;
   }
   if (request.method === "POST" && request.url.startsWith("/v1/chat/")) return true;
+  // Deleting nutritionist chat sessions is naturally idempotent (removing
+  // already-removed ids is a no-op) and the mobile client sends no key here.
+  if (request.method === "DELETE" && request.url.startsWith("/v1/chat/")) return true;
   return false;
 };
 

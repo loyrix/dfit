@@ -175,8 +175,6 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
