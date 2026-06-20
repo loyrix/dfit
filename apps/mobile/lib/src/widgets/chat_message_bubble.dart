@@ -4,7 +4,6 @@ import '../theme/logmyplate_spacing.dart';
 import '../models/chat.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import 'glass/glass_cards.dart';
 
 class ChatMessageBubble extends StatelessWidget {
   const ChatMessageBubble({
@@ -60,13 +59,20 @@ class _AiBubble extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Flexible(
-              child: GlassCard(
+              child: Container(
                 padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(18),
-                  bottomLeft: Radius.circular(18),
-                  bottomRight: Radius.circular(18),
+                decoration: BoxDecoration(
+                  color: colors.surfaceCard.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.8),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(18),
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(18),
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.05 : 0.4),
+                    width: 0.5,
+                  ),
                 ),
                 child: Text(
                   _parseMarkdown(content),
@@ -105,14 +111,20 @@ class _UserBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.80,
         ),
-        child: GlassCard(
+        child: Container(
           padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
-          tintColor: colors.accent,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(4),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
+          decoration: BoxDecoration(
+            color: colors.accent.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.15 : 0.1),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(18),
+              topRight: Radius.circular(4),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(18),
+            ),
+            border: Border.all(
+              color: colors.accent.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.2),
+              width: 0.5,
+            ),
           ),
           child: Text(
             content,

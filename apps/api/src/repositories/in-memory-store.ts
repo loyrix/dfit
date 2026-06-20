@@ -1008,7 +1008,12 @@ export class InMemoryStore implements AppRepository {
     return this.idempotency.get(key);
   }
 
-  async setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">, method: string, path: string) {
+  async setIdempotent(
+    key: string,
+    record: Omit<IdempotencyRecord, "createdAt">,
+    method: string,
+    path: string,
+  ) {
     this.idempotency.set(key, {
       ...record,
       createdAt: Date.now(),

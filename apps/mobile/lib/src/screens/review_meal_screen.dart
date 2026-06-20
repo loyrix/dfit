@@ -1,4 +1,3 @@
-import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -8,10 +7,11 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
-import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
-import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
+import '../widgets/glass/glass_wrapper.dart';
+import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/premium_button.dart';
 
 class ReviewMealScreen extends StatefulWidget {
   const ReviewMealScreen({
@@ -71,7 +71,6 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
       body: GlassBackdrop(
-        photo: widget.photo,
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -145,90 +144,26 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
                 const SizedBox(height: 10),
               ],
-              Row(
-                children: [
-                  Expanded(
-                    child: GlassWrapper(child: OutlinedButton(
-                      onPressed: _items.isEmpty
-                          ? null
-                          : _saving
-                          ? () {}
-                          : () => _confirm(analyzeWithAI: false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: primaryText,
-                        side: BorderSide(color: borderColor),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                        ),
+              PremiumButton(
+                onPressed: _items.isEmpty
+                    ? null
+                    : _saving
+                    ? () {}
+                    : () => _confirm(analyzeWithAI: false),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_saving) ...[
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                      child: const Text('Confirm meal', key: ValueKey('confirm')),
-                    )),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: PremiumButton(
-                      onPressed: _items.isEmpty
-                          ? null
-                          : _saving
-                          ? () {}
-                          : () => _confirm(analyzeWithAI: true),
-                      
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 160),
-                        child: _saving
-                            ? SizedBox(
-                                key: const ValueKey('saving'),
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: LogMyPlateColors.accent,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                key: const ValueKey('confirm-analyze'),
-                                children: [
-                                  Icon(Icons.auto_awesome_rounded, size: 18, color: LogMyPlateColors.accent),
-                                  const SizedBox(width: 6),
-                                  const Text('Analyze with AI'),
-                                  if (!widget.isPremium) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.lock_rounded,
-                                            size: 10,
-                                            color: LogMyPlateColors.accent,
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            'PRO',
-                                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                              color: LogMyPlateColors.accent,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(width: 8),
+                    ],
+                    const Text('Confirm meal', key: ValueKey('confirm')),
+                  ],
+                ),
               ),
             ],
           ),

@@ -13,6 +13,7 @@ import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/glass/glass_surface.dart';
+import '../widgets/premium_button.dart';
 
 enum _CaptureSource {
   camera(
@@ -180,7 +181,6 @@ class _CameraScreenState extends State<CameraScreen>
               children: [
                 Positioned.fill(
                   child: GlassBackdrop(
-                    photo: preparedCapture?.toMealPhoto(_hintController.text.trim()),
                     child: const SizedBox.shrink(),
                   ),
                 ),
@@ -894,7 +894,6 @@ class _CaptureActionBar extends StatelessWidget {
                   label: 'Analyze plate',
                   icon: const Icon(
                     Icons.auto_awesome_rounded,
-                    color: LogMyPlateColors.accentDeep,
                     size: 20,
                   ),
                   primary: true,
@@ -952,7 +951,6 @@ class _CaptureActionBar extends StatelessWidget {
                   child: _CaptureButton(
                     label: 'Take photo',
                     icon: const PrimitiveCameraIcon(
-                      color: LogMyPlateColors.accentDeep,
                       size: 22,
                     ),
                     primary: true,
@@ -1013,13 +1011,46 @@ class _CaptureButton extends StatelessWidget {
         ? LogMyPlateColors.accentDeep
         : colors.textPrimary;
 
+    if (primary) {
+      return Opacity(
+        opacity: disabled ? 0.46 : 1,
+        child: PremiumButton.icon(
+          onPressed: disabled || loading ? null : onTap,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 140),
+            child: loading
+                ? SizedBox(
+                    key: const ValueKey('spinner'),
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? LogMyPlateColors.accentDeep 
+                          : colors.primaryActionText,
+                    ),
+                  )
+                : SizedBox(key: const ValueKey('icon'), child: icon),
+          ),
+          label: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Opacity(
       opacity: disabled ? 0.46 : 1,
       child: InkWell(
         onTap: disabled || loading ? null : onTap,
         borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: GlassSurface(
-          isPremium: primary,
+          isPremium: false,
           borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
@@ -1028,26 +1059,29 @@ class _CaptureButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 140),
-                  child: loading
-                      ? SizedBox(
-                          key: const ValueKey('spinner'),
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: foreground,
-                          ),
-                        )
-                      : SizedBox(key: const ValueKey('icon'), child: icon),
+                IconTheme.merge(
+                  data: IconThemeData(color: foreground),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 140),
+                    child: loading
+                        ? SizedBox(
+                            key: const ValueKey('spinner'),
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: foreground,
+                            ),
+                          )
+                        : SizedBox(key: const ValueKey('icon'), child: icon),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: TextStyle(
                       color: foreground,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0,

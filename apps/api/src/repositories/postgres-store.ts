@@ -2963,7 +2963,12 @@ export class PostgresStore implements AppRepository {
     };
   }
 
-  async setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">, method: string, path: string): Promise<void> {
+  async setIdempotent(
+    key: string,
+    record: Omit<IdempotencyRecord, "createdAt">,
+    method: string,
+    path: string,
+  ): Promise<void> {
     const profile = await this.getProfile();
     await this.sql`
       insert into idempotency_keys (

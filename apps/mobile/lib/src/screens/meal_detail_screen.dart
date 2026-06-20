@@ -137,88 +137,66 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               ),
               if (!_isCapturing && _meal.image != null) const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             ],
-            if (_meal.image != null) ...[
+              if (_meal.image != null) ...[
                 const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 _MealHeroImage(image: _meal.image!),
+              ],
+              if (!_isCapturing && widget.onAskNutritionist != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                PremiumButton(
+                  onPressed: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Analyze this meal with AI',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (!widget.isPremium && !_hasChanges) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: LogMyPlateColors.accent.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.lock_rounded,
+                                size: 10,
+                                color: LogMyPlateColors.accent,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'PRO',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: LogMyPlateColors.accent,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
               const SizedBox(height: LogMyPlateSpacing.cardPadding),
               _MealDetailSummaryCard(meal: _draftMeal),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               MacroProfileCard(meal: _draftMeal),
               if (!_isCapturing) ...[
-                if (widget.onAskNutritionist != null) ...[
-                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  InkWell(
-                    onTap: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: _hasChanges 
-                            ? colors.mutedFill 
-                            : LogMyPlateColors.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                        border: Border.all(
-                          color: _hasChanges 
-                              ? colors.border 
-                              : LogMyPlateColors.accent.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome_rounded,
-                            size: 18,
-                            color: _hasChanges 
-                                ? colors.textSecondary 
-                                : LogMyPlateColors.accent,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Analyze this meal with AI',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: _hasChanges 
-                                  ? colors.textSecondary 
-                                  : colors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (!widget.isPremium && !_hasChanges) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.lock_rounded,
-                                    size: 10,
-                                    color: LogMyPlateColors.accent,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    'PRO',
-                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: LogMyPlateColors.accent,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                 Text('Items', style: Theme.of(context).textTheme.labelSmall),
                 const SizedBox(height: 10),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
@@ -22,11 +23,13 @@ class GlassSurface extends StatelessWidget {
     final theme = context.glassTheme;
     final highContrast = MediaQuery.highContrastOf(context);
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
 
     final actualTintColor = tintColor ?? theme.tintColor;
 
-    // Fallback to solid color when requested by a11y or when explicitly disabled.
-    if (!theme.enabled || highContrast || disableAnimations) {
+    // Fallback to solid color when requested by a11y, when explicitly disabled,
+    // or on Android to prevent scroll flickering from heavy BackdropFilters.
+    if (!theme.enabled || highContrast || disableAnimations || isAndroid) {
       return Container(
         decoration: BoxDecoration(
           color: actualTintColor.withValues(alpha: 0.95),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 
 Color logmyplatePrimitiveIconColor(BuildContext context, Color? color) {
@@ -11,18 +10,18 @@ Color logmyplatePrimitiveIconColor(BuildContext context, Color? color) {
 class PrimitiveCameraIcon extends StatelessWidget {
   const PrimitiveCameraIcon({
     super.key,
-    this.color = LogMyPlateColors.accent,
+    this.color,
     this.size = 24,
   });
 
-  final Color color;
+  final Color? color;
   final double size;
 
   @override
   Widget build(BuildContext context) {
     return Icon(
       Icons.camera_alt_outlined,
-      color: color,
+      color: logmyplatePrimitiveIconColor(context, color),
       size: size * 1.3, // make it slightly larger to match previous bounding box
     );
   }

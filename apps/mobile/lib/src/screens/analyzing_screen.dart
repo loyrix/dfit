@@ -108,7 +108,6 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     return Scaffold(
       backgroundColor: colors.background,
       body: GlassBackdrop(
-        photo: widget.photo,
         child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
