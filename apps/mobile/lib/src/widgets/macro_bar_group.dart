@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import '../widgets/glass/glass_cards.dart';
+import '../widgets/glass/glass_section_card.dart';
 import '../widgets/macro_chips.dart';
 
 class MacroBarGroup extends StatelessWidget {
@@ -20,33 +20,19 @@ class MacroBarGroup extends StatelessWidget {
     final macroCalories = proteinCalories + carbsCalories + fatCalories;
     final hasMacros = macroCalories > 0;
 
-    return LiteGlassCard(
-      padding: const EdgeInsets.all(14),
-      borderRadius: BorderRadius.circular(16),
+    return GlassSectionCard(
+      title: 'Macro mix',
+      trailing: Text(
+        hasMacros ? '${totals.calories} kCal total' : 'No macros yet',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: colors.textTertiary,
+          letterSpacing: 0,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Text(
-                'Macro mix',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textSecondary,
-                  letterSpacing: 1.3,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                hasMacros ? '${totals.calories} kCal total' : 'No macros yet',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textTertiary,
-                  letterSpacing: 0,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 13),
           _MacroStackedBar(
             proteinShare: hasMacros ? proteinCalories / macroCalories : 0,
             carbsShare: hasMacros ? carbsCalories / macroCalories : 0,

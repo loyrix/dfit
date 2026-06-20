@@ -6,7 +6,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16.0),
+    this.padding = const EdgeInsets.all(12.0),
     this.borderRadius,
   });
 
@@ -31,7 +31,7 @@ class LiteGlassCard extends StatelessWidget {
   const LiteGlassCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16.0),
+    this.padding = const EdgeInsets.all(12.0),
     this.borderRadius,
   });
 

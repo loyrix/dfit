@@ -34,8 +34,6 @@ class EnergyHeroCard extends StatelessWidget {
     final style = LogMyPlateHeroSurfaceStyle.of(context);
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(18),
-      borderRadius: BorderRadius.circular(20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -59,7 +57,7 @@ class EnergyHeroCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             color: style.textPrimary,
-                            fontSize: 42,
+                            fontSize: 36,
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                     ),

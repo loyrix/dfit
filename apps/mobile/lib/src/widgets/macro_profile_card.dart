@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import 'glass/glass_cards.dart';
+import 'glass/glass_section_card.dart';
 
 class MacroProfileCard extends StatelessWidget {
   const MacroProfileCard({super.key, required this.meal});
@@ -21,27 +21,12 @@ class MacroProfileCard extends StatelessWidget {
     final colors = context.logmyplate;
     final profile = _MealMacroProfile.fromMeal(meal);
 
-    return LiteGlassCard(
-      padding: const EdgeInsets.all(14),
-      borderRadius: BorderRadius.circular(18),
+    return GlassSectionCard(
+      title: 'Macro profile',
+      trailing: _ProfileBadge(label: profile.profileLabel),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Macro profile',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-              ),
-              _ProfileBadge(label: profile.profileLabel),
-            ],
-          ),
-          const SizedBox(height: 14),
           Row(
             children: [
               _MacroGauge(profile: profile),

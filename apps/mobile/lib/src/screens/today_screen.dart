@@ -5,6 +5,7 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_cards.dart';
+import '../widgets/glass/glass_section_card.dart';
 import '../widgets/logmyplate_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -279,45 +280,26 @@ class _WeeklyRhythmCard extends StatelessWidget {
         ? (summary.totals.calories / summary.activeDays).round()
         : 0;
 
-    return LiteGlassCard(
-      borderRadius: BorderRadius.circular(14),
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: opening ? null : onOpenJournal,
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Weekly rhythm',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: colors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: colors.surfaceCard,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Meals logged this week: ${summary.activeDays}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
+    return GlassSectionCard(
+      title: 'Weekly rhythm',
+      onTap: opening ? null : onOpenJournal,
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'Meals logged this week: ${summary.activeDays}',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textSecondary,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
                   '${summary.activeDays} Active Day${summary.activeDays == 1 ? '' : 's'}',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -377,10 +359,7 @@ class _WeeklyRhythmCard extends StatelessWidget {
                         )
                       : const SizedBox.shrink(key: ValueKey('weekly-idle')),
                 ),
-              ],
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -395,8 +374,6 @@ class _CardStreakPanel extends StatelessWidget {
     final colors = context.logmyplate;
     if (streak == null || !streak!.hasHistory) {
       return LiteGlassCard(
-        padding: const EdgeInsets.all(16),
-        borderRadius: BorderRadius.circular(16),
         child: Text(
           'Log today to start your streak!',
           style: Theme.of(context).textTheme.bodySmall,
@@ -410,8 +387,6 @@ class _CardStreakPanel extends StatelessWidget {
         : (streak!.currentStreakDays / nextMilestone).clamp(0.0, 1.0).toDouble();
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(16),
-      borderRadius: BorderRadius.circular(16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
