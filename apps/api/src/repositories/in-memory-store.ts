@@ -185,6 +185,7 @@ export class InMemoryStore implements AppRepository {
     {
       id: string;
       profileId: string;
+      title?: string;
       sessionDate: string;
       turnCount: number;
       maxTurns: number;
@@ -1297,6 +1298,13 @@ export class InMemoryStore implements AppRepository {
     }
   }
 
+  async setChatSessionTitle(sessionId: string, title: string): Promise<void> {
+    const session = this.chatSessions.get(sessionId);
+    if (session && (session.title === undefined || session.title === null)) {
+      session.title = title;
+    }
+  }
+
   async appendChatMessage(input: {
     sessionId: string;
     role: "system" | "user" | "assistant";
@@ -1351,6 +1359,7 @@ export class InMemoryStore implements AppRepository {
   ): Promise<
     Array<{
       id: string;
+      title?: string;
       turnCount: number;
       createdAt: string;
       closedAt?: string;
@@ -1362,6 +1371,7 @@ export class InMemoryStore implements AppRepository {
       .slice(0, limit)
       .map((s) => ({
         id: s.id,
+        title: s.title,
         turnCount: s.turnCount,
         createdAt: s.createdAt,
         closedAt: s.closedAt,

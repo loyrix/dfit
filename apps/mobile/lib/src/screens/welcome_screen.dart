@@ -41,7 +41,7 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: LogMyPlateSpacing.cardPadding),
                     Text(
-                      'AI-powered food tracking, without the hassle.',
+                      'Eat smarter with AI',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: colors.textSecondary,
@@ -50,9 +50,18 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                     SizedBox(height: compact ? 26 : 34),
                     _WelcomeSteps(compact: compact),
+                    SizedBox(height: compact ? 18 : 24),
+                    Text(
+                      'AI-Powered food tracking without the hassle',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
                     const Spacer(flex: 3),
                     Text(
-                      'Start with one meal photo. Review the estimate. Keep your journal moving.',
+                      'Turn food logging into intelligent nutrition',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: colors.textSecondary,

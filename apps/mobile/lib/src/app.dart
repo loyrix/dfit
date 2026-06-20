@@ -3,7 +3,6 @@ import 'dart:async';
 import './theme/logmyplate_spacing.dart';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:app_links/app_links.dart' as platform_links;
 import 'package:flutter/foundation.dart';
@@ -356,6 +355,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       onLoadWeeks: _journalController.loadAvailableWeeks,
       onOpenMeal: _openMealDetail,
       onDeleteMeal: _deleteMeal,
+      isPremium: _journalController.subscription?.active ?? false,
+      onOpenNutritionist: _openNutritionistChat,
     );
   }
 
@@ -1529,6 +1530,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
             onLoadWeeks: _journalController.loadAvailableWeeks,
             onOpenMeal: _openMealDetail,
             onDeleteMeal: _deleteMeal,
+            isPremium: _journalController.subscription?.active ?? false,
+            onOpenNutritionist: _openNutritionistChat,
           ),
         ),
       );
@@ -1995,8 +1998,6 @@ class _ShellNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
     return SizedBox(
       height: 88,
       child: LiteGlassCard(

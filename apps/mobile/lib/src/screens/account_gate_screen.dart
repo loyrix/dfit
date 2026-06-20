@@ -376,10 +376,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
           ],
           const SizedBox(height: 10),
           SizedBox(
-            height: 44,
+            width: double.infinity,
             child: PremiumButton(
               onPressed: widget.loading ? null : _submit,
-              
               child: Text(
                 isResetting
                     ? 'Reset password'
@@ -803,25 +802,49 @@ class _ProviderButton extends StatelessWidget {
 
     return SizedBox(
       height: 52,
-      child: PremiumButton(
-        onPressed: loading ? null : onTap,
-        
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (isApple)
-              Icon(Icons.apple, size: 20, color: colors.background)
-            else
-              Text(
-                'G',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: loading ? null : onTap,
+          borderRadius:
+              BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: colors.mutedFill,
+              borderRadius:
+                  BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+              border: Border.all(color: colors.border, width: 0.8),
+            ),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isApple)
+                    Icon(Icons.apple, size: 20, color: colors.textPrimary)
+                  else
+                    Text(
+                      'G',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            const SizedBox(width: 10),
-            Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
-          ],
+            ),
+          ),
         ),
       ),
     );

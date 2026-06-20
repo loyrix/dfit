@@ -116,17 +116,23 @@ class ChatSessionSummary {
     required this.id,
     required this.turnCount,
     required this.createdAt,
+    this.title,
     this.closedAt,
   });
 
   final String id;
+  final String? title;
   final int turnCount;
   final DateTime createdAt;
   final DateTime? closedAt;
 
   factory ChatSessionSummary.fromJson(Map<String, dynamic> json) {
+    final rawTitle = json['title'] as String?;
     return ChatSessionSummary(
       id: json['id'] as String,
+      title: rawTitle != null && rawTitle.trim().isNotEmpty
+          ? rawTitle.trim()
+          : null,
       turnCount: json['turnCount'] as int,
       createdAt: DateTime.parse(json['createdAt'] as String),
       closedAt: json['closedAt'] != null

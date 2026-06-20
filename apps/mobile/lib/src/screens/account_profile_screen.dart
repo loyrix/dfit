@@ -312,8 +312,6 @@ class _ProfileSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -410,9 +408,6 @@ class _ProfileLifecycleSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final actionColor = isDelete
-        ? LogMyPlateColors.destructive
-        : LogMyPlateColors.accent;
 
     return SafeArea(
       child: Padding(

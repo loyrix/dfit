@@ -255,7 +255,6 @@ class TodayScreen extends StatelessWidget {
 
 class _WeeklyRhythmCard extends StatelessWidget {
   const _WeeklyRhythmCard({
-    super.key,
     required this.range,
     required this.onOpenJournal,
     required this.syncing,
@@ -369,7 +368,7 @@ class _WeeklyRhythmCard extends StatelessWidget {
 }
 
 class _CardStreakPanel extends StatelessWidget {
-  const _CardStreakPanel({super.key, this.streak});
+  const _CardStreakPanel({this.streak});
   final StreakSummary? streak;
 
   @override
@@ -645,12 +644,10 @@ class _WeeklyInfoPill extends StatelessWidget {
   const _WeeklyInfoPill({
     required this.label,
     required this.value,
-    this.highlighted = false,
   });
 
   final String label;
   final String value;
-  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -659,16 +656,8 @@ class _WeeklyInfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: highlighted
-            ? LogMyPlateColors.accent.withValues(alpha: 0.18)
-            : colors.mutedFill,
+        color: colors.mutedFill,
         borderRadius: BorderRadius.circular(99),
-        border: highlighted
-            ? Border.all(
-                color: LogMyPlateColors.accent.withValues(alpha: 0.34),
-                width: 0.5,
-              )
-            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -684,7 +673,7 @@ class _WeeklyInfoPill extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: highlighted ? colors.accentText : colors.textSecondary,
+              color: colors.textSecondary,
               letterSpacing: 0,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -905,8 +894,6 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
     return LiteGlassCard(
       padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
@@ -1022,7 +1009,7 @@ class _QuotaPill extends StatelessWidget {
     final canUnlockWithAd =
         remaining <= 0 && onUnlockWithAd != null && !progress.dailyLimitReached;
     final label = remaining > 0
-        ? '$remaining scans'
+        ? 'Total Scans available: $remaining'
         : progress.dailyLimitReached
         ? 'limit hit'
         : 'ad unlock';

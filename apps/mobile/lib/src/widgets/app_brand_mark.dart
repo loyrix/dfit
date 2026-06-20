@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_colors.dart';
-import '../theme/logmyplate_theme.dart';
-import '../theme/logmyplate_theme.dart';
 import 'glass/glass_cards.dart';
 import 'primitive_icons.dart';
 
@@ -23,7 +21,6 @@ class LogMyPlateBrandMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
     final haloSize = size * 1.44;
 
     return SizedBox(

@@ -93,7 +93,6 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final locked = widget.lockedFromAnalysis;
 
     return SafeArea(
@@ -803,7 +802,6 @@ class _EditTextField extends StatelessWidget {
 
 InputDecoration _fieldDecoration(BuildContext context, String label) {
   final colors = context.logmyplate;
-  final isDark = Theme.of(context).brightness == Brightness.dark;
   final enabledFill = colors.mutedFill;
   final enabledBorder = colors.border.withValues(alpha: 0.86);
 

@@ -11,10 +11,10 @@ import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
+import '../widgets/nutritionist_entry_button.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/glass/fake_glass_row.dart';
 import '../widgets/glass/glass_backdrop.dart';
-import '../widgets/glass/glass_cards.dart';
 import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class WeeklyJournalScreen extends StatefulWidget {
@@ -30,6 +30,8 @@ class WeeklyJournalScreen extends StatefulWidget {
     this.onRefresh,
     this.showBackButton = true,
     this.bottomPadding = 28,
+    this.isPremium = false,
+    this.onOpenNutritionist,
   });
 
   final JournalRangeData range;
@@ -42,6 +44,8 @@ class WeeklyJournalScreen extends StatefulWidget {
   final Future<void> Function()? onRefresh;
   final bool showBackButton;
   final double bottomPadding;
+  final bool isPremium;
+  final VoidCallback? onOpenNutritionist;
 
   @override
   State<WeeklyJournalScreen> createState() => _WeeklyJournalScreenState();
@@ -100,6 +104,13 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
             ],
             const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _WeeklyJournalHero(range: _range),
+            if (widget.onOpenNutritionist != null) ...[
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+              NutritionistEntryButton(
+                isPremium: widget.isPremium,
+                onTap: widget.onOpenNutritionist!,
+              ),
+            ],
             const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _LabeledPanel(
               label: 'Tracked Day Average',

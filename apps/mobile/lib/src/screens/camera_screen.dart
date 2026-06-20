@@ -335,7 +335,7 @@ class _ScanIntroCard extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'AI Meal Scan',
+          'AI powered meal scan',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: surface.textSecondary,
             letterSpacing: 1.8,
@@ -344,7 +344,7 @@ class _ScanIntroCard extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           activeSource?.title ??
-              (hasPhoto ? 'Ready to analyze' : 'Photo plus food note'),
+              (hasPhoto ? 'Ready to analyze' : 'Add meal photo plus food note'),
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: surface.textPrimary,
@@ -358,7 +358,7 @@ class _ScanIntroCard extends StatelessWidget {
             activeSource?.subtitle ??
                 (hasPhoto
                     ? 'Check the note before AI reads the plate.'
-                    : 'Use a clear full-plate image, then describe what you know.'),
+                    : 'Add a clear, well-lit photo of your entire meal then describe what you know in the food note.'),
             key: ValueKey('$activeSource-$hasPhoto'),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -393,38 +393,42 @@ class _EmptyCaptureState extends StatelessWidget {
             Positioned.fill(
               child: CustomPaint(painter: _EmptyPlatePainter(colors)),
             ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: compact ? 44 : 52,
-                  height: compact ? 44 : 52,
-                  decoration: BoxDecoration(
-                    color: LogMyPlateColors.accent.withValues(alpha: 0.18),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.restaurant_rounded,
-                    color: LogMyPlateColors.accent,
-                    size: compact ? 21 : 24,
-                  ),
-                ),
-                if (!compact) ...[
-                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  Text(
-                    'No photo yet',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Use one clear plate image.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.textSecondary,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: compact ? 44 : 52,
+                    height: compact ? 44 : 52,
+                    decoration: BoxDecoration(
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.restaurant_rounded,
+                      color: LogMyPlateColors.accent,
+                      size: compact ? 21 : 24,
                     ),
                   ),
+                  if (!compact) ...[
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    Text(
+                      'No photo yet',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Use one clear plate image.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ],
         ),
@@ -698,7 +702,7 @@ class _PlateHintField extends StatelessWidget {
                 decoration: InputDecoration(
                   counterText: '',
                   hintText: 'e.g. 2 eggs, toast, and orange juice',
-                  labelText: 'Food note *',
+                  labelText: 'Food note:*',
                   labelStyle: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(
                         color: colors.textSecondary,
@@ -725,7 +729,7 @@ class _PlateHintField extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Required for accuracy',
+                '*Required for accuracy',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: empty
                       ? colors.accentText
@@ -737,7 +741,7 @@ class _PlateHintField extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '$wordCount / 50 words',
+              '$wordCount/ 50 words',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: overLimit
                     ? colors.accentText
@@ -949,7 +953,7 @@ class _CaptureActionBar extends StatelessWidget {
               children: [
                 Expanded(
                   child: _CaptureButton(
-                    label: 'Take photo',
+                    label: 'Take Photo',
                     icon: const PrimitiveCameraIcon(
                       size: 22,
                     ),

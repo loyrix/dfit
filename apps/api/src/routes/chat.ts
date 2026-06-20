@@ -21,6 +21,16 @@ import {
 } from "../services/nutritionist-suggested-prompts.js";
 import { createRouteTimer } from "./route-timing.js";
 
+// Builds a short, human-readable heading for a chat session from the first
+// user message (e.g. "Is paneer good after a workout?"). Falls back handled by
+// the client when null.
+const deriveSessionTitle = (message: string): string => {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  const maxLength = 48;
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trimEnd()}…`;
+};
+
 export const registerChatRoutes = async (
   app: FastifyInstance,
   repository: AppRepository,
@@ -206,6 +216,14 @@ export const registerChatRoutes = async (
       }),
     );
 
+    // Name the session after its first user message.
+    if (turnNumber === 1) {
+      await repository.setChatSessionTitle(
+        activeSession.dbSessionId,
+        deriveSessionTitle(body.message),
+      );
+    }
+
     await timer.measure("persistAiMessage", () =>
       repository.appendChatMessage({
         sessionId: activeSession.dbSessionId,
@@ -267,6 +285,7 @@ export const registerChatRoutes = async (
     return {
       sessions: sessions.map((s) => ({
         id: s.id,
+        title: s.title ?? null,
         turnCount: s.turnCount,
         createdAt: s.createdAt,
         closedAt: s.closedAt ?? null,

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/chat.dart';
 import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
-import '../theme/logmyplate_spacing.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/glass/glass_surface.dart';
@@ -406,7 +405,9 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Nutritionist Chat',
+                        s.title ?? 'Nutritionist Chat',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

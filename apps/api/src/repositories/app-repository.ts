@@ -374,6 +374,7 @@ export interface AppRepository {
     contextSnapshot: unknown;
   }): Promise<{ id: string; sessionDate: string; createdAt: string }>;
   closeChatSession(sessionId: string, turnCount: number): Promise<void>;
+  setChatSessionTitle(sessionId: string, title: string): Promise<void>;
   appendChatMessage(input: {
     sessionId: string;
     role: "system" | "user" | "assistant";
@@ -398,6 +399,7 @@ export interface AppRepository {
   ): Promise<
     Array<{
       id: string;
+      title?: string;
       turnCount: number;
       createdAt: string;
       closedAt?: string;

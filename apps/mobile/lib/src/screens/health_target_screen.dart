@@ -654,7 +654,6 @@ class _HealthSourcesSheet extends StatelessWidget {
 }
 
 void _showHealthSources(BuildContext context) {
-  final colors = context.logmyplate;
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: false,
@@ -1275,9 +1274,6 @@ class _InputSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return LiteGlassCard(
       padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),

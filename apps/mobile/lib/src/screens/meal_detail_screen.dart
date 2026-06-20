@@ -380,10 +380,12 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final file = File('${tempDir.path}/shared_meal_page.png');
     await file.writeAsBytes(image);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Check out my meal on LogMyPlate!\n\nhttps://logmyplate.com',
-      subject: 'My Meal on LogMyPlate',
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Check out my meal on LogMyPlate!\n\nhttps://logmyplate.com',
+        subject: 'My Meal on LogMyPlate',
+      ),
     );
   }
 }
@@ -480,7 +482,6 @@ class _MealHeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
     return AspectRatio(
       aspectRatio: 1.55,
       child: ClipRRect(
