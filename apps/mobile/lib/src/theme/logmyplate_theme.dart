@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'glass_theme.dart';
 import 'logmyplate_colors.dart';
 
 class LogMyPlateTheme {
@@ -19,7 +20,7 @@ class LogMyPlateTheme {
       textTheme: _textTheme(LogMyPlateColors.textPrimaryLight),
       iconTheme: const IconThemeData(color: LogMyPlateColors.textPrimaryLight),
       iconButtonTheme: _iconButtonTheme(LogMyPlateColors.textPrimaryLight),
-      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.light()],
+      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.light(), GlassTheme.light()],
     );
   }
 
@@ -37,7 +38,7 @@ class LogMyPlateTheme {
       textTheme: _textTheme(Colors.white),
       iconTheme: const IconThemeData(color: Colors.white),
       iconButtonTheme: _iconButtonTheme(Colors.white),
-      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.dark()],
+      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.dark(), GlassTheme.dark()],
     );
   }
 
@@ -51,42 +52,42 @@ class LogMyPlateTheme {
     return TextTheme(
       displayLarge: TextStyle(
         color: color,
-        fontSize: 34,
+        fontSize: 30, // from 34
         fontWeight: FontWeight.w500,
         letterSpacing: 0,
         height: 1,
       ),
       headlineMedium: TextStyle(
         color: color,
-        fontSize: 30,
+        fontSize: 26, // from 30
         fontWeight: FontWeight.w500,
         letterSpacing: 0,
         height: 1,
       ),
       titleLarge: TextStyle(
         color: color,
-        fontSize: 24,
+        fontSize: 20, // from 24
         fontWeight: FontWeight.w500,
         letterSpacing: 0,
       ),
       titleMedium: TextStyle(
         color: color,
-        fontSize: 18,
+        fontSize: 16, // from 18
         fontWeight: FontWeight.w500,
       ),
       bodyMedium: TextStyle(
         color: color,
-        fontSize: 16,
+        fontSize: 15, // from 16
         fontWeight: FontWeight.w400,
       ),
       bodySmall: TextStyle(
         color: color,
-        fontSize: 14,
+        fontSize: 13, // from 14
         fontWeight: FontWeight.w400,
       ),
       labelSmall: TextStyle(
         color: color,
-        fontSize: 12,
+        fontSize: 11, // from 12
         letterSpacing: 0,
         fontWeight: FontWeight.w500,
       ),

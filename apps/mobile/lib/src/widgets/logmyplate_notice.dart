@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 enum LogMyPlateNoticeTone { success, info, warning, error }
 
@@ -238,30 +240,10 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
       label: message == null ? title : '$title. $message',
       child: Material(
         color: Colors.transparent,
-        child: ClipRRect(
+        child: LiteGlassCard(
           borderRadius: BorderRadius.circular(22),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.surfaceCard.withValues(
-                  alpha: isDark ? 0.94 : 0.97,
-                ),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: toneColor.withValues(alpha: isDark ? 0.34 : 0.24),
-                  width: 0.8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.1),
-                    blurRadius: 28,
-                    offset: const Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -313,7 +295,7 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
                     ),
                     if (actionLabel != null && onAction != null) ...[
                       const SizedBox(width: 10),
-                      TextButton(
+                      GlassWrapper(child: TextButton(
                         onPressed: onAction,
                         style: TextButton.styleFrom(
                           foregroundColor: toneColor,
@@ -322,15 +304,13 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(actionLabel!),
-                      ),
+                      )),
                     ],
                   ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
     );
   }
 

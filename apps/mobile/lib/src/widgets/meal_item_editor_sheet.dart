@@ -1,10 +1,13 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:async';
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
 
 class MealItemEditResult {
   const MealItemEditResult.update(this.item) : delete = false;
@@ -96,27 +99,11 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottomInset),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 680),
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF17201B)
-                : colors.surfaceCard.withValues(alpha: 0.98),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: colors.border, width: 0.6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 0.30
-                      : 0.10,
-                ),
-                blurRadius: 30,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: ListView(
+        child: LiteGlassCard(
+          borderRadius: BorderRadius.circular(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 680),
+            child: ListView(
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             children: [
@@ -130,7 +117,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: LogMyPlateSpacing.cardPadding),
               Row(
                 children: [
                   Text(
@@ -154,7 +141,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
               const SizedBox(height: 10),
               if (locked) ...[
                 _ReadonlyIdentityCard(name: _workingItem.name),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Row(
                   children: [
                     Expanded(
@@ -182,7 +169,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 _CalculatedNutritionGrid(totals: _workingItem.nutrition),
               ] else ...[
                 _EditTextField(
@@ -305,25 +292,19 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                   ).textTheme.bodySmall?.copyWith(color: colors.accentText),
                 ),
               ],
-              const SizedBox(height: 16),
-              FilledButton(
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              PremiumButton(
                 onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
+                
                 child: const Text('Save changes'),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _save() {
     final name = _nameController.text.trim();
@@ -506,7 +487,7 @@ class _FoodSuggestionStrip extends StatelessWidget {
         color: isDark
             ? Colors.white.withValues(alpha: 0.035)
             : LogMyPlateColors.accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(
           color: searching
               ? colors.accent.withValues(alpha: 0.38)
@@ -574,41 +555,39 @@ class _FoodSuggestionChip extends StatelessWidget {
         .calories;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       onTap: () => onSelect(food),
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: colors.border.withValues(alpha: 0.82)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              food.canonicalName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0,
+      child: LiteGlassCard(
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                food.canonicalName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${portion.grams.round()}g ${portion.unit} · $calories kCal',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 0,
+              const SizedBox(height: 4),
+              Text(
+                '${portion.grams.round()}g ${portion.unit} · $calories kCal',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.textSecondary,
+                  letterSpacing: 0,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -633,7 +612,7 @@ class _ReadonlyIdentityCard extends StatelessWidget {
         color: isDark
             ? Colors.white.withValues(alpha: 0.045)
             : colors.textPrimary.withValues(alpha: 0.035),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(color: colors.border.withValues(alpha: 0.72)),
       ),
       child: Row(
@@ -747,7 +726,7 @@ class _CalculatedNutritionTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.12 : 0.10),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(
           color: color.withValues(alpha: isDark ? 0.22 : 0.18),
         ),
@@ -825,9 +804,7 @@ class _EditTextField extends StatelessWidget {
 InputDecoration _fieldDecoration(BuildContext context, String label) {
   final colors = context.logmyplate;
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final enabledFill = isDark
-      ? Colors.white.withValues(alpha: 0.035)
-      : colors.surfaceCard;
+  final enabledFill = colors.mutedFill;
   final enabledBorder = colors.border.withValues(alpha: 0.86);
 
   return InputDecoration(

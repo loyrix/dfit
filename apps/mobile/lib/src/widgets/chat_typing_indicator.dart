@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
 
 class ChatTypingIndicator extends StatefulWidget {
   const ChatTypingIndicator({super.key});
@@ -36,17 +37,13 @@ class _ChatTypingIndicatorState extends State<ChatTypingIndicator>
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: Container(
+      child: LiteGlassCard(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard.withValues(alpha: 0.85),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
-          ),
-          border: Border.all(color: colors.border, width: 0.5),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(18),
+          bottomLeft: Radius.circular(18),
+          bottomRight: Radius.circular(18),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

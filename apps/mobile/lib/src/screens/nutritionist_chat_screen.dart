@@ -1,4 +1,6 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 import 'package:flutter/services.dart';
 
 import '../state/nutritionist_controller.dart';
@@ -6,9 +8,14 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/chat_typing_indicator.dart';
-import '../widgets/logmyplate_background.dart';
-import '../widgets/nutritionist_suggested_chip.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import '../widgets/glass/glass_surface.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/nutritionist_suggested_chip.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
+import '../services/logmyplate_api_client.dart';
+import 'chat_history_screen.dart';
 
 class NutritionistChatScreen extends StatefulWidget {
   const NutritionistChatScreen({
@@ -74,21 +81,11 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
+        child: Padding(
+          padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+          child: LiteGlassCard(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,7 +99,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               Row(
                 children: [
                   Container(
@@ -132,29 +129,23 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
-              FilledButton(
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              PremiumButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
+                
                 child: const Text('Exit'),
               ),
               const SizedBox(height: 8),
-              TextButton(
+              GlassWrapper(child: TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: const Text('Stay'),
-              ),
+              )),
             ],
           ),
         ),
       ),
-    );
+    ),
+  );
     if (confirmed == true && mounted) {
       Navigator.of(context).pop();
     }
@@ -186,8 +177,9 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
         }
       },
       child: Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
         child: SafeArea(
           child: Column(
             children: [
@@ -198,6 +190,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 maxTurns: ctrl.maxTurns,
                 sessionComplete: ctrl.sessionComplete,
                 focusMealId: widget.focusMealId,
+                apiClient: widget.controller.apiClient,
                 onNewChat: ctrl.readOnly
                     ? () {
                         final fresh = NutritionistController(
@@ -247,7 +240,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     height: 52,
-                    child: FilledButton.icon(
+                    child: PremiumButton.icon(
                       onPressed: () {
                         final fresh = NutritionistController(
                           apiClient: widget.controller.apiClient,
@@ -262,13 +255,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                       },
                       icon: const Icon(Icons.add_rounded, size: 18),
                       label: const Text('Start new chat'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.primaryAction,
-                        foregroundColor: colors.primaryActionText,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
+                      
                     ),
                   ),
                 ),
@@ -297,18 +284,14 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
-          child: Container(
+          child: LiteGlassCard(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.border, width: 0.5),
-            ),
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive.withValues(alpha: 0.7), size: 36),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Text(
                   'Unable to load',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -327,7 +310,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: PremiumButton(
                     onPressed: () {
                       if (widget.existingSessionId != null) {
                         widget.controller.loadExistingSession(widget.existingSessionId!);
@@ -335,12 +318,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                         ctrl.startSession(focusMealId: widget.focusMealId);
                       }
                     },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primaryAction,
-                      foregroundColor: colors.primaryActionText,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
+                    
                     child: const Text('Retry'),
                   ),
                 ),
@@ -355,7 +333,10 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: ctrl.messages.length + (ctrl.sendingMessage ? 1 : 0) + ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0),
+      itemCount: ctrl.messages.length 
+          + (ctrl.sendingMessage ? 1 : 0) 
+          + ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0)
+          + ((ctrl.error != null && ctrl.messages.isNotEmpty) ? 1 : 0),
       itemBuilder: (context, index) {
         int currentIndex = index;
 
@@ -377,6 +358,30 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: ChatTypingIndicator(),
+            );
+          }
+          currentIndex--;
+        }
+
+        if (ctrl.error != null && ctrl.messages.isNotEmpty) {
+          if (currentIndex == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive, size: 16),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      ctrl.error!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: LogMyPlateColors.destructive,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           }
           currentIndex--;
@@ -409,6 +414,7 @@ class _ChatAppBar extends StatelessWidget {
     required this.maxTurns,
     required this.sessionComplete,
     required this.onBack,
+    required this.apiClient,
     this.focusMealId,
     this.onNewChat,
   });
@@ -419,6 +425,7 @@ class _ChatAppBar extends StatelessWidget {
   final int maxTurns;
   final bool sessionComplete;
   final VoidCallback onBack;
+  final LogMyPlateApiClient apiClient;
   final String? focusMealId;
   final VoidCallback? onNewChat;
 
@@ -459,21 +466,12 @@ class _ChatAppBar extends StatelessWidget {
             ),
           ),
           if (readOnly && onNewChat != null)
-            FilledButton.icon(
+            PremiumButton.icon(
               onPressed: onNewChat,
               icon: const Icon(Icons.add_rounded, size: 14),
               label: const Text('New chat'),
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent.withValues(alpha: 0.15),
-                foregroundColor: LogMyPlateColors.accentWarm,
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
             ),
-          if (!readOnly && onNewChat == null)
+          if (!readOnly && onNewChat == null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -488,6 +486,18 @@ class _ChatAppBar extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: LogMyPlateSpacing.xsSpacing),
+            IconButton(
+              icon: Icon(Icons.history_rounded, color: colors.textPrimary),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatHistoryScreen(apiClient: apiClient),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -511,14 +521,14 @@ class _ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard.withValues(alpha: 0.85),
-        border: Border(
-          top: BorderSide(color: colors.border, width: 0.3),
+    return GlassSurface(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: colors.border, width: 0.3),
+          ),
         ),
-      ),
       child: Row(
         children: [
           Expanded(
@@ -565,7 +575,7 @@ class _ChatInputBar extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -580,38 +590,36 @@ class _SessionCompleteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.symmetric(horizontal: 32),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.check_circle_rounded, color: LogMyPlateColors.accent, size: 40),
-          const SizedBox(height: 12),
-          Text(
-            'Session complete',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: colors.textPrimary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: LiteGlassCard(
+        padding: const EdgeInsets.all(20),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        child: Column(
+          children: [
+            Icon(Icons.check_circle_rounded, color: LogMyPlateColors.accent, size: 40),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+            Text(
+              'Session complete',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: colors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You can start a new session anytime.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
+            const SizedBox(height: 8),
+            Text(
+              'You can start a new session anytime.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textSecondary,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onNewSession,
-            child: const Text('New session'),
-          ),
-        ],
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+            GlassWrapper(child: ElevatedButton(
+              onPressed: onNewSession,
+              child: const Text('New session'),
+            )),
+          ],
+        ),
       ),
     );
   }

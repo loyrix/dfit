@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
 
 class StreakScreen extends StatelessWidget {
@@ -17,21 +20,25 @@ class StreakScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
             _Header(),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _StreakHero(streak: streak),
-            const SizedBox(height: 22),
+            const SizedBox(height: LogMyPlateSpacing.lgSpacing),
             _MilestoneSection(streak: streak),
             if (streak.achievedMilestoneTitle != null) ...[
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               _AchievedMilestoneSection(streak: streak),
             ],
           ],
         ),
+      ),
       ),
     );
   }
@@ -84,7 +91,7 @@ class _StreakHero extends StatelessWidget {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
       decoration: surface.decoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,7 +109,7 @@ class _StreakHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: LogMyPlateSpacing.itemSpacing),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -124,7 +131,7 @@ class _StreakHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
             children: [
               Expanded(
@@ -209,13 +216,9 @@ class _MilestoneSection extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+        LiteGlassCard(
+          padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -265,13 +268,9 @@ class _AchievedMilestoneSection extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: LogMyPlateColors.accent.withValues(alpha: 0.5), width: 1),
-          ),
+        LiteGlassCard(
+          padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

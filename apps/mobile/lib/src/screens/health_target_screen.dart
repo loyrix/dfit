@@ -1,4 +1,6 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +11,10 @@ import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class HealthTargetScreen extends StatefulWidget {
   const HealthTargetScreen({
@@ -96,9 +101,12 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
     final canSave = _canSave;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 128),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 128),
           children: [
             Row(
               children: [
@@ -107,12 +115,12 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   icon: const BackMark(),
                 ),
                 const Spacer(),
-                TextButton(
+                GlassWrapper(child: TextButton(
                   onPressed: _saving ? null : () => Navigator.of(context).pop(),
                   child: Text(
                     widget.initialTarget == null ? 'Set later' : 'Close',
                   ),
-                ),
+                )),
               ],
             ),
             const SizedBox(height: 6),
@@ -135,9 +143,9 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _TargetPreviewCard(preview: preview),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _HeightInputCard(
               unit: _heightUnit,
               cmController: _heightCmController,
@@ -172,7 +180,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
               onTextChanged: (value) => _setAge(value.round(), syncText: false),
               onTextComplete: _normalizeAgeInput,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ChoiceGroup<HealthSex>(
               label: 'Body profile',
               values: HealthSex.values,
@@ -182,7 +190,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   ? null
                   : (value) => setState(() => _sex = value),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ChoiceGroup<ActivityLevel>(
               label: 'Typical movement',
               values: ActivityLevel.values,
@@ -192,7 +200,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   ? null
                   : (value) => setState(() => _activityLevel = value),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ChoiceGroup<HealthGoal>(
               label: 'Goal',
               values: HealthGoal.values,
@@ -203,11 +211,12 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   : (value) => setState(() => _goal = value),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               _HealthError(message: _error!),
             ],
           ],
         ),
+      ),
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -219,21 +228,9 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
           ),
           child: SizedBox(
             height: 54,
-            child: FilledButton(
+            child: PremiumButton(
               onPressed: _saving || !canSave ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent,
-                foregroundColor: LogMyPlateColors.accentDeep,
-                disabledBackgroundColor: LogMyPlateColors.accent.withValues(
-                  alpha: 0.26,
-                ),
-                disabledForegroundColor: colors.accentText.withValues(
-                  alpha: 0.72,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
+              
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
                 child: _saving
@@ -462,7 +459,7 @@ class _TargetPreviewCard extends StatelessWidget {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
       decoration: surface.decoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,7 +477,7 @@ class _TargetPreviewCard extends StatelessWidget {
               _HealthSourcesButton(surface: surface),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           Row(
             children: [
               _BmiOrbit(preview: preview, surface: surface),
@@ -512,7 +509,7 @@ class _TargetPreviewCard extends StatelessWidget {
                         color: surface.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: LogMyPlateSpacing.cardPadding),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -539,7 +536,7 @@ class _TargetPreviewCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           _BmiLegend(surface: surface),
         ],
       ),
@@ -554,7 +551,7 @@ class _HealthSourcesButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
+    return GlassWrapper(child: TextButton.icon(
       onPressed: () => _showHealthSources(context),
       style: TextButton.styleFrom(
         foregroundColor: surface.accentText,
@@ -569,7 +566,7 @@ class _HealthSourcesButton extends StatelessWidget {
       ),
       icon: const Icon(Icons.open_in_new_rounded, size: 13),
       label: const Text('Sources'),
-    );
+    ));
   }
 }
 
@@ -582,70 +579,74 @@ class _HealthSourcesSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Calculation sources',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: colors.textPrimary,
-                      height: 1.1,
+        padding: const EdgeInsets.only(top: 8),
+        child: GlassCard(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Calculation sources',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: colors.textPrimary,
+                        height: 1.1,
+                      ),
                     ),
                   ),
+                  IconButton(
+                    tooltip: 'Close sources',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: colors.textSecondary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+                decoration: BoxDecoration(
+                  color: colors.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+                  border: Border.all(
+                    color: colors.accent.withValues(alpha: 0.16),
+                    width: 0.7,
+                  ),
                 ),
-                IconButton(
-                  tooltip: 'Close sources',
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close_rounded),
+                child: Text(
+                  'Review the public references used for BMI ranges and calorie-target math.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.cardPadding),
+              Text(
+                'Open source',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colors.textSecondary,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: colors.accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: colors.accent.withValues(alpha: 0.16),
-                  width: 0.7,
+                  letterSpacing: 1.1,
                 ),
               ),
-              child: Text(
-                'Review the public references used for BMI ranges and calorie-target math.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.35,
-                ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final source in _healthSources)
+                    _HealthSourceButton(source: source, accent: colors.accent),
+                ],
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Open source',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.textSecondary,
-                letterSpacing: 1.1,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final source in _healthSources)
-                  _HealthSourceButton(source: source, accent: colors.accent),
-              ],
-            ),
-            const SizedBox(height: 4),
-          ],
+              const SizedBox(height: 4),
+            ],
+          ),
         ),
       ),
     );
@@ -656,12 +657,9 @@ void _showHealthSources(BuildContext context) {
   final colors = context.logmyplate;
   showModalBottomSheet<void>(
     context: context,
-    showDragHandle: true,
-    backgroundColor: colors.surfaceCard,
+    showDragHandle: false,
+    backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.48),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
     builder: (_) => const _HealthSourcesSheet(),
   );
 }
@@ -1280,16 +1278,9 @@ class _InputSurface extends StatelessWidget {
     final colors = context.logmyplate;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: enabled
-            ? colors.surfaceCard
-            : colors.surfaceCard.withValues(alpha: isDark ? 0.82 : 0.92),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
+    return LiteGlassCard(
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: child,
     );
   }
@@ -1457,7 +1448,7 @@ class _ChoiceChipButton extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? LogMyPlateColors.accent : colors.surfaceCard,
+          color: selected ? LogMyPlateColors.accent : Colors.transparent,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(
             color: selected ? LogMyPlateColors.accent : colors.border,
@@ -1484,10 +1475,10 @@ class _HealthError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
       decoration: BoxDecoration(
         color: LogMyPlateColors.destructive.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.destructive.withValues(alpha: 0.22),
         ),

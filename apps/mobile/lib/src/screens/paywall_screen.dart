@@ -1,10 +1,14 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
 import '../services/revenuecat_subscription_service.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
+import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class PremiumPaywallSheet extends StatefulWidget {
   const PremiumPaywallSheet({
@@ -45,22 +49,12 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        child: Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
+        child: Padding(
+          padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+          child: GlassCard(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colors.border, width: 0.6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Column(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -112,7 +106,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               _FeatureRow(
                 icon: Icons.auto_awesome_rounded,
                 title: 'AI Nutritionist — personalized nutrition advice',
@@ -132,7 +126,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 icon: Icons.bolt_rounded,
                 title: 'Premium scans work without rewarded ads',
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               if (widget.offering.plans.isEmpty)
                 _UnavailablePlans()
               else
@@ -164,17 +158,11 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 const SizedBox(height: 8),
               SizedBox(
                 height: 54,
-                child: FilledButton(
+                child: PremiumButton(
                   onPressed: selectedPlan == null || _busy
                       ? null
                       : () => _purchase(selectedPlan),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.primaryAction,
-                    foregroundColor: colors.primaryActionText,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                  
                   child: _purchasingPlan == selectedPlan
                       ? SizedBox(
                           width: 18,
@@ -192,10 +180,10 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 ),
               ),
               const SizedBox(height: 8),
-              TextButton(
+              GlassWrapper(child: TextButton(
                 onPressed: _busy ? null : _restore,
                 child: Text(_restoring ? 'Restoring...' : 'Restore purchase'),
-              ),
+              )),
               Text(
                 'Subscription renews through the App Store or Google Play. Cancel anytime in store account settings.',
                 textAlign: TextAlign.center,
@@ -208,7 +196,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _purchase(PremiumPlan plan) async {
@@ -319,13 +307,13 @@ class _PlanCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         decoration: BoxDecoration(
           color: fillColor,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           border: Border.all(color: borderColor, width: selected ? 1.2 : 0.6),
         ),
         child: Row(
@@ -444,10 +432,10 @@ class _UnavailablePlans extends StatelessWidget {
     final colors = context.logmyplate;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(color: colors.border),
       ),
       child: Text(

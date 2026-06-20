@@ -1,4 +1,6 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:async';
+import './theme/logmyplate_spacing.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
@@ -18,6 +20,7 @@ import 'screens/account_gate_screen.dart';
 import 'screens/account_profile_screen.dart';
 import 'screens/analyzing_screen.dart';
 import 'screens/camera_screen.dart';
+import 'screens/chat_history_screen.dart';
 import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
 import 'screens/nutritionist_chat_screen.dart';
@@ -44,8 +47,10 @@ import 'state/journal_controller.dart';
 import 'state/nutritionist_controller.dart';
 import 'theme/logmyplate_colors.dart';
 import 'theme/logmyplate_theme.dart';
+import 'widgets/glass/glass_cards.dart';
 import 'widgets/logmyplate_notice.dart';
 import 'widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class LogMyPlateApp extends StatefulWidget {
   const LogMyPlateApp({
@@ -496,7 +501,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
     const newChatKey = '__new__';
 
-    final pastSessions = await _journalController.apiClient.listNutritionistSessions();
+    final pastSessions = await _journalController.apiClient
+        .listNutritionistSessions();
 
     final initialCtx = _navigatorKey.currentContext;
     if (initialCtx == null || !initialCtx.mounted) return;
@@ -512,6 +518,17 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       ),
     );
     if (selection == null) return;
+
+    if (selection == '__history__') {
+      await _navigatorKey.currentState!.push<void>(
+        logmyplatePageRoute<void>(
+          builder: (_) => ChatHistoryScreen(
+            apiClient: _journalController.apiClient,
+          ),
+        ),
+      );
+      return;
+    }
 
     if (selection == newChatKey) {
       final confirmCtx = _navigatorKey.currentContext;
@@ -561,7 +578,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                     _navigatorKey.currentState!.pushReplacement<void, void>(
                       logmyplatePageRoute<void>(
                         builder: (_) => ReviewMealScreen(
-                          isPremium: _journalController.subscription?.active ?? false,
+                          isPremium:
+                              _journalController.subscription?.active ?? false,
                           initialItems: analysis.items,
                           initialMealType: mealTypeForReview(
                             localTime: DateTime.now(),
@@ -570,16 +588,17 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           lockInitialItems: true,
                           photo: photo,
                           onFoodSearch: _journalController.searchFoods,
-                          onConfirm: (type, items, {bool analyzeWithAI = false}) {
-                            return _confirmAnalyzedMeal(
-                              scanId: analysis.scanId,
-                              title: analysis.mealName,
-                              type: type,
-                              items: items,
-                              photo: analysis.imageStored ? null : photo,
-                              analyzeWithAI: analyzeWithAI,
-                            );
-                          },
+                          onConfirm:
+                              (type, items, {bool analyzeWithAI = false}) {
+                                return _confirmAnalyzedMeal(
+                                  scanId: analysis.scanId,
+                                  title: analysis.mealName,
+                                  type: type,
+                                  items: items,
+                                  photo: analysis.imageStored ? null : photo,
+                                  analyzeWithAI: analyzeWithAI,
+                                );
+                              },
                         ),
                       ),
                     );
@@ -607,7 +626,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  Future<void> _saveMeal(MealType type, List<MealItem> items, {bool analyzeWithAI = false}) async {
+  Future<void> _saveMeal(
+    MealType type,
+    List<MealItem> items, {
+    bool analyzeWithAI = false,
+  }) async {
     final meal = await _journalController.saveMeal(type, items);
     setState(() {
       _journalTabRange = null;
@@ -651,7 +674,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       title: 'Scan saved',
       message: 'Your meal log is ready.',
     );
-    
+
     if (analyzeWithAI) {
       _openNutritionistChat(focusMealId: meal.id);
     } else {
@@ -1482,9 +1505,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   Future<void> _openStreakScreen() async {
     final streak = _journalController.streakSummary;
     await _navigatorKey.currentState!.push<void>(
-      logmyplatePageRoute<void>(
-        builder: (_) => StreakScreen(streak: streak),
-      ),
+      logmyplatePageRoute<void>(builder: (_) => StreakScreen(streak: streak)),
     );
   }
 
@@ -1765,8 +1786,8 @@ class _ShellSideRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Material(
-      color: colors.surfaceCard.withValues(alpha: 0.82),
+    return LiteGlassCard(
+      borderRadius: BorderRadius.zero,
       child: Container(
         width: 104,
         padding: const EdgeInsets.fromLTRB(10, 14, 10, 14),
@@ -1832,7 +1853,7 @@ class _ShellRailButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: double.infinity,
@@ -1841,7 +1862,7 @@ class _ShellRailButton extends StatelessWidget {
           color: selected
               ? LogMyPlateColors.accent.withValues(alpha: 0.16)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1976,60 +1997,45 @@ class _ShellNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          height: 88,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: colors.border, width: 0.6),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
-                blurRadius: 30,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Row(
-                children: [
-                  _ShellTabButton(
-                    label: 'Today',
-                    icon: Icons.home_rounded,
-                    selected: selectedIndex == 0,
-                    onTap: () => onSelect(0),
-                  ),
-                  _ShellTabButton(
-                    label: 'Journal',
-                    icon: Icons.calendar_month_rounded,
-                    selected: selectedIndex == 1,
-                    onTap: () => onSelect(1),
-                  ),
-                  const SizedBox(width: 70),
-                  _ShellTabButton(
-                    label: 'AI Chat',
-                    icon: Icons.auto_awesome_rounded,
-                    selected: false,
-                    onTap: onChat,
-                  ),
-                  _ShellTabButton(
-                    label: 'Profile',
-                    icon: Icons.person_rounded,
-                    selected: selectedIndex == 2,
-                    onTap: () => onSelect(2),
-                  ),
-                ],
-              ),
-              _ShellScanTab(onTap: onScan, pulsing: scanPulsing),
-            ],
-          ),
+    return SizedBox(
+      height: 88,
+      child: LiteGlassCard(
+        borderRadius: BorderRadius.circular(24),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              children: [
+                _ShellTabButton(
+                  label: 'Today',
+                  icon: Icons.home_rounded,
+                  selected: selectedIndex == 0,
+                  onTap: () => onSelect(0),
+                ),
+                _ShellTabButton(
+                  label: 'Journal',
+                  icon: Icons.calendar_month_rounded,
+                  selected: selectedIndex == 1,
+                  onTap: () => onSelect(1),
+                ),
+                const SizedBox(width: 70),
+                _ShellTabButton(
+                  label: 'AI Chat',
+                  icon: Icons.auto_awesome_rounded,
+                  selected: false,
+                  onTap: onChat,
+                ),
+                _ShellTabButton(
+                  label: 'Profile',
+                  icon: Icons.person_rounded,
+                  selected: selectedIndex == 2,
+                  onTap: () => onSelect(2),
+                ),
+              ],
+            ),
+            _ShellScanTab(onTap: onScan, pulsing: scanPulsing),
+          ],
         ),
       ),
     );
@@ -2056,7 +2062,7 @@ class _ShellTabButton extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -2064,7 +2070,7 @@ class _ShellTabButton extends StatelessWidget {
             color: selected
                 ? LogMyPlateColors.accent.withValues(alpha: 0.16)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2108,7 +2114,7 @@ class _ShellScanTab extends StatelessWidget {
       child: InkWell(
         key: const ValueKey('shell-scan-action'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2220,18 +2226,18 @@ class _JournalTabLoadingScreen extends StatelessWidget {
                         color: colors.textSecondary,
                         size: 44,
                       ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                     Text(
                       message ?? 'Loading weekly journal',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     if (message != null) ...[
-                      const SizedBox(height: 12),
-                      TextButton(
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      GlassWrapper(child: TextButton(
                         onPressed: onRetry,
                         child: const Text('Retry'),
-                      ),
+                      )),
                     ],
                   ],
                 ),
@@ -2257,21 +2263,10 @@ class _ReviewPromptSheet extends StatelessWidget {
     final colors = context.logmyplate;
 
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
+      child: LiteGlassCard(
+        
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              blurRadius: 24,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2314,24 +2309,17 @@ class _ReviewPromptSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            FilledButton(
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+            PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.primaryAction,
-                foregroundColor: colors.primaryActionText,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              
               child: Text(policy.copy.positiveLabel),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: Text(policy.copy.negativeLabel),
-            ),
+            )),
           ],
         ),
       ),
@@ -2355,14 +2343,10 @@ class _NoScanCreditsSheet extends StatelessWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        child: Container(
-          margin: const EdgeInsets.all(12),
+        child: LiteGlassCard(
+          
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: colors.border),
-          ),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2376,22 +2360,15 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 16),
-              FilledButton(
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              PremiumButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.upgrade),
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
+                
                 child: const Text('Upgrade to Premium'),
               ),
               const SizedBox(height: 8),
-              OutlinedButton.icon(
+              GlassWrapper(child: OutlinedButton.icon(
                 onPressed: progress.dailyLimitReached
                     ? null
                     : () => Navigator.of(
@@ -2404,12 +2381,12 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   side: BorderSide(color: colors.border),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
-              ),
+              )),
               const SizedBox(height: 8),
-              OutlinedButton(
+              GlassWrapper(child: OutlinedButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.addManually),
                 style: OutlinedButton.styleFrom(
@@ -2417,17 +2394,17 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   side: BorderSide(color: colors.border),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Add manually'),
-              ),
+              )),
               const SizedBox(height: 8),
-              TextButton(
+              GlassWrapper(child: TextButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.refresh),
                 child: const Text('Refresh quota'),
-              ),
+              )),
             ],
           ),
         ),
@@ -2447,12 +2424,8 @@ class _RewardedAdLoadingOverlay extends StatelessWidget {
       child: Material(
         color: Colors.black.withValues(alpha: 0.42),
         child: Center(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.surfaceCard,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: colors.border),
-            ),
+          child: LiteGlassCard(
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
               child: Column(
@@ -2466,7 +2439,7 @@ class _RewardedAdLoadingOverlay extends StatelessWidget {
                       color: colors.primaryAction,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                   Text(
                     'Loading rewarded ad',
                     style: Theme.of(context).textTheme.titleSmall,
@@ -2549,21 +2522,10 @@ class _AppUpdateOverlay extends StatelessWidget {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Container(
-              margin: const EdgeInsets.all(20),
+            child: LiteGlassCard(
+              
               padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-              decoration: BoxDecoration(
-                color: colors.surfaceCard,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: colors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 28,
-                    offset: const Offset(0, 18),
-                  ),
-                ],
-              ),
+              borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2609,7 +2571,7 @@ class _AppUpdateOverlay extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: LogMyPlateSpacing.cardPadding),
                   Text(
                     policy.displayMessage,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -2617,8 +2579,8 @@ class _AppUpdateOverlay extends StatelessWidget {
                       height: 1.42,
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  FilledButton.icon(
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                  PremiumButton.icon(
                     onPressed: storeUrl == null
                         ? null
                         : () => openLogMyPlateLink(
@@ -2628,21 +2590,14 @@ class _AppUpdateOverlay extends StatelessWidget {
                           ),
                     icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     label: const Text('Update app'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primaryAction,
-                      foregroundColor: colors.primaryActionText,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
+                    
                   ),
                   if (!policy.isMandatory) ...[
                     const SizedBox(height: 8),
-                    TextButton(
+                    GlassWrapper(child: TextButton(
                       onPressed: onDismissOptional,
                       child: const Text('Later'),
-                    ),
+                    )),
                   ],
                 ],
               ),
@@ -2669,14 +2624,10 @@ class _DailyTargetReachedSheet extends StatelessWidget {
     final overBy = consumedCalories - targetCalories;
 
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
+      child: LiteGlassCard(
+        
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border),
-        ),
+        borderRadius: BorderRadius.circular(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2724,22 +2675,16 @@ class _DailyTargetReachedSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            FilledButton(
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+            PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent,
-                foregroundColor: LogMyPlateColors.accentDeep,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              
               child: const Text('Scan anyway'),
             ),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Stay on journal'),
-            ),
+            )),
           ],
         ),
       ),
@@ -2760,126 +2705,142 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(12),
+    return LiteGlassCard(
+      
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
+      borderRadius: BorderRadius.circular(20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
             child: Container(
-              width: 38, height: 5,
+              width: 38,
+              height: 5,
               decoration: BoxDecoration(
                 color: colors.textTertiary.withValues(alpha: 0.36),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
             children: [
               Container(
-                width: 42, height: 42,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: LogMyPlateColors.accentDeep, size: 21),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: LogMyPlateColors.accentDeep,
+                  size: 21,
+                ),
               ),
               const SizedBox(width: 12),
-              Text('AI Nutritionist', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'AI Nutritionist',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ],
           ),
-          const SizedBox(height: 18),
-          FilledButton.icon(
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+          PremiumButton.icon(
             onPressed: () => Navigator.of(context).pop(newChatKey),
             icon: const Icon(Icons.add_rounded, size: 18),
             label: const Text('Start new chat'),
-            style: FilledButton.styleFrom(
-              backgroundColor: colors.primaryAction,
-              foregroundColor: colors.primaryActionText,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
+            
           ),
           if (pastSessions.isNotEmpty) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             Row(
               children: [
                 Container(
-                  width: 30, height: 30,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: LogMyPlateColors.accent.withValues(alpha: 0.14),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.history_rounded, color: LogMyPlateColors.accentWarm, size: 16),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    color: LogMyPlateColors.accentWarm,
+                    size: 16,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   'Past sessions',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.textPrimary,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('__history__'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: colors.textSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: Size.zero,
                   ),
+                  child: const Text('View All'),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            ...pastSessions.take(5).map((s) => InkWell(
-              onTap: () => Navigator.of(context).pop(s.id),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        color: colors.mutedFill,
-                        borderRadius: BorderRadius.circular(10),
+            ...pastSessions
+                .take(5)
+                .map(
+                  (s) => InkWell(
+                    onTap: () => Navigator.of(context).pop(s.id),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 8,
                       ),
-                      child: const Icon(Icons.chat_rounded, size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          Text(
-                            '${s.createdAt.day}/${s.createdAt.month}/${s.createdAt.year}',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colors.textPrimary,
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: colors.mutedFill,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.chat_rounded, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${s.createdAt.day}/${s.createdAt.month}/${s.createdAt.year}',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(color: colors.textPrimary),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${s.turnCount} message${s.turnCount == 1 ? '' : 's'}',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(color: colors.textSecondary),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${s.turnCount} message${s.turnCount == 1 ? '' : 's'}',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: colors.textSecondary,
-                            ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: colors.textTertiary,
+                            size: 20,
                           ),
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 20),
-                  ],
+                  ),
                 ),
-              ),
-            )),
           ],
         ],
       ),
@@ -2894,51 +2855,49 @@ class _StartChatConfirmationSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(12),
+    return LiteGlassCard(
+      
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
+      borderRadius: BorderRadius.circular(20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
             child: Container(
-              width: 38, height: 5,
+              width: 38,
+              height: 5,
               decoration: BoxDecoration(
                 color: colors.textTertiary.withValues(alpha: 0.36),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
             children: [
               Container(
-                width: 42, height: 42,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, color: LogMyPlateColors.accentDeep, size: 21),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: LogMyPlateColors.accentDeep,
+                  size: 21,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('AI Nutritionist', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'AI Nutritionist',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'A new chat session will begin. Your conversation will include your logged meals and health data.',
@@ -2952,24 +2911,17 @@ class _StartChatConfirmationSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          FilledButton(
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+          PremiumButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: colors.primaryAction,
-              foregroundColor: colors.primaryActionText,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
+            
             child: const Text('Start chat'),
           ),
           const SizedBox(height: 8),
-          TextButton(
+          GlassWrapper(child: TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
-          ),
+          )),
         ],
       ),
     );

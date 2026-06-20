@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import '../widgets/logmyplate_background.dart';
-import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/glass/glass_wrapper.dart';
+import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/premium_button.dart';
 
 class ReviewMealScreen extends StatefulWidget {
   const ReviewMealScreen({
@@ -63,8 +68,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     final colors = context.logmyplate;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -81,14 +87,14 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   const SizedBox(width: 48),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               _ReviewSummaryCard(
                 photo: widget.photo,
                 mealType: _mealType,
                 totals: totals,
                 itemCount: _items.length,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               Text(
                 'Items to confirm',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -97,12 +103,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: colors.surfaceCard,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: borderColor, width: 0.5),
-                ),
+              LiteGlassCard(
+                borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+                padding: EdgeInsets.zero,
                 child: Column(
                   children: [
                     for (var index = 0; index < _entries.length; index++)
@@ -117,19 +120,19 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              OutlinedButton(
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              GlassWrapper(child: OutlinedButton(
                 onPressed: _openAddCustomItemSheet,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: primaryText,
                   side: BorderSide(color: borderColor),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Add custom item'),
-              ),
+              )),
               const SizedBox(height: 10),
               if (_error != null) ...[
                 Text(
@@ -141,102 +144,20 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
                 const SizedBox(height: 10),
               ],
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _items.isEmpty
-                          ? null
-                          : _saving
-                          ? () {}
-                          : () => _confirm(analyzeWithAI: false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: primaryText,
-                        side: BorderSide(color: borderColor),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text('Confirm meal', key: ValueKey('confirm')),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton(
-                      onPressed: _items.isEmpty
-                          ? null
-                          : _saving
-                          ? () {}
-                          : () => _confirm(analyzeWithAI: true),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: LogMyPlateColors.accent.withValues(alpha: 0.15),
-                        foregroundColor: primaryText,
-                        disabledBackgroundColor: _reviewMutedFill(context),
-                        disabledForegroundColor: secondaryText,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(
-                            color: LogMyPlateColors.accent.withValues(alpha: 0.3),
-                          ),
-                        ),
-                      ),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 160),
-                        child: _saving
-                            ? SizedBox(
-                                key: const ValueKey('saving'),
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: LogMyPlateColors.accent,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                key: const ValueKey('confirm-analyze'),
-                                children: [
-                                  Icon(Icons.auto_awesome_rounded, size: 18, color: LogMyPlateColors.accent),
-                                  const SizedBox(width: 6),
-                                  const Text('Analyze with AI'),
-                                  if (!widget.isPremium) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.lock_rounded,
-                                            size: 10,
-                                            color: LogMyPlateColors.accent,
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            'PRO',
-                                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                              color: LogMyPlateColors.accent,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                      ),
-                    ),
-                  ),
-                ],
+              PremiumButton.icon(
+                onPressed: _items.isEmpty
+                    ? null
+                    : _saving
+                    ? () {}
+                    : () => _confirm(analyzeWithAI: false),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded, size: 20),
+                label: const Text('Confirm meal', key: ValueKey('confirm')),
               ),
             ],
           ),
@@ -344,7 +265,7 @@ class _ReviewSummaryCard extends StatelessWidget {
             children: [
               if (photo != null) ...[
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                   child: Image.memory(
                     photo.bytes,
                     width: 74,
@@ -404,24 +325,24 @@ class _ReviewSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           Row(
             children: [
-              _MacroChip(
+              MacroTextChip(
                 label: 'Protein',
-                value: totals.proteinG.round(),
+                value: totals.proteinG,
                 color: LogMyPlateColors.macroProtein,
               ),
               const SizedBox(width: 8),
-              _MacroChip(
+              MacroTextChip(
                 label: 'Carbs',
-                value: totals.carbsG.round(),
+                value: totals.carbsG,
                 color: LogMyPlateColors.macroCarbs,
               ),
               const SizedBox(width: 8),
-              _MacroChip(
+              MacroTextChip(
                 label: 'Fat',
-                value: totals.fatG.round(),
+                value: totals.fatG,
                 color: LogMyPlateColors.macroFat,
               ),
             ],
@@ -465,7 +386,7 @@ class _MealTypePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
+    return GlassWrapper(child: TextButton(
       onPressed: onTap,
       child: Text(
         type.label,
@@ -474,46 +395,11 @@ class _MealTypePill extends StatelessWidget {
           letterSpacing: 1.6,
         ),
       ),
-    );
+    ));
   }
 }
 
-class _MacroChip extends StatelessWidget {
-  const _MacroChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
 
-  final String label;
-  final int value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: color.withValues(alpha: 0.20), width: 0.5),
-        ),
-        child: Text(
-          '$label ${value}g',
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.textPrimary,
-            letterSpacing: 0,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ReviewItemRow extends StatelessWidget {
   const _ReviewItemRow({
@@ -567,7 +453,7 @@ class _ReviewItemRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.mutedFill,
                   border: Border.all(color: borderColor, width: 0.5),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                 ),
                 child: Icon(
                   Icons.edit_rounded,

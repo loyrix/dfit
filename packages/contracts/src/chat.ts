@@ -53,3 +53,8 @@ export const createChatSessionRequestSchema = z.object({
   focusMealId: z.string().optional(),
 });
 export type CreateChatSessionRequest = z.infer<typeof createChatSessionRequestSchema>;
+
+export const deleteChatSessionsRequestSchema = z.object({
+  sessionIds: z.array(z.string()).min(1).max(50),
+});
+export type DeleteChatSessionsRequest = z.infer<typeof deleteChatSessionsRequestSchema>;

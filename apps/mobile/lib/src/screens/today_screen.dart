@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_cards.dart';
+import '../widgets/glass/glass_section_card.dart';
 import '../widgets/logmyplate_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -12,6 +15,8 @@ import '../widgets/meal_card.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/nutritionist_entry_button.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class TodayScreen extends StatelessWidget {
   const TodayScreen({
@@ -78,8 +83,10 @@ class TodayScreen extends StatelessWidget {
     final adProgress = rewardedAdProgress ?? RewardedAdProgress.initial();
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: Stack(
           children: [
             RefreshIndicator(
               color: LogMyPlateColors.accent,
@@ -146,35 +153,39 @@ class TodayScreen extends StatelessWidget {
                   if (initialLoading)
                     const _TodayLoadingBody()
                   else ...[
+                    if (streakSummary != null) ...[
+                      GestureDetector(
+                        onTap: onOpenStreak,
+                        child: _CardStreakPanel(streak: streakSummary),
+                      ),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    ],
                     EnergyHeroCard(
                       totals: totals,
                       mealCount: meals.length,
                       target: target,
                       onSetTarget: onSetTarget,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                     MacroBarGroup(totals: totals),
-                    if (weeklyRange != null &&
-                        weeklyRange!.summary.activeDays > 0) ...[
-                      const SizedBox(height: 12),
-                      _WeeklySummaryCard(
+                    if (weeklyRange != null) ...[
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      _WeeklyRhythmCard(
                         range: weeklyRange!,
-                        streak: streakSummary,
                         onOpenJournal: onOpenWeeklyJournal,
-                        onOpenStreak: onOpenStreak,
                         syncing: loading || weeklyJournalOpening,
                         opening: weeklyJournalOpening,
                         hasSyncIssue: syncMessage != null,
                       ),
                     ],
                     if (onOpenNutritionist != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                       NutritionistEntryButton(
                         isPremium: isPremium,
                         onTap: onOpenNutritionist!,
                       ),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                     if (isEmpty)
                       _EmptyTodayBody(onAddManually: onAddManually)
                     else
@@ -209,14 +220,18 @@ class TodayScreen extends StatelessWidget {
                 right: 0,
                 bottom: 24,
                 child: Center(
-                  child: LogMyPlateFab(onPressed: onScan, pulsing: isEmpty),
+                  child: LogMyPlateFab(
+                    onPressed: onScan,
+                    pulsing: isEmpty,
+                  ),
                 ),
               ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   String _dateLabel(DateTime date) {
     const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -238,41 +253,28 @@ class TodayScreen extends StatelessWidget {
   }
 }
 
-class _WeeklySummaryCard extends StatefulWidget {
-  const _WeeklySummaryCard({
+class _WeeklyRhythmCard extends StatelessWidget {
+  const _WeeklyRhythmCard({
+    super.key,
     required this.range,
-    this.streak,
     required this.onOpenJournal,
-    required this.onOpenStreak,
     required this.syncing,
     required this.opening,
     required this.hasSyncIssue,
   });
 
   final JournalRangeData range;
-  final StreakSummary? streak;
   final VoidCallback onOpenJournal;
-  final VoidCallback onOpenStreak;
   final bool syncing;
   final bool opening;
   final bool hasSyncIssue;
 
   @override
-  State<_WeeklySummaryCard> createState() => _WeeklySummaryCardState();
-}
-
-class _WeeklySummaryCardState extends State<_WeeklySummaryCard> {
-  int _selectedIndex = 0;
-
-  @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final summary = widget.range.summary;
-    final activeStreak = widget.streak?.enabled == true && widget.streak!.hasHistory
-        ? widget.streak
-        : null;
+    final summary = range.summary;
     
-    final targetCalories = widget.range.target?.calories;
+    final targetCalories = range.target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
     final averageCalories = summary.trackedDayAverage.calories > 0
         ? summary.trackedDayAverage.calories
@@ -280,147 +282,87 @@ class _WeeklySummaryCardState extends State<_WeeklySummaryCard> {
         ? (summary.totals.calories / summary.activeDays).round()
         : 0;
 
-    final isJournal = _selectedIndex == 0;
-
-    return Material(
-      color: colors.surfaceCard,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: widget.opening ? null : (isJournal ? widget.onOpenJournal : widget.onOpenStreak),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
+    return GlassSectionCard(
+      title: 'Weekly rhythm',
+      onTap: opening ? null : onOpenJournal,
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: colors.surfaceCard,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'Meals logged this week: ${summary.activeDays}',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textSecondary,
           ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: colors.mutedFill,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _selectedIndex = 0),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: isJournal ? colors.surfaceCard : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: isJournal ? Border.all(color: colors.border) : null,
-                                ),
-                                margin: const EdgeInsets.all(2),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  'Journal',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: isJournal ? colors.textPrimary : colors.textSecondary,
-                                    fontWeight: isJournal ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _selectedIndex = 1),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: !isJournal ? colors.surfaceCard : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: !isJournal ? Border.all(color: colors.border) : null,
-                                ),
-                                margin: const EdgeInsets.all(2),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  'Streak',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: !isJournal ? colors.textPrimary : colors.textSecondary,
-                                    fontWeight: !isJournal ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+                  '${summary.activeDays} Active Day${summary.activeDays == 1 ? '' : 's'}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                _WeeklyCoveragePanel(
+                  key: const ValueKey('journal'),
+                  activeDays: summary.activeDays,
+                  totalDays: summary.windowDays,
+                  days: range.days,
+                  averageCalories: averageCalories,
+                  targetCalories: hasTarget ? targetCalories : null,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Text(
+                      hasSyncIssue
+                          ? 'Showing saved data'
+                          : opening
+                          ? 'Loading details'
+                          : 'Tap for details',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
                       ),
                     ),
-                  ),
-
-                ],
-              ),
-              const SizedBox(height: 14),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: isJournal
-                    ? _WeeklyCoveragePanel(
-                        key: const ValueKey('journal'),
-                        activeDays: summary.activeDays,
-                        totalDays: summary.windowDays,
-                        averageCalories: averageCalories,
-                        targetCalories: hasTarget ? targetCalories : null,
-                      )
-                    : _CardStreakPanel(
-                        key: const ValueKey('streak'),
-                        streak: activeStreak,
-                      ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text(
-                    widget.hasSyncIssue
-                        ? 'Showing saved data'
-                        : widget.opening
-                        ? 'Loading details'
-                        : 'Tap for details',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  const Spacer(),
-                  widget.opening
-                      ? SizedBox(
-                          key: const ValueKey('weekly-card-spinner'),
-                          width: 15,
-                          height: 15,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                    const Spacer(),
+                    opening
+                        ? SizedBox(
+                            key: const ValueKey('weekly-card-spinner'),
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: LogMyPlateColors.accent,
+                              backgroundColor: colors.mutedFill,
+                            ),
+                          )
+                        : Icon(
+                            Icons.arrow_forward_rounded,
+                            color: colors.textSecondary,
+                            size: 17,
+                          ),
+                  ],
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: syncing
+                      ? Padding(
+                          key: const ValueKey('weekly-syncing'),
+                          padding: const EdgeInsets.only(top: 12),
+                          child: LinearProgressIndicator(
+                            minHeight: 2,
                             color: LogMyPlateColors.accent,
                             backgroundColor: colors.mutedFill,
                           ),
                         )
-                      : Icon(
-                          Icons.arrow_forward_rounded,
-                          color: colors.textSecondary,
-                          size: 17,
-                        ),
-                ],
-              ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: widget.syncing
-                    ? Padding(
-                        key: const ValueKey('weekly-syncing'),
-                        padding: const EdgeInsets.only(top: 12),
-                        child: LinearProgressIndicator(
-                          minHeight: 2,
-                          color: LogMyPlateColors.accent,
-                          backgroundColor: colors.mutedFill,
-                        ),
-                      )
-                    : const SizedBox.shrink(key: ValueKey('weekly-idle')),
-              ),
-            ],
-          ),
-        ),
+                      : const SizedBox.shrink(key: ValueKey('weekly-idle')),
+                ),
+        ],
       ),
     );
   }
@@ -432,15 +374,8 @@ class _CardStreakPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
     if (streak == null || !streak!.hasHistory) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: colors.mutedFill,
-          borderRadius: BorderRadius.circular(8),
-        ),
+      return LiteGlassCard(
         child: Text(
           'Log today to start your streak!',
           style: Theme.of(context).textTheme.bodySmall,
@@ -449,74 +384,86 @@ class _CardStreakPanel extends StatelessWidget {
       );
     }
     final nextMilestone = streak!.nextMilestoneDays;
-    final streakProgress = nextMilestone == null
-        ? 1.0
-        : (streak!.currentStreakDays / nextMilestone).clamp(0.0, 1.0).toDouble();
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 72,
-          height: 72,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox.expand(
-                child: CircularProgressIndicator(
-                  strokeWidth: 8,
-                  value: streakProgress,
-                  strokeCap: StrokeCap.round,
-                  color: LogMyPlateColors.accent,
-                  backgroundColor: colors.mutedFill,
+    return LiteGlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(
+                  'assets/icons/shield.png',
+                  width: 48,
+                  height: 48,
                 ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2), // adjust for visual center of shield
+                  child: Text(
                     streak!.currentStreakDays.toString(),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF382300),
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (nextMilestone != null)
                   Text(
-                    streak!.currentStreakDays == 1 ? 'day' : 'days',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.textSecondary,
-                      letterSpacing: 0,
+                    '${nextMilestone - streak!.currentStreakDays} more days to unlock Scan reward!',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                else
+                  Text(
+                    'You are on a streak!',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                if (streak!.nextRewardScans > 0) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star_rounded, size: 14, color: LogMyPlateColors.accent),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+${streak!.nextRewardScans} scan reward',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: LogMyPlateColors.accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _WeeklyInfoPill(
-                label: 'Best',
-                value: '${streak!.longestStreakDays}d',
-              ),
-              if (streak!.nextMilestoneDays != null)
-                _WeeklyInfoPill(
-                  label: 'Next',
-                  value: '${streak!.nextMilestoneDays}d',
-                ),
-              if (streak!.nextRewardScans > 0)
-                _WeeklyInfoPill(
-                  label: 'Reward',
-                  value: '+${streak!.nextRewardScans} ${streak!.nextRewardScans == 1 ? 'scan' : 'scans'}',
-                  highlighted: true,
-                ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -525,12 +472,14 @@ class _WeeklyCoveragePanel extends StatelessWidget {
     super.key,
     required this.activeDays,
     required this.totalDays,
+    required this.days,
     required this.averageCalories,
     this.targetCalories,
   });
 
   final int activeDays;
   final int totalDays;
+  final List<JournalDayData> days;
   final int averageCalories;
   final int? targetCalories;
 
@@ -588,8 +537,9 @@ class _WeeklyCoveragePanel extends StatelessWidget {
               _WeeklyCoverageSegments(
                 activeDays: filledDays,
                 totalDays: visibleDays,
+                days: days,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -617,31 +567,74 @@ class _WeeklyCoverageSegments extends StatelessWidget {
   const _WeeklyCoverageSegments({
     required this.activeDays,
     required this.totalDays,
+    required this.days,
   });
 
   final int activeDays;
   final int totalDays;
+  final List<JournalDayData> days;
+
+  static const _days = ['Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'];
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        for (var index = 0; index < totalDays; index++) ...[
-          Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              height: 10,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(99),
-                color: index < activeDays
-                    ? LogMyPlateColors.accent
-                    : colors.mutedFill,
-              ),
-            ),
+        for (var index = 0; index < 7; index++) ...[
+          Builder(
+            builder: (context) {
+              bool isLogged = false;
+              bool isPast = false;
+              
+              if (index < days.length) {
+                final dayData = days[index];
+                isLogged = dayData.mealCount > 0;
+                if (dayData.date.compareTo(todayStr) < 0) {
+                  isPast = true;
+                }
+              } else {
+                isLogged = index < activeDays;
+              }
+              
+              Color bgColor = colors.mutedFill;
+              Color textColor = colors.textSecondary;
+              
+              if (isLogged) {
+                bgColor = LogMyPlateColors.accent.withValues(alpha: 0.15);
+                textColor = colors.accentText;
+              } else if (isPast) {
+                bgColor = LogMyPlateColors.destructive.withValues(alpha: 0.15);
+                textColor = LogMyPlateColors.destructive;
+              }
+              
+              return Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(right: index != 6 ? 4 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _days[index],
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: textColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              );
+            },
           ),
-          if (index != totalDays - 1) const SizedBox(width: 5),
         ],
       ],
     );
@@ -736,7 +729,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
               decoration: surface.decoration(radius: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,7 +740,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                     shimmer: _controller.value,
                     darkSurface: surface.isDark,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   _SkeletonBox(
                     width: 170,
                     height: 44,
@@ -755,7 +748,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                     shimmer: _controller.value,
                     darkSurface: surface.isDark,
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   Row(
                     children: List.generate(10, (index) {
                       return Expanded(
@@ -784,7 +777,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _LoadingCard(
               child: Row(
                 children: List.generate(3, (index) {
@@ -818,7 +811,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                 }),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _LoadingCard(
               child: Row(
                 children: [
@@ -831,7 +824,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                           height: 10,
                           shimmer: _controller.value,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: LogMyPlateSpacing.cardPadding),
                         _SkeletonBox(
                           width: 92,
                           height: 20,
@@ -855,7 +848,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                 ],
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: LogMyPlateSpacing.lgSpacing),
             _SkeletonBox(width: 54, height: 10, shimmer: _controller.value),
             const SizedBox(height: 10),
             for (var index = 0; index < 3; index++) ...[
@@ -914,13 +907,9 @@ class _LoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+    return LiteGlassCard(
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       child: child,
     );
   }
@@ -999,7 +988,7 @@ class _SyncBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          TextButton(
+          GlassWrapper(child: TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(
               foregroundColor: colors.accentText,
@@ -1008,7 +997,7 @@ class _SyncBanner extends StatelessWidget {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: const Text('Retry'),
-          ),
+          )),
         ],
       ),
     );
@@ -1114,7 +1103,7 @@ class _MealsList extends StatelessWidget {
             onDelete: () => _deleteMeal(context, meal),
           ),
         const SizedBox(height: 8),
-        TextButton(onPressed: onAddManually, child: const Text('Add manually')),
+        GlassWrapper(child: TextButton(onPressed: onAddManually, child: const Text('Add manually'))),
       ],
     );
   }
@@ -1159,7 +1148,7 @@ class _EmptyTodayBody extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
@@ -1257,7 +1246,7 @@ class _EmptyTodayBody extends StatelessWidget {
                     const SizedBox(height: 11),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: TextButton(
+                      child: GlassWrapper(child: TextButton(
                         onPressed: onAddManually,
                         style: TextButton.styleFrom(
                           foregroundColor: colors.accentText,
@@ -1272,7 +1261,7 @@ class _EmptyTodayBody extends StatelessWidget {
                           ),
                         ),
                         child: const Text('Add manually'),
-                      ),
+                      )),
                     ),
                   ],
                 ),

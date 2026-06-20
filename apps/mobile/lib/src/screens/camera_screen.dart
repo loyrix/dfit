@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,10 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import '../widgets/glass/glass_surface.dart';
+import '../widgets/premium_button.dart';
 
 enum _CaptureSource {
   camera(
@@ -175,11 +180,8 @@ class _CameraScreenState extends State<CameraScreen>
             return Stack(
               children: [
                 Positioned.fill(
-                  child: CustomPaint(
-                    painter: _CameraBackdropPainter(
-                      progress: _controller.value,
-                      colors: colors,
-                    ),
+                  child: GlassBackdrop(
+                    child: const SizedBox.shrink(),
                   ),
                 ),
                 Positioned(
@@ -408,7 +410,7 @@ class _EmptyCaptureState extends StatelessWidget {
                   ),
                 ),
                 if (!compact) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   Text(
                     'No photo yet',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -616,13 +618,8 @@ class _PreviewChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GlassPill(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.42),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-      ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -650,7 +647,6 @@ class _PlateHintField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
@@ -658,20 +654,9 @@ class _PlateHintField extends StatelessWidget {
         final text = value.text.trim();
         final empty = text.isEmpty;
 
-        return Container(
-          width: double.infinity,
+        return LiteGlassCard(
           padding: const EdgeInsets.fromLTRB(15, 14, 12, 12),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.045)
-                : Colors.white.withValues(alpha: 0.76),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: empty
-                  ? colors.accentText.withValues(alpha: 0.45)
-                  : colors.border.withValues(alpha: 0.82),
-            ),
-          ),
+          borderRadius: BorderRadius.circular(22),
           child: _buildContent(context, colors, empty),
         );
       },
@@ -798,26 +783,9 @@ class _CaptureComposerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 386),
+    return GlassCard(
       padding: EdgeInsets.all(keyboardOpen ? 10 : 12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF18201C).withValues(alpha: 0.94)
-            : Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: colors.border.withValues(alpha: 0.84)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.08),
-            blurRadius: 34,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
+      borderRadius: BorderRadius.circular(30),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -875,15 +843,14 @@ class _VoiceHintButton extends StatelessWidget {
       child: Semantics(
         button: true,
         label: 'Voice input coming soon',
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: colors.textPrimary.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border, width: 0.7),
+        child: GlassSurface(
+          isPremium: false,
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(Icons.mic_rounded, color: colors.textTertiary, size: 20),
           ),
-          child: Icon(Icons.mic_rounded, color: colors.textTertiary, size: 20),
         ),
       ),
     );
@@ -927,7 +894,6 @@ class _CaptureActionBar extends StatelessWidget {
                   label: 'Analyze plate',
                   icon: const Icon(
                     Icons.auto_awesome_rounded,
-                    color: LogMyPlateColors.accentDeep,
                     size: 20,
                   ),
                   primary: true,
@@ -985,7 +951,6 @@ class _CaptureActionBar extends StatelessWidget {
                   child: _CaptureButton(
                     label: 'Take photo',
                     icon: const PrimitiveCameraIcon(
-                      color: LogMyPlateColors.accentDeep,
                       size: 22,
                     ),
                     primary: true,
@@ -1042,70 +1007,81 @@ class _CaptureButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final pulse = primary
-        ? 0.02 + math.sin(progress * math.pi * 2) * 0.018
-        : 0.0;
-    final background = primary
-        ? LogMyPlateColors.accent
-        : colors.textPrimary.withValues(alpha: 0.06);
     final foreground = primary
         ? LogMyPlateColors.accentDeep
         : colors.textPrimary;
+
+    if (primary) {
+      return Opacity(
+        opacity: disabled ? 0.46 : 1,
+        child: PremiumButton.icon(
+          onPressed: disabled || loading ? null : onTap,
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 140),
+            child: loading
+                ? SizedBox(
+                    key: const ValueKey('spinner'),
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? LogMyPlateColors.accentDeep 
+                          : colors.primaryActionText,
+                    ),
+                  )
+                : SizedBox(key: const ValueKey('icon'), child: icon),
+          ),
+          label: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Opacity(
       opacity: disabled ? 0.46 : 1,
       child: InkWell(
         onTap: disabled || loading ? null : onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 180),
-          scale: loading ? 0.98 : 1 + pulse,
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+        child: GlassSurface(
+          isPremium: false,
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: height,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: primary
-                    ? LogMyPlateColors.accent.withValues(alpha: 0.66)
-                    : colors.border,
-                width: 0.7,
-              ),
-              boxShadow: primary
-                  ? [
-                      BoxShadow(
-                        color: LogMyPlateColors.accent.withValues(alpha: 0.16),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
-                      ),
-                    ]
-                  : null,
-            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 140),
-                  child: loading
-                      ? SizedBox(
-                          key: const ValueKey('spinner'),
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: foreground,
-                          ),
-                        )
-                      : SizedBox(key: const ValueKey('icon'), child: icon),
+                IconTheme.merge(
+                  data: IconThemeData(color: foreground),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 140),
+                    child: loading
+                        ? SizedBox(
+                            key: const ValueKey('spinner'),
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: foreground,
+                            ),
+                          )
+                        : SizedBox(key: const ValueKey('icon'), child: icon),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: TextStyle(
                       color: foreground,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0,
@@ -1136,7 +1112,7 @@ class _CaptureNotice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: colors.textPrimary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(color: colors.border, width: 0.6),
       ),
       child: Row(
@@ -1162,45 +1138,3 @@ class _CaptureNotice extends StatelessWidget {
   }
 }
 
-class _CameraBackdropPainter extends CustomPainter {
-  const _CameraBackdropPainter({required this.progress, required this.colors});
-
-  final double progress;
-  final LogMyPlateThemeColors colors;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final warmWash = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(0, -0.08),
-        radius: 0.82,
-        colors: [
-          LogMyPlateColors.accent.withValues(alpha: 0.12),
-          Colors.transparent,
-        ],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, warmWash);
-
-    final line = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.018)
-      ..strokeWidth = 1;
-    final yShift = progress * 28;
-
-    for (var y = -28.0 + yShift; y < size.height; y += 28) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
-    }
-
-    final vignette = Paint()
-      ..shader = RadialGradient(
-        colors: [Colors.transparent, colors.background.withValues(alpha: 0.70)],
-        stops: const [0.46, 1],
-      ).createShader(Offset.zero & size);
-
-    canvas.drawRect(Offset.zero & size, vignette);
-  }
-
-  @override
-  bool shouldRepaint(covariant _CameraBackdropPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.colors != colors;
-  }
-}

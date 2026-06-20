@@ -539,6 +539,16 @@ class LogMyPlateApiClient {
     );
   }
 
+  Future<void> deleteNutritionistSessions(List<String> sessionIds) async {
+    if (sessionIds.isEmpty) return;
+    final response = await _httpClient.delete(
+      Uri.parse('$baseUrl/v1/chat/nutritionist/sessions'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode({'sessionIds': sessionIds}),
+    );
+    _throwIfBad(response);
+  }
+
   Future<Map<String, String>> _headers({
     bool contentTypeJson = false,
     String? idempotencyKey,

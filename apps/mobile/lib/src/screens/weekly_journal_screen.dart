@@ -3,13 +3,19 @@ import 'package:flutter/material.dart';
 import '../models/meal.dart';
 import '../navigation/logmyplate_page_route.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_spacing.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/glass/fake_glass_row.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class WeeklyJournalScreen extends StatefulWidget {
   const WeeklyJournalScreen({
@@ -62,8 +68,10 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
         .toList(growable: false);
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
           padding: EdgeInsets.fromLTRB(16, 12, 16, widget.bottomPadding),
           children: [
             _JournalHeader(
@@ -72,7 +80,7 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
               subtitle: _rangeLabel(_range),
               showBackButton: widget.showBackButton,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
               _WeekSelector(
                 range: _range,
@@ -83,21 +91,21 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
                 widget.syncMessage != null ||
                 _loadingWeek ||
                 _weekLoadError != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               _JournalSyncStrip(
                 isSyncing: widget.isSyncing || _loadingWeek,
                 message: _weekLoadError ?? widget.syncMessage,
                 onRefresh: widget.onRefresh,
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _WeeklyJournalHero(range: _range),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _LabeledPanel(
               label: 'Tracked Day Average',
               child: MacroBarGroup(totals: _range.summary.trackedDayAverage),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _SectionLabel('Day Wise'),
             const SizedBox(height: 10),
             if (days.isEmpty)
@@ -111,6 +119,7 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
                 ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -231,8 +240,10 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
     final hasMeals = meals.isNotEmpty;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
+      extendBodyBehindAppBar: true,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
             _JournalHeader(
@@ -240,7 +251,7 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
               title: _dayTitle(_day.date),
               subtitle: _mealCountLabel(_day.mealCount),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             if (hasMeals) ...[
               EnergyHeroCard(
                 totals: _day.totals,
@@ -248,11 +259,11 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
                 label: 'Day Energy',
                 target: widget.target,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               MacroBarGroup(totals: _day.totals),
             ] else
               _EmptyDayOverview(day: _day),
-            const SizedBox(height: 22),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _SectionLabel('Meals'),
             const SizedBox(height: 10),
             if (meals.isEmpty)
@@ -266,6 +277,7 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
                 ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -332,18 +344,15 @@ class _DayMealRow extends StatelessWidget {
     final totals = meal.totals;
     final itemNames = meal.items.map((item) => item.name).join(', ');
 
-    final row = Material(
-      color: colors.surfaceCard,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+    final row = FakeGlassRow(
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
           child: Row(
             children: [
               _MealBadge(type: meal.type),
@@ -388,6 +397,7 @@ class _DayMealRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
 
@@ -520,7 +530,7 @@ class _JournalSyncStrip extends StatelessWidget {
         color: hasError
             ? LogMyPlateColors.accent.withValues(alpha: 0.12)
             : colors.mutedFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(
           color: hasError
               ? LogMyPlateColors.accent.withValues(alpha: 0.24)
@@ -552,7 +562,7 @@ class _JournalSyncStrip extends StatelessWidget {
                 ),
               ),
               if (hasError && onRefresh != null)
-                TextButton(
+                GlassWrapper(child: TextButton(
                   onPressed: () {
                     onRefresh?.call();
                   },
@@ -563,7 +573,7 @@ class _JournalSyncStrip extends StatelessWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text('Retry'),
-                ),
+                )),
             ],
           ),
           AnimatedSwitcher(
@@ -601,18 +611,15 @@ class _WeekSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Material(
-      color: colors.surfaceCard,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: loading ? null : onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+    return FakeGlassRow(
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: loading ? null : onTap,
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          child: Padding(
+            padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
           child: Row(
             children: [
               Expanded(
@@ -650,6 +657,7 @@ class _WeekSelector extends StatelessWidget {
                 ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -671,13 +679,10 @@ class _WeekPickerSheet extends StatelessWidget {
 
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border),
-        ),
+        margin: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+        child: GlassCard(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -704,6 +709,7 @@ class _WeekPickerSheet extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -722,7 +728,7 @@ class _WeeklyJournalHero extends StatelessWidget {
         : (summary.activeDays / summary.windowDays).clamp(0.0, 1.0);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
       decoration: surface.decoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,7 +740,7 @@ class _WeeklyJournalHero extends StatelessWidget {
               letterSpacing: 1.8,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: LogMyPlateSpacing.itemSpacing),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -742,7 +748,7 @@ class _WeeklyJournalHero extends StatelessWidget {
                 '${summary.activeDays}/${summary.windowDays}',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: surface.textPrimary,
-                  fontSize: 40,
+                  fontSize: 36,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -758,9 +764,9 @@ class _WeeklyJournalHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           _SegmentedProgress(value: activePct),
-          const SizedBox(height: 16),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
             children: [
               Expanded(
@@ -884,13 +890,9 @@ class _EmptyWeekCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+    return LiteGlassCard(
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
       child: Row(
         children: [
           Container(
@@ -956,19 +958,16 @@ class _JournalDayRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.border, width: 0.5),
-            ),
-            child: Row(
+      child: FakeGlassRow(
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+              child: Row(
               children: [
                 _DateBadge(date: date, active: hasMeals),
                 const SizedBox(width: 14),
@@ -1026,6 +1025,7 @@ class _JournalDayRow extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -1103,7 +1103,7 @@ class _DateBadge extends StatelessWidget {
       height: 58,
       decoration: BoxDecoration(
         color: badgeColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Column(
@@ -1220,13 +1220,9 @@ class _EmptyDayOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+    return LiteGlassCard(
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: Row(
         children: [
           _DateBadge(date: _parseDate(day.date), active: false),
@@ -1262,13 +1258,9 @@ class _EmptyDayCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
+    return LiteGlassCard(
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
       child: Text(
         'No meals logged for this day.',
         style: Theme.of(

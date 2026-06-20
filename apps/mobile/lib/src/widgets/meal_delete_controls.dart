@@ -1,7 +1,11 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import 'glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 Future<bool> confirmMealDeletion(BuildContext context) async {
   final confirmed = await showModalBottomSheet<bool>(
@@ -85,14 +89,11 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
     final colors = context.logmyplate;
 
     return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard,
+      child: Padding(
+        padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+        child: LiteGlassCard(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.border),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,28 +110,21 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 18),
-            FilledButton(
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+            PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.destructive,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(color: LogMyPlateColors.destructiveDeep),
-                ),
-              ),
+              
               child: const Text('Delete meal'),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
-            ),
+            )),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

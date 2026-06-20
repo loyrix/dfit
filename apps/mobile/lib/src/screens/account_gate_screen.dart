@@ -1,12 +1,16 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/auth_session.dart';
 import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
-import '../widgets/logmyplate_background.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class AccountGateScreen extends StatefulWidget {
   const AccountGateScreen({
@@ -58,8 +62,9 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
     final showAppleSignIn = Theme.of(context).platform == TargetPlatform.iOS;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -78,7 +83,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
               ),
               const SizedBox(height: 26),
               Center(child: _AccountMark(loading: widget.loading)),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               Text(
                 'LogMyPlate',
                 textAlign: TextAlign.center,
@@ -105,7 +110,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               if (!_passwordResetMode) ...[
                 Row(
                   children: [
@@ -145,13 +150,13 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                 },
                 onClearError: widget.onClearError,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               if (widget.error != null) ...[
                 _InlineAuthError(message: widget.error!),
                 const SizedBox(height: 8),
               ],
               if (!_passwordResetMode) ...[
-                TextButton(
+                GlassWrapper(child: TextButton(
                   onPressed: widget.loading
                       ? null
                       : widget.reason == AccountGateReason.quotaExhausted
@@ -162,7 +167,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                         ? 'Log manually instead'
                         : 'Maybe later',
                   ),
-                ),
+                )),
                 const SizedBox(height: 6),
                 Text(
                   widget.reason == AccountGateReason.accountDeletion
@@ -272,13 +277,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
     final isSignUp = _mode == EmailAuthMode.signUp;
     final isResetting = _resetEmail != null;
 
-    return Container(
+    return LiteGlassCard(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colors.surfaceCard,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.border, width: 0.6),
-      ),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -319,7 +320,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             const SizedBox(height: 10),
           ] else ...[
             _ResetEmailNote(email: _resetEmail!),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
           ],
           if (!isResetting) ...[
             _AuthTextField(
@@ -358,7 +359,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             if (!isSignUp)
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
+                child: GlassWrapper(child: TextButton(
                   onPressed: widget.loading ? null : _requestReset,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -366,7 +367,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: const Text('Forgot password?'),
-                ),
+                )),
               ),
           ],
           if (_validation != null) ...[
@@ -376,17 +377,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
           const SizedBox(height: 10),
           SizedBox(
             height: 44,
-            child: FilledButton(
+            child: PremiumButton(
               onPressed: widget.loading ? null : _submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent,
-                foregroundColor: LogMyPlateColors.accentDeep,
-                disabledBackgroundColor: colors.mutedFill,
-                disabledForegroundColor: colors.textSecondary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              
               child: Text(
                 isResetting
                     ? 'Reset password'
@@ -398,7 +391,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
           ),
           if (isResetting) ...[
             const SizedBox(height: 4),
-            TextButton(
+            GlassWrapper(child: TextButton(
               onPressed: widget.loading
                   ? null
                   : () {
@@ -412,7 +405,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                       widget.onClearError?.call();
                     },
               child: const Text('Back to login'),
-            ),
+            )),
           ],
         ],
       ),
@@ -525,7 +518,7 @@ class _ResetEmailNote extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       ),
       child: Text(
         'Code sent to $email',
@@ -589,7 +582,7 @@ class _InlineAuthError extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
+              child: GlassWrapper(child: TextButton.icon(
                 onPressed: () => openLogMyPlateLink(
                   context,
                   LogMyPlateLinks.accountSupport,
@@ -603,7 +596,7 @@ class _InlineAuthError extends StatelessWidget {
                 ),
                 icon: const Icon(Icons.support_agent_rounded, size: 16),
                 label: const Text('Contact support'),
-              ),
+              )),
             ),
           ],
         ],
@@ -632,7 +625,7 @@ class _ModeTab extends StatelessWidget {
           height: 34,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? colors.surfaceCard : Colors.transparent,
+            color: selected ? colors.mutedFill : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -694,11 +687,11 @@ class _AuthTextField extends StatelessWidget {
           vertical: 12,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           borderSide: const BorderSide(
             color: LogMyPlateColors.accent,
             width: 0.8,
@@ -772,7 +765,7 @@ class _AccountMark extends StatelessWidget {
             height: 58,
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
             ),
             child: const Center(
               child: SizedBox(
@@ -810,22 +803,9 @@ class _ProviderButton extends StatelessWidget {
 
     return SizedBox(
       height: 52,
-      child: FilledButton(
+      child: PremiumButton(
         onPressed: loading ? null : onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: isApple ? colors.textPrimary : colors.surfaceCard,
-          foregroundColor: isApple ? colors.background : colors.textPrimary,
-          disabledBackgroundColor: colors.mutedFill,
-          disabledForegroundColor: colors.textSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: isApple ? Colors.transparent : colors.border,
-              width: 0.7,
-            ),
-          ),
-          elevation: 0,
-        ),
+        
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

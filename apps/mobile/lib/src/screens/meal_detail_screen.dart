@@ -1,7 +1,9 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:io';
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+
 import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,11 +11,14 @@ import 'package:share_plus/share_plus.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
-import '../widgets/logmyplate_background.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/macro_chips.dart';
 import '../widgets/macro_profile_card.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class MealDetailScreen extends StatefulWidget {
   const MealDetailScreen({
@@ -69,8 +74,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     final canDelete = widget.onDeleteMeal != null;
 
     return Scaffold(
-      backgroundColor: colors.background,
-      body: LogMyPlateAmbientBackground(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
         child: SafeArea(
           child: SingleChildScrollView(
             child: Screenshot(
@@ -93,19 +99,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   const Spacer(),
                   if (_hasChanges) const _UnsavedChangesPill(),
                   const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: colors.surfaceCard,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: colors.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.border.withValues(alpha: 0.5),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                  GlassCard(
+                    padding: EdgeInsets.zero,
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -139,91 +135,74 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ),
                 ],
               ),
-              if (!_isCapturing && _meal.image != null) const SizedBox(height: 12),
+              if (!_isCapturing && _meal.image != null) const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             ],
-            if (_meal.image != null) ...[
-                const SizedBox(height: 12),
+              if (_meal.image != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 _MealHeroImage(image: _meal.image!),
               ],
-              const SizedBox(height: 14),
-              _MealDetailSummaryCard(meal: _draftMeal),
-              const SizedBox(height: 18),
-              MacroProfileCard(meal: _draftMeal),
-              if (!_isCapturing) ...[
-                if (widget.onAskNutritionist != null) ...[
-                  const SizedBox(height: 18),
-                  InkWell(
-                    onTap: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: _hasChanges 
-                            ? colors.mutedFill 
-                            : LogMyPlateColors.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _hasChanges 
-                              ? colors.border 
-                              : LogMyPlateColors.accent.withValues(alpha: 0.2),
+              if (!_isCapturing && widget.onAskNutritionist != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                PremiumButton(
+                  onPressed: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 22,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? LogMyPlateColors.accentDeep
+                            : LogMyPlateColors.accent,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Analyze this meal with AI',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome_rounded,
-                            size: 18,
-                            color: _hasChanges 
-                                ? colors.textSecondary 
-                                : LogMyPlateColors.accent,
+                      if (!widget.isPremium && !_hasChanges) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: LogMyPlateColors.accent.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Analyze this meal with AI',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: _hasChanges 
-                                  ? colors.textSecondary 
-                                  : colors.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (!widget.isPremium && !_hasChanges) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.lock_rounded,
+                                size: 10,
+                                color: LogMyPlateColors.accent,
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.lock_rounded,
-                                    size: 10,
+                              const SizedBox(width: 2),
+                                Text(
+                                  'PRO',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                     color: LogMyPlateColors.accent,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
                                   ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    'PRO',
-                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: LogMyPlateColors.accent,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-                const SizedBox(height: 22),
+                ),
+              ],
+              const SizedBox(height: LogMyPlateSpacing.cardPadding),
+              _MealDetailSummaryCard(meal: _draftMeal),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              MacroProfileCard(meal: _draftMeal),
+              if (!_isCapturing) ...[
+                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                 Text('Items', style: Theme.of(context).textTheme.labelSmall),
                 const SizedBox(height: 10),
                 for (var index = 0; index < _draftItems.length; index++)
@@ -233,7 +212,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     onEdit: () => _openEditItemSheet(index),
                   ),
                 if (_error != null) ...[
-                  const SizedBox(height: 14),
+                  const SizedBox(height: LogMyPlateSpacing.cardPadding),
                   Text(
                     _error!,
                     textAlign: TextAlign.center,
@@ -243,21 +222,12 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ),
                 ],
                 if (canEdit) ...[
-                  const SizedBox(height: 18),
-                  FilledButton(
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                  PremiumButton(
                     onPressed: !_hasChanges || _saving || _deleting
                         ? null
                         : _saveChanges,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primaryAction,
-                      foregroundColor: colors.primaryActionText,
-                      disabledBackgroundColor: colors.mutedFill,
-                      disabledForegroundColor: colors.textSecondary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
+                    
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 180),
                       child: _saving
@@ -277,10 +247,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     ),
                   ),
                   if (_hasChanges)
-                    TextButton(
+                    GlassWrapper(child: TextButton(
                       onPressed: _saving || _deleting ? null : _resetChanges,
                       child: const Text('Reset changes'),
-                    ),
+                    )),
                 ],
               ],
               if (_isCapturing) ...[
@@ -468,19 +438,19 @@ class _MealDetailSummaryCard extends StatelessWidget {
           const SizedBox(height: 13),
           Row(
             children: [
-              _DetailMacroChip(
+              MacroTextChip(
                 label: 'Protein',
                 value: totals.proteinG,
                 color: LogMyPlateColors.macroProtein,
               ),
               const SizedBox(width: 8),
-              _DetailMacroChip(
+              MacroTextChip(
                 label: 'Carbs',
                 value: totals.carbsG,
                 color: LogMyPlateColors.macroCarbs,
               ),
               const SizedBox(width: 8),
-              _DetailMacroChip(
+              MacroTextChip(
                 label: 'Fat',
                 value: totals.fatG,
                 color: LogMyPlateColors.macroFat,
@@ -501,42 +471,7 @@ class _MealDetailSummaryCard extends StatelessWidget {
   }
 }
 
-class _DetailMacroChip extends StatelessWidget {
-  const _DetailMacroChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
 
-  final String label;
-  final double value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.11),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: color.withValues(alpha: 0.24), width: 0.6),
-        ),
-        child: Text(
-          '$label ${value.round()}g',
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.textPrimary,
-            letterSpacing: 0,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _MealHeroImage extends StatelessWidget {
   const _MealHeroImage({required this.image});
@@ -550,11 +485,9 @@ class _MealHeroImage extends StatelessWidget {
       aspectRatio: 1.55,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            border: Border.all(color: colors.border),
-          ),
+        child: LiteGlassCard(
+          borderRadius: BorderRadius.circular(22),
+          padding: EdgeInsets.zero,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -598,8 +531,8 @@ class _MealHeroPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    return DecoratedBox(
-      decoration: BoxDecoration(color: colors.surfaceCard),
+    return LiteGlassCard(
+      padding: EdgeInsets.zero,
       child: Center(
         child: active
             ? SizedBox(
@@ -647,7 +580,7 @@ class _MealDetailItemRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.mutedFill,
                 border: Border.all(color: colors.border, width: 0.5),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
               ),
               child: Icon(
                 Icons.edit_rounded,

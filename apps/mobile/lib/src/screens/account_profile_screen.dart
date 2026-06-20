@@ -1,11 +1,16 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/auth_session.dart';
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class AccountProfileScreen extends StatelessWidget {
   const AccountProfileScreen({
@@ -34,10 +39,13 @@ class AccountProfileScreen extends StatelessWidget {
     final colors = context.logmyplate;
 
     return Scaffold(
-      body: SafeArea(
-        child: Stack(
-          children: [
-            ListView(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: Stack(
+            children: [
+              ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
               children: [
                 Align(
@@ -49,7 +57,7 @@ class AccountProfileScreen extends StatelessWidget {
                     icon: const BackMark(),
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                 Center(child: _AccountAvatar(session: session)),
                 const SizedBox(height: 24),
                 Text(
@@ -77,7 +85,7 @@ class AccountProfileScreen extends StatelessWidget {
                   ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
                 if (error != null) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   _AccountErrorBanner(message: error!, onDismiss: onClearError),
                 ],
                 const SizedBox(height: 28),
@@ -95,7 +103,7 @@ class AccountProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                 _ProfileSection(
                   title: 'Access',
                   children: [
@@ -113,7 +121,7 @@ class AccountProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                 _ProfileSection(
                   title: 'Account control',
                   children: [
@@ -142,17 +150,17 @@ class AccountProfileScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 SizedBox(
                   height: 54,
-                  child: OutlinedButton(
+                  child: GlassWrapper(child: OutlinedButton(
                     onPressed: loading ? null : () => _signOut(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: colors.textPrimary,
                       side: BorderSide(color: colors.border),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                       ),
                     ),
                     child: const Text('Log out'),
-                  ),
+                  )),
                 ),
               ],
             ),
@@ -167,6 +175,7 @@ class AccountProfileScreen extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -260,7 +269,7 @@ class _AccountErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
       decoration: BoxDecoration(
         color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.destructive.withValues(alpha: 0.28),
           width: 0.6,
@@ -310,12 +319,8 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+        LiteGlassCard(
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           child: Column(children: children),
         ),
       ],
@@ -412,13 +417,9 @@ class _ProfileLifecycleSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        child: Container(
+        child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: colors.border, width: 0.6),
-          ),
+          borderRadius: BorderRadius.circular(26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -450,20 +451,12 @@ class _ProfileLifecycleSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,
-                child: FilledButton(
+                child: PremiumButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: actionColor,
-                    foregroundColor: isDelete
-                        ? Colors.white
-                        : LogMyPlateColors.accentDeep,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                  ),
+                  
                   child: Text(
                     isDelete ? 'Delete account' : 'Deactivate profile',
                   ),
@@ -472,10 +465,10 @@ class _ProfileLifecycleSheet extends StatelessWidget {
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: TextButton(
+                child: GlassWrapper(child: TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('Keep profile'),
-                ),
+                )),
               ),
             ],
           ),

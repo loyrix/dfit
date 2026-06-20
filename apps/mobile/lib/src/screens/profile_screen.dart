@@ -1,10 +1,15 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/auth_session.dart';
 import '../models/meal.dart';
 import '../services/app_links.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
@@ -40,9 +45,12 @@ class ProfileScreen extends StatelessWidget {
     final signedIn = session != null;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.transparent,
+      body: GlassBackdrop(
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
           children: [
             Text(
               'Profile',
@@ -60,9 +68,9 @@ class ProfileScreen extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _AccountHero(session: session, onTap: onOpenAccount),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ProfileSection(
               title: 'Health Target',
               child: _HealthTargetCard(
@@ -71,7 +79,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             if (onOpenPaywall != null) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               _ProfileSection(
                 title: 'Premium',
                 child: _PremiumAccessCard(
@@ -80,7 +88,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ProfileSection(
               title: 'Theme',
               child: _ThemeSegment(
@@ -88,7 +96,7 @@ class ProfileScreen extends StatelessWidget {
                 onThemeChanged: onThemeChanged,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ProfileSection(
               title: 'Privacy & legal',
               child: Column(
@@ -127,7 +135,7 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ProfileSection(
               title: 'Support',
               child: Column(
@@ -145,26 +153,26 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             if (signedIn) ...[
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 52,
-                child: OutlinedButton(
+                child: GlassWrapper(child: OutlinedButton(
                   onPressed: onSignOut,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: colors.textPrimary,
                     side: BorderSide(color: colors.border),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                     ),
                   ),
                   child: const Text('Log out'),
-                ),
+                )),
               ),
             ],
           ],
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _requestAccountDeletion(BuildContext context) async {
@@ -205,21 +213,10 @@ class _AccountHero extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: signedIn
-              ? colors.surfaceCard
-              : LogMyPlateColors.accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: signedIn
-                ? colors.border
-                : LogMyPlateColors.accent.withValues(alpha: 0.35),
-            width: 0.6,
-          ),
-        ),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      child: GlassCard(
+        padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: Row(
           children: [
             Container(
@@ -302,9 +299,9 @@ class _PremiumAccessCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         child: Row(
           children: [
             Container(
@@ -372,12 +369,9 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.border, width: 0.5),
-          ),
+        LiteGlassCard(
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          padding: EdgeInsets.zero,
           child: child,
         ),
       ],
@@ -539,13 +533,9 @@ class DeleteAccountSheet extends StatelessWidget {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        child: Container(
+        child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          decoration: BoxDecoration(
-            color: colors.surfaceCard,
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: colors.border, width: 0.6),
-          ),
+          borderRadius: BorderRadius.circular(26),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -575,28 +565,22 @@ class DeleteAccountSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,
-                child: FilledButton(
+                child: PremiumButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: LogMyPlateColors.destructive,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                  ),
+                  
                   child: const Text('Delete account'),
                 ),
               ),
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: TextButton(
+                child: GlassWrapper(child: TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('Keep account'),
-                ),
+                )),
               ),
             ],
           ),
@@ -619,9 +603,9 @@ class _HealthTargetCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         child: Row(
           children: [
             Container(

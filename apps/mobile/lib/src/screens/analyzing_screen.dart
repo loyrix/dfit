@@ -1,6 +1,8 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:async';
+import '../theme/logmyplate_spacing.dart';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
+
 
 import 'package:flutter/material.dart';
 
@@ -10,6 +12,9 @@ import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../widgets/glass/glass_backdrop.dart';
+import '../widgets/glass/glass_cards.dart';
+import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
@@ -102,10 +107,8 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: Stack(
-        children: [
-          Positioned.fill(child: _AnalysisPhotoWash(photo: widget.photo)),
-          SafeArea(
+      body: GlassBackdrop(
+        child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxHeight < 720;
@@ -208,8 +211,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
               },
             ),
           ),
-        ],
-      ),
+        ),
     );
   }
 
@@ -324,23 +326,20 @@ class _FailureActions extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        FilledButton(
+        PremiumButton(
           onPressed: isQuota ? _handleQuotaAction : onRetry,
-          style: FilledButton.styleFrom(
-            backgroundColor: LogMyPlateColors.accent,
-            foregroundColor: LogMyPlateColors.accentDeep,
-          ),
+          
           child: Text(isQuota ? 'Open account' : 'Retry scan'),
         ),
         const SizedBox(height: 4),
-        TextButton(
+        GlassWrapper(child: TextButton(
           onPressed: isQuota && onAddManually != null
               ? onAddManually
               : () => Navigator.of(context).pop(),
           child: Text(
             isQuota && onAddManually != null ? 'Add manually' : 'Back',
           ),
-        ),
+        )),
       ],
     );
   }
@@ -364,16 +363,8 @@ class _HintPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 280),
+    return GlassPill(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-      decoration: BoxDecoration(
-        color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(
-          color: LogMyPlateColors.accent.withValues(alpha: 0.22),
-        ),
-      ),
       child: Text(
         label,
         maxLines: 1,
@@ -387,50 +378,6 @@ class _HintPill extends StatelessWidget {
   }
 }
 
-class _AnalysisPhotoWash extends StatelessWidget {
-  const _AnalysisPhotoWash({required this.photo});
-
-  final CapturedMealPhoto photo;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.logmyplate;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Opacity(
-          opacity: isDark ? 0.18 : 0.12,
-          child: ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-            child: Image.memory(
-              photo.bytes,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (context, error, stackTrace) =>
-                  const SizedBox.shrink(),
-            ),
-          ),
-        ),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: const Alignment(0, -0.12),
-              radius: 0.86,
-              colors: [
-                LogMyPlateColors.accent.withValues(alpha: isDark ? 0.08 : 0.12),
-                colors.background.withValues(alpha: isDark ? 0.84 : 0.78),
-                colors.background,
-              ],
-              stops: const [0, 0.54, 1],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _AnalyzingMealPreview extends StatelessWidget {
   const _AnalyzingMealPreview({
@@ -535,26 +482,16 @@ class _AnalyzingMealPreview extends StatelessWidget {
               Positioned(
                 top: 18,
                 left: 18,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.42),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  child: Text(
-                    'Analyzing',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
+                child: GlassPill(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      child: Text(
+        'Analyzing',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+      ),
+    ),
               ),
             ],
           ),
@@ -570,8 +507,8 @@ class _AnalyzingMealFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    return DecoratedBox(
-      decoration: BoxDecoration(color: colors.surfaceCard),
+    return LiteGlassCard(
+      borderRadius: BorderRadius.circular(22),
       child: Center(
         child: Icon(
           Icons.restaurant_rounded,
@@ -602,16 +539,10 @@ class _AnalysisStepTimeline extends StatelessWidget {
         ? 'Needs attention'
         : steps[activeStep.clamp(0, steps.length - 1)];
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 356),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
-        decoration: BoxDecoration(
-          color: colors.surfaceCard.withValues(alpha: 0.74),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: colors.border.withValues(alpha: 0.74)),
-        ),
-        child: Column(
+    return LiteGlassCard(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
@@ -671,7 +602,6 @@ class _AnalysisStepTimeline extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -690,7 +620,7 @@ class _StepDot extends StatelessWidget {
         ? LogMyPlateColors.destructive
         : done || active
         ? LogMyPlateColors.accent
-        : colors.surfaceCard;
+        : colors.mutedFill;
     final borderColor = failed
         ? LogMyPlateColors.destructive
         : done || active

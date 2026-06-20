@@ -1,10 +1,12 @@
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
+import '../widgets/glass/glass_cards.dart';
 
 class EnergyHeroCard extends StatelessWidget {
   const EnergyHeroCard({
@@ -32,9 +34,7 @@ class EnergyHeroCard extends StatelessWidget {
         : 0.0;
     final style = LogMyPlateHeroSurfaceStyle.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: style.decoration(),
+    return LiteGlassCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -49,7 +49,7 @@ class EnergyHeroCard extends StatelessWidget {
                     letterSpacing: 1.8,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -58,7 +58,7 @@ class EnergyHeroCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(
                             color: style.textPrimary,
-                            fontSize: 42,
+                            fontSize: 36,
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                     ),
@@ -90,7 +90,7 @@ class EnergyHeroCard extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                 hasTarget
                     ? GestureDetector(
                         onTap: onSetTarget,

@@ -2963,7 +2963,12 @@ export class PostgresStore implements AppRepository {
     };
   }
 
-  async setIdempotent(key: string, record: Omit<IdempotencyRecord, "createdAt">, method: string, path: string): Promise<void> {
+  async setIdempotent(
+    key: string,
+    record: Omit<IdempotencyRecord, "createdAt">,
+    method: string,
+    path: string,
+  ): Promise<void> {
     const profile = await this.getProfile();
     await this.sql`
       insert into idempotency_keys (
@@ -4239,6 +4244,15 @@ export class PostgresStore implements AppRepository {
         closedAt: r.closed_at ?? undefined,
       }),
     );
+  }
+
+  async deleteChatSessions(profileId: string, sessionIds: string[]): Promise<void> {
+    if (sessionIds.length === 0) return;
+    await this.sql`
+      delete from chat_sessions
+      where profile_id = ${profileId}
+        and id in ${this.sql(sessionIds)}
+    `;
   }
 }
 
