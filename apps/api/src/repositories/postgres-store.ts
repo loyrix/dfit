@@ -4245,6 +4245,15 @@ export class PostgresStore implements AppRepository {
       }),
     );
   }
+
+  async deleteChatSessions(profileId: string, sessionIds: string[]): Promise<void> {
+    if (sessionIds.length === 0) return;
+    await this.sql`
+      delete from chat_sessions
+      where profile_id = ${profileId}
+        and id in ${this.sql(sessionIds)}
+    `;
+  }
 }
 
 const localDate = () => new Date().toISOString().slice(0, 10);

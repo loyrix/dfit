@@ -6,6 +6,7 @@ import {
   sendChatMessageResponseSchema,
   chatHistoryResponseSchema,
   createChatSessionRequestSchema,
+  deleteChatSessionsRequestSchema,
 } from "@logmyplate/contracts";
 import type { AppRepository } from "../repositories/app-repository.js";
 import type { ChatAiProvider } from "../services/chat-ai-provider.js";
@@ -303,5 +304,12 @@ export const registerChatRoutes = async (
         createdAt: toIso(m.createdAt),
       })),
     });
+  });
+
+  app.delete("/v1/chat/nutritionist/sessions", async (request, reply) => {
+    const profile = await repository.getProfile();
+    const body = deleteChatSessionsRequestSchema.parse(request.body ?? {});
+    await repository.deleteChatSessions(profile.id, body.sessionIds);
+    return reply.status(204).send();
   });
 };

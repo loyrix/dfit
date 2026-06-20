@@ -1368,6 +1368,15 @@ export class InMemoryStore implements AppRepository {
       }));
     return sessions;
   }
+
+  async deleteChatSessions(profileId: string, sessionIds: string[]): Promise<void> {
+    for (const sessionId of sessionIds) {
+      const session = this.chatSessions.get(sessionId);
+      if (session && session.profileId === profileId) {
+        this.chatSessions.delete(sessionId);
+      }
+    }
+  }
 }
 
 const scanHasNoFoodAnalysis = (scan: ScanSession) => {

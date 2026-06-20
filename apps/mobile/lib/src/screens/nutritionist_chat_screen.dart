@@ -14,6 +14,8 @@ import '../widgets/glass/glass_surface.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/nutritionist_suggested_chip.dart';
 import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
+import '../services/logmyplate_api_client.dart';
+import 'chat_history_screen.dart';
 
 class NutritionistChatScreen extends StatefulWidget {
   const NutritionistChatScreen({
@@ -188,6 +190,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 maxTurns: ctrl.maxTurns,
                 sessionComplete: ctrl.sessionComplete,
                 focusMealId: widget.focusMealId,
+                apiClient: widget.controller.apiClient,
                 onNewChat: ctrl.readOnly
                     ? () {
                         final fresh = NutritionistController(
@@ -411,6 +414,7 @@ class _ChatAppBar extends StatelessWidget {
     required this.maxTurns,
     required this.sessionComplete,
     required this.onBack,
+    required this.apiClient,
     this.focusMealId,
     this.onNewChat,
   });
@@ -421,6 +425,7 @@ class _ChatAppBar extends StatelessWidget {
   final int maxTurns;
   final bool sessionComplete;
   final VoidCallback onBack;
+  final LogMyPlateApiClient apiClient;
   final String? focusMealId;
   final VoidCallback? onNewChat;
 
@@ -465,9 +470,8 @@ class _ChatAppBar extends StatelessWidget {
               onPressed: onNewChat,
               icon: const Icon(Icons.add_rounded, size: 14),
               label: const Text('New chat'),
-              
             ),
-          if (!readOnly && onNewChat == null)
+          if (!readOnly && onNewChat == null) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -482,6 +486,18 @@ class _ChatAppBar extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: LogMyPlateSpacing.xsSpacing),
+            IconButton(
+              icon: Icon(Icons.history_rounded, color: colors.textPrimary),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ChatHistoryScreen(apiClient: apiClient),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

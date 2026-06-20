@@ -403,4 +403,5 @@ export interface AppRepository {
       closedAt?: string;
     }>
   >;
+  deleteChatSessions(profileId: string, sessionIds: string[]): Promise<void>;
 }
