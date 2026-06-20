@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../theme/logmyplate_theme.dart';
 import '../widgets/app_brand_mark.dart';
@@ -37,7 +38,7 @@ class WelcomeScreen extends StatelessWidget {
                         height: 0.96,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: LogMyPlateSpacing.cardPadding),
                     Text(
                       'AI-powered food tracking, without the hassle.',
                       textAlign: TextAlign.center,
@@ -57,7 +58,7 @@ class WelcomeScreen extends StatelessWidget {
                         height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
@@ -66,14 +67,14 @@ class WelcomeScreen extends StatelessWidget {
                           foregroundColor: colors.primaryActionText,
                           padding: const EdgeInsets.symmetric(vertical: 17),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
                           ),
                         ),
                         onPressed: onStart,
                         child: const Text('Start first scan'),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: LogMyPlateSpacing.cardPadding),
                     Text(
                       'Photos are analyzed and saved with meal logs',
                       textAlign: TextAlign.center,

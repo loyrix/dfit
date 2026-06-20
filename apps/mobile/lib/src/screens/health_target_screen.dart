@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -141,9 +142,9 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _TargetPreviewCard(preview: preview),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _HeightInputCard(
               unit: _heightUnit,
               cmController: _heightCmController,
@@ -178,7 +179,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
               onTextChanged: (value) => _setAge(value.round(), syncText: false),
               onTextComplete: _normalizeAgeInput,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ChoiceGroup<HealthSex>(
               label: 'Body profile',
               values: HealthSex.values,
@@ -188,7 +189,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   ? null
                   : (value) => setState(() => _sex = value),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ChoiceGroup<ActivityLevel>(
               label: 'Typical movement',
               values: ActivityLevel.values,
@@ -198,7 +199,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   ? null
                   : (value) => setState(() => _activityLevel = value),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ChoiceGroup<HealthGoal>(
               label: 'Goal',
               values: HealthGoal.values,
@@ -209,7 +210,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   : (value) => setState(() => _goal = value),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               _HealthError(message: _error!),
             ],
           ],
@@ -238,7 +239,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                   alpha: 0.72,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                 ),
               ),
               child: AnimatedSwitcher(
@@ -469,7 +470,7 @@ class _TargetPreviewCard extends StatelessWidget {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
       decoration: surface.decoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -487,7 +488,7 @@ class _TargetPreviewCard extends StatelessWidget {
               _HealthSourcesButton(surface: surface),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           Row(
             children: [
               _BmiOrbit(preview: preview, surface: surface),
@@ -519,7 +520,7 @@ class _TargetPreviewCard extends StatelessWidget {
                         color: surface.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: LogMyPlateSpacing.cardPadding),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -546,7 +547,7 @@ class _TargetPreviewCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           _BmiLegend(surface: surface),
         ],
       ),
@@ -620,10 +621,10 @@ class _HealthSourcesSheet extends StatelessWidget {
               const SizedBox(height: 4),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
                 decoration: BoxDecoration(
                   color: colors.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
                   border: Border.all(
                     color: colors.accent.withValues(alpha: 0.16),
                     width: 0.7,
@@ -637,7 +638,7 @@ class _HealthSourcesSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: LogMyPlateSpacing.cardPadding),
               Text(
                 'Open source',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -1289,8 +1290,8 @@ class _InputSurface extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(14),
-      borderRadius: BorderRadius.circular(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: child,
     );
   }
@@ -1485,10 +1486,10 @@ class _HealthError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
       decoration: BoxDecoration(
         color: LogMyPlateColors.destructive.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.destructive.withValues(alpha: 0.22),
         ),

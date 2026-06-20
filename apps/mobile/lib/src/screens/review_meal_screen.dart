@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
@@ -86,14 +87,14 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   const SizedBox(width: 48),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               _ReviewSummaryCard(
                 photo: widget.photo,
                 mealType: _mealType,
                 totals: totals,
                 itemCount: _items.length,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               Text(
                 'Items to confirm',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -103,7 +104,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ),
               const SizedBox(height: 10),
               LiteGlassCard(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
@@ -119,7 +120,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               GlassWrapper(child: OutlinedButton(
                 onPressed: _openAddCustomItemSheet,
                 style: OutlinedButton.styleFrom(
@@ -127,7 +128,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   side: BorderSide(color: borderColor),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Add custom item'),
@@ -157,7 +158,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                         side: BorderSide(color: borderColor),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                         ),
                       ),
                       child: const Text('Confirm meal', key: ValueKey('confirm')),
@@ -179,7 +180,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                         disabledForegroundColor: secondaryText,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                           side: BorderSide(
                             color: LogMyPlateColors.accent.withValues(alpha: 0.3),
                           ),
@@ -346,7 +347,7 @@ class _ReviewSummaryCard extends StatelessWidget {
             children: [
               if (photo != null) ...[
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                   child: Image.memory(
                     photo.bytes,
                     width: 74,
@@ -406,7 +407,7 @@ class _ReviewSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           Row(
             children: [
               MacroTextChip(
@@ -534,7 +535,7 @@ class _ReviewItemRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.mutedFill,
                   border: Border.all(color: borderColor, width: 0.5),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                 ),
                 child: Icon(
                   Icons.edit_rounded,

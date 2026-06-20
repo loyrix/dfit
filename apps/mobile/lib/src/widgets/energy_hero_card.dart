@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 
@@ -48,7 +49,7 @@ class EnergyHeroCard extends StatelessWidget {
                     letterSpacing: 1.8,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -89,7 +90,7 @@ class EnergyHeroCard extends StatelessWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                 hasTarget
                     ? GestureDetector(
                         onTap: onSetTarget,

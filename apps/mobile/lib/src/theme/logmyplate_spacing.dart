@@ -12,6 +12,9 @@ class LogMyPlateSpacing {
   /// Standard spacing between major vertical sections
   static const double sectionSpacing = 16.0;
 
+  /// Large spacing for major section dividers
+  static const double lgSpacing = 22.0;
+
   /// Standard spacing between items within a section
   static const double itemSpacing = 12.0;
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
 import '../services/revenuecat_subscription_service.dart';
@@ -48,7 +49,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
     return SafeArea(
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: GlassCard(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
             borderRadius: BorderRadius.circular(20),
@@ -104,7 +105,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               _FeatureRow(
                 icon: Icons.auto_awesome_rounded,
                 title: 'AI Nutritionist — personalized nutrition advice',
@@ -124,7 +125,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 icon: Icons.bolt_rounded,
                 title: 'Premium scans work without rewarded ads',
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               if (widget.offering.plans.isEmpty)
                 _UnavailablePlans()
               else
@@ -164,7 +165,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                     backgroundColor: colors.primaryAction,
                     foregroundColor: colors.primaryActionText,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                     ),
                   ),
                   child: _purchasingPlan == selectedPlan
@@ -311,13 +312,13 @@ class _PlanCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         decoration: BoxDecoration(
           color: fillColor,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           border: Border.all(color: borderColor, width: selected ? 1.2 : 0.6),
         ),
         child: Row(
@@ -436,10 +437,10 @@ class _UnavailablePlans extends StatelessWidget {
     final colors = context.logmyplate;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(color: colors.border),
       ),
       child: Text(

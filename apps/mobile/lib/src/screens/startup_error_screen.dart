@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
@@ -40,7 +41,7 @@ class LogMyPlateStartupErrorSurface extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const LogMyPlateBrandMark(size: 58),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                   const Text(
                     'LogMyPlate paused',
                     textAlign: TextAlign.center,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
@@ -25,14 +26,14 @@ class MealCard extends StatelessWidget {
     final names = meal.items.map((item) => item.name).join(', ');
 
     final card = FakeGlassRow(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: Row(
             children: [
               _MealTimeDisk(type: meal.type),

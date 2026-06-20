@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/auth_session.dart';
 import '../models/meal.dart';
@@ -55,7 +56,7 @@ class AccountProfileScreen extends StatelessWidget {
                     icon: const BackMark(),
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                 Center(child: _AccountAvatar(session: session)),
                 const SizedBox(height: 24),
                 Text(
@@ -83,7 +84,7 @@ class AccountProfileScreen extends StatelessWidget {
                   ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
                 if (error != null) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   _AccountErrorBanner(message: error!, onDismiss: onClearError),
                 ],
                 const SizedBox(height: 28),
@@ -101,7 +102,7 @@ class AccountProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                 _ProfileSection(
                   title: 'Access',
                   children: [
@@ -119,7 +120,7 @@ class AccountProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                 _ProfileSection(
                   title: 'Account control',
                   children: [
@@ -154,7 +155,7 @@ class AccountProfileScreen extends StatelessWidget {
                       foregroundColor: colors.textPrimary,
                       side: BorderSide(color: colors.border),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                       ),
                     ),
                     child: const Text('Log out'),
@@ -267,7 +268,7 @@ class _AccountErrorBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
       decoration: BoxDecoration(
         color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.destructive.withValues(alpha: 0.28),
           width: 0.6,
@@ -318,7 +319,7 @@ class _ProfileSection extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
         LiteGlassCard(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           child: Column(children: children),
         ),
       ],
@@ -449,7 +450,7 @@ class _ProfileLifecycleSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,
                 child: FilledButton(

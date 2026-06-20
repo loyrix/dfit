@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/logmyplate_spacing.dart';
 import 'dart:math' as math;
 
 
@@ -543,7 +544,7 @@ class _AnalysisStepTimeline extends StatelessWidget {
 
     return LiteGlassCard(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 import 'package:flutter/services.dart';
 
 import '../state/nutritionist_controller.dart';
@@ -78,7 +79,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: LiteGlassCard(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             borderRadius: BorderRadius.circular(20),
@@ -95,7 +96,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               Row(
                 children: [
                   Container(
@@ -125,7 +126,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 style: FilledButton.styleFrom(
@@ -133,7 +134,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   foregroundColor: colors.primaryActionText,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Exit'),
@@ -261,7 +262,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                         backgroundColor: colors.primaryAction,
                         foregroundColor: colors.primaryActionText,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                         ),
                       ),
                     ),
@@ -294,12 +295,12 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
           padding: const EdgeInsets.all(40),
           child: LiteGlassCard(
             padding: const EdgeInsets.all(24),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive.withValues(alpha: 0.7), size: 36),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Text(
                   'Unable to load',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -330,7 +331,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                       backgroundColor: colors.primaryAction,
                       foregroundColor: colors.primaryActionText,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius)),
                     ),
                     child: const Text('Retry'),
                   ),
@@ -575,11 +576,11 @@ class _SessionCompleteCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: LiteGlassCard(
         padding: const EdgeInsets.all(20),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         child: Column(
           children: [
             Icon(Icons.check_circle_rounded, color: LogMyPlateColors.accent, size: 40),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             Text(
               'Session complete',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -594,7 +595,7 @@ class _SessionCompleteCard extends StatelessWidget {
                 color: colors.textSecondary,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             GlassWrapper(child: ElevatedButton(
               onPressed: onNewSession,
               child: const Text('New session'),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 
@@ -99,7 +100,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   const SizedBox(width: 8),
                   GlassCard(
                     padding: EdgeInsets.zero,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -133,22 +134,22 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ),
                 ],
               ),
-              if (!_isCapturing && _meal.image != null) const SizedBox(height: 12),
+              if (!_isCapturing && _meal.image != null) const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             ],
             if (_meal.image != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 _MealHeroImage(image: _meal.image!),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: LogMyPlateSpacing.cardPadding),
               _MealDetailSummaryCard(meal: _draftMeal),
-              const SizedBox(height: 18),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               MacroProfileCard(meal: _draftMeal),
               if (!_isCapturing) ...[
                 if (widget.onAskNutritionist != null) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   InkWell(
                     onTap: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -156,7 +157,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                         color: _hasChanges 
                             ? colors.mutedFill 
                             : LogMyPlateColors.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                         border: Border.all(
                           color: _hasChanges 
                               ? colors.border 
@@ -217,7 +218,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 22),
+                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                 Text('Items', style: Theme.of(context).textTheme.labelSmall),
                 const SizedBox(height: 10),
                 for (var index = 0; index < _draftItems.length; index++)
@@ -227,7 +228,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     onEdit: () => _openEditItemSheet(index),
                   ),
                 if (_error != null) ...[
-                  const SizedBox(height: 14),
+                  const SizedBox(height: LogMyPlateSpacing.cardPadding),
                   Text(
                     _error!,
                     textAlign: TextAlign.center,
@@ -237,7 +238,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                   ),
                 ],
                 if (canEdit) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   FilledButton(
                     onPressed: !_hasChanges || _saving || _deleting
                         ? null
@@ -249,7 +250,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                       disabledForegroundColor: colors.textSecondary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
                       ),
                     ),
                     child: AnimatedSwitcher(
@@ -604,7 +605,7 @@ class _MealDetailItemRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.mutedFill,
                 border: Border.all(color: colors.border, width: 0.5),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
               ),
               child: Icon(
                 Icons.edit_rounded,

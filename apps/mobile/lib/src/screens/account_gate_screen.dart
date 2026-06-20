@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/auth_session.dart';
 import '../services/app_links.dart';
@@ -81,7 +82,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
               ),
               const SizedBox(height: 26),
               Center(child: _AccountMark(loading: widget.loading)),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               Text(
                 'LogMyPlate',
                 textAlign: TextAlign.center,
@@ -108,7 +109,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               if (!_passwordResetMode) ...[
                 Row(
                   children: [
@@ -148,7 +149,7 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                 },
                 onClearError: widget.onClearError,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               if (widget.error != null) ...[
                 _InlineAuthError(message: widget.error!),
                 const SizedBox(height: 8),
@@ -277,7 +278,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
 
     return LiteGlassCard(
       padding: const EdgeInsets.all(10),
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -318,7 +319,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             const SizedBox(height: 10),
           ] else ...[
             _ResetEmailNote(email: _resetEmail!),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
           ],
           if (!isResetting) ...[
             _AuthTextField(
@@ -383,7 +384,7 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
                 disabledBackgroundColor: colors.mutedFill,
                 disabledForegroundColor: colors.textSecondary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                 ),
               ),
               child: Text(
@@ -524,7 +525,7 @@ class _ResetEmailNote extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       ),
       child: Text(
         'Code sent to $email',
@@ -693,11 +694,11 @@ class _AuthTextField extends StatelessWidget {
           vertical: 12,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           borderSide: const BorderSide(
             color: LogMyPlateColors.accent,
             width: 0.8,
@@ -771,7 +772,7 @@ class _AccountMark extends StatelessWidget {
             height: 58,
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
             ),
             child: const Center(
               child: SizedBox(
@@ -817,7 +818,7 @@ class _ProviderButton extends StatelessWidget {
           disabledBackgroundColor: colors.mutedFill,
           disabledForegroundColor: colors.textSecondary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
             side: BorderSide(
               color: isApple ? Colors.transparent : colors.border,
               width: 0.7,

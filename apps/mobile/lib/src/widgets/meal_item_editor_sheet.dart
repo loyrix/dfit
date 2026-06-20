@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 
@@ -115,7 +116,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: LogMyPlateSpacing.cardPadding),
               Row(
                 children: [
                   Text(
@@ -139,7 +140,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
               const SizedBox(height: 10),
               if (locked) ...[
                 _ReadonlyIdentityCard(name: _workingItem.name),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Row(
                   children: [
                     Expanded(
@@ -167,7 +168,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 _CalculatedNutritionGrid(totals: _workingItem.nutrition),
               ] else ...[
                 _EditTextField(
@@ -290,7 +291,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                   ).textTheme.bodySmall?.copyWith(color: colors.accentText),
                 ),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               FilledButton(
                 onPressed: _save,
                 style: FilledButton.styleFrom(
@@ -298,7 +299,7 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                   foregroundColor: colors.primaryActionText,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Save changes'),
@@ -492,7 +493,7 @@ class _FoodSuggestionStrip extends StatelessWidget {
         color: isDark
             ? Colors.white.withValues(alpha: 0.035)
             : LogMyPlateColors.accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(
           color: searching
               ? colors.accent.withValues(alpha: 0.38)
@@ -560,10 +561,10 @@ class _FoodSuggestionChip extends StatelessWidget {
         .calories;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       onTap: () => onSelect(food),
       child: LiteGlassCard(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         child: Container(
           constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -617,7 +618,7 @@ class _ReadonlyIdentityCard extends StatelessWidget {
         color: isDark
             ? Colors.white.withValues(alpha: 0.045)
             : colors.textPrimary.withValues(alpha: 0.035),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(color: colors.border.withValues(alpha: 0.72)),
       ),
       child: Row(
@@ -731,7 +732,7 @@ class _CalculatedNutritionTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.12 : 0.10),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         border: Border.all(
           color: color.withValues(alpha: isDark ? 0.22 : 0.18),
         ),

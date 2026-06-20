@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 
 import 'package:flutter/material.dart';
 
@@ -65,9 +66,9 @@ class MacroProfileCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: LogMyPlateSpacing.cardPadding),
           _MacroSplitBar(profile: profile),
-          const SizedBox(height: 12),
+          const SizedBox(height: LogMyPlateSpacing.itemSpacing),
           Text(
             profile.focusMessage,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -76,7 +77,7 @@ class MacroProfileCard extends StatelessWidget {
             ),
           ),
           if (meal.items.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _ItemContributionList(meal: meal),
           ],
         ],

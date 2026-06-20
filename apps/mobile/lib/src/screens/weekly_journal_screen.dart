@@ -679,7 +679,7 @@ class _WeekPickerSheet extends StatelessWidget {
 
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.all(12),
+        margin: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
         child: GlassCard(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
           borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
@@ -764,7 +764,7 @@ class _WeeklyJournalHero extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           _SegmentedProgress(value: activePct),
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
@@ -1221,7 +1221,7 @@ class _EmptyDayOverview extends StatelessWidget {
     final colors = context.logmyplate;
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: Row(
         children: [
@@ -1259,7 +1259,7 @@ class _EmptyDayCard extends StatelessWidget {
     final colors = context.logmyplate;
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
       child: Text(
         'No meals logged for this day.',

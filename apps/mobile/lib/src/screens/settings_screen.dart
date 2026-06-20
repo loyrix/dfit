@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/auth_session.dart';
 import '../theme/logmyplate_colors.dart';
@@ -40,11 +41,11 @@ class SettingsScreen extends StatelessWidget {
                 const Spacer(),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             Text('Settings', style: Theme.of(context).textTheme.displayLarge),
-            const SizedBox(height: 22),
+            const SizedBox(height: LogMyPlateSpacing.lgSpacing),
             _AccountCard(session: session, onTap: onOpenAccount),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _SettingsSection(
               title: 'Theme',
               children: [
@@ -65,7 +66,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             _SettingsSection(
               title: 'Privacy',
               children: const [
@@ -98,12 +99,12 @@ class _AccountCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         decoration: BoxDecoration(
           color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           border: Border.all(
             color: LogMyPlateColors.accent.withValues(alpha: 0.35),
             width: 0.5,
@@ -182,7 +183,7 @@ class _SettingsSection extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
         LiteGlassCard(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           padding: EdgeInsets.zero,
           child: Column(children: children),
         ),

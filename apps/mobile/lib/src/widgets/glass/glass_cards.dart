@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/logmyplate_spacing.dart';
 
 import 'glass_surface.dart';
 
@@ -6,7 +7,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(12.0),
+    this.padding = const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
     this.borderRadius,
   });
 
@@ -31,7 +32,7 @@ class LiteGlassCard extends StatelessWidget {
   const LiteGlassCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(12.0),
+    this.padding = const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
     this.borderRadius,
   });
 

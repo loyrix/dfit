@@ -46,7 +46,7 @@ class GlassSectionCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: LogMyPlateSpacing.itemSpacing),
           child,
         ],
       ),

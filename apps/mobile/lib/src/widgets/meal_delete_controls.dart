@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
@@ -88,7 +89,7 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
         child: LiteGlassCard(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           borderRadius: BorderRadius.circular(20),
@@ -108,7 +109,7 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: FilledButton.styleFrom(
@@ -116,7 +117,7 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   side: BorderSide(color: LogMyPlateColors.destructiveDeep),
                 ),
               ),

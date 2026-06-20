@@ -1,4 +1,5 @@
 import 'dart:async';
+import './theme/logmyplate_spacing.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
@@ -1839,7 +1840,7 @@ class _ShellRailButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: double.infinity,
@@ -1848,7 +1849,7 @@ class _ShellRailButton extends StatelessWidget {
           color: selected
               ? LogMyPlateColors.accent.withValues(alpha: 0.16)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2048,7 +2049,7 @@ class _ShellTabButton extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -2056,7 +2057,7 @@ class _ShellTabButton extends StatelessWidget {
             color: selected
                 ? LogMyPlateColors.accent.withValues(alpha: 0.16)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2100,7 +2101,7 @@ class _ShellScanTab extends StatelessWidget {
       child: InkWell(
         key: const ValueKey('shell-scan-action'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2212,14 +2213,14 @@ class _JournalTabLoadingScreen extends StatelessWidget {
                         color: colors.textSecondary,
                         size: 44,
                       ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                     Text(
                       message ?? 'Loading weekly journal',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     if (message != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                       GlassWrapper(child: TextButton(
                         onPressed: onRetry,
                         child: const Text('Retry'),
@@ -2252,7 +2253,7 @@ class _ReviewPromptSheet extends StatelessWidget {
       child: LiteGlassCard(
         
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2295,7 +2296,7 @@ class _ReviewPromptSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: FilledButton.styleFrom(
@@ -2303,7 +2304,7 @@ class _ReviewPromptSheet extends StatelessWidget {
                 foregroundColor: colors.primaryActionText,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                 ),
               ),
               child: Text(policy.copy.positiveLabel),
@@ -2339,7 +2340,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
         child: LiteGlassCard(
           
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2353,7 +2354,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               FilledButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.upgrade),
@@ -2362,7 +2363,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   foregroundColor: colors.primaryActionText,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Upgrade to Premium'),
@@ -2381,7 +2382,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   side: BorderSide(color: colors.border),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
               )),
@@ -2394,7 +2395,7 @@ class _NoScanCreditsSheet extends StatelessWidget {
                   side: BorderSide(color: colors.border),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                   ),
                 ),
                 child: const Text('Add manually'),
@@ -2425,7 +2426,7 @@ class _RewardedAdLoadingOverlay extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.42),
         child: Center(
           child: LiteGlassCard(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
               child: Column(
@@ -2439,7 +2440,7 @@ class _RewardedAdLoadingOverlay extends StatelessWidget {
                       color: colors.primaryAction,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                   Text(
                     'Loading rewarded ad',
                     style: Theme.of(context).textTheme.titleSmall,
@@ -2525,7 +2526,7 @@ class _AppUpdateOverlay extends StatelessWidget {
             child: LiteGlassCard(
               
               padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2571,7 +2572,7 @@ class _AppUpdateOverlay extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: LogMyPlateSpacing.cardPadding),
                   Text(
                     policy.displayMessage,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -2579,7 +2580,7 @@ class _AppUpdateOverlay extends StatelessWidget {
                       height: 1.42,
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   FilledButton.icon(
                     onPressed: storeUrl == null
                         ? null
@@ -2595,7 +2596,7 @@ class _AppUpdateOverlay extends StatelessWidget {
                       foregroundColor: colors.primaryActionText,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                       ),
                     ),
                   ),
@@ -2682,14 +2683,14 @@ class _DailyTargetReachedSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: FilledButton.styleFrom(
                 backgroundColor: LogMyPlateColors.accent,
                 foregroundColor: LogMyPlateColors.accentDeep,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
                 ),
               ),
               child: const Text('Scan anyway'),
@@ -2736,7 +2737,7 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
             children: [
               Container(
@@ -2759,7 +2760,7 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           FilledButton.icon(
             onPressed: () => Navigator.of(context).pop(newChatKey),
             icon: const Icon(Icons.add_rounded, size: 18),
@@ -2769,12 +2770,12 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
               foregroundColor: colors.primaryActionText,
               padding: const EdgeInsets.symmetric(vertical: 15),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
               ),
             ),
           ),
           if (pastSessions.isNotEmpty) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             Row(
               children: [
                 Container(
@@ -2883,7 +2884,7 @@ class _StartChatConfirmationSheet extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           Row(
             children: [
               Container(
@@ -2921,7 +2922,7 @@ class _StartChatConfirmationSheet extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: FilledButton.styleFrom(
@@ -2929,7 +2930,7 @@ class _StartChatConfirmationSheet extends StatelessWidget {
               foregroundColor: colors.primaryActionText,
               padding: const EdgeInsets.symmetric(vertical: 15),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
               ),
             ),
             child: const Text('Start chat'),

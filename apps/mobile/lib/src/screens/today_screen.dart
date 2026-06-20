@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
 import '../theme/logmyplate_colors.dart';
@@ -157,7 +158,7 @@ class TodayScreen extends StatelessWidget {
                         onTap: onOpenStreak,
                         child: _CardStreakPanel(streak: streakSummary),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                     ],
                     EnergyHeroCard(
                       totals: totals,
@@ -165,10 +166,10 @@ class TodayScreen extends StatelessWidget {
                       target: target,
                       onSetTarget: onSetTarget,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                     MacroBarGroup(totals: totals),
                     if (weeklyRange != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                       _WeeklyRhythmCard(
                         range: weeklyRange!,
                         onOpenJournal: onOpenWeeklyJournal,
@@ -178,13 +179,13 @@ class TodayScreen extends StatelessWidget {
                       ),
                     ],
                     if (onOpenNutritionist != null) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                       NutritionistEntryButton(
                         isPremium: isPremium,
                         onTap: onOpenNutritionist!,
                       ),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                     if (isEmpty)
                       _EmptyTodayBody(onAddManually: onAddManually)
                     else
@@ -306,7 +307,7 @@ class _WeeklyRhythmCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 _WeeklyCoveragePanel(
                   key: const ValueKey('journal'),
                   activeDays: summary.activeDays,
@@ -538,7 +539,7 @@ class _WeeklyCoveragePanel extends StatelessWidget {
                 totalDays: visibleDays,
                 days: days,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -728,7 +729,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
               decoration: surface.decoration(radius: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -739,7 +740,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                     shimmer: _controller.value,
                     darkSurface: surface.isDark,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   _SkeletonBox(
                     width: 170,
                     height: 44,
@@ -747,7 +748,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                     shimmer: _controller.value,
                     darkSurface: surface.isDark,
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   Row(
                     children: List.generate(10, (index) {
                       return Expanded(
@@ -776,7 +777,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _LoadingCard(
               child: Row(
                 children: List.generate(3, (index) {
@@ -810,7 +811,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                 }),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             _LoadingCard(
               child: Row(
                 children: [
@@ -823,7 +824,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                           height: 10,
                           shimmer: _controller.value,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: LogMyPlateSpacing.cardPadding),
                         _SkeletonBox(
                           width: 92,
                           height: 20,
@@ -847,7 +848,7 @@ class _TodayLoadingBodyState extends State<_TodayLoadingBody>
                 ],
               ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: LogMyPlateSpacing.lgSpacing),
             _SkeletonBox(width: 54, height: 10, shimmer: _controller.value),
             const SizedBox(height: 10),
             for (var index = 0; index < 3; index++) ...[
@@ -907,8 +908,8 @@ class _LoadingCard extends StatelessWidget {
     final colors = context.logmyplate;
 
     return LiteGlassCard(
-      padding: const EdgeInsets.all(14),
-      borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
       child: child,
     );
   }
@@ -1147,7 +1148,7 @@ class _EmptyTodayBody extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(

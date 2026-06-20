@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/logmyplate_spacing.dart';
 
 import '../models/chat.dart';
 import '../theme/logmyplate_colors.dart';
@@ -60,7 +61,7 @@ class _AiBubble extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               child: LiteGlassCard(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(4),
                   topRight: Radius.circular(18),
@@ -104,7 +105,7 @@ class _UserBubble extends StatelessWidget {
           maxWidth: MediaQuery.of(context).size.width * 0.80,
         ),
         child: LiteGlassCard(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(18),
             topRight: Radius.circular(4),

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import '../theme/logmyplate_spacing.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -409,7 +410,7 @@ class _EmptyCaptureState extends StatelessWidget {
                   ),
                 ),
                 if (!compact) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                   Text(
                     'No photo yet',
                     style: Theme.of(context).textTheme.titleMedium,
@@ -844,7 +845,7 @@ class _VoiceHintButton extends StatelessWidget {
         label: 'Voice input coming soon',
         child: GlassSurface(
           isPremium: false,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
           child: SizedBox(
             width: 42,
             height: 42,
@@ -1016,10 +1017,10 @@ class _CaptureButton extends StatelessWidget {
       opacity: disabled ? 0.46 : 1,
       child: InkWell(
         onTap: disabled || loading ? null : onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
         child: GlassSurface(
           isPremium: primary,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: height,
@@ -1077,7 +1078,7 @@ class _CaptureNotice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: colors.textPrimary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(color: colors.border, width: 0.6),
       ),
       child: Row(
