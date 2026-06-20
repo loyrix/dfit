@@ -396,20 +396,25 @@ class _CardStreakPanel extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                SizedBox.expand(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 8,
-                    value: streakProgress,
-                    strokeCap: StrokeCap.round,
-                    color: LogMyPlateColors.accent,
-                    backgroundColor: colors.mutedFill,
-                  ),
+                Icon(
+                  Icons.shield_rounded,
+                  size: 68,
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.15),
                 ),
-                Text(
-                  streak!.currentStreakDays.toString(),
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    fontWeight: FontWeight.w600,
+                Icon(
+                  Icons.shield_outlined,
+                  size: 68,
+                  color: LogMyPlateColors.accent,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6), // adjust for visual center of shield
+                  child: Text(
+                    streak!.currentStreakDays.toString(),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      fontWeight: FontWeight.w600,
+                      color: LogMyPlateColors.accentText,
+                    ),
                   ),
                 ),
               ],
@@ -562,27 +567,41 @@ class _WeeklyCoverageSegments extends StatelessWidget {
   final int activeDays;
   final int totalDays;
 
+  static const _days = ['Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'];
+
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        for (var index = 0; index < totalDays; index++) ...[
+        for (var index = 0; index < 7; index++)
           Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              height: 10,
+            child: Container(
+              margin: EdgeInsets.only(right: index != 6 ? 4 : 0),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(99),
                 color: index < activeDays
-                    ? LogMyPlateColors.accent
+                    ? LogMyPlateColors.accent.withValues(alpha: 0.15)
                     : colors.mutedFill,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                _days[index],
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: index < activeDays
+                      ? LogMyPlateColors.accentText
+                      : colors.textSecondary,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0,
+                ),
+                maxLines: 1,
               ),
             ),
           ),
-          if (index != totalDays - 1) const SizedBox(width: 5),
-        ],
       ],
     );
   }
