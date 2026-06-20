@@ -347,7 +347,10 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: ctrl.messages.length + (ctrl.sendingMessage ? 1 : 0) + ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0),
+      itemCount: ctrl.messages.length 
+          + (ctrl.sendingMessage ? 1 : 0) 
+          + ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0)
+          + ((ctrl.error != null && ctrl.messages.isNotEmpty) ? 1 : 0),
       itemBuilder: (context, index) {
         int currentIndex = index;
 
@@ -369,6 +372,30 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: ChatTypingIndicator(),
+            );
+          }
+          currentIndex--;
+        }
+
+        if (ctrl.error != null && ctrl.messages.isNotEmpty) {
+          if (currentIndex == 0) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive, size: 16),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      ctrl.error!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: LogMyPlateColors.destructive,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           }
           currentIndex--;

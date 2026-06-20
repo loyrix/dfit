@@ -60,7 +60,7 @@ class _AiBubble extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Flexible(
-              child: LiteGlassCard(
+              child: GlassCard(
                 padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(4),
@@ -104,7 +104,7 @@ class _UserBubble extends StatelessWidget {
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.80,
         ),
-        child: LiteGlassCard(
+        child: GlassCard(
           padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(18),
