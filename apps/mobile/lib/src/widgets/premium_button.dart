@@ -28,14 +28,10 @@ class PremiumButton extends StatelessWidget {
     final colors = context.logmyplate;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final gradientColors = isDark
-        ? [const Color(0xFFFFE3A3), LogMyPlateColors.accent]
-        : [colors.primaryAction, colors.primaryAction.withValues(alpha: 0.85)];
+    final gradientColors = [const Color(0xFFFFE3A3), LogMyPlateColors.accent];
         
-    final textColor = isDark ? LogMyPlateColors.accentDeep : colors.primaryActionText;
-    final shadowColor = isDark 
-        ? LogMyPlateColors.accent.withValues(alpha: 0.3)
-        : colors.primaryAction.withValues(alpha: 0.2);
+    final textColor = isDark ? LogMyPlateColors.accentDeep : colors.textPrimary;
+    final shadowColor = LogMyPlateColors.accent.withValues(alpha: isDark ? 0.3 : 0.4);
 
     return Container(
       decoration: BoxDecoration(

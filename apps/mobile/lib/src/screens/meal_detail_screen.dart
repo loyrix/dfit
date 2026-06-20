@@ -150,13 +150,18 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     children: [
                       Icon(
                         Icons.auto_awesome_rounded,
-                        size: 18,
+                        size: 22,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? LogMyPlateColors.accentDeep
+                            : LogMyPlateColors.accent,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Analyze this meal with AI',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          letterSpacing: -0.2,
                         ),
                       ),
                       if (!widget.isPremium && !_hasChanges) ...[
@@ -176,14 +181,14 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                                 color: LogMyPlateColors.accent,
                               ),
                               const SizedBox(width: 2),
-                              Text(
-                                'PRO',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: LogMyPlateColors.accent,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
+                                Text(
+                                  'PRO',
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: LogMyPlateColors.accent,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
