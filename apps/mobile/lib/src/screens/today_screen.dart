@@ -382,9 +382,6 @@ class _CardStreakPanel extends StatelessWidget {
       );
     }
     final nextMilestone = streak!.nextMilestoneDays;
-    final streakProgress = nextMilestone == null
-        ? 1.0
-        : (streak!.currentStreakDays / nextMilestone).clamp(0.0, 1.0).toDouble();
 
     return LiteGlassCard(
       child: Row(
@@ -413,7 +410,7 @@ class _CardStreakPanel extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
                       fontWeight: FontWeight.w600,
-                      color: LogMyPlateColors.accentText,
+                      color: colors.accentText,
                     ),
                   ),
                 ),
@@ -592,7 +589,7 @@ class _WeeklyCoverageSegments extends StatelessWidget {
                 _days[index],
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: index < activeDays
-                      ? LogMyPlateColors.accentText
+                      ? colors.accentText
                       : colors.textSecondary,
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
