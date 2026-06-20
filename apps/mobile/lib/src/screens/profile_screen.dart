@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -567,15 +568,9 @@ class DeleteAccountSheet extends StatelessWidget {
               const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,
-                child: FilledButton(
+                child: PremiumButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: LogMyPlateColors.destructive,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                  ),
+                  
                   child: const Text('Delete account'),
                 ),
               ),

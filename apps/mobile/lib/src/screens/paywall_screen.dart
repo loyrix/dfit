@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -157,17 +158,11 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 const SizedBox(height: 8),
               SizedBox(
                 height: 54,
-                child: FilledButton(
+                child: PremiumButton(
                   onPressed: selectedPlan == null || _busy
                       ? null
                       : () => _purchase(selectedPlan),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.primaryAction,
-                    foregroundColor: colors.primaryActionText,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                    ),
-                  ),
+                  
                   child: _purchasingPlan == selectedPlan
                       ? SizedBox(
                           width: 18,

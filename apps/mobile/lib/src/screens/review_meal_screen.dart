@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -167,25 +168,13 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
-                    child: FilledButton(
+                    child: PremiumButton(
                       onPressed: _items.isEmpty
                           ? null
                           : _saving
                           ? () {}
                           : () => _confirm(analyzeWithAI: true),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: LogMyPlateColors.accent.withValues(alpha: 0.15),
-                        foregroundColor: primaryText,
-                        disabledBackgroundColor: _reviewMutedFill(context),
-                        disabledForegroundColor: secondaryText,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                          side: BorderSide(
-                            color: LogMyPlateColors.accent.withValues(alpha: 0.3),
-                          ),
-                        ),
-                      ),
+                      
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 160),
                         child: _saving

@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -453,17 +454,9 @@ class _ProfileLifecycleSheet extends StatelessWidget {
               const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,
-                child: FilledButton(
+                child: PremiumButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: actionColor,
-                    foregroundColor: isDelete
-                        ? Colors.white
-                        : LogMyPlateColors.accentDeep,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                  ),
+                  
                   child: Text(
                     isDelete ? 'Delete account' : 'Deactivate profile',
                   ),

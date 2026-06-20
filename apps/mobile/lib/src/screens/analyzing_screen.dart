@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:async';
 import '../theme/logmyplate_spacing.dart';
 import 'dart:math' as math;
@@ -326,12 +327,9 @@ class _FailureActions extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        FilledButton(
+        PremiumButton(
           onPressed: isQuota ? _handleQuotaAction : onRetry,
-          style: FilledButton.styleFrom(
-            backgroundColor: LogMyPlateColors.accent,
-            foregroundColor: LogMyPlateColors.accentDeep,
-          ),
+          
           child: Text(isQuota ? 'Open account' : 'Retry scan'),
         ),
         const SizedBox(height: 4),

@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -110,17 +111,9 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            FilledButton(
+            PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.destructive,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                  side: BorderSide(color: LogMyPlateColors.destructiveDeep),
-                ),
-              ),
+              
               child: const Text('Delete meal'),
             ),
             const SizedBox(height: 8),

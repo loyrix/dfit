@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -376,17 +377,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
           const SizedBox(height: 10),
           SizedBox(
             height: 44,
-            child: FilledButton(
+            child: PremiumButton(
               onPressed: widget.loading ? null : _submit,
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent,
-                foregroundColor: LogMyPlateColors.accentDeep,
-                disabledBackgroundColor: colors.mutedFill,
-                disabledForegroundColor: colors.textSecondary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                ),
-              ),
+              
               child: Text(
                 isResetting
                     ? 'Reset password'
@@ -810,22 +803,9 @@ class _ProviderButton extends StatelessWidget {
 
     return SizedBox(
       height: 52,
-      child: FilledButton(
+      child: PremiumButton(
         onPressed: loading ? null : onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: isApple ? colors.textPrimary : colors.mutedFill,
-          foregroundColor: isApple ? colors.background : colors.textPrimary,
-          disabledBackgroundColor: colors.mutedFill,
-          disabledForegroundColor: colors.textSecondary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-            side: BorderSide(
-              color: isApple ? Colors.transparent : colors.border,
-              width: 0.7,
-            ),
-          ),
-          elevation: 0,
-        ),
+        
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

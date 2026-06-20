@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:async';
 import './theme/logmyplate_spacing.dart';
 import 'dart:convert';
@@ -2297,16 +2298,9 @@ class _ReviewPromptSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            FilledButton(
+            PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: colors.primaryAction,
-                foregroundColor: colors.primaryActionText,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                ),
-              ),
+              
               child: Text(policy.copy.positiveLabel),
             ),
             const SizedBox(height: 8),
@@ -2355,17 +2349,10 @@ class _NoScanCreditsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              FilledButton(
+              PremiumButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.upgrade),
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                  ),
-                ),
+                
                 child: const Text('Upgrade to Premium'),
               ),
               const SizedBox(height: 8),
@@ -2581,7 +2568,7 @@ class _AppUpdateOverlay extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  FilledButton.icon(
+                  PremiumButton.icon(
                     onPressed: storeUrl == null
                         ? null
                         : () => openLogMyPlateLink(
@@ -2591,14 +2578,7 @@ class _AppUpdateOverlay extends StatelessWidget {
                           ),
                     icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     label: const Text('Update app'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primaryAction,
-                      foregroundColor: colors.primaryActionText,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                      ),
-                    ),
+                    
                   ),
                   if (!policy.isMandatory) ...[
                     const SizedBox(height: 8),
@@ -2684,15 +2664,9 @@ class _DailyTargetReachedSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            FilledButton(
+            PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent,
-                foregroundColor: LogMyPlateColors.accentDeep,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                ),
-              ),
+              
               child: const Text('Scan anyway'),
             ),
             GlassWrapper(child: TextButton(
@@ -2761,18 +2735,11 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-          FilledButton.icon(
+          PremiumButton.icon(
             onPressed: () => Navigator.of(context).pop(newChatKey),
             icon: const Icon(Icons.add_rounded, size: 18),
             label: const Text('Start new chat'),
-            style: FilledButton.styleFrom(
-              backgroundColor: colors.primaryAction,
-              foregroundColor: colors.primaryActionText,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-              ),
-            ),
+            
           ),
           if (pastSessions.isNotEmpty) ...[
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
@@ -2923,16 +2890,9 @@ class _StartChatConfirmationSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-          FilledButton(
+          PremiumButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: colors.primaryAction,
-              foregroundColor: colors.primaryActionText,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-              ),
-            ),
+            
             child: const Text('Start chat'),
           ),
           const SizedBox(height: 8),

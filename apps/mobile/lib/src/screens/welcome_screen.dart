@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -61,15 +62,8 @@ class WelcomeScreen extends StatelessWidget {
                     const SizedBox(height: LogMyPlateSpacing.lgSpacing),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: colors.primaryAction,
-                          foregroundColor: colors.primaryActionText,
-                          padding: const EdgeInsets.symmetric(vertical: 17),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
-                          ),
-                        ),
+                      child: PremiumButton(
+                        
                         onPressed: onStart,
                         child: const Text('Start first scan'),
                       ),

@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:math' as math;
 import '../theme/logmyplate_spacing.dart';
 
@@ -227,21 +228,9 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
           ),
           child: SizedBox(
             height: 54,
-            child: FilledButton(
+            child: PremiumButton(
               onPressed: _saving || !canSave ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent,
-                foregroundColor: LogMyPlateColors.accentDeep,
-                disabledBackgroundColor: LogMyPlateColors.accent.withValues(
-                  alpha: 0.26,
-                ),
-                disabledForegroundColor: colors.accentText.withValues(
-                  alpha: 0.72,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                ),
-              ),
+              
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
                 child: _saving

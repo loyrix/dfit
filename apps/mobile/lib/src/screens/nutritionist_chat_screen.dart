@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 import 'package:flutter/services.dart';
@@ -127,16 +128,9 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 ],
               ),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              FilledButton(
+              PremiumButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                  ),
-                ),
+                
                 child: const Text('Exit'),
               ),
               const SizedBox(height: 8),
@@ -243,7 +237,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                   child: SizedBox(
                     width: double.infinity,
                     height: 52,
-                    child: FilledButton.icon(
+                    child: PremiumButton.icon(
                       onPressed: () {
                         final fresh = NutritionistController(
                           apiClient: widget.controller.apiClient,
@@ -258,13 +252,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                       },
                       icon: const Icon(Icons.add_rounded, size: 18),
                       label: const Text('Start new chat'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.primaryAction,
-                        foregroundColor: colors.primaryActionText,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                        ),
-                      ),
+                      
                     ),
                   ),
                 ),
@@ -319,7 +307,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: PremiumButton(
                     onPressed: () {
                       if (widget.existingSessionId != null) {
                         widget.controller.loadExistingSession(widget.existingSessionId!);
@@ -327,12 +315,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                         ctrl.startSession(focusMealId: widget.focusMealId);
                       }
                     },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primaryAction,
-                      foregroundColor: colors.primaryActionText,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius)),
-                    ),
+                    
                     child: const Text('Retry'),
                   ),
                 ),
@@ -478,19 +461,11 @@ class _ChatAppBar extends StatelessWidget {
             ),
           ),
           if (readOnly && onNewChat != null)
-            FilledButton.icon(
+            PremiumButton.icon(
               onPressed: onNewChat,
               icon: const Icon(Icons.add_rounded, size: 14),
               label: const Text('New chat'),
-              style: FilledButton.styleFrom(
-                backgroundColor: LogMyPlateColors.accent.withValues(alpha: 0.15),
-                foregroundColor: LogMyPlateColors.accentWarm,
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
+              
             ),
           if (!readOnly && onNewChat == null)
             Container(

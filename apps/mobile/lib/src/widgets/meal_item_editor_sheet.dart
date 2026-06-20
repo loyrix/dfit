@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:async';
 import '../theme/logmyplate_spacing.dart';
 
@@ -292,16 +293,9 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
                 ),
               ],
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              FilledButton(
+              PremiumButton(
                 onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primaryAction,
-                  foregroundColor: colors.primaryActionText,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
-                  ),
-                ),
+                
                 child: const Text('Save changes'),
               ),
             ],

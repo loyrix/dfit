@@ -1,3 +1,4 @@
+import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:io';
 import '../theme/logmyplate_spacing.dart';
 
@@ -239,20 +240,11 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                 ],
                 if (canEdit) ...[
                   const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  FilledButton(
+                  PremiumButton(
                     onPressed: !_hasChanges || _saving || _deleting
                         ? null
                         : _saveChanges,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.primaryAction,
-                      foregroundColor: colors.primaryActionText,
-                      disabledBackgroundColor: colors.mutedFill,
-                      disabledForegroundColor: colors.textSecondary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                      ),
-                    ),
+                    
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 180),
                       child: _saving
