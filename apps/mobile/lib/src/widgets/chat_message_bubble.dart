@@ -70,9 +70,10 @@ class _AiBubble extends StatelessWidget {
                 ),
                 child: Text(
                   _parseMarkdown(content),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colors.textPrimary,
                     height: 1.45,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -106,6 +107,7 @@ class _UserBubble extends StatelessWidget {
         ),
         child: GlassCard(
           padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
+          tintColor: colors.primaryAction,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(18),
             topRight: Radius.circular(4),
@@ -114,9 +116,10 @@ class _UserBubble extends StatelessWidget {
           ),
           child: Text(
             content,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: colors.textPrimary,
               height: 1.45,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),

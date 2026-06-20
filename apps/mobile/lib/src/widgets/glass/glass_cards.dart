@@ -9,17 +9,20 @@ class GlassCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
     this.borderRadius,
+    this.tintColor,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final BorderRadius? borderRadius;
+  final Color? tintColor;
 
   @override
   Widget build(BuildContext context) {
     return GlassSurface(
       isPremium: true,
       borderRadius: borderRadius,
+      tintColor: tintColor,
       child: Padding(
         padding: padding,
         child: child,
@@ -34,17 +37,20 @@ class LiteGlassCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
     this.borderRadius,
+    this.tintColor,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final BorderRadius? borderRadius;
+  final Color? tintColor;
 
   @override
   Widget build(BuildContext context) {
     return GlassSurface(
       isPremium: false,
       borderRadius: borderRadius,
+      tintColor: tintColor,
       child: Padding(
         padding: padding,
         child: child,
