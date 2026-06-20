@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'glass_cards.dart';
 import '../../theme/logmyplate_theme.dart';
+import '../../theme/logmyplate_spacing.dart';
 
 class GlassSectionCard extends StatelessWidget {
   const GlassSectionCard({
@@ -9,7 +10,7 @@ class GlassSectionCard extends StatelessWidget {
     required this.title,
     this.trailing,
     required this.child,
-    this.padding = const EdgeInsets.all(14.0),
+    this.padding = const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
     this.onTap,
   });
 
