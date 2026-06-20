@@ -311,6 +311,7 @@ class _WeeklyRhythmCard extends StatelessWidget {
                   key: const ValueKey('journal'),
                   activeDays: summary.activeDays,
                   totalDays: summary.windowDays,
+                  days: range.days,
                   averageCalories: averageCalories,
                   targetCalories: hasTarget ? targetCalories : null,
                 ),
@@ -372,7 +373,6 @@ class _CardStreakPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.logmyplate;
     if (streak == null || !streak!.hasHistory) {
       return LiteGlassCard(
         child: Text(
@@ -385,40 +385,36 @@ class _CardStreakPanel extends StatelessWidget {
     final nextMilestone = streak!.nextMilestoneDays;
 
     return LiteGlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width: 72,
-            height: 72,
+            width: 48,
+            height: 48,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Icon(
-                  Icons.shield_rounded,
-                  size: 68,
-                  color: LogMyPlateColors.accent.withValues(alpha: 0.15),
-                ),
-                Icon(
-                  Icons.shield_outlined,
-                  size: 68,
-                  color: LogMyPlateColors.accent,
+                Image.asset(
+                  'assets/icons/shield.png',
+                  width: 48,
+                  height: 48,
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 6), // adjust for visual center of shield
+                  padding: const EdgeInsets.only(bottom: 2), // adjust for visual center of shield
                   child: Text(
                     streak!.currentStreakDays.toString(),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
-                      fontWeight: FontWeight.w600,
-                      color: colors.accentText,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF382300),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -426,32 +422,39 @@ class _CardStreakPanel extends StatelessWidget {
               children: [
                 if (nextMilestone != null)
                   Text(
-                    'Keep up streak for next ${nextMilestone - streak!.currentStreakDays} days for Scan reward!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    '${nextMilestone - streak!.currentStreakDays} more days to unlock Scan reward!',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
                   )
                 else
                   Text(
                     'You are on a streak!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 if (streak!.nextRewardScans > 0) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      border: Border.all(color: LogMyPlateColors.accent.withValues(alpha: 0.3)),
-                      borderRadius: BorderRadius.circular(16),
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      'Reward +${streak!.nextRewardScans} scan',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: LogMyPlateColors.accent,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star_rounded, size: 14, color: LogMyPlateColors.accent),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+${streak!.nextRewardScans} scan reward',
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: LogMyPlateColors.accent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -468,12 +471,14 @@ class _WeeklyCoveragePanel extends StatelessWidget {
     super.key,
     required this.activeDays,
     required this.totalDays,
+    required this.days,
     required this.averageCalories,
     this.targetCalories,
   });
 
   final int activeDays;
   final int totalDays;
+  final List<JournalDayData> days;
   final int averageCalories;
   final int? targetCalories;
 
@@ -531,6 +536,7 @@ class _WeeklyCoveragePanel extends StatelessWidget {
               _WeeklyCoverageSegments(
                 activeDays: filledDays,
                 totalDays: visibleDays,
+                days: days,
               ),
               const SizedBox(height: 12),
               Wrap(
@@ -560,46 +566,75 @@ class _WeeklyCoverageSegments extends StatelessWidget {
   const _WeeklyCoverageSegments({
     required this.activeDays,
     required this.totalDays,
+    required this.days,
   });
 
   final int activeDays;
   final int totalDays;
+  final List<JournalDayData> days;
 
   static const _days = ['Sun', 'Mon', 'Tues', 'Wed', 'Thur', 'Fri', 'Sat'];
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final now = DateTime.now();
+    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        for (var index = 0; index < 7; index++)
-          Expanded(
-            child: Container(
-              margin: EdgeInsets.only(right: index != 6 ? 4 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: index < activeDays
-                    ? LogMyPlateColors.accent.withValues(alpha: 0.15)
-                    : colors.mutedFill,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                _days[index],
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: index < activeDays
-                      ? colors.accentText
-                      : colors.textSecondary,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0,
+        for (var index = 0; index < 7; index++) ...[
+          Builder(
+            builder: (context) {
+              bool isLogged = false;
+              bool isPast = false;
+              
+              if (index < days.length) {
+                final dayData = days[index];
+                isLogged = dayData.mealCount > 0;
+                if (dayData.date.compareTo(todayStr) < 0) {
+                  isPast = true;
+                }
+              } else {
+                isLogged = index < activeDays;
+              }
+              
+              Color bgColor = colors.mutedFill;
+              Color textColor = colors.textSecondary;
+              
+              if (isLogged) {
+                bgColor = LogMyPlateColors.accent.withValues(alpha: 0.15);
+                textColor = colors.accentText;
+              } else if (isPast) {
+                bgColor = LogMyPlateColors.destructive.withValues(alpha: 0.15);
+                textColor = LogMyPlateColors.destructive;
+              }
+              
+              return Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(right: index != 6 ? 4 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _days[index],
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: textColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0,
+                    ),
+                    maxLines: 1,
+                  ),
                 ),
-                maxLines: 1,
-              ),
-            ),
+              );
+            },
           ),
+        ],
       ],
     );
   }
