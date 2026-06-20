@@ -107,7 +107,7 @@ class _UserBubble extends StatelessWidget {
         ),
         child: GlassCard(
           padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
-          tintColor: colors.primaryAction,
+          tintColor: colors.accent,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(18),
             topRight: Radius.circular(4),
