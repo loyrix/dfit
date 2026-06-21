@@ -43,10 +43,14 @@ class NutritionistController extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  bool _premiumRequired = false;
+  bool get premiumRequired => _premiumRequired;
+
   Future<void> loadExistingSession(String sessionId) async {
     _loadingHistory = true;
     _readOnly = true;
     _error = null;
+    _premiumRequired = false;
     notifyListeners();
 
     try {
@@ -70,6 +74,7 @@ class NutritionistController extends ChangeNotifier {
   Future<void> startSession({String? focusMealId}) async {
     _creatingSession = true;
     _error = null;
+    _premiumRequired = false;
     notifyListeners();
 
     try {
@@ -84,6 +89,9 @@ class NutritionistController extends ChangeNotifier {
       _turnNumber = 0;
       _maxTurns = chatSession.maxTurns;
     } on LogMyPlateApiException catch (e) {
+      if (e.errorCode == 'premium_required') {
+        _premiumRequired = true;
+      }
       _error = _parseError(e);
     } catch (e) {
       _error = 'Could not connect. Check your network.';
@@ -128,6 +136,7 @@ class NutritionistController extends ChangeNotifier {
 
   void clearError() {
     _error = null;
+    _premiumRequired = false;
     notifyListeners();
   }
 

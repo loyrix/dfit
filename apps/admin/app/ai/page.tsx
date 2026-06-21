@@ -306,6 +306,21 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                 required
               />
             </label>
+            <label>
+              <span className="metric-label">
+                Max sessions per day
+                <span className="muted text-xs ml-2">Free-tier daily chat session allowance.</span>
+              </span>
+              <input
+                className="input"
+                name="maxSessionsPerDay"
+                type="number"
+                min={1}
+                max={100}
+                defaultValue={settings.maxSessionsPerDay}
+                required
+              />
+            </label>
             <input
               className="input"
               name="reason"

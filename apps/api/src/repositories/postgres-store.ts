@@ -3010,11 +3010,12 @@ export class PostgresStore implements AppRepository {
         key: string;
         max_turns_per_session: number;
         welcome_message_prompt: string;
+        max_sessions_per_day: number;
         updated_by: string | null;
         updated_at: string;
       }[]
     >`
-      select key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+      select key, max_turns_per_session, welcome_message_prompt, max_sessions_per_day, updated_by, updated_at::text
       from ai_chat_settings
       where key = 'default'
       limit 1
@@ -3025,6 +3026,7 @@ export class PostgresStore implements AppRepository {
         maxTurnsPerSession: 15,
         welcomeMessagePrompt:
           "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+        maxSessionsPerDay: 5,
         updatedAt: new Date().toISOString(),
       };
     }
@@ -3032,6 +3034,7 @@ export class PostgresStore implements AppRepository {
       key: row.key,
       maxTurnsPerSession: row.max_turns_per_session,
       welcomeMessagePrompt: row.welcome_message_prompt,
+      maxSessionsPerDay: row.max_sessions_per_day,
       updatedBy: row.updated_by ?? undefined,
       updatedAt: row.updated_at,
     };
@@ -4149,6 +4152,7 @@ export class PostgresStore implements AppRepository {
       from chat_sessions
       where profile_id = ${profileId}
         and session_date = current_date
+        and deleted_at is null
     `;
     return Number(rows[0]?.count ?? 0);
   }
@@ -4278,6 +4282,7 @@ export class PostgresStore implements AppRepository {
       select id, title, turn_count, created_at::text, closed_at::text
       from chat_sessions
       where profile_id = ${profileId}
+        and deleted_at is null
       order by created_at desc
       limit ${limit ?? 100}
     `;
@@ -4301,9 +4306,11 @@ export class PostgresStore implements AppRepository {
   async deleteChatSessions(profileId: string, sessionIds: string[]): Promise<void> {
     if (sessionIds.length === 0) return;
     await this.sql`
-      delete from chat_sessions
+      update chat_sessions
+      set deleted_at = now()
       where profile_id = ${profileId}
         and id in ${this.sql(sessionIds)}
+        and deleted_at is null
     `;
   }
 }

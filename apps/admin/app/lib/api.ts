@@ -336,6 +336,7 @@ export type AiChatSettings = {
   key: string;
   maxTurnsPerSession: number;
   welcomeMessagePrompt: string;
+  maxSessionsPerDay: number;
   updatedBy?: string;
   updatedAt: string;
 };

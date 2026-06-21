@@ -531,18 +531,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       return;
     }
 
-    if (selection == newChatKey) {
-      final confirmCtx = _navigatorKey.currentContext;
-      if (confirmCtx == null || !confirmCtx.mounted) return;
-      final confirmColors = confirmCtx.logmyplate;
-      final confirmed = await showModalBottomSheet<bool>(
-        context: confirmCtx,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => _StartChatConfirmationSheet(colors: confirmColors),
-      );
-      if (confirmed != true) return;
-    }
-
     final controller = NutritionistController(
       apiClient: _journalController.apiClient,
     );
@@ -553,6 +541,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           controller: controller,
           focusMealId: selection == newChatKey ? focusMealId : null,
           existingSessionId: selection == newChatKey ? null : selection,
+          onPremiumRequired: _openPaywall,
         ),
       ),
     );
@@ -2860,82 +2849,4 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
   }
 }
 
-class _StartChatConfirmationSheet extends StatelessWidget {
-  const _StartChatConfirmationSheet({required this.colors});
 
-  final LogMyPlateThemeColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return LiteGlassCard(
-      
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      borderRadius: BorderRadius.circular(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 5,
-              decoration: BoxDecoration(
-                color: colors.textTertiary.withValues(alpha: 0.36),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: LogMyPlateColors.accent.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: colors.accentText,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Nutritionist',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'A new chat session will begin. Your conversation will include your logged meals and health data.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-          PremiumButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            
-            child: const Text('Start chat'),
-          ),
-          const SizedBox(height: 8),
-          GlassWrapper(child: TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          )),
-        ],
-      ),
-    );
-  }
-}

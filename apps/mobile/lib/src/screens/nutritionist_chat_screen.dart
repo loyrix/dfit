@@ -23,11 +23,13 @@ class NutritionistChatScreen extends StatefulWidget {
     required this.controller,
     this.focusMealId,
     this.existingSessionId,
+    this.onPremiumRequired,
   });
 
   final NutritionistController controller;
   final String? focusMealId;
   final String? existingSessionId;
+  final VoidCallback? onPremiumRequired;
 
   @override
   State<NutritionistChatScreen> createState() => _NutritionistChatScreenState();
@@ -311,15 +313,16 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: PremiumButton(
-                    onPressed: () {
-                      if (widget.existingSessionId != null) {
-                        widget.controller.loadExistingSession(widget.existingSessionId!);
-                      } else {
-                        ctrl.startSession(focusMealId: widget.focusMealId);
-                      }
-                    },
-                    
-                    child: const Text('Retry'),
+                    onPressed: ctrl.premiumRequired
+                        ? (widget.onPremiumRequired ?? () {})
+                        : () {
+                            if (widget.existingSessionId != null) {
+                              widget.controller.loadExistingSession(widget.existingSessionId!);
+                            } else {
+                              ctrl.startSession(focusMealId: widget.focusMealId);
+                            }
+                          },
+                    child: Text(ctrl.premiumRequired ? 'Get Premium' : 'Retry'),
                   ),
                 ),
               ],

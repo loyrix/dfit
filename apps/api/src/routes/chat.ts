@@ -60,15 +60,20 @@ export const registerChatRoutes = async (
       });
     }
 
+    const chatSettings = await timer.measure("chatSettings", () => repository.getAiChatSettings());
+
+    const effectiveMaxSessionsPerDay =
+      chatSettings.maxSessionsPerDay ?? chatConfig.maxSessionsPerDay;
+
     const sessionsToday = await timer.measure("sessionCount", () =>
       repository.countChatSessionsToday(profile.id),
     );
 
-    if (sessionsToday >= chatConfig.maxSessionsPerDay) {
+    if (sessionsToday >= effectiveMaxSessionsPerDay) {
       return reply.status(429).send({
         error: "daily_session_limit_reached",
         message: "You've used all your AI Nutritionist sessions for today.",
-        limit: chatConfig.maxSessionsPerDay,
+        limit: effectiveMaxSessionsPerDay,
       });
     }
 
@@ -83,10 +88,9 @@ export const registerChatRoutes = async (
       assembleNutritionistContext(repository, healthTarget, identity.timezone, focusMealId),
     );
 
-    const [basePrompt, chatSettings] = await Promise.all([
-      timer.measure("basePrompt", () => repository.getAiPrompt("nutritionist_prompt")),
-      timer.measure("chatSettings", () => repository.getAiChatSettings()),
-    ]);
+    const basePrompt = await timer.measure("basePrompt", () =>
+      repository.getAiPrompt("nutritionist_prompt"),
+    );
 
     const effectiveMaxTurns = chatSettings.maxTurnsPerSession;
     const welcomeMessagePrompt = chatSettings.welcomeMessagePrompt;
@@ -164,7 +168,7 @@ export const registerChatRoutes = async (
       suggestedPrompts,
       usage: {
         sessionsUsedToday: sessionsToday + 1,
-        maxSessionsPerDay: chatConfig.maxSessionsPerDay,
+        maxSessionsPerDay: effectiveMaxSessionsPerDay,
         maxTurns: effectiveMaxTurns,
       },
     });

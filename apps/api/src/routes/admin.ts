@@ -679,6 +679,7 @@ const activatePromptSchema = z.object({
 const updateChatSettingsSchema = z.object({
   maxTurnsPerSession: z.number().int().min(1).max(200),
   welcomeMessagePrompt: z.string().trim().min(1).max(500),
+  maxSessionsPerDay: z.number().int().min(1).max(100),
   reason: requiredReasonSchema,
 });
 
@@ -2833,6 +2834,7 @@ type ChatSettingsRow = {
   key: string;
   max_turns_per_session: number;
   welcome_message_prompt: string;
+  max_sessions_per_day: number;
   updated_by: string | null;
   updated_at: string;
 };
@@ -2841,13 +2843,14 @@ const mapChatSettingsRow = (row: ChatSettingsRow) => ({
   key: row.key,
   maxTurnsPerSession: row.max_turns_per_session,
   welcomeMessagePrompt: row.welcome_message_prompt,
+  maxSessionsPerDay: row.max_sessions_per_day,
   updatedBy: row.updated_by ?? undefined,
   updatedAt: row.updated_at,
 });
 
 const loadChatSettings = async (sql: SqlClient) => {
   const [row] = await sql<ChatSettingsRow[]>`
-    select key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+    select key, max_turns_per_session, welcome_message_prompt, max_sessions_per_day, updated_by, updated_at::text
     from ai_chat_settings
     where key = 'default'
     limit 1
@@ -2858,6 +2861,7 @@ const loadChatSettings = async (sql: SqlClient) => {
       maxTurnsPerSession: 15,
       welcomeMessagePrompt:
         "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+      maxSessionsPerDay: 5,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -2873,7 +2877,7 @@ const updateChatSettings = async (
     const actor = getAdminActor(request) ?? "unknown";
 
     const [beforeRow] = await tx<ChatSettingsRow[]>`
-      select key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+      select key, max_turns_per_session, welcome_message_prompt, max_sessions_per_day, updated_by, updated_at::text
       from ai_chat_settings
       where key = 'default'
       limit 1
@@ -2885,6 +2889,7 @@ const updateChatSettings = async (
           maxTurnsPerSession: 15,
           welcomeMessagePrompt:
             "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+          maxSessionsPerDay: 5,
           updatedAt: new Date().toISOString(),
         };
 
@@ -2893,10 +2898,11 @@ const updateChatSettings = async (
       set
         max_turns_per_session = ${input.maxTurnsPerSession},
         welcome_message_prompt = ${input.welcomeMessagePrompt},
+        max_sessions_per_day = ${input.maxSessionsPerDay},
         updated_by = ${actor},
         updated_at = now()
       where key = 'default'
-      returning key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+      returning key, max_turns_per_session, welcome_message_prompt, max_sessions_per_day, updated_by, updated_at::text
     `;
 
     const after = mapChatSettingsRow(updated);

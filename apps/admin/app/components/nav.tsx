@@ -23,6 +23,7 @@ const navGroups = [
     items: [
       { href: "/ai?section=models", label: "Models" },
       { href: "/ai?section=prompts", label: "Prompts" },
+      { href: "/ai?section=chat", label: "Chat" },
     ],
   },
   {
