@@ -83,9 +83,14 @@ export const registerChatRoutes = async (
       assembleNutritionistContext(repository, healthTarget, identity.timezone, focusMealId),
     );
 
-    const basePrompt = await timer.measure("basePrompt", () =>
-      repository.getAiPrompt("nutritionist_prompt"),
-    );
+    const [basePrompt, chatSettings] = await Promise.all([
+      timer.measure("basePrompt", () => repository.getAiPrompt("nutritionist_prompt")),
+      timer.measure("chatSettings", () => repository.getAiChatSettings()),
+    ]);
+
+    const effectiveMaxTurns = chatSettings.maxTurnsPerSession;
+    const welcomeMessagePrompt = chatSettings.welcomeMessagePrompt;
+
     const systemPrompt = buildNutritionistSystemPrompt(context, basePrompt);
     const suggestedPrompts = generateSuggestedPrompts(context);
 
@@ -95,8 +100,7 @@ export const registerChatRoutes = async (
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content:
-              "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+            content: welcomeMessagePrompt,
           },
         ],
         maxOutputTokens: chatConfig.maxOutputTokens,
@@ -108,7 +112,7 @@ export const registerChatRoutes = async (
     const sessionDb = await timer.measure("createDbSession", () =>
       repository.createChatSession({
         profileId: profile.id,
-        maxTurns: chatConfig.maxTurnsPerSession,
+        maxTurns: effectiveMaxTurns,
         contextSnapshot: context,
       }),
     );
@@ -125,7 +129,7 @@ export const registerChatRoutes = async (
         { role: "assistant", content: welcomeMessageContent },
       ],
       turnCount: 0,
-      maxTurns: chatConfig.maxTurnsPerSession,
+      maxTurns: effectiveMaxTurns,
       createdAt: Date.now(),
       expiresAt: Date.now() + chatConfig.sessionTtlMs,
     });
@@ -161,6 +165,7 @@ export const registerChatRoutes = async (
       usage: {
         sessionsUsedToday: sessionsToday + 1,
         maxSessionsPerDay: chatConfig.maxSessionsPerDay,
+        maxTurns: effectiveMaxTurns,
       },
     });
   });

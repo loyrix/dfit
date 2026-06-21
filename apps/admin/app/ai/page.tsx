@@ -4,9 +4,10 @@ import {
   activatePromptAction,
   createPromptAction,
   setDefaultModelAction,
+  updateAiChatSettingsAction,
   updateModelAction,
 } from "../lib/actions";
-import { adminGet, type AiModel, type AiPrompt } from "../lib/api";
+import { adminGet, type AiChatSettings, type AiModel, type AiPrompt } from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
@@ -21,22 +22,24 @@ type AiSearchParams = {
 
 export default async function AiPage({ searchParams }: { searchParams?: Promise<AiSearchParams> }) {
   const params = (await searchParams) ?? {};
-  const [{ models }, { prompts }] = await Promise.all([
+  const [{ models }, { prompts }, { settings }] = await Promise.all([
     adminGet<{ models: AiModel[] }>("/admin/ai/models"),
     adminGet<{ prompts: AiPrompt[] }>("/admin/ai/prompts"),
+    adminGet<{ settings: AiChatSettings }>("/admin/ai/chat-settings"),
   ]);
   const activeModel = models.find((model) => model.isDefault);
   const activePrompts = prompts.filter((prompt) => prompt.isActive);
   const filteredModels = filterModels(models, params);
   const filteredPrompts = filterPrompts(prompts, params);
-  const section = params.section === "prompts" ? "prompts" : "models";
+  const section =
+    params.section === "prompts" ? "prompts" : params.section === "chat" ? "chat" : "models";
 
   return (
     <AdminShell>
       <PageHeader
         eyebrow="Vertex AI"
-        title="Model and prompt controls"
-        description="Switch the active Vertex Gemini model, tune safe generation parameters, create prompt versions, and activate a rollback without releasing a mobile build."
+        title="AI controls"
+        description="Switch the active Vertex Gemini model, tune safe generation parameters, manage prompt versions, and configure AI chat behaviour."
       />
 
       <section className="grid metrics">
@@ -70,6 +73,12 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
             label: "Prompts",
             detail: "Active preview, drafts, activation",
             active: section === "prompts",
+          },
+          {
+            href: "/ai?section=chat",
+            label: "Chat",
+            detail: "Max turns, welcome prompt",
+            active: section === "chat",
           },
         ]}
       />
@@ -258,6 +267,66 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
         </section>
       ) : null}
 
+      {section === "chat" ? (
+        <section className="panel">
+          <div className="section-head">
+            <h2 className="text-xl font-bold">AI Nutritionist Chat Settings</h2>
+          </div>
+          <form action={updateAiChatSettingsAction} className="form-grid mt-4">
+            <input
+              name="idempotencyKey"
+              type="hidden"
+              value={createMutationKey("ai-chat-settings:update")}
+            />
+            <label>
+              <span className="metric-label">Max turns per session</span>
+              <input
+                className="input"
+                name="maxTurnsPerSession"
+                type="number"
+                min={1}
+                max={200}
+                defaultValue={settings.maxTurnsPerSession}
+                required
+              />
+            </label>
+            <label>
+              <span className="metric-label">
+                Welcome message prompt
+                <span className="muted text-xs ml-2">
+                  Instruction given to the AI for generating the session greeting.
+                </span>
+              </span>
+              <textarea
+                className="textarea"
+                name="welcomeMessagePrompt"
+                minLength={1}
+                maxLength={500}
+                defaultValue={settings.welcomeMessagePrompt}
+                required
+              />
+            </label>
+            <input
+              className="input"
+              name="reason"
+              placeholder="Reason for changing chat settings"
+              minLength={8}
+              maxLength={500}
+              required
+            />
+            <div className="inline-controls justify-between items-center">
+              <button className="button" type="submit">
+                Save settings
+              </button>
+              <span className="muted text-xs">
+                Updated {formatDate(settings.updatedAt)}
+                {settings.updatedBy ? ` by ${settings.updatedBy}` : ""}
+              </span>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       {section === "prompts" ? (
         <section className="grid prompt-workspace">
           <div className="panel">
@@ -414,6 +483,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                   <option value="food_photo" />
                   <option value="food_photo_IN" />
                   <option value="food_photo_GLOBAL" />
+                  <option value="nutritionist_prompt" />
                 </datalist>
                 <input
                   className="input"
@@ -434,7 +504,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                 <textarea
                   className="textarea"
                   name="body"
-                  placeholder="Prompt body. Include {{USER_HINT_BLOCK}} where the user food note should be inserted."
+                  placeholder="Prompt body. Include {{USER_HINT_BLOCK}} where the user food note should be inserted. For nutritionist_prompt, use {{CONTEXT_JSON}} to inject user context."
                   minLength={100}
                   maxLength={20000}
                   required

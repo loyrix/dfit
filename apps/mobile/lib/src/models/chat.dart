@@ -5,6 +5,7 @@ class ChatSession {
     required this.suggestedPrompts,
     required this.sessionsUsedToday,
     required this.maxSessionsPerDay,
+    required this.maxTurns,
   });
 
   final String sessionId;
@@ -12,6 +13,7 @@ class ChatSession {
   final List<String> suggestedPrompts;
   final int sessionsUsedToday;
   final int maxSessionsPerDay;
+  final int maxTurns;
 
   factory ChatSession.fromJson(Map<String, dynamic> json) {
     return ChatSession(
@@ -24,6 +26,7 @@ class ChatSession {
           .toList(),
       sessionsUsedToday: (json['usage'] as Map<String, dynamic>)['sessionsUsedToday'] as int,
       maxSessionsPerDay: (json['usage'] as Map<String, dynamic>)['maxSessionsPerDay'] as int,
+      maxTurns: (json['usage'] as Map<String, dynamic>)['maxTurns'] as int? ?? 15,
     );
   }
 }

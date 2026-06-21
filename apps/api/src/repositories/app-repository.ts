@@ -15,6 +15,14 @@ import type {
   HealthSex,
 } from "../services/health-targets.js";
 
+export type AiChatSettings = {
+  key: string;
+  maxTurnsPerSession: number;
+  welcomeMessagePrompt: string;
+  updatedBy?: string;
+  updatedAt: string;
+};
+
 export type Profile = {
   id: string;
   authMethod: "anonymous" | "apple" | "google" | "email";
@@ -365,6 +373,7 @@ export interface AppRepository {
     path: string,
   ): Promise<void>;
   getAiPrompt(key: string): Promise<string | undefined>;
+  getAiChatSettings(): Promise<AiChatSettings>;
 
   // Chat
   countChatSessionsToday(profileId: string): Promise<number>;

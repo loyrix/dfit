@@ -41,6 +41,7 @@ import type {
   UpsertSubscriptionEntitlementInput,
   UpsertScanAnalysisCacheInput,
   UpsertProfileHealthTargetInput,
+  AiChatSettings,
 } from "./app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AccountAuthError as AuthError } from "./app-repository.js";
@@ -1003,6 +1004,16 @@ export class InMemoryStore implements AppRepository {
 
   async getAiPrompt(key: string): Promise<string | undefined> {
     return "You are an AI Nutritionist...";
+  }
+
+  async getAiChatSettings(): Promise<AiChatSettings> {
+    return {
+      key: "default",
+      maxTurnsPerSession: 15,
+      welcomeMessagePrompt:
+        "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   async getIdempotent(key: string) {

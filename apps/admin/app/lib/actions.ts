@@ -136,6 +136,21 @@ export async function activatePromptAction(formData: FormData) {
   redirect("/ai?section=prompts");
 }
 
+export async function updateAiChatSettingsAction(formData: FormData) {
+  await requireAdminSession();
+  await adminSend(
+    "/admin/ai/chat-settings",
+    {
+      maxTurnsPerSession: numberValue(formData, "maxTurnsPerSession"),
+      welcomeMessagePrompt: stringValue(formData, "welcomeMessagePrompt"),
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData), method: "PUT" },
+  );
+  revalidatePath("/ai");
+  redirect("/ai?section=chat");
+}
+
 export async function updateFeatureFlagAction(formData: FormData) {
   await requireAdminSession();
   const key = stringValue(formData, "key");

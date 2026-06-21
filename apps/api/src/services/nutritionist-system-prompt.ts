@@ -1,5 +1,7 @@
 import type { NutritionistContext } from "./nutritionist-context.js";
 
+const CONTEXT_JSON_PLACEHOLDER = "{{CONTEXT_JSON}}";
+
 export const buildNutritionistSystemPrompt = (
   context: NutritionistContext,
   basePrompt?: string,
@@ -31,7 +33,13 @@ export const buildNutritionistSystemPrompt = (
 - If a user asks about medical issues, firmly recommend consulting a healthcare professional.
 - Reject requests for extreme diets or unsafe calorie restrictions.`;
 
-  return `${basePrompt ?? defaultPrompt}
+  const promptBody = basePrompt ?? defaultPrompt;
+
+  if (promptBody.includes(CONTEXT_JSON_PLACEHOLDER)) {
+    return promptBody.replace(CONTEXT_JSON_PLACEHOLDER, ctxJson);
+  }
+
+  return `${promptBody}
 
 ## Data Privacy
 - You have access to the user's nutritional data below. Never reference their profile ID, email, or any personal identifiable information.

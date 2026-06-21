@@ -332,6 +332,14 @@ export type AiModel = {
   updatedAt: string;
 };
 
+export type AiChatSettings = {
+  key: string;
+  maxTurnsPerSession: number;
+  welcomeMessagePrompt: string;
+  updatedBy?: string;
+  updatedAt: string;
+};
+
 export type AiPrompt = {
   id: string;
   key: string;

@@ -308,6 +308,18 @@ export const registerAdminRoutes = async (
     return { prompt };
   });
 
+  app.get("/admin/ai/chat-settings", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { settings: await loadChatSettings(sql) };
+  });
+
+  app.put("/admin/ai/chat-settings", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = updateChatSettingsSchema.parse(request.body ?? {});
+    const settings = await updateChatSettings(sql, request, body);
+    return { settings };
+  });
+
   app.get("/admin/feature-flags", { preHandler: requireAdmin }, async (_request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     return { flags: await listFeatureFlags(sql) };
@@ -661,6 +673,12 @@ const createPromptSchema = z.object({
 
 const activatePromptSchema = z.object({
   id: uuidSchema,
+  reason: requiredReasonSchema,
+});
+
+const updateChatSettingsSchema = z.object({
+  maxTurnsPerSession: z.number().int().min(1).max(200),
+  welcomeMessagePrompt: z.string().trim().min(1).max(500),
   reason: requiredReasonSchema,
 });
 
@@ -2809,6 +2827,90 @@ const activatePromptVersion = async (
     });
 
     return mapAiPromptRow(updated);
+  });
+
+type ChatSettingsRow = {
+  key: string;
+  max_turns_per_session: number;
+  welcome_message_prompt: string;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+const mapChatSettingsRow = (row: ChatSettingsRow) => ({
+  key: row.key,
+  maxTurnsPerSession: row.max_turns_per_session,
+  welcomeMessagePrompt: row.welcome_message_prompt,
+  updatedBy: row.updated_by ?? undefined,
+  updatedAt: row.updated_at,
+});
+
+const loadChatSettings = async (sql: SqlClient) => {
+  const [row] = await sql<ChatSettingsRow[]>`
+    select key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+    from ai_chat_settings
+    where key = 'default'
+    limit 1
+  `;
+  if (!row) {
+    return {
+      key: "default",
+      maxTurnsPerSession: 15,
+      welcomeMessagePrompt:
+        "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return mapChatSettingsRow(row);
+};
+
+const updateChatSettings = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof updateChatSettingsSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+
+    const [beforeRow] = await tx<ChatSettingsRow[]>`
+      select key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+      from ai_chat_settings
+      where key = 'default'
+      limit 1
+    `;
+    const before = beforeRow
+      ? mapChatSettingsRow(beforeRow)
+      : {
+          key: "default",
+          maxTurnsPerSession: 15,
+          welcomeMessagePrompt:
+            "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+          updatedAt: new Date().toISOString(),
+        };
+
+    const [updated] = await tx<ChatSettingsRow[]>`
+      update ai_chat_settings
+      set
+        max_turns_per_session = ${input.maxTurnsPerSession},
+        welcome_message_prompt = ${input.welcomeMessagePrompt},
+        updated_by = ${actor},
+        updated_at = now()
+      where key = 'default'
+      returning key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+    `;
+
+    const after = mapChatSettingsRow(updated);
+
+    await insertAuditLog(tx, request, {
+      action: "update_ai_chat_settings",
+      targetType: "ai_chat_settings",
+      targetId: "default",
+      reason: input.reason,
+      before,
+      after,
+    });
+
+    return after;
   });
 
 type FeatureFlagRow = {

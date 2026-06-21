@@ -54,6 +54,7 @@ import type {
   UpsertProfileHealthTargetInput,
   UpsertScanAnalysisCacheInput,
   UpsertSubscriptionEntitlementInput,
+  AiChatSettings,
 } from "./app-repository.js";
 import { AccountAuthError } from "./app-repository.js";
 import { buildConfirmedScanLearnedFoodCandidates } from "../services/food-learning.js";
@@ -3001,6 +3002,39 @@ export class PostgresStore implements AppRepository {
       limit 1
     `;
     return row?.body;
+  }
+
+  async getAiChatSettings(): Promise<AiChatSettings> {
+    const [row] = await this.sql<
+      {
+        key: string;
+        max_turns_per_session: number;
+        welcome_message_prompt: string;
+        updated_by: string | null;
+        updated_at: string;
+      }[]
+    >`
+      select key, max_turns_per_session, welcome_message_prompt, updated_by, updated_at::text
+      from ai_chat_settings
+      where key = 'default'
+      limit 1
+    `;
+    if (!row) {
+      return {
+        key: "default",
+        maxTurnsPerSession: 15,
+        welcomeMessagePrompt:
+          "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return {
+      key: row.key,
+      maxTurnsPerSession: row.max_turns_per_session,
+      welcomeMessagePrompt: row.welcome_message_prompt,
+      updatedBy: row.updated_by ?? undefined,
+      updatedAt: row.updated_at,
+    };
   }
 
   private async findCredentialByEmail(email: string) {

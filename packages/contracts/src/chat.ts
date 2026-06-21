@@ -17,6 +17,7 @@ export const createChatSessionResponseSchema = z.object({
   usage: z.object({
     sessionsUsedToday: z.number().int().nonnegative(),
     maxSessionsPerDay: z.number().int().positive(),
+    maxTurns: z.number().int().positive(),
   }),
 });
 export type CreateChatSessionResponse = z.infer<typeof createChatSessionResponseSchema>;

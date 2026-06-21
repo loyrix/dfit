@@ -82,7 +82,7 @@ class NutritionistController extends ChangeNotifier {
       _messages.add(chatSession.welcomeMessage);
       _suggestedFollowUps = chatSession.suggestedPrompts;
       _turnNumber = 0;
-      _maxTurns = 15;
+      _maxTurns = chatSession.maxTurns;
     } on LogMyPlateApiException catch (e) {
       _error = _parseError(e);
     } catch (e) {
