@@ -38,24 +38,5 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-    target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-    end
-  end
-
-  # Bump the Flutter-generated SPM package platform to match the project
-  # deployment target so Firebase (requires 15.0) resolves at build time.
-  podfile_dir = File.dirname(__FILE__)
-  generated_package = File.join(
-    podfile_dir, 'Flutter', 'ephemeral', 'Packages',
-    'FlutterGeneratedPluginSwiftPackage', 'Package.swift',
-  )
-  if File.exist?(generated_package)
-    content = File.read(generated_package)
-    new_content = content.gsub('.iOS("13.0")', '.iOS("15.0")')
-    if content != new_content
-      File.write(generated_package, new_content)
-      puts "Patched FlutterGeneratedPluginSwiftPackage platform to 15.0"
-    end
   end
 end

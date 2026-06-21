@@ -2,6 +2,40 @@
 
 Flutter iOS + Android client for the LogMyPlate MVP.
 
+## iOS Dependency Manager: CocoaPods (NOT Swift Package Manager)
+
+iOS plugins are managed by **CocoaPods**, not Flutter's Swift Package Manager
+(SPM). SPM must stay **disabled** for this project.
+
+Why: Firebase requires iOS 15.0, but Flutter's SPM integration generates
+`ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift`
+with a hardcoded `.iOS("13.0")` minimum. SPM then refuses to resolve (a
+dependency's minimum must be `<=` the top-level package's), which fails the
+whole generated package and cascades into bogus
+`GeneratedPluginRegistrant.m` / `WebViewFlutterPlugin` errors. CocoaPods applies
+`platform :ios, '15.0'` (set in `ios/Podfile`) uniformly to every plugin, so the
+problem does not exist.
+
+> ⚠️ `enable-swift-package-manager` is a **machine-global** Flutter setting, not
+> per-project. This repo tracks the Flutter `main` channel, where SPM can be on
+> by default. Every developer machine **and CI** must run this once, or builds
+> may silently re-enable SPM and reintroduce the Firebase 15.0 failure:
+>
+> ```sh
+> flutter config --no-enable-swift-package-manager
+> ```
+>
+> Do not re-add SPM workarounds to the `Podfile` (e.g. patching the generated
+> `Package.swift`); they edit a "Generated file. Do not edit." and get reverted
+> on the next `flutter pub get`. Keep the `Podfile` stock with `platform :ios, '15.0'`.
+
+If a build ever fails with `firebase-* requires minimum platform version 15.0
+... but this target supports 13.0`, the fix is to confirm SPM is disabled, then:
+
+```sh
+flutter clean && flutter pub get && (cd ios && pod install)
+```
+
 ## API Target
 
 Mobile builds default to the deployed API at `https://logmyplate-api.vercel.app`.
