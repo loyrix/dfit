@@ -115,16 +115,6 @@ class TodayScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                       ],
-                      if (onOpenNutritionist != null)
-                        IconButton(
-                          tooltip: 'AI Nutritionist',
-                          onPressed: onOpenNutritionist,
-                          icon: Icon(
-                            Icons.auto_awesome_rounded,
-                            color: colors.icon,
-                            size: 22,
-                          ),
-                        ),
                       if (showSettingsAction)
                         IconButton(
                           tooltip: 'Settings',
