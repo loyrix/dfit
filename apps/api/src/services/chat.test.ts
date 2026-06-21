@@ -30,7 +30,7 @@ const baseContext = (overrides?: Partial<NutritionistContext>): NutritionistCont
 });
 
 describe("Chat Routes", () => {
-  it("returns 403 for non-premium user creating a session", async () => {
+  it("allows non-premium user to create a session within free allowance", async () => {
     const app = await buildApp({
       repository: new InMemoryStore(),
       chatAiProvider: new MockChatAiProvider(),
@@ -42,9 +42,10 @@ describe("Chat Routes", () => {
       headers: testHeaders,
     });
 
-    expect(response.statusCode).toBe(403);
+    expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    expect(body.error).toBe("premium_required");
+    expect(body).toHaveProperty("sessionId");
+    expect(body.usage.maxSessionsPerDay).toBe(3);
   });
 
   it("creates a session for premium user", async () => {
@@ -77,7 +78,7 @@ describe("Chat Routes", () => {
     expect(body.welcomeMessage.role).toBe("assistant");
     expect(body.suggestedPrompts).toBeInstanceOf(Array);
     expect(body.usage.sessionsUsedToday).toBeGreaterThanOrEqual(0);
-    expect(body.usage.maxSessionsPerDay).toBe(5);
+    expect(body.usage.maxSessionsPerDay).toBe(50);
   });
 
   it("sends a message and receives a reply", async () => {
@@ -126,7 +127,35 @@ describe("Chat Routes", () => {
     expect(body.usage.maxTurns).toBe(15);
   });
 
-  it("returns 429 when daily session limit exceeded", async () => {
+  it("returns 403 free_allowance_exhausted when non-premium user exceeds free limit", async () => {
+    const repository = new InMemoryStore();
+
+    const app = await buildApp({
+      repository,
+      chatAiProvider: new MockChatAiProvider(),
+    });
+
+    for (let i = 0; i < 3; i++) {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/chat/nutritionist/session",
+        headers: testHeaders,
+      });
+      expect(res.statusCode).toBe(200);
+    }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+
+    expect(response.statusCode).toBe(403);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe("free_allowance_exhausted");
+  });
+
+  it("returns 429 when premium user exceeds daily session limit", async () => {
     const repository = new InMemoryStore();
     await repository.upsertSubscriptionEntitlement({
       appUserId: "profile_demo",
@@ -143,7 +172,7 @@ describe("Chat Routes", () => {
       chatAiProvider: new MockChatAiProvider(),
     });
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 50; i++) {
       const res = await app.inject({
         method: "POST",
         url: "/v1/chat/nutritionist/session",

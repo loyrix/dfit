@@ -89,7 +89,7 @@ class NutritionistController extends ChangeNotifier {
       _turnNumber = 0;
       _maxTurns = chatSession.maxTurns;
     } on LogMyPlateApiException catch (e) {
-      if (e.errorCode == 'premium_required') {
+      if (e.errorCode == 'free_allowance_exhausted') {
         _premiumRequired = true;
       }
       _error = _parseError(e);
@@ -142,7 +142,7 @@ class NutritionistController extends ChangeNotifier {
 
 
   String _parseError(LogMyPlateApiException e) {
-    if (e.errorCode == 'premium_required') return 'Premium subscription required.';
+    if (e.errorCode == 'free_allowance_exhausted') return 'You\'ve exhausted your free usage. Subscribe to Premium for unlimited access.';
     if (e.errorCode == 'daily_session_limit_reached') return 'Daily chat limit reached. Try again tomorrow.';
     if (e.errorCode == 'session_expired') return 'Session expired. Start a new chat.';
     if (e.errorCode == 'turn_limit_reached') return 'This session is complete. Start a new chat.';

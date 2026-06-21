@@ -53,26 +53,29 @@ export const registerChatRoutes = async (
       repository.getSubscriptionStatus(),
     );
 
-    if (!subscription.active) {
-      return reply.status(403).send({
-        error: "premium_required",
-        message: "AI Nutritionist requires an active Premium subscription.",
-      });
-    }
-
     const chatSettings = await timer.measure("chatSettings", () => repository.getAiChatSettings());
 
-    const effectiveMaxSessionsPerDay =
-      chatSettings.maxSessionsPerDay ?? chatConfig.maxSessionsPerDay;
+    const isPremium = subscription.active;
+    const effectiveMaxSessionsPerDay = isPremium
+      ? (chatSettings.premiumMaxSessionsPerDay ?? chatConfig.maxSessionsPerDay)
+      : (chatSettings.freeMaxSessionsPerDay ?? chatConfig.maxSessionsPerDay);
 
     const sessionsToday = await timer.measure("sessionCount", () =>
       repository.countChatSessionsToday(profile.id),
     );
 
     if (sessionsToday >= effectiveMaxSessionsPerDay) {
-      return reply.status(429).send({
-        error: "daily_session_limit_reached",
-        message: "You've used all your AI Nutritionist sessions for today.",
+      if (isPremium) {
+        return reply.status(429).send({
+          error: "daily_session_limit_reached",
+          message: "You've used all your AI Nutritionist sessions for today.",
+          limit: effectiveMaxSessionsPerDay,
+        });
+      }
+      return reply.status(403).send({
+        error: "free_allowance_exhausted",
+        message:
+          "You've exhausted your free AI Nutritionist sessions for today. Subscribe to Premium for unlimited access.",
         limit: effectiveMaxSessionsPerDay,
       });
     }

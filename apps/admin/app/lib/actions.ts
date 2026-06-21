@@ -143,7 +143,8 @@ export async function updateAiChatSettingsAction(formData: FormData) {
     {
       maxTurnsPerSession: numberValue(formData, "maxTurnsPerSession"),
       welcomeMessagePrompt: stringValue(formData, "welcomeMessagePrompt"),
-      maxSessionsPerDay: numberValue(formData, "maxSessionsPerDay"),
+      freeMaxSessionsPerDay: numberValue(formData, "freeMaxSessionsPerDay"),
+      premiumMaxSessionsPerDay: numberValue(formData, "premiumMaxSessionsPerDay"),
       reason: stringValue(formData, "reason"),
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },

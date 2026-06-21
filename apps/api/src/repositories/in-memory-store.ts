@@ -1013,7 +1013,8 @@ export class InMemoryStore implements AppRepository {
       maxTurnsPerSession: 15,
       welcomeMessagePrompt:
         "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
-      maxSessionsPerDay: 5,
+      freeMaxSessionsPerDay: 3,
+      premiumMaxSessionsPerDay: 50,
       updatedAt: new Date().toISOString(),
     };
   }

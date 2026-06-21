@@ -19,7 +19,8 @@ export type AiChatSettings = {
   key: string;
   maxTurnsPerSession: number;
   welcomeMessagePrompt: string;
-  maxSessionsPerDay: number;
+  freeMaxSessionsPerDay: number;
+  premiumMaxSessionsPerDay: number;
   updatedBy?: string;
   updatedAt: string;
 };
