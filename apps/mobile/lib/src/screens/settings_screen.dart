@@ -203,19 +203,22 @@ class _ThemeOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(label),
-      trailing: selected
-          ? Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: LogMyPlateColors.accent,
-                shape: BoxShape.circle,
-              ),
-            )
-          : null,
-      onTap: onTap,
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        title: Text(label),
+        trailing: selected
+            ? Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: LogMyPlateColors.accent,
+                  shape: BoxShape.circle,
+                ),
+              )
+            : null,
+        onTap: onTap,
+      ),
     );
   }
 }
@@ -227,8 +230,11 @@ class _StaticRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+      ),
     );
   }
 }

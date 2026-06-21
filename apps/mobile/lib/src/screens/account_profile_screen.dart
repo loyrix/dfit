@@ -336,13 +336,16 @@ class _ProfileRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return ListTile(
-      title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-      trailing: Text(
-        value,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        title: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        trailing: Text(
+          value,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+        ),
       ),
     );
   }
@@ -367,30 +370,33 @@ class _ProfileActionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
-    return ListTile(
-      enabled: enabled,
-      onTap: enabled ? onTap : null,
-      title: Text(
-        label,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: enabled ? colors.textPrimary : colors.textTertiary,
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        enabled: enabled,
+        onTap: enabled ? onTap : null,
+        title: Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: enabled ? colors.textPrimary : colors.textTertiary,
+          ),
         ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: enabled ? color : colors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
               color: enabled ? color : colors.textTertiary,
             ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: enabled ? color : colors.textTertiary,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
