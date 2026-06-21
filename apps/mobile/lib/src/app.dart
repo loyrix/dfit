@@ -588,7 +588,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           ),
                           lockInitialItems: true,
                           photo: photo,
-                          onFoodSearch: _journalController.searchFoods,
+                          onFoodSearch: null,
                           onConfirm:
                               (type, items, {bool analyzeWithAI = false}) {
                                 return _confirmAnalyzedMeal(
@@ -620,7 +620,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           isPremium: _journalController.subscription?.active ?? false,
           initialItems: const [],
           initialMealType: mealTypeForLocalTime(DateTime.now()),
-          onFoodSearch: _journalController.searchFoods,
+          onFoodSearch: null,
           onConfirm: _saveMeal,
         ),
       ),
@@ -1312,6 +1312,17 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
               },
               onDeactivateProfile: _deactivateProfileFromAccount,
               onDeleteProfile: _deleteProfileFromAccount,
+              onPasswordResetRequest: session.provider == AuthProvider.email
+                  ? (email) => _authController.requestPasswordReset(email: email)
+                  : null,
+              onPasswordResetConfirm: session.provider == AuthProvider.email
+                  ? (email, code, password) =>
+                      _authController.confirmPasswordReset(
+                        email: email,
+                        code: code,
+                        password: password,
+                      )
+                  : null,
             );
           },
         ),
@@ -2734,9 +2745,9 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
                   color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome_rounded,
-                  color: LogMyPlateColors.accentDeep,
+                  color: colors.accentText,
                   size: 21,
                 ),
               ),
@@ -2765,9 +2776,9 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
                     color: LogMyPlateColors.accent.withValues(alpha: 0.14),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.history_rounded,
-                    color: LogMyPlateColors.accentWarm,
+                    color: colors.accentText,
                     size: 16,
                   ),
                 ),
@@ -2884,9 +2895,9 @@ class _StartChatConfirmationSheet extends StatelessWidget {
                   color: LogMyPlateColors.accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome_rounded,
-                  color: LogMyPlateColors.accentDeep,
+                  color: colors.accentText,
                   size: 21,
                 ),
               ),

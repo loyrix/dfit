@@ -1703,46 +1703,7 @@ void main() {
     expect(find.text('Support'), findsOneWidget);
     expect(find.text('Contact support'), findsOneWidget);
     expect(find.text('Privacy policy'), findsOneWidget);
-    expect(find.text('Delete account and data'), findsOneWidget);
     expect(find.text('Legal terms'), findsOneWidget);
-  });
-
-  testWidgets('profile tab deletes signed-in account data in app', (
-    tester,
-  ) async {
-    var deleted = false;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: LogMyPlateTheme.dark(),
-        home: ProfileScreen(
-          themeMode: ThemeMode.dark,
-          session: AuthSession(
-            provider: AuthProvider.email,
-            displayName: 'friend@test.com',
-            linkedAt: DateTime(2026, 5, 12),
-          ),
-          onThemeChanged: (_) {},
-          onSetTarget: () {},
-          onOpenAccount: () {},
-          onDeleteAccount: () async {
-            deleted = true;
-            return true;
-          },
-          onSignOut: () async {},
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('Delete account and data'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Delete account and data?'), findsOneWidget);
-
-    await tester.tap(find.widgetWithText(PremiumButton, 'Delete account'));
-    await tester.pumpAndSettle();
-
-    expect(deleted, isTrue);
   });
 
   testWidgets('logout returns the user to the anonymous dashboard', (

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/logmyplate_notice.dart';
+
 class LogMyPlateLinks {
   const LogMyPlateLinks._();
 
@@ -53,7 +55,9 @@ Future<void> openLogMyPlateLink(
   await Clipboard.setData(ClipboardData(text: url.toString()));
   if (!context.mounted) return;
 
-  ScaffoldMessenger.maybeOf(
+  LogMyPlateNotice.show(
     context,
-  )?.showSnackBar(SnackBar(content: Text(copiedMessage)));
+    tone: LogMyPlateNoticeTone.info,
+    title: copiedMessage,
+  );
 }

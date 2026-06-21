@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../models/chat.dart';
 import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
+import '../theme/logmyplate_spacing.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/glass/glass_surface.dart';
 import '../widgets/glass/glass_wrapper.dart';
 import '../widgets/logmyplate_background.dart';
+import '../widgets/logmyplate_notice.dart';
 import '../widgets/premium_button.dart';
 
 class ChatHistoryScreen extends StatefulWidget {
@@ -99,22 +101,19 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
         _isSelectionMode = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Chats deleted successfully.'),
-            backgroundColor: LogMyPlateColors.accent,
-            behavior: SnackBarBehavior.floating,
-          ),
+        LogMyPlateNotice.show(
+          context,
+          tone: LogMyPlateNoticeTone.success,
+          title: 'Chats deleted',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to delete chats. Please try again.'),
-            backgroundColor: LogMyPlateColors.destructive,
-            behavior: SnackBarBehavior.floating,
-          ),
+        LogMyPlateNotice.show(
+          context,
+          tone: LogMyPlateNoticeTone.error,
+          title: 'Delete failed',
+          message: 'Please try again.',
         );
       }
     } finally {
@@ -146,22 +145,19 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
         _selectedIds.remove(id);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Chat deleted successfully.'),
-            backgroundColor: LogMyPlateColors.accent,
-            behavior: SnackBarBehavior.floating,
-          ),
+        LogMyPlateNotice.show(
+          context,
+          tone: LogMyPlateNoticeTone.success,
+          title: 'Chat deleted',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Failed to delete chat. Please try again.'),
-            backgroundColor: LogMyPlateColors.destructive,
-            behavior: SnackBarBehavior.floating,
-          ),
+        LogMyPlateNotice.show(
+          context,
+          tone: LogMyPlateNoticeTone.error,
+          title: 'Delete failed',
+          message: 'Please try again.',
         );
       }
     } finally {
@@ -517,61 +513,70 @@ class _DeleteConfirmationSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     return LiteGlassCard(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
             child: Container(
-              width: 40,
+              width: 38,
               height: 5,
               decoration: BoxDecoration(
-                color: colors.textTertiary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(10),
+                color: colors.textTertiary.withValues(alpha: 0.36),
+                borderRadius: BorderRadius.circular(99),
               ),
             ),
           ),
-          const SizedBox(height: 32),
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.delete_outline_rounded,
-              color: LogMyPlateColors.destructive,
-              size: 32,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            count == 1 ? 'Delete Chat?' : 'Delete $count Chats?',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
                 ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'This action cannot be undone. Are you sure you want to permanently delete '
-            '${count == 1 ? 'this chat session' : 'these chat sessions'}?',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.4,
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: LogMyPlateColors.destructive,
+                  size: 21,
                 ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      count == 1 ? 'Delete Chat?' : 'Delete $count Chats?',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This action cannot be undone. Are you sure you want to permanently delete '
+                      '${count == 1 ? 'this chat session' : 'these chat sessions'}?',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           PremiumButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Yes, delete'),
           ),
-          const SizedBox(height: 16),
-          TextButton(
+          const SizedBox(height: 10),
+          GlassWrapper(child: TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             style: TextButton.styleFrom(
               foregroundColor: colors.textPrimary,
@@ -581,7 +586,7 @@ class _DeleteConfirmationSheet extends StatelessWidget {
               'Cancel',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
-          ),
+          )),
         ],
       ),
     );

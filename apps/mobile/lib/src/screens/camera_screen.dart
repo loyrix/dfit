@@ -13,6 +13,7 @@ import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/glass/glass_surface.dart';
+import '../widgets/logmyplate_notice.dart';
 import '../widgets/premium_button.dart';
 
 enum _CaptureSource {
@@ -444,32 +445,6 @@ class _EmptyPlatePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final maxRadius = size.shortestSide / 2 - 10;
-    final ringPaint = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.07)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    final accentPaint = Paint()
-      ..color = LogMyPlateColors.accent.withValues(alpha: 0.22)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-
-    canvas
-      ..drawCircle(center, maxRadius, accentPaint)
-      ..drawCircle(center, maxRadius * 0.72, ringPaint)
-      ..drawCircle(center, maxRadius * 0.45, ringPaint);
-
-    final guidePaint = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.045)
-      ..strokeWidth = 1.1;
-    final left = center.dx - maxRadius * 0.58;
-    final right = center.dx + maxRadius * 0.58;
-    canvas.drawLine(
-      Offset(left, center.dy),
-      Offset(right, center.dy),
-      guidePaint,
-    );
   }
 
   @override
@@ -832,16 +807,11 @@ class _VoiceHintButton extends StatelessWidget {
     final colors = context.logmyplate;
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Voice input coming soon'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        LogMyPlateNotice.show(
+          context,
+          tone: LogMyPlateNoticeTone.info,
+          title: 'Coming soon',
+          message: 'Voice input will be available in a future update.',
         );
       },
       child: Semantics(

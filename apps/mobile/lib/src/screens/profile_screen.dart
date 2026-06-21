@@ -120,18 +120,6 @@ class ProfileScreen extends StatelessWidget {
                       copiedMessage: 'Terms link copied',
                     ),
                   ),
-                  const _ProfileRowDivider(),
-                  _LinkRow(
-                    icon: Icons.delete_outline_rounded,
-                    label: signedIn
-                        ? 'Delete account and data'
-                        : 'Data deletion',
-                    color: signedIn ? LogMyPlateColors.destructive : null,
-                    trailingIcon: signedIn
-                        ? Icons.chevron_right_rounded
-                        : Icons.open_in_new_rounded,
-                    onTap: () => _requestAccountDeletion(context),
-                  ),
                 ],
               ),
             ),
@@ -175,26 +163,6 @@ class ProfileScreen extends StatelessWidget {
     ));
   }
 
-  Future<void> _requestAccountDeletion(BuildContext context) async {
-    if (session == null) {
-      await openLogMyPlateLink(
-        context,
-        LogMyPlateLinks.dataDeletion,
-        copiedMessage: 'Data deletion link copied',
-      );
-      return;
-    }
-
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const DeleteAccountSheet(),
-    );
-    if (confirmed != true || !context.mounted) return;
-
-    await onDeleteAccount();
-  }
 }
 
 class _AccountHero extends StatelessWidget {
@@ -459,21 +427,15 @@ class _LinkRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    this.color,
-    this.trailingIcon = Icons.open_in_new_rounded,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Color? color;
-  final IconData trailingIcon;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final rowColor = color ?? colors.textPrimary;
-    final iconColor = color ?? colors.accentText;
 
     return InkWell(
       onTap: onTap,
@@ -485,10 +447,10 @@ class _LinkRow extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
+                color: colors.accentText.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: iconColor, size: 16),
+              child: Icon(icon, color: colors.accentText, size: 16),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -496,10 +458,10 @@ class _LinkRow extends StatelessWidget {
                 label,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: rowColor, height: 1.25),
+                ).textTheme.bodySmall?.copyWith(color: colors.textPrimary, height: 1.25),
               ),
             ),
-            Icon(trailingIcon, color: color ?? colors.textTertiary, size: 17),
+            Icon(Icons.open_in_new_rounded, color: colors.textTertiary, size: 17),
           ],
         ),
       ),

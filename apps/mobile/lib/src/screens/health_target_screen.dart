@@ -13,6 +13,7 @@ import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
+import '../widgets/logmyplate_notice.dart';
 import '../widgets/primitive_icons.dart';
 import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
@@ -980,8 +981,11 @@ Future<void> _openHealthSource(BuildContext context, Uri url) async {
   await Clipboard.setData(ClipboardData(text: url.toString()));
   if (!context.mounted) return;
 
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  messenger?.showSnackBar(const SnackBar(content: Text('Source link copied')));
+  LogMyPlateNotice.show(
+    context,
+    tone: LogMyPlateNoticeTone.info,
+    title: 'Source link copied',
+  );
 }
 
 class _BmiSegment {
