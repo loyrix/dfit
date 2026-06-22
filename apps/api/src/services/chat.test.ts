@@ -45,7 +45,7 @@ describe("Chat Routes", () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body).toHaveProperty("sessionId");
-    expect(body.usage.maxSessionsPerDay).toBe(3);
+    expect(body.usage.maxSessionsPerDay).toBe(1);
   });
 
   it("creates a session for premium user", async () => {
@@ -78,7 +78,7 @@ describe("Chat Routes", () => {
     expect(body.welcomeMessage.role).toBe("assistant");
     expect(body.suggestedPrompts).toBeInstanceOf(Array);
     expect(body.usage.sessionsUsedToday).toBeGreaterThanOrEqual(0);
-    expect(body.usage.maxSessionsPerDay).toBe(50);
+    expect(body.usage.maxSessionsPerDay).toBe(10);
   });
 
   it("sends a message and receives a reply", async () => {
@@ -135,7 +135,7 @@ describe("Chat Routes", () => {
       chatAiProvider: new MockChatAiProvider(),
     });
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 1; i++) {
       const res = await app.inject({
         method: "POST",
         url: "/v1/chat/nutritionist/session",
@@ -143,6 +143,43 @@ describe("Chat Routes", () => {
       });
       expect(res.statusCode).toBe(200);
     }
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+
+    expect(response.statusCode).toBe(403);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe("free_allowance_exhausted");
+  });
+
+  it("deleting a session does not reset daily quota", async () => {
+    const repository = new InMemoryStore();
+
+    const app = await buildApp({
+      repository,
+      chatAiProvider: new MockChatAiProvider(),
+    });
+
+    const sessionIds: string[] = [];
+    for (let i = 0; i < 1; i++) {
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/chat/nutritionist/session",
+        headers: testHeaders,
+      });
+      expect(res.statusCode).toBe(200);
+      sessionIds.push(JSON.parse(res.body).sessionId);
+    }
+
+    await app.inject({
+      method: "DELETE",
+      url: "/v1/chat/nutritionist/sessions",
+      headers: testHeaders,
+      payload: { sessionIds },
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -172,7 +209,7 @@ describe("Chat Routes", () => {
       chatAiProvider: new MockChatAiProvider(),
     });
 
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 10; i++) {
       const res = await app.inject({
         method: "POST",
         url: "/v1/chat/nutritionist/session",

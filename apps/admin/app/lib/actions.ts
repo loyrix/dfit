@@ -136,6 +136,22 @@ export async function activatePromptAction(formData: FormData) {
   redirect("/ai?section=prompts");
 }
 
+export async function updatePromptAction(formData: FormData) {
+  await requireAdminSession();
+  const id = stringValue(formData, "id");
+  await adminSend(
+    `/admin/ai/prompts/${id}`,
+    {
+      body: stringValue(formData, "body"),
+      title: stringValue(formData, "title") || undefined,
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData), method: "PATCH" },
+  );
+  revalidatePath("/ai");
+  redirect("/ai?section=prompts");
+}
+
 export async function updateAiChatSettingsAction(formData: FormData) {
   await requireAdminSession();
   await adminSend(

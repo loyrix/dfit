@@ -3027,8 +3027,8 @@ export class PostgresStore implements AppRepository {
         maxTurnsPerSession: 15,
         welcomeMessagePrompt:
           "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
-        freeMaxSessionsPerDay: 3,
-        premiumMaxSessionsPerDay: 50,
+        freeMaxSessionsPerDay: 1,
+        premiumMaxSessionsPerDay: 10,
         updatedAt: new Date().toISOString(),
       };
     }
@@ -4155,7 +4155,6 @@ export class PostgresStore implements AppRepository {
       from chat_sessions
       where profile_id = ${profileId}
         and session_date = current_date
-        and deleted_at is null
     `;
     return Number(rows[0]?.count ?? 0);
   }

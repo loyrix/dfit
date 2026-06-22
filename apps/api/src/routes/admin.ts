@@ -308,6 +308,15 @@ export const registerAdminRoutes = async (
     return { prompt };
   });
 
+  app.patch("/admin/ai/prompts/:id", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const { id } = promptParamsSchema.parse(request.params);
+    const body = updatePromptSchema.parse(request.body ?? {});
+    const prompt = await updatePromptVersion(sql, request, id, body);
+    if (!prompt) return reply.status(404).send({ error: "ai_prompt_not_found" });
+    return { prompt };
+  });
+
   app.get("/admin/ai/chat-settings", { preHandler: requireAdmin }, async (_request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     return { settings: await loadChatSettings(sql) };
@@ -626,6 +635,8 @@ const modelParamsSchema = z.object({ key: z.string().min(1).max(160) });
 const flagParamsSchema = z.object({ key: z.string().min(1).max(160) });
 const noticeParamsSchema = z.object({ noticeId: uuidSchema });
 
+const promptParamsSchema = z.object({ id: uuidSchema });
+
 const requiredReasonSchema = z.string().trim().min(8).max(500);
 
 const grantCreditSchema = z.object({
@@ -673,6 +684,12 @@ const createPromptSchema = z.object({
 
 const activatePromptSchema = z.object({
   id: uuidSchema,
+  reason: requiredReasonSchema,
+});
+
+const updatePromptSchema = z.object({
+  body: z.string().trim().min(100).max(20000),
+  title: z.string().trim().min(3).max(160).optional(),
   reason: requiredReasonSchema,
 });
 
@@ -2831,6 +2848,66 @@ const activatePromptVersion = async (
     return mapAiPromptRow(updated);
   });
 
+const updatePromptVersion = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  id: string,
+  input: z.infer<typeof updatePromptSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const [before] = await tx<AiPromptRow[]>`
+      select
+        id::text,
+        key,
+        version,
+        model_family,
+        title,
+        body,
+        status,
+        is_active,
+        updated_by,
+        published_at::text,
+        created_at::text,
+        updated_at::text
+      from ai_prompt_versions
+      where id = ${id}
+      limit 1
+    `;
+    if (!before) return null;
+
+    await tx`
+      update ai_prompt_versions
+      set is_active = false, updated_at = now()
+      where key = ${before.key}
+    `;
+
+    const [updated] = await tx<AiPromptRow[]>`
+      update ai_prompt_versions
+      set
+        body = ${input.body},
+        title = ${input.title ?? before.title},
+        status = 'published',
+        is_active = true,
+        published_at = coalesce(published_at, now()),
+        updated_by = ${actor},
+        updated_at = now()
+      where id = ${id}
+      returning id::text, key, version, model_family, title, body, status, is_active, updated_by, published_at::text, created_at::text, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_ai_prompt_version",
+      targetType: "ai_prompt",
+      targetId: id,
+      reason: input.reason,
+      before: mapAiPromptRow(before),
+      after: mapAiPromptRow(updated),
+    });
+
+    return mapAiPromptRow(updated);
+  });
+
 type ChatSettingsRow = {
   key: string;
   max_turns_per_session: number;
@@ -2864,8 +2941,8 @@ const loadChatSettings = async (sql: SqlClient) => {
       maxTurnsPerSession: 15,
       welcomeMessagePrompt:
         "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
-      freeMaxSessionsPerDay: 3,
-      premiumMaxSessionsPerDay: 50,
+      freeMaxSessionsPerDay: 1,
+      premiumMaxSessionsPerDay: 10,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -2893,8 +2970,8 @@ const updateChatSettings = async (
           maxTurnsPerSession: 15,
           welcomeMessagePrompt:
             "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
-          freeMaxSessionsPerDay: 3,
-          premiumMaxSessionsPerDay: 50,
+          freeMaxSessionsPerDay: 1,
+          premiumMaxSessionsPerDay: 10,
           updatedAt: new Date().toISOString(),
         };
 

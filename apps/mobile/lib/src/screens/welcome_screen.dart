@@ -77,14 +77,6 @@ class WelcomeScreen extends StatelessWidget {
                         child: const Text('Start first scan'),
                       ),
                     ),
-                    const SizedBox(height: LogMyPlateSpacing.cardPadding),
-                    Text(
-                      'Photos are analyzed and saved with meal logs',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textTertiary,
-                      ),
-                    ),
                   ],
                 ),
               );

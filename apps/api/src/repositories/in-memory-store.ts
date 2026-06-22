@@ -1013,8 +1013,8 @@ export class InMemoryStore implements AppRepository {
       maxTurnsPerSession: 15,
       welcomeMessagePrompt:
         "Greet the user warmly and briefly summarize what you see in their data. Keep it under 60 words.",
-      freeMaxSessionsPerDay: 3,
-      premiumMaxSessionsPerDay: 50,
+      freeMaxSessionsPerDay: 1,
+      premiumMaxSessionsPerDay: 10,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -1276,7 +1276,7 @@ export class InMemoryStore implements AppRepository {
     const today = localDateForTimezone("UTC");
     let count = 0;
     for (const session of this.chatSessions.values()) {
-      if (session.profileId === profileId && session.sessionDate === today && !session.deletedAt) {
+      if (session.profileId === profileId && session.sessionDate === today) {
         count++;
       }
     }

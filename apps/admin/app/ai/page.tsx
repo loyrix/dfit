@@ -6,6 +6,7 @@ import {
   setDefaultModelAction,
   updateAiChatSettingsAction,
   updateModelAction,
+  updatePromptAction,
 } from "../lib/actions";
 import { adminGet, type AiChatSettings, type AiModel, type AiPrompt } from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
@@ -460,26 +461,77 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
             <div className="panel">
               <div className="section-head">
                 <div>
-                  <h2 className="text-xl font-bold">Active prompt preview</h2>
+                  <h2 className="text-xl font-bold">Quick Edit & Activate</h2>
                   <p className="muted text-sm">
-                    Open one body when you need to inspect the full text.
+                    Edit the active prompt body below and save. Changes take effect immediately for
+                    new sessions.
                   </p>
                 </div>
                 <span className="badge">{activePrompts.length} active</span>
               </div>
               {activePrompts.length > 0 ? (
+                <form action={updatePromptAction} className="form-grid mt-4">
+                  <input
+                    name="idempotencyKey"
+                    type="hidden"
+                    value={createMutationKey(`prompt:${activePrompts[0].id}:update`)}
+                  />
+                  <input name="id" type="hidden" value={activePrompts[0].id} />
+                  <input
+                    className="input"
+                    name="title"
+                    defaultValue={activePrompts[0].title}
+                    minLength={3}
+                    maxLength={160}
+                  />
+                  <textarea
+                    className="textarea"
+                    name="body"
+                    defaultValue={activePrompts[0].body}
+                    minLength={100}
+                    maxLength={20000}
+                    required
+                    rows={16}
+                  />
+                  <input
+                    className="input"
+                    name="reason"
+                    placeholder="Reason for this change"
+                    minLength={8}
+                    maxLength={500}
+                    required
+                  />
+                  <div className="form-actions">
+                    <button className="button" type="submit">
+                      Save & Activate
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <p className="muted mt-3">
+                  No active prompt is configured. Create a draft and activate it above.
+                </p>
+              )}
+            </div>
+            <div className="panel">
+              <div className="section-head">
+                <h2 className="text-xl font-bold">Read-only preview</h2>
+                <p className="muted text-sm">Inspect the full body of all prompt versions.</p>
+              </div>
+              {activePrompts.length > 0 ? (
                 <div className="prompt-preview-list">
-                  {activePrompts.map((prompt, index) => (
-                    <details className="prompt-preview" key={prompt.id} open={index === 0}>
+                  {prompts.map((prompt) => (
+                    <details className="prompt-preview" key={prompt.id}>
                       <summary className="prompt-preview-summary">
                         <span>
                           <span className="font-semibold">{prompt.title}</span>
                           <span className="muted block text-xs">
                             {prompt.key} · {prompt.version}
+                            {prompt.isActive ? " · Active" : ` · ${prompt.status}`}
                           </span>
                         </span>
                         <span className="inline-controls">
-                          <Badge>Active</Badge>
+                          {prompt.isActive ? <Badge>Active</Badge> : null}
                           <span className="muted text-xs">View body</span>
                         </span>
                       </summary>
@@ -493,7 +545,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                   ))}
                 </div>
               ) : (
-                <p className="muted mt-3">No active prompt is configured.</p>
+                <p className="muted mt-3">No prompt versions yet.</p>
               )}
             </div>
 
