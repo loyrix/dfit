@@ -62,6 +62,9 @@ class NutritionistController extends ChangeNotifier {
       _maxTurns = history.maxTurns;
       _suggestedFollowUps = [];
     } on LogMyPlateApiException catch (e) {
+      if (e.errorCode == 'session_not_found') {
+        _premiumRequired = true;
+      }
       _error = _parseError(e);
     } catch (e) {
       _error = 'Could not load chat history.';
@@ -144,7 +147,7 @@ class NutritionistController extends ChangeNotifier {
   String _parseError(LogMyPlateApiException e) {
     if (e.errorCode == 'free_allowance_exhausted') return 'You\'ve exhausted your free usage. Subscribe to Premium for unlimited access.';
     if (e.errorCode == 'daily_session_limit_reached') return 'Daily chat limit reached. Try again tomorrow.';
-    if (e.errorCode == 'session_expired') return 'Session expired. Start a new chat.';
+    if (e.errorCode == 'session_not_found' || e.errorCode == 'session_expired') return 'Session expired or not found. Start a new chat.';
     if (e.errorCode == 'turn_limit_reached') return 'This session is complete. Start a new chat.';
     return e.message ?? 'Something went wrong.';
   }

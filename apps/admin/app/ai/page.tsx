@@ -405,7 +405,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                     <th>Prompt</th>
                     <th>Status</th>
                     <th>Updated</th>
-                    <th>Activate</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -422,32 +422,66 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                         <div className="muted text-xs">{prompt.updatedBy ?? "unknown"}</div>
                       </td>
                       <td>
-                        {!prompt.isActive ? (
+                        <div className="inline-controls">
                           <details className="row-action-details">
-                            <summary className="badge">Activate</summary>
-                            <form action={activatePromptAction} className="mini-form">
+                            <summary className="badge">Edit</summary>
+                            <form action={updatePromptAction} className="mini-form">
                               <input name="id" type="hidden" value={prompt.id} />
                               <input
                                 name="idempotencyKey"
                                 type="hidden"
-                                value={createMutationKey(`prompt:${prompt.id}:activate`)}
+                                value={createMutationKey(`prompt:${prompt.id}:update`)}
+                              />
+                              <p className="muted text-xs mb-1 font-semibold">{prompt.title}</p>
+                              <textarea
+                                className="textarea"
+                                name="body"
+                                defaultValue={prompt.body}
+                                minLength={100}
+                                maxLength={20000}
+                                required
+                                rows={10}
                               />
                               <input
                                 className="input"
                                 name="reason"
-                                placeholder="Activation reason"
+                                placeholder="Reason for change"
                                 minLength={8}
                                 maxLength={500}
                                 required
                               />
                               <button className="button" type="submit">
-                                Activate
+                                Save & Activate
                               </button>
                             </form>
                           </details>
-                        ) : (
-                          <Badge>Current</Badge>
-                        )}
+                          {!prompt.isActive ? (
+                            <details className="row-action-details">
+                              <summary className="badge">Activate</summary>
+                              <form action={activatePromptAction} className="mini-form">
+                                <input name="id" type="hidden" value={prompt.id} />
+                                <input
+                                  name="idempotencyKey"
+                                  type="hidden"
+                                  value={createMutationKey(`prompt:${prompt.id}:activate`)}
+                                />
+                                <input
+                                  className="input"
+                                  name="reason"
+                                  placeholder="Activation reason"
+                                  minLength={8}
+                                  maxLength={500}
+                                  required
+                                />
+                                <button className="button" type="submit">
+                                  Activate
+                                </button>
+                              </form>
+                            </details>
+                          ) : (
+                            <Badge>Current</Badge>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -458,97 +492,6 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
           </div>
 
           <div className="grid gap-4">
-            <div className="panel">
-              <div className="section-head">
-                <div>
-                  <h2 className="text-xl font-bold">Quick Edit & Activate</h2>
-                  <p className="muted text-sm">
-                    Edit the active prompt body below and save. Changes take effect immediately for
-                    new sessions.
-                  </p>
-                </div>
-                <span className="badge">{activePrompts.length} active</span>
-              </div>
-              {activePrompts.length > 0 ? (
-                <form action={updatePromptAction} className="form-grid mt-4">
-                  <input
-                    name="idempotencyKey"
-                    type="hidden"
-                    value={createMutationKey(`prompt:${activePrompts[0].id}:update`)}
-                  />
-                  <input name="id" type="hidden" value={activePrompts[0].id} />
-                  <input
-                    className="input"
-                    name="title"
-                    defaultValue={activePrompts[0].title}
-                    minLength={3}
-                    maxLength={160}
-                  />
-                  <textarea
-                    className="textarea"
-                    name="body"
-                    defaultValue={activePrompts[0].body}
-                    minLength={100}
-                    maxLength={20000}
-                    required
-                    rows={16}
-                  />
-                  <input
-                    className="input"
-                    name="reason"
-                    placeholder="Reason for this change"
-                    minLength={8}
-                    maxLength={500}
-                    required
-                  />
-                  <div className="form-actions">
-                    <button className="button" type="submit">
-                      Save & Activate
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <p className="muted mt-3">
-                  No active prompt is configured. Create a draft and activate it above.
-                </p>
-              )}
-            </div>
-            <div className="panel">
-              <div className="section-head">
-                <h2 className="text-xl font-bold">Read-only preview</h2>
-                <p className="muted text-sm">Inspect the full body of all prompt versions.</p>
-              </div>
-              {activePrompts.length > 0 ? (
-                <div className="prompt-preview-list">
-                  {prompts.map((prompt) => (
-                    <details className="prompt-preview" key={prompt.id}>
-                      <summary className="prompt-preview-summary">
-                        <span>
-                          <span className="font-semibold">{prompt.title}</span>
-                          <span className="muted block text-xs">
-                            {prompt.key} · {prompt.version}
-                            {prompt.isActive ? " · Active" : ` · ${prompt.status}`}
-                          </span>
-                        </span>
-                        <span className="inline-controls">
-                          {prompt.isActive ? <Badge>Active</Badge> : null}
-                          <span className="muted text-xs">View body</span>
-                        </span>
-                      </summary>
-                      <div className="prompt-preview-body">
-                        <p className="muted mt-3 text-sm">
-                          Updated {formatDate(prompt.updatedAt)} by {prompt.updatedBy ?? "unknown"}
-                        </p>
-                        <pre className="code-block prompt-code mt-3">{prompt.body}</pre>
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted mt-3">No prompt versions yet.</p>
-              )}
-            </div>
-
             <div className="panel">
               <h2 className="text-xl font-bold">Create prompt draft</h2>
               <form action={createPromptAction} className="form-grid mt-4">
