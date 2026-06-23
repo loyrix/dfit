@@ -513,6 +513,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
                   <option value="food_photo_IN" />
                   <option value="food_photo_GLOBAL" />
                   <option value="nutritionist_prompt" />
+                  <option value="website_reference_content" />
                 </datalist>
                 <input
                   className="input"

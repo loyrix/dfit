@@ -1,10 +1,27 @@
 import type { NutritionistContext } from "./nutritionist-context.js";
+import { WEBSITE_CONTENT_PLACEHOLDER } from "./website-reference-content.js";
 
 const CONTEXT_JSON_PLACEHOLDER = "{{CONTEXT_JSON}}";
+
+const appendWebsiteContent = (prompt: string, websiteContent?: string): string => {
+  if (!websiteContent) return prompt;
+
+  if (prompt.includes(WEBSITE_CONTENT_PLACEHOLDER)) {
+    return prompt.replace(WEBSITE_CONTENT_PLACEHOLDER, websiteContent);
+  }
+
+  return `${prompt}
+
+## Reference Material (App Website Content)
+Use the following information to answer general questions about the app's features, policies, account management, subscriptions, privacy, and troubleshooting. If a question falls outside your expertise and this reference material, direct the user to check the website or contact support.
+
+${websiteContent}`;
+};
 
 export const buildNutritionistSystemPrompt = (
   context: NutritionistContext,
   basePrompt?: string,
+  websiteContent?: string,
 ): string => {
   const ctxJson = JSON.stringify(context, null, 0);
 
@@ -33,11 +50,12 @@ export const buildNutritionistSystemPrompt = (
 
   const promptBody = basePrompt ?? defaultPrompt;
 
-  if (promptBody.includes(CONTEXT_JSON_PLACEHOLDER)) {
-    return promptBody.replace(CONTEXT_JSON_PLACEHOLDER, ctxJson);
-  }
+  let prompt = promptBody;
 
-  return `${promptBody}
+  if (prompt.includes(CONTEXT_JSON_PLACEHOLDER)) {
+    prompt = prompt.replace(CONTEXT_JSON_PLACEHOLDER, ctxJson);
+  } else {
+    prompt = `${prompt}
 
 ## Data Privacy
 - You have access to the user's nutritional data below. Never reference their profile ID, email, or any personal identifiable information.
@@ -52,4 +70,7 @@ export const buildNutritionistSystemPrompt = (
 
 NUTRITIONIST_CONTEXT_JSON:
 ${ctxJson}`;
+  }
+
+  return appendWebsiteContent(prompt, websiteContent);
 };

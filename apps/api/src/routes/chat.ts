@@ -95,10 +95,14 @@ export const registerChatRoutes = async (
       repository.getAiPrompt("nutritionist_prompt"),
     );
 
+    const websiteContent = await timer.measure("websiteContent", () =>
+      repository.getAiPrompt("website_reference_content"),
+    );
+
     const effectiveMaxTurns = chatSettings.maxTurnsPerSession;
     const welcomeMessagePrompt = chatSettings.welcomeMessagePrompt;
 
-    const systemPrompt = buildNutritionistSystemPrompt(context, basePrompt);
+    const systemPrompt = buildNutritionistSystemPrompt(context, basePrompt, websiteContent);
     const suggestedPrompts = generateSuggestedPrompts(context);
 
     const welcomeMessageContent = await timer.measure("welcome", async () => {

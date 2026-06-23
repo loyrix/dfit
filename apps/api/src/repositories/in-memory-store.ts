@@ -1018,6 +1018,9 @@ export class InMemoryStore implements AppRepository {
   }
 
   async getAiPrompt(key: string): Promise<string | undefined> {
+    if (key === "website_reference_content") {
+      return undefined;
+    }
     return "You are an AI Nutritionist...";
   }
 
