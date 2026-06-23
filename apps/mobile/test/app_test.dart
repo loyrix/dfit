@@ -2484,10 +2484,18 @@ class _SuccessfulAuthGateway implements AccountAuthGateway {
 }
 
 Future<void> _pumpAppFrame(WidgetTester tester) async {
-  await tester.pump();
-  await tester.runAsync(() async {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  });
+  // Drain real async work (e.g. SharedPreferences session restore) across
+  // several event-loop turns. A single fixed delay is flaky under parallel
+  // test execution: when the CPU is busy running other test files, real async
+  // work can take longer than one delay, so the app is still on the
+  // not-signed-in path when the test interacts with it. Multiple short rounds
+  // give that work reliable opportunities to complete.
+  for (var round = 0; round < 6; round++) {
+    await tester.pump();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 8));
+    });
+  }
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 450));
 }
