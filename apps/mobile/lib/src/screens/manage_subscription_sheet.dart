@@ -150,6 +150,15 @@ class ManageSubscriptionSheet extends StatelessWidget {
                     height: 1.4,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  'Refunds are handled by the store where you purchased. Visit Apple Support or Google Play Help to request a refund.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textTertiary,
+                    height: 1.4,
+                  ),
+                ),
                 const SizedBox(height: 8),
               ],
             ),

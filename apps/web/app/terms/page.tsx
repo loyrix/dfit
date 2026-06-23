@@ -192,9 +192,24 @@ export default function TermsPage() {
           </p>
           <p>
             Refunds, charge disputes, payment methods, taxes, and billing support are handled by the
-            store where you purchased the subscription. We can help investigate entitlement or
-            access issues, but store payments are processed by Apple or Google rather than
-            LogMyPlate.
+            store where you purchased the subscription. To request a refund on an Apple device visit{" "}
+            <a
+              href="https://support.apple.com/en-us/118428"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Apple's refund request page
+            </a>
+            . On Google Play visit{" "}
+            <a
+              href="https://support.google.com/googleplay/answer/2479637"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Play's refund help page
+            </a>
+            . We can help investigate entitlement or access issues, but store payments are processed
+            by Apple or Google rather than LogMyPlate.
           </p>
           <p>
             We use RevenueCat to manage subscription entitlement status, restore purchases, and sync
