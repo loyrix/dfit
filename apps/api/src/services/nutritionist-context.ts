@@ -51,19 +51,6 @@ export type NutritionistContext = {
     currentDays: number;
     longestDays: number;
   };
-  focusMeal?: {
-    type: string;
-    title: string;
-    loggedAt: string;
-    items: Array<{
-      name: string;
-      quantity: number;
-      unit: string;
-      calories: number;
-      proteinG: number;
-    }>;
-    totals: { calories: number; proteinG: number; carbsG: number; fatG: number };
-  };
 };
 
 const toMacroNumbers = (totals: {
@@ -142,6 +129,26 @@ const dayAggregateToSummary = (d: DailyMealAggregate) => ({
   totals: toMacroNumbers(d.totals ?? {}),
 });
 
+const buildProfile = (healthTarget: ProfileHealthTarget | undefined) => ({
+  ageYears: healthTarget?.ageYears,
+  sex: healthTarget?.sex,
+  heightCm: healthTarget?.heightCm,
+  weightKg: healthTarget?.weightKg,
+  bmi: healthTarget?.bmi,
+  bmiCategory: healthTarget?.bmiCategory,
+  activityLevel: healthTarget?.activityLevel,
+  goal: healthTarget?.goal,
+  dailyCalorieTarget: healthTarget?.dailyCalorieTarget,
+  bmrCalories: healthTarget?.bmrCalories,
+});
+
+const EMPTY_WEEK: NutritionistContext["weekSummary"] = {
+  activeDays: 0,
+  mealCount: 0,
+  trackedDayAverage: { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+  dailyBreakdown: [],
+};
+
 export const assembleNutritionistContext = async (
   repository: AppRepository,
   healthTarget: ProfileHealthTarget | undefined,
@@ -149,13 +156,49 @@ export const assembleNutritionistContext = async (
   focusMealId?: string,
 ): Promise<NutritionistContext> => {
   const today = formatToday(timezone);
+
   const sevenDaysAgo = formatDaysAgo(7, timezone);
 
-  const [todayMeals, weekSummary, focusMeal] = await Promise.all([
+  const [todayMeals, weekSummary] = await Promise.all([
     repository.listMeals({ fromDate: today, toDate: today }),
     repository.summarizeMealsByDate({ fromDate: sevenDaysAgo, toDate: today }),
-    focusMealId ? repository.getMeal(focusMealId) : Promise.resolve(undefined),
   ]);
+
+  if (focusMealId) {
+    const meal = await repository.getMeal(focusMealId);
+    if (meal) {
+      const summary = mealToSummary(meal);
+      const activeDays = weekSummary.filter((d) => d.mealCount > 0).length;
+      const totalMealCount = weekSummary.reduce((acc, d) => acc + d.mealCount, 0);
+      const trackedDayTotals = sumDayAggregates(weekSummary);
+      const trackedDayAverage =
+        activeDays > 0
+          ? {
+              calories: Math.round(trackedDayTotals.calories / activeDays),
+              proteinG: Math.round(trackedDayTotals.proteinG / activeDays),
+              carbsG: Math.round(trackedDayTotals.carbsG / activeDays),
+              fatG: Math.round(trackedDayTotals.fatG / activeDays),
+            }
+          : { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
+
+      return {
+        profile: buildProfile(healthTarget),
+        today: {
+          date: today,
+          mealsLogged: 1,
+          totals: summary.totals,
+          meals: [summary],
+        },
+        weekSummary: {
+          activeDays,
+          mealCount: totalMealCount,
+          trackedDayAverage,
+          dailyBreakdown: weekSummary.map(dayAggregateToSummary),
+        },
+        streak: { currentDays: 0, longestDays: 0 },
+      };
+    }
+  }
 
   const todayTotals = sumMacros(todayMeals);
   const target = healthTarget
@@ -185,19 +228,8 @@ export const assembleNutritionistContext = async (
         }
       : { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 };
 
-  const context: NutritionistContext = {
-    profile: {
-      ageYears: healthTarget?.ageYears,
-      sex: healthTarget?.sex,
-      heightCm: healthTarget?.heightCm,
-      weightKg: healthTarget?.weightKg,
-      bmi: healthTarget?.bmi,
-      bmiCategory: healthTarget?.bmiCategory,
-      activityLevel: healthTarget?.activityLevel,
-      goal: healthTarget?.goal,
-      dailyCalorieTarget: healthTarget?.dailyCalorieTarget,
-      bmrCalories: healthTarget?.bmrCalories,
-    },
+  return {
+    profile: buildProfile(healthTarget),
     today: {
       date: today,
       mealsLogged: todayMeals.length,
@@ -216,10 +248,4 @@ export const assembleNutritionistContext = async (
       longestDays: 0,
     },
   };
-
-  if (focusMeal) {
-    context.focusMeal = mealToSummary(focusMeal);
-  }
-
-  return context;
 };

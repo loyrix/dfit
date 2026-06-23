@@ -342,15 +342,22 @@ describe("generateSuggestedPrompts", () => {
     expect(prompts.length).toBeLessThanOrEqual(4);
   });
 
-  it("includes meal-specific prompts when focus meal is present", () => {
+  it("includes meal-specific prompts when a single meal is logged", () => {
     const prompts = generateSuggestedPrompts(
       baseContext({
-        focusMeal: {
-          type: "lunch",
-          title: "Dal Rice",
-          loggedAt: "2026-06-14T12:00:00Z",
-          items: [],
+        today: {
+          date: "2026-06-14",
+          mealsLogged: 1,
           totals: { calories: 600, proteinG: 20, carbsG: 80, fatG: 15 },
+          meals: [
+            {
+              type: "lunch",
+              title: "Dal Rice",
+              loggedAt: "2026-06-14T12:00:00Z",
+              items: [],
+              totals: { calories: 600, proteinG: 20, carbsG: 80, fatG: 15 },
+            },
+          ],
         },
       }),
     );

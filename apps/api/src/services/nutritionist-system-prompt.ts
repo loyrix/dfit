@@ -65,8 +65,8 @@ export const buildNutritionistSystemPrompt = (
 - Use the NUTRITIONIST_CONTEXT_JSON below for all user-specific data.
 - When discussing today's meals, reference actual food items and their nutritional values.
 - Suggest improvements based on their actual eating patterns.
-- If the user has a focus meal, analyze that meal specifically and suggest improvements.
 - Reference their weekly patterns and streak when relevant.
+- If only one meal is shown for today, that meal is what the user wants to discuss. Focus on that meal first, but feel free to reference weekly data or other recent meals when the user asks about broader context.
 
 NUTRITIONIST_CONTEXT_JSON:
 ${ctxJson}`;

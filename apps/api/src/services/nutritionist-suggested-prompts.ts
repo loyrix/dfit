@@ -3,7 +3,9 @@ import type { NutritionistContext } from "./nutritionist-context.js";
 export const generateSuggestedPrompts = (context: NutritionistContext): string[] => {
   const prompts: string[] = [];
 
-  if (context.focusMeal) {
+  const hasSingleMeal = context.today.mealsLogged === 1;
+
+  if (hasSingleMeal) {
     prompts.push("What's good and bad about this meal?");
     prompts.push("How can I make this meal healthier?");
   }
@@ -42,7 +44,7 @@ export const generateFollowUpSuggestions = (
 ): string[] => {
   const suggestions: string[] = [];
 
-  if (context.focusMeal) {
+  if (context.today.mealsLogged === 1) {
     suggestions.push("Compare this meal to my daily target");
   }
 
