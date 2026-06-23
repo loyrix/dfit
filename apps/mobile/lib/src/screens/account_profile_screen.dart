@@ -231,7 +231,10 @@ class AccountProfileScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ProfileLifecycleSheet(action: action),
+      builder: (_) => _ProfileLifecycleSheet(
+        action: action,
+        subscription: subscription,
+      ),
     );
     if (confirmed != true || !context.mounted || loading) return;
 
@@ -447,9 +450,10 @@ class _ProfileActionRow extends StatelessWidget {
 enum _ProfileLifecycleAction { deactivate, delete }
 
 class _ProfileLifecycleSheet extends StatelessWidget {
-  const _ProfileLifecycleSheet({required this.action});
+  const _ProfileLifecycleSheet({required this.action, this.subscription});
 
   final _ProfileLifecycleAction action;
+  final SubscriptionStatus? subscription;
 
   bool get isDelete => action == _ProfileLifecycleAction.delete;
 
@@ -494,6 +498,16 @@ class _ProfileLifecycleSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
+              if (isDelete && subscription?.active == true) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Deleting your account does not cancel your subscription. Cancel it in the App Store / Play Store to stop billing.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textTertiary,
+                    height: 1.35,
+                  ),
+                ),
+              ],
               const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,

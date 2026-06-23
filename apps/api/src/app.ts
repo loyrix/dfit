@@ -22,7 +22,7 @@ import { registerSubscriptionRoutes } from "./routes/subscriptions.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { registerCronRoutes } from "./routes/cron.js";
 import { registerChatRoutes } from "./routes/chat.js";
-import { config } from "./config.js";
+import { config, type ApiConfig } from "./config.js";
 import { createAiProvider, type AiProvider } from "./services/ai-provider.js";
 import { createChatAiProvider, type ChatAiProvider } from "./services/chat-ai-provider.js";
 import {
@@ -52,6 +52,7 @@ export type BuildAppOptions = {
   oauthVerifier?: OAuthIdentityVerifier;
   mealImageStorage?: MealImageStorage;
   passwordResetEmailSender?: PasswordResetEmailSender;
+  revenueCat?: ApiConfig["revenueCat"];
 };
 
 export const buildApp = async (options: BuildAppOptions = {}) => {
@@ -119,7 +120,7 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
     oauthVerifier,
     passwordResetEmailSender,
   );
-  await registerSubscriptionRoutes(app, repository, config.revenueCat);
+  await registerSubscriptionRoutes(app, repository, options.revenueCat ?? config.revenueCat);
   await registerBootstrapRoutes(app, repository, mealImageStorage, sql);
   await registerJournalRoutes(app, repository, mealImageStorage);
   await registerScanRoutes(app, repository, mealImageStorage, aiProvider);

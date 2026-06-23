@@ -36,6 +36,7 @@ describe("API config", () => {
         AI_PROVIDER: "gemini",
         GEMINI_API_KEY: "test-key",
         RESEND_API_KEY: "re_test",
+        REVENUECAT_WEBHOOK_AUTH_TOKEN: "test-token",
       }).aiProvider,
     ).toBe("gemini");
   });
@@ -158,6 +159,7 @@ describe("API config", () => {
       GOOGLE_APPLICATION_CREDENTIALS_JSON_BASE64: "eyJjbGllbnRfZW1haWwiOiJzYSJ9",
       VERTEX_AI_MAX_OUTPUT_TOKENS: "3072",
       RESEND_API_KEY: "re_test",
+      REVENUECAT_WEBHOOK_AUTH_TOKEN: "test-token",
     });
 
     expect(config.aiProvider).toBe("vertex");

@@ -17,12 +17,14 @@ class PremiumPaywallSheet extends StatefulWidget {
     required this.subscription,
     required this.onPurchase,
     required this.onRestore,
+    this.onManage,
   });
 
   final PremiumOffering offering;
   final SubscriptionStatus? subscription;
   final Future<bool> Function(PremiumPlan plan) onPurchase;
   final Future<bool> Function() onRestore;
+  final VoidCallback? onManage;
 
   @override
   State<PremiumPaywallSheet> createState() => _PremiumPaywallSheetState();
@@ -44,6 +46,10 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.subscription?.active == true) {
+      return _buildActiveSubscriberView(context);
+    }
+
     final colors = context.logmyplate;
     final selectedPlan = _selectedPlan;
 
@@ -243,6 +249,94 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
     } finally {
       if (mounted) setState(() => _restoring = false);
     }
+  }
+
+  Widget _buildActiveSubscriberView(BuildContext context) {
+    final colors = context.logmyplate;
+    final sub = widget.subscription;
+    final periodEnd = sub?.currentPeriodEnd;
+    final periodEndText = periodEnd != null
+        ? '${periodEnd.year}-${periodEnd.month.toString().padLeft(2, '0')}-${periodEnd.day.toString().padLeft(2, '0')}'
+        : null;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+          child: GlassCard(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+            borderRadius: BorderRadius.circular(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.textSecondary.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Icon(
+                  Icons.workspace_premium_rounded,
+                  color: LogMyPlateColors.accent,
+                  size: 40,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "You're already Premium",
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (periodEndText != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Next billing date: $periodEndText',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                GlassWrapper(
+                  child: SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        widget.onManage?.call();
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: LogMyPlateColors.accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            LogMyPlateSpacing.cardBorderRadius,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Manage subscription',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -449,3 +543,4 @@ class _UnavailablePlans extends StatelessWidget {
     );
   }
 }
+

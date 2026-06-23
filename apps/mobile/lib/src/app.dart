@@ -24,6 +24,7 @@ import 'screens/health_target_screen.dart';
 import 'screens/meal_detail_screen.dart';
 import 'screens/nutritionist_chat_screen.dart';
 import 'screens/paywall_screen.dart';
+import 'screens/manage_subscription_sheet.dart';
 import 'screens/profile_screen.dart';
 import 'screens/review_meal_screen.dart';
 
@@ -281,6 +282,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           onThemeChanged: _setThemeMode,
                           onOpenAccount: _openProfileAccount,
                           onOpenPaywall: _openPaywall,
+                          onManage: _openManageSubscription,
                           onDeleteAccount: _deleteProfileFromAccount,
                           onSignOut: _signOutFromProfile,
                         ),
@@ -929,6 +931,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         subscription: _journalController.subscription,
         onPurchase: (plan) => _purchasePremiumPlan(plan, appUserId: appUserId),
         onRestore: () => _restorePremiumPurchase(appUserId: appUserId),
+        onManage: _openManageSubscription,
       ),
     );
 
@@ -942,6 +945,23 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       message: 'Your Premium scan quota is ready.',
     );
     return (_journalController.quota?.totalRemaining ?? 0) > 0;
+  }
+
+  void _openManageSubscription() {
+    final context = _navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    final subscription = _journalController.subscription;
+    if (subscription == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ManageSubscriptionSheet(
+        subscription: subscription,
+        onManageInStore: _manageSubscription,
+        onRestore: () => _restorePremiumPurchase(appUserId: subscription.appUserId),
+      ),
+    );
   }
 
   Future<bool> _purchasePremiumPlan(
@@ -963,6 +983,10 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       appUserId: appUserId,
     );
     return restoredInRevenueCat && subscription.active;
+  }
+
+  Future<void> _manageSubscription() async {
+    await _subscriptions.showManageSubscriptions();
   }
 
   Future<void> _unlockScanFromToday() async {
@@ -1258,7 +1282,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => const DeleteAccountSheet(),
+        builder: (_) => DeleteAccountSheet(subscription: _journalController.subscription),
       );
       if (confirmed == true && mounted) {
         await _deleteProfileFromAccount();

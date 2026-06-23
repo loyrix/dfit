@@ -3398,4 +3398,257 @@ describe("LogMyPlate API", () => {
     expect(analyzed.json()).toMatchObject({ error: "invalid_scan_image" });
     await app.close();
   });
+
+  describe("subscription hardening", () => {
+    const TOKEN = "test-webhook-token";
+    const rcWithToken = {
+      restApiKey: undefined as string | undefined,
+      apiBaseUrl: "https://api.revenuecat.com/v1",
+      entitlementId: "premium",
+      premiumMonthlyScanLimit: 300,
+      premiumDailyScanLimit: 10,
+      webhookAuthToken: TOKEN,
+    };
+
+    const signupProfile = async (app: Awaited<ReturnType<typeof testApp>>, email: string) => {
+      const installHeaders = {
+        "x-logmyplate-install-id": `install-${email.replace(/[^a-z0-9]/g, "")}`,
+        "x-logmyplate-platform": "ios",
+      };
+      const signup = await app.inject({
+        method: "POST",
+        url: "/v1/auth/email/signup",
+        headers: installHeaders,
+        payload: { email, password: "secret1" },
+      });
+      expect(signup.statusCode).toBe(201);
+      return {
+        profileId: signup.json().profile.id as string,
+        headers: {
+          ...installHeaders,
+          authorization: `Bearer ${signup.json().accessToken}`,
+        },
+      };
+    };
+
+    const webhookPayload = (
+      type: string,
+      appUserId: string,
+      overrides: Record<string, unknown> = {},
+    ) => ({
+      method: "POST" as const,
+      url: "/v1/subscription/revenuecat/webhook",
+      headers: { authorization: `Bearer ${TOKEN}` },
+      payload: {
+        event: {
+          id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type,
+          app_user_id: appUserId,
+          entitlement_ids: ["premium"],
+          product_id: "com.logmyplate.premium.monthly",
+          store: "APP_STORE",
+          purchased_at_ms: Date.now(),
+          expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          environment: "SANDBOX",
+          ...overrides,
+        },
+      },
+    });
+
+    const sendRCWebhook = (
+      app: Awaited<ReturnType<typeof testApp>>,
+      type: string,
+      appUserId: string,
+      overrides: Record<string, unknown> = {},
+    ) => app.inject(webhookPayload(type, appUserId, overrides));
+
+    it("1. auth fail-closed: returns 401 when webhookAuthToken is not configured", async () => {
+      const app = await testApp({
+        revenueCat: { ...rcWithToken, webhookAuthToken: undefined },
+      });
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/subscription/revenuecat/webhook",
+        payload: { event: { id: "test", type: "TEST", app_user_id: "u1" } },
+      });
+      expect(res.statusCode).toBe(401);
+      expect(res.json()).toMatchObject({ error: "invalid_revenuecat_webhook_auth" });
+      await app.close();
+    });
+
+    it("2. auth required match: rejects wrong auth and accepts correct Bearer token", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId } = await signupProfile(app, "auth-match@example.com");
+
+      const wrong = await app.inject({
+        ...webhookPayload("INITIAL_PURCHASE", profileId),
+        headers: { authorization: "Bearer wrong-token" },
+      });
+      expect(wrong.statusCode).toBe(401);
+
+      const correct = await app.inject(webhookPayload("INITIAL_PURCHASE", profileId));
+      expect(correct.statusCode).toBe(200);
+      expect(correct.json()).toEqual({ received: true });
+
+      const raw = await app.inject({
+        ...webhookPayload("INITIAL_PURCHASE", profileId),
+        headers: { authorization: TOKEN },
+      });
+      expect(raw.statusCode).toBe(200);
+      await app.close();
+    });
+
+    it("3. orphan profile: returns 200 for valid-UUID-but-nonexistent app_user_id", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const res = await sendRCWebhook(
+        app,
+        "INITIAL_PURCHASE",
+        "00000000-0000-4000-8000-000000000001",
+      );
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ received: true });
+      await app.close();
+    });
+
+    it("4. out-of-order: rejects EXPIRATION with older period end after RENEWAL", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "outoforder@example.com");
+      const now = Date.now();
+      const day30 = now + 30 * 24 * 60 * 60 * 1000;
+      const day60 = now + 60 * 24 * 60 * 60 * 1000;
+
+      await sendRCWebhook(app, "INITIAL_PURCHASE", profileId, {
+        expiration_at_ms: day30,
+      });
+      let sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().active).toBe(true);
+
+      await sendRCWebhook(app, "RENEWAL", profileId, { expiration_at_ms: day60 });
+      sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().active).toBe(true);
+
+      await sendRCWebhook(app, "EXPIRATION", profileId, { expiration_at_ms: day30 });
+      sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().active).toBe(true);
+      expect(sub.json().status).toBe("active");
+      await app.close();
+    });
+
+    it("5. billing recovery: transitions billing_issue → active after RENEWAL", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "billing@example.com");
+
+      await sendRCWebhook(app, "INITIAL_PURCHASE", profileId);
+      await sendRCWebhook(app, "BILLING_ISSUE", profileId);
+
+      let sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().status).toBe("billing_issue");
+
+      await sendRCWebhook(app, "RENEWAL", profileId);
+      sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().status).toBe("active");
+      expect(sub.json().active).toBe(true);
+      await app.close();
+    });
+
+    it("6. lifecycle: transitions cancelled → active after UNCANCELLATION", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "lifecycle@example.com");
+
+      await sendRCWebhook(app, "INITIAL_PURCHASE", profileId);
+      await sendRCWebhook(app, "CANCELLATION", profileId);
+
+      let sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().status).toBe("cancelled");
+      expect(sub.json().willRenew).toBe(false);
+
+      await sendRCWebhook(app, "UNCANCELLATION", profileId);
+      sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().status).toBe("active");
+      expect(sub.json().willRenew).toBe(true);
+      await app.close();
+    });
+
+    it("7. product change: keeps active with new product id after PRODUCT_CHANGE", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "product-change@example.com");
+
+      await sendRCWebhook(app, "INITIAL_PURCHASE", profileId);
+      await sendRCWebhook(app, "PRODUCT_CHANGE", profileId, {
+        product_id: "com.logmyplate.premium.yearly",
+      });
+
+      const sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().active).toBe(true);
+      expect(sub.json().productId).toBe("com.logmyplate.premium.yearly");
+      await app.close();
+    });
+
+    it("8. premium scan limits: does not consume premium credit beyond cap", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "scanlimit@example.com");
+
+      await sendRCWebhook(app, "INITIAL_PURCHASE", profileId);
+
+      let sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().usage.premiumRemaining).toBe(10);
+
+      for (let i = 0; i < 10; i++) {
+        await consumeOneScanCredit(app, headers, `scanlimit-${i}`);
+      }
+
+      sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().usage.premiumRemaining).toBe(0);
+      expect(sub.json().usage.usedThisPeriod).toBe(10);
+
+      await consumeOneScanCredit(app, headers, "scanlimit-after");
+      sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().usage.premiumRemaining).toBe(0);
+      await app.close();
+    });
+
+    it("9. expiration: shows active=false when current_period_end is in the past", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "expired@example.com");
+
+      await sendRCWebhook(app, "INITIAL_PURCHASE", profileId, {
+        expiration_at_ms: Date.now() - 1000,
+      });
+
+      const sub = await app.inject({ method: "GET", url: "/v1/subscription", headers });
+      expect(sub.json().active).toBe(false);
+      await app.close();
+    });
+
+    it("10. sync route: no crash when REST key missing, rejects profile mismatch", async () => {
+      const app = await testApp({ revenueCat: rcWithToken });
+      const { profileId, headers } = await signupProfile(app, "sync@example.com");
+
+      const sync = await app.inject({
+        method: "POST",
+        url: "/v1/subscription/revenuecat/sync",
+        headers: {
+          ...headers,
+          "content-type": "application/json",
+          "idempotency-key": "sync-test-1",
+        },
+        payload: {},
+      });
+      expect(sync.statusCode).toBe(200);
+
+      const mismatch = await app.inject({
+        method: "POST",
+        url: "/v1/subscription/revenuecat/sync",
+        headers: {
+          ...headers,
+          "content-type": "application/json",
+          "idempotency-key": "sync-test-2",
+        },
+        payload: { appUserId: "some-other-id" },
+      });
+      expect(mismatch.statusCode).toBe(403);
+      expect(mismatch.json()).toMatchObject({ error: "subscription_profile_mismatch" });
+      await app.close();
+    });
+  });
 });

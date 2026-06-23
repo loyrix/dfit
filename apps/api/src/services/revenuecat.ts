@@ -101,7 +101,7 @@ export const parseSubscriberEntitlement = (
     productId,
     currentPeriodStart: purchase,
     currentPeriodEnd: expiration ?? undefined,
-    willRenew: status === "active",
+    willRenew: !subscription?.unsubscribe_detected_at && active,
     rawPayload: payload,
   };
 };

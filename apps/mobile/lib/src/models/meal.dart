@@ -2139,7 +2139,16 @@ class SubscriptionStatus {
   String get shortLabel {
     if (!active) return 'Not active';
     if (currentPeriodEnd == null) return 'Active';
-    return willRenew == false ? 'Active until renewal date' : 'Active';
+    final date = _formatPeriodEnd(currentPeriodEnd!);
+    return willRenew == false ? 'Active until $date · not renewing' : 'Active · renews $date';
+  }
+
+  static String _formatPeriodEnd(DateTime value) {
+    final local = value.toLocal();
+    final y = local.year.toString().padLeft(4, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final d = local.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   factory SubscriptionStatus.inactive({

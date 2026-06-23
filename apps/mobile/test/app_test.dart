@@ -2420,6 +2420,9 @@ class _FakeSubscriptionGateway implements RevenueCatSubscriptionGateway {
   Future<void> logOut() async {
     logOutCount += 1;
   }
+
+  @override
+  Future<void> showManageSubscriptions() async {}
 }
 
 class _SuccessfulAuthGateway implements AccountAuthGateway {

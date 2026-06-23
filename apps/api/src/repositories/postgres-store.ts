@@ -279,6 +279,8 @@ const subscriptionEntitlementIsActive = (
   return Date.parse(currentPeriodEnd) > Date.now();
 };
 
+// Gap #8: UTC monthly period fallback for promotional entitlements (intentional: no store
+// subscription means there is no authoritative period, so we fall back to the current UTC month).
 const subscriptionPeriod = (
   entitlement: SubscriptionEntitlementRow | UpsertSubscriptionEntitlementInput | undefined,
 ): { periodStart: string; periodEnd: string } => {
@@ -1516,6 +1518,10 @@ export class PostgresStore implements AppRepository {
           latest_event_id = excluded.latest_event_id,
           raw_payload = excluded.raw_payload,
           updated_at = now()
+        where
+          excluded.current_period_end is null
+          or profile_subscription_entitlements.current_period_end is null
+          or excluded.current_period_end >= profile_subscription_entitlements.current_period_end
     `;
 
     return this.getSubscriptionStatusForProfile(profile);
@@ -3365,17 +3371,36 @@ export class PostgresStore implements AppRepository {
       currentPeriodEnd: status.currentPeriodEnd,
     });
     const today = localDateForTimezone(profile.timezone);
-    await this.sql`
-      insert into premium_scan_usage (profile_id, period_start, period_end, local_date, used)
-      values (${profile.id}, ${periodStart}, ${periodEnd}, ${today}, 1)
-      on conflict (profile_id, period_start, local_date) do update
-        set
-          used = premium_scan_usage.used + 1,
-          period_end = excluded.period_end,
-          updated_at = now()
+    const monthlyLimit = config.revenueCat.premiumMonthlyScanLimit;
+    const dailyLimit = config.revenueCat.premiumDailyScanLimit;
+
+    const [row] = await this.sql<{ consumed: boolean }[]>`
+      with totals as (
+        select
+          coalesce(sum(used), 0)::int as used_this_period,
+          coalesce(sum(used) filter (where local_date = ${today}), 0)::int as used_today
+        from premium_scan_usage
+        where profile_id = ${profile.id}
+          and period_start = ${periodStart}
+          and period_end = ${periodEnd}
+      ),
+      ins as (
+        insert into premium_scan_usage (profile_id, period_start, period_end, local_date, used)
+        select ${profile.id}, ${periodStart}, ${periodEnd}, ${today}, 1
+        from totals
+        where totals.used_today < ${dailyLimit}
+          and totals.used_this_period < ${monthlyLimit}
+        on conflict (profile_id, period_start, local_date) do update
+          set
+            used = premium_scan_usage.used + 1,
+            period_end = excluded.period_end,
+            updated_at = now()
+        returning 1 as written
+      )
+      select exists(select 1 from ins) as consumed
     `;
 
-    return true;
+    return row?.consumed === true;
   }
 
   private async applyAdSuspensionDailyCredits(profile: Profile): Promise<void> {

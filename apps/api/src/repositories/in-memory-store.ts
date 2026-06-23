@@ -578,6 +578,10 @@ export class InMemoryStore implements AppRepository {
       if (profileId === profile.id) this.resetInstallToAnonymous(installId);
     }
     this.healthTargets.delete(profile.id);
+    this.subscriptionEntitlements.delete(profile.id);
+    for (const key of [...this.premiumScanUsage.keys()]) {
+      if (key.startsWith(`${profile.id}:`)) this.premiumScanUsage.delete(key);
+    }
     this.quotas.delete(this.profileQuotaKey(profile.id));
     this.profiles.delete(profile.id);
     this.deactivatedProfiles.delete(profile.id);
@@ -643,6 +647,16 @@ export class InMemoryStore implements AppRepository {
     const profile = this.profiles.get(input.appUserId);
     if (!profile) {
       throw new AuthError("profile_not_found", "Subscription profile was not found.", 404);
+    }
+
+    const existing = this.subscriptionEntitlements.get(profile.id);
+    if (
+      existing &&
+      input.currentPeriodEnd != null &&
+      existing.currentPeriodEnd != null &&
+      input.currentPeriodEnd < existing.currentPeriodEnd
+    ) {
+      return this.subscriptionStatusFor(profile);
     }
 
     this.subscriptionEntitlements.set(profile.id, { ...input });

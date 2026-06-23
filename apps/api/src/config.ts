@@ -255,6 +255,10 @@ export const validateApiConfig = (candidate: ApiConfig): void => {
     throw new Error("RESEND_API_KEY is required when NODE_ENV=production.");
   }
 
+  if (candidate.nodeEnv === "production" && !candidate.revenueCat.webhookAuthToken?.trim()) {
+    throw new Error("REVENUECAT_WEBHOOK_AUTH_TOKEN is required when NODE_ENV=production.");
+  }
+
   for (const clientId of candidate.auth.googleClientIds) {
     if (!clientId.endsWith(".apps.googleusercontent.com")) {
       throw new Error("AUTH_GOOGLE_CLIENT_IDS must contain Google OAuth client IDs.");

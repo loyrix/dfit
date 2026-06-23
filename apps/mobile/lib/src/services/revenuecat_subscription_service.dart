@@ -1,6 +1,8 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum PremiumPlanKind {
   monthly,
@@ -74,6 +76,8 @@ abstract class RevenueCatSubscriptionGateway {
   Future<bool> restorePurchases({required String appUserId});
 
   Future<void> logOut();
+
+  Future<void> showManageSubscriptions();
 }
 
 class RevenueCatSubscriptionService implements RevenueCatSubscriptionGateway {
@@ -163,6 +167,21 @@ class RevenueCatSubscriptionService implements RevenueCatSubscriptionGateway {
       _configuredAppUserId = null;
     } catch (_) {
       _configuredAppUserId = null;
+    }
+  }
+
+  @override
+  Future<void> showManageSubscriptions() async {
+    if (!hasPlatformKey) return;
+    try {
+      final url = Platform.isIOS
+          ? Uri.parse('https://apps.apple.com/account/subscriptions')
+          : Uri.parse('https://play.google.com/store/account/subscriptions');
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      // Silently fail; the management sheet still shows info.
     }
   }
 

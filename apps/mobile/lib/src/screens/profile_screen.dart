@@ -22,6 +22,7 @@ class ProfileScreen extends StatelessWidget {
     required this.onSetTarget,
     required this.onOpenAccount,
     this.onOpenPaywall,
+    this.onManage,
     required this.onDeleteAccount,
     required this.onSignOut,
     this.bottomPadding = 188,
@@ -35,6 +36,7 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback onSetTarget;
   final VoidCallback onOpenAccount;
   final VoidCallback? onOpenPaywall;
+  final VoidCallback? onManage;
   final Future<bool> Function() onDeleteAccount;
   final Future<void> Function() onSignOut;
   final double bottomPadding;
@@ -85,6 +87,7 @@ class ProfileScreen extends StatelessWidget {
                 child: _PremiumAccessCard(
                   subscription: subscription,
                   onTap: onOpenPaywall!,
+                  onManage: onManage ?? () {},
                 ),
               ),
             ],
@@ -250,23 +253,33 @@ class _AccountHero extends StatelessWidget {
 }
 
 class _PremiumAccessCard extends StatelessWidget {
-  const _PremiumAccessCard({required this.subscription, required this.onTap});
+  const _PremiumAccessCard({
+    required this.subscription,
+    required this.onTap,
+    required this.onManage,
+  });
 
   final SubscriptionStatus? subscription;
   final VoidCallback onTap;
+  final VoidCallback onManage;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final active = subscription?.active == true;
     final usage = subscription?.usage;
-    final title = active ? 'Premium active' : 'Upgrade to Premium';
+    final cancelled = subscription?.status == SubscriptionAccessStatus.cancelled;
+    final title = !active
+        ? 'Upgrade to Premium'
+        : cancelled
+            ? 'Premium (not renewing)'
+            : 'Premium active';
     final subtitle = active && usage != null
-        ? '${usage.remainingToday}/${usage.dailyLimit} scans today - ${usage.remainingThisPeriod}/${usage.monthlyLimit} this month'
-        : '300 AI meal scans/month - up to 10 scans/day';
+        ? '${usage.remainingToday}/${usage.dailyLimit} scans today · ${usage.remainingThisPeriod}/${usage.monthlyLimit} this month'
+        : '300 AI meal scans/month · up to 10 scans/day';
 
     return InkWell(
-      onTap: onTap,
+      onTap: active ? onManage : onTap,
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
       child: Padding(
         padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
@@ -484,7 +497,9 @@ class _ProfileRowDivider extends StatelessWidget {
 }
 
 class DeleteAccountSheet extends StatelessWidget {
-  const DeleteAccountSheet({super.key});
+  const DeleteAccountSheet({super.key, this.subscription});
+
+  final SubscriptionStatus? subscription;
 
   @override
   Widget build(BuildContext context) {
@@ -525,6 +540,16 @@ class DeleteAccountSheet extends StatelessWidget {
                   height: 1.35,
                 ),
               ),
+              if (subscription?.active == true) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Deleting your account does not cancel your subscription. Cancel it in the App Store / Play Store to stop billing.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colors.textTertiary,
+                    height: 1.35,
+                  ),
+                ),
+              ],
               const SizedBox(height: LogMyPlateSpacing.lgSpacing),
               SizedBox(
                 height: 54,
