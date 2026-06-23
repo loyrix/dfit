@@ -670,12 +670,14 @@ class _PlateHintField extends StatelessWidget {
                 maxLines: keyboardOpen ? 5 : 8,
                 onChanged: (_) => onChanged(),
                 textInputAction: TextInputAction.newline,
+                textAlignVertical: TextAlignVertical.top,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: colors.textPrimary,
                   letterSpacing: 0,
                 ),
                 decoration: InputDecoration(
                   counterText: '',
+                  alignLabelWithHint: true,
                   hintText: 'e.g. 2 eggs, toast, and orange juice',
                   labelText: 'Food note:*',
                   labelStyle: Theme.of(context).textTheme.labelSmall
@@ -864,18 +866,21 @@ class _CaptureActionBar extends StatelessWidget {
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _CaptureButton(
-                  label: 'Analyze plate',
-                  icon: const Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 20,
+                SizedBox(
+                  width: double.infinity,
+                  child: _CaptureButton(
+                    label: 'Analyze plate',
+                    icon: const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 20,
+                    ),
+                    primary: true,
+                    progress: progress,
+                    loading: false,
+                    disabled: disabled || !canAnalyze,
+                    height: compact ? 52 : 58,
+                    onTap: onAnalyze,
                   ),
-                  primary: true,
-                  progress: progress,
-                  loading: false,
-                  disabled: disabled || !canAnalyze,
-                  height: compact ? 52 : 58,
-                  onTap: onAnalyze,
                 ),
                 SizedBox(height: compact ? 6 : 8),
                 Row(
