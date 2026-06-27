@@ -3,7 +3,9 @@ import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
-import { APP_CONFIG } from "@/config/app";
+import { OfferRibbon } from "@/components/offer-ribbon";
+import { LaunchOfferModal } from "@/components/launch-offer-modal";
+import { APP_CONFIG, isLaunchOfferActive } from "@/config/app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_CONFIG.websiteUrl),
@@ -97,6 +99,7 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const offerActive = isLaunchOfferActive();
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
@@ -109,9 +112,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <Nav />
-          <main className="flex-1">{children}</main>
+          {offerActive && <OfferRibbon />}
+          <Nav offsetForOffer={offerActive} />
+          <main className={offerActive ? "flex-1 pt-9" : "flex-1"}>{children}</main>
           <Footer />
+          {offerActive && <LaunchOfferModal />}
         </ThemeProvider>
       </body>
     </html>

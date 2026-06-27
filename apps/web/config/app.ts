@@ -30,6 +30,12 @@ export const APP_CONFIG = {
   supportEmail: "support@logmyplate.com",
   deleteAccountDeepLink: "logmyplate://delete-account",
 
+  // ── Launch offer ───────────────────────────────────────────────────────────
+  // Inclusive end date (local time). The site-wide ribbon and the first-visit
+  // offer popup are shown only on/before this date, then auto-hide.
+  // Launch offer runs through this date (inclusive).
+  offerEndDate: "2026-07-31",
+
   // ── AdMob ──────────────────────────────────────────────────────────────────
   admobPublisherId: "pub-6936425975956435",
 
@@ -39,3 +45,12 @@ export const APP_CONFIG = {
 } as const;
 
 export type AppConfig = typeof APP_CONFIG;
+
+/**
+ * Whether the launch offer is still running. True on or before `offerEndDate`.
+ * Evaluated at build time on the server and at runtime in client components.
+ */
+export function isLaunchOfferActive(now: Date = new Date()): boolean {
+  const end = new Date(`${APP_CONFIG.offerEndDate}T23:59:59`);
+  return now.getTime() <= end.getTime();
+}

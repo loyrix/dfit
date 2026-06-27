@@ -8,11 +8,12 @@ import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { label: "How it works", href: "/#how-it-works" },
+  { label: "AI Coach", href: "/#ai-nutritionist" },
   { label: "Guides", href: "/guides" },
   { label: "Support", href: "/support" },
 ];
 
-export function Nav() {
+export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -25,7 +26,7 @@ export function Nav() {
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      className={`fixed left-0 right-0 z-50 transition-all duration-300 ${offsetForOffer ? "top-9" : "top-0"}`}
       style={{
         background: scrolled ? "rgba(var(--background-rgb), 0.88)" : "transparent",
         backdropFilter: scrolled ? "blur(16px)" : "none",

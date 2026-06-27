@@ -176,8 +176,16 @@ export default function TermsPage() {
           <p>
             LogMyPlate may offer Premium as an auto-renewing subscription through Apple App Store
             and Google Play. Premium currently provides up to 300 AI meal scans per month, with a
-            maximum of 10 scans per day, unless a later in-app offer or store listing states
-            otherwise.
+            maximum of 10 scans per day, and up to 5 AI Nutritionist chat sessions per day, unless a
+            later in-app offer or store listing states otherwise.
+          </p>
+          <p>
+            A limited-time launch offer may give new accounts free access for an introductory period
+            (currently 30 days from release), including a daily allowance of AI meal scans and AI
+            Nutritionist chat sessions. When the launch offer ends, free AI meal scans are no longer
+            included; users may earn additional scans by watching ads or subscribe to Premium. Offer
+            scope, allowances, and duration are stated in-app or on the store listing and may
+            change.
           </p>
           <p>
             Subscription products, prices, local currency, taxes, trial terms, introductory offers,

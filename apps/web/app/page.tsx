@@ -13,13 +13,13 @@ export const metadata: Metadata = {
 
 const heroScreens = [
   {
-    src: "/screenshots/appstore/scan-ready-dark.webp",
-    alt: "LogMyPlate scan screen with an Indian veg thali photo ready to analyze",
+    src: "/screenshots/appstore/meal-result-light.webp",
+    alt: "LogMyPlate meal detail screen showing French toast calories and macros",
     className: "z-30 w-[220px] sm:w-[248px] lg:w-[276px]",
   },
   {
     src: "/screenshots/appstore/review-estimate-dark.webp",
-    alt: "LogMyPlate review estimate screen showing calories and macros",
+    alt: "LogMyPlate review estimate screen showing an Indian thali with calories and macros",
     className:
       "z-20 hidden sm:block w-[190px] lg:w-[224px] -ml-16 translate-y-14 rotate-[5deg] opacity-90",
   },
@@ -34,22 +34,22 @@ const flow = [
   {
     eyebrow: "Photo",
     title: "Photo plus food note",
-    body: "Start with one clear plate image. Add a short note like 'Indian veg thali' when it helps the AI.",
+    body: "Start with one clear plate image. Add a short note like 'French toast, maple syrup, berries' when it helps the AI.",
     image: "/screenshots/appstore/scan-ready-light.webp",
-    alt: "LogMyPlate light theme scan screen with a meal photo ready to analyze",
+    alt: "LogMyPlate light theme scan screen with a French toast photo ready to analyze",
   },
   {
     eyebrow: "Analyze",
     title: "AI reads the plate",
     body: "The app calculates calories and macro nutrients while keeping the photo flow simple.",
-    image: "/screenshots/appstore/analyzing-dark.webp",
+    image: "/screenshots/appstore/analyzing-light.webp",
     alt: "LogMyPlate analyzing screen reading a meal photo",
   },
   {
     eyebrow: "Review",
     title: "Confirm the estimate",
     body: "Review every item, portion, and macro before the meal is saved to your journal.",
-    image: "/screenshots/appstore/review-estimate-dark.webp",
+    image: "/screenshots/appstore/review-estimate-light.webp",
     alt: "LogMyPlate review estimate screen with food items to confirm",
   },
   {
@@ -62,9 +62,9 @@ const flow = [
 ];
 
 const macroItems = [
-  { label: "Protein", value: "33g", color: "var(--app-teal)" },
-  { label: "Carbs", value: "193g", color: "var(--app-amber)" },
-  { label: "Fat", value: "28g", color: "var(--app-coral)" },
+  { label: "Protein", value: "25g", color: "var(--app-teal)" },
+  { label: "Carbs", value: "113g", color: "var(--app-amber)" },
+  { label: "Fat", value: "21g", color: "var(--app-coral)" },
 ];
 
 function PhoneShot({
@@ -361,6 +361,83 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section
+        id="ai-nutritionist"
+        className="px-5 py-24 sm:px-6"
+        aria-label="AI nutritionist chat"
+      >
+        <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <span
+              className="mb-5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em]"
+              style={{
+                borderColor: "rgba(112, 202, 163, 0.32)",
+                background: "rgba(112, 202, 163, 0.12)",
+                color: "var(--app-teal)",
+              }}
+            >
+              ✦ Premium
+            </span>
+            <h2
+              className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl"
+              style={{ color: "var(--text-primary)" }}
+            >
+              An AI nutritionist that has read your last 7 days.
+            </h2>
+            <div
+              className="mt-6 flex max-w-xl flex-col gap-5 text-[16px] leading-relaxed"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <p>
+                Ask what to eat for dinner or how your week is balancing. The AI Nutritionist
+                answers from your own journal — calorie target, remaining energy, macros, and the
+                meals you actually logged.
+              </p>
+            </div>
+            <ul className="mt-7 flex flex-col gap-3.5">
+              {[
+                "Dinner ideas built around your remaining calories",
+                "Weekly balance and macro check-ins on demand",
+                "Grounded in your real logs, not generic advice",
+              ].map((point) => (
+                <li
+                  key={point}
+                  className="flex items-start gap-3 text-[15px]"
+                  style={{ color: "var(--text-secondary)" }}
+                >
+                  <span
+                    className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                    style={{ background: "var(--app-teal)" }}
+                    aria-hidden="true"
+                  />
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="relative flex justify-center lg:justify-end">
+            <div
+              className="absolute inset-6 rounded-[44px] opacity-70 blur-3xl"
+              style={{ background: "rgba(112, 202, 163, 0.16)" }}
+              aria-hidden="true"
+            />
+            <div className="relative flex items-center justify-center">
+              <PhoneShot
+                src="/screenshots/appstore/ai-chat-light.webp"
+                alt="LogMyPlate AI Nutritionist chat answering what to eat for dinner"
+                className="z-20 w-[230px] sm:w-[260px]"
+              />
+              <PhoneShot
+                src="/screenshots/appstore/weekly-summary-dark.webp"
+                alt="LogMyPlate weekly summary with macro mix and Ask AI Nutritionist"
+                className="z-10 hidden sm:block w-[180px] lg:w-[200px] -ml-14 translate-y-12 rotate-[6deg] opacity-95"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="px-5 py-24 sm:px-6" aria-label="Light and dark app themes">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 grid gap-8 lg:grid-cols-[0.85fr_1fr] lg:items-end">
@@ -387,9 +464,9 @@ export default function HomePage() {
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
-                src: "/screenshots/appstore/today-dashboard-dark.webp",
-                alt: "LogMyPlate dark theme today dashboard",
-                label: "Dark dashboard",
+                src: "/screenshots/appstore/scan-ready-dark.webp",
+                alt: "LogMyPlate dark theme scan screen with an Indian thali ready to analyze",
+                label: "Dark theme",
               },
               {
                 src: "/screenshots/appstore/today-dashboard-light.webp",
@@ -397,9 +474,9 @@ export default function HomePage() {
                 label: "Light dashboard",
               },
               {
-                src: "/screenshots/appstore/edit-target-dark.webp",
-                alt: "LogMyPlate daily target screen in dark theme",
-                label: "Target setup",
+                src: "/screenshots/appstore/edit-item-light.webp",
+                alt: "LogMyPlate edit item sheet in light theme",
+                label: "Edit any item",
               },
             ].map((shot) => (
               <div key={shot.src} className="flex flex-col items-center gap-4">
@@ -409,6 +486,111 @@ export default function HomePage() {
                 </p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="premium" className="px-5 py-24 sm:px-6" aria-label="Premium and launch offer">
+        <div
+          className="mx-auto max-w-6xl overflow-hidden rounded-[40px] border p-8 sm:p-12"
+          style={{
+            borderColor: "rgba(239, 189, 68, 0.3)",
+            background:
+              "linear-gradient(140deg, rgba(239, 189, 68, 0.16) 0%, rgba(245, 166, 35, 0.08) 45%, var(--app-card) 100%)",
+          }}
+        >
+          <h2 className="sr-only">
+            30 days of Premium free at launch — premium AI nutrition tracking access
+          </h2>
+
+          <div className="overflow-hidden rounded-[28px] shadow-xl">
+            <Image
+              src="/promo/launch-offer-landscape.webp"
+              alt="LogMyPlate 30 days free launch offer: 5 AI meal scans a day, extra scans via ads, and premium features"
+              width={1920}
+              height={1072}
+              priority={false}
+              sizes="(max-width: 768px) 90vw, 1100px"
+              className="hidden h-auto w-full sm:block"
+            />
+            <Image
+              src="/promo/launch-offer-portrait.webp"
+              alt="LogMyPlate 30 days free launch offer: 5 AI meal scans a day, extra scans via ads, and premium features"
+              width={1080}
+              height={1935}
+              priority={false}
+              sizes="90vw"
+              className="block h-auto w-full sm:hidden"
+            />
+          </div>
+
+          <p
+            className="mt-8 max-w-2xl text-[17px] leading-relaxed"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            For the first 30 days from launch, every new account gets daily AI meal scans and an AI
+            Nutritionist chat — free, no card needed. When the offer ends, keep scanning by watching
+            a quick ad, or unlock Premium.
+          </p>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            {[
+              {
+                label: "Free at launch · 30 days",
+                accent: "var(--app-teal)",
+                perks: [
+                  "5 AI meal scans every day",
+                  "1 AI Nutritionist chat every day",
+                  "Full photo, review, and journal flow",
+                ],
+              },
+              {
+                label: "Premium",
+                accent: "var(--app-amber)",
+                perks: [
+                  "300 AI meal scans / month (up to 10 a day)",
+                  "5 AI Nutritionist chats every day",
+                  "After launch: earn extra scans by watching ads",
+                ],
+              },
+            ].map((tier) => (
+              <div
+                key={tier.label}
+                className="rounded-[28px] border p-6"
+                style={{ borderColor: "var(--border)", background: "var(--app-card-strong)" }}
+              >
+                <p
+                  className="mb-4 text-[12px] font-semibold uppercase tracking-[0.2em]"
+                  style={{ color: tier.accent }}
+                >
+                  {tier.label}
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {tier.perks.map((perk) => (
+                    <li
+                      key={perk}
+                      className="flex items-start gap-3 text-[15px]"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full"
+                        style={{ background: tier.accent }}
+                        aria-hidden="true"
+                      />
+                      {perk}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-col items-start gap-4">
+            <DownloadBadges size="lg" />
+            <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
+              No card needed to start. Subscription prices and renewal terms are shown at store
+              checkout.
+            </p>
           </div>
         </div>
       </section>

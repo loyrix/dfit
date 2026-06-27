@@ -155,3 +155,13 @@ body {
     color 0.2s ease,
     border-color 0.2s ease;
 }
+
+/* ─── Launch offer popup ─────────────────────────────────────────────────────── */
+@keyframes lmpFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
