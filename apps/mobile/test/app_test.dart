@@ -11,6 +11,7 @@ import 'package:logmyplate_mobile/src/screens/analyzing_screen.dart';
 import 'package:logmyplate_mobile/src/screens/health_target_screen.dart';
 import 'package:logmyplate_mobile/src/screens/meal_detail_screen.dart';
 import 'package:logmyplate_mobile/src/screens/profile_screen.dart';
+import 'package:logmyplate_mobile/src/screens/nutritionist_chat_screen.dart';
 import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
 import 'package:logmyplate_mobile/src/screens/settings_screen.dart';
 import 'package:logmyplate_mobile/src/screens/startup_error_screen.dart';
@@ -25,6 +26,8 @@ import 'package:logmyplate_mobile/src/services/revenuecat_subscription_service.d
 import 'package:logmyplate_mobile/src/services/rewarded_ad_service.dart';
 import 'package:logmyplate_mobile/src/state/auth_controller.dart';
 import 'package:logmyplate_mobile/src/state/journal_controller.dart';
+import 'package:logmyplate_mobile/src/state/nutritionist_controller.dart';
+import 'package:logmyplate_mobile/src/theme/logmyplate_colors.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:logmyplate_mobile/src/widgets/primitive_icons.dart';
@@ -38,7 +41,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
   const appLinksEvents = EventChannel('com.llfbandit.app_links/events');
-  const googleMobileAdsChannel = MethodChannel('plugins.flutter.io/google_mobile_ads');
+  const googleMobileAdsChannel = MethodChannel(
+    'plugins.flutter.io/google_mobile_ads',
+  );
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -59,10 +64,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('LogMyPlate'), findsOneWidget);
-    expect(
-      find.text('Eat smarter with AI'),
-      findsOneWidget,
-    );
+    expect(find.text('Eat smarter with AI'), findsOneWidget);
     expect(find.text('Start first scan'), findsOneWidget);
   });
 
@@ -453,7 +455,9 @@ void main() {
     expect(find.text('Confirm meal'), findsOneWidget);
   });
 
-  testWidgets('ReviewMealScreen confirms without an AI/PRO upsell', (tester) async {
+  testWidgets('ReviewMealScreen confirms without an AI/PRO upsell', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: ReviewMealScreen(
@@ -471,7 +475,9 @@ void main() {
     expect(find.text('Analyze with AI'), findsNothing);
   });
 
-  testWidgets('MealDetailScreen shows PRO badge when not premium', (tester) async {
+  testWidgets('MealDetailScreen shows PRO badge when not premium', (
+    tester,
+  ) async {
     final meal = MealLog(
       id: 'm1',
       title: 'Lunch',
@@ -1020,7 +1026,10 @@ void main() {
       ),
     );
 
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -420));
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -420),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.edit_rounded));
     await tester.pumpAndSettle();
@@ -1669,9 +1678,7 @@ void main() {
     );
   });
 
-  testWidgets('profile tab includes health target section', (
-    tester,
-  ) async {
+  testWidgets('profile tab includes health target section', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: LogMyPlateTheme.dark(),
@@ -2253,19 +2260,22 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: LogMyPlateTheme.dark(),
-        home: AccountProfileScreen(
-          session: AuthSession(
-            provider: AuthProvider.google,
-            displayName: 'Google account',
-            linkedAt: DateTime(2026, 5, 12),
+        home: Scaffold(
+          body: ProfileScreen(
+            themeMode: ThemeMode.dark,
+            onThemeChanged: (_) {},
+            session: AuthSession(
+              provider: AuthProvider.google,
+              displayName: 'Google account',
+              linkedAt: DateTime(2026, 5, 12),
+            ),
+            onSetTarget: () {},
+            onOpenAccount: () {},
+            onDeleteAccount: () async => false,
+            onSignOut: () async {
+              loggedOut = true;
+            },
           ),
-          loading: false,
-          onSignOut: () async {
-            loggedOut = true;
-            return true;
-          },
-          onDeactivateProfile: () async => false,
-          onDeleteProfile: () async => false,
         ),
       ),
     );
@@ -2301,7 +2311,6 @@ void main() {
             linkedAt: DateTime(2026, 5, 12),
           ),
           loading: false,
-          onSignOut: () async => false,
           onDeactivateProfile: () async => false,
           onDeleteProfile: () async {
             deleted = true;
@@ -2322,6 +2331,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(deleted, isTrue);
+  });
+
+  testWidgets('renders message limits in dark mode with visible accent color', (
+    tester,
+  ) async {
+    final apiClient = LogMyPlateApiClient(
+      baseUrl: 'http://api.test',
+      httpClient: MockClient((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+    final controller = NutritionistController(apiClient: apiClient);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.dark(),
+        home: NutritionistChatScreen(controller: controller),
+      ),
+    );
+    await tester.pump();
+
+    final textFinder = find.text('0/15');
+    expect(textFinder, findsOneWidget);
+
+    final Text textWidget = tester.widget(textFinder);
+    expect(textWidget.style?.color, LogMyPlateColors.accent);
   });
 }
 

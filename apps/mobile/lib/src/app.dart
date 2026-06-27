@@ -513,6 +513,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
 
     final selection = await showModalBottomSheet<String>(
       context: initialCtx,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _AiNutritionistPickerSheet(
         colors: initialColors,
@@ -525,9 +526,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     if (selection == '__history__') {
       await _navigatorKey.currentState!.push<void>(
         logmyplatePageRoute<void>(
-          builder: (_) => ChatHistoryScreen(
-            apiClient: _journalController.apiClient,
-          ),
+          builder: (_) =>
+              ChatHistoryScreen(apiClient: _journalController.apiClient),
         ),
       );
       return;
@@ -959,7 +959,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       builder: (_) => ManageSubscriptionSheet(
         subscription: subscription,
         onManageInStore: _manageSubscription,
-        onRestore: () => _restorePremiumPurchase(appUserId: subscription.appUserId),
+        onRestore: () =>
+            _restorePremiumPurchase(appUserId: subscription.appUserId),
       ),
     );
   }
@@ -1282,7 +1283,8 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => DeleteAccountSheet(subscription: _journalController.subscription),
+        builder: (_) =>
+            DeleteAccountSheet(subscription: _journalController.subscription),
       );
       if (confirmed == true && mounted) {
         await _deleteProfileFromAccount();
@@ -1319,22 +1321,19 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
               subscription: _journalController.subscription,
               error: _authController.error,
               onClearError: _authController.clearError,
-              onSignOut: () async {
-                await _signOutFromProfile();
-                return true;
-              },
               onDeactivateProfile: _deactivateProfileFromAccount,
               onDeleteProfile: _deleteProfileFromAccount,
               onPasswordResetRequest: session.provider == AuthProvider.email
-                  ? (email) => _authController.requestPasswordReset(email: email)
+                  ? (email) =>
+                        _authController.requestPasswordReset(email: email)
                   : null,
               onPasswordResetConfirm: session.provider == AuthProvider.email
                   ? (email, code, password) =>
-                      _authController.confirmPasswordReset(
-                        email: email,
-                        code: code,
-                        password: password,
-                      )
+                        _authController.confirmPasswordReset(
+                          email: email,
+                          code: code,
+                          password: password,
+                        )
                   : null,
             );
           },
@@ -1880,7 +1879,9 @@ class _ShellRailButton extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: double.infinity,
@@ -1889,7 +1890,9 @@ class _ShellRailButton extends StatelessWidget {
           color: selected
               ? LogMyPlateColors.accent.withValues(alpha: 0.16)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.heroCardBorderRadius,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2087,7 +2090,9 @@ class _ShellTabButton extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.heroCardBorderRadius,
+        ),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -2095,7 +2100,9 @@ class _ShellTabButton extends StatelessWidget {
             color: selected
                 ? LogMyPlateColors.accent.withValues(alpha: 0.16)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.heroCardBorderRadius,
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2139,7 +2146,9 @@ class _ShellScanTab extends StatelessWidget {
       child: InkWell(
         key: const ValueKey('shell-scan-action'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.heroCardBorderRadius,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2259,10 +2268,12 @@ class _JournalTabLoadingScreen extends StatelessWidget {
                     ),
                     if (message != null) ...[
                       const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                      GlassWrapper(child: TextButton(
-                        onPressed: onRetry,
-                        child: const Text('Retry'),
-                      )),
+                      GlassWrapper(
+                        child: TextButton(
+                          onPressed: onRetry,
+                          child: const Text('Retry'),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -2289,9 +2300,10 @@ class _ReviewPromptSheet extends StatelessWidget {
 
     return SafeArea(
       child: LiteGlassCard(
-        
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.heroCardBorderRadius,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2337,14 +2349,16 @@ class _ReviewPromptSheet extends StatelessWidget {
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              
+
               child: Text(policy.copy.positiveLabel),
             ),
             const SizedBox(height: 8),
-            GlassWrapper(child: TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(policy.copy.negativeLabel),
-            )),
+            GlassWrapper(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(policy.copy.negativeLabel),
+              ),
+            ),
           ],
         ),
       ),
@@ -2369,9 +2383,10 @@ class _NoScanCreditsSheet extends StatelessWidget {
     return SafeArea(
       child: SingleChildScrollView(
         child: LiteGlassCard(
-          
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.heroCardBorderRadius,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2389,47 +2404,58 @@ class _NoScanCreditsSheet extends StatelessWidget {
               PremiumButton(
                 onPressed: () =>
                     Navigator.of(context).pop(_NoScanCreditsAction.upgrade),
-                
+
                 child: const Text('Upgrade to Premium'),
               ),
               const SizedBox(height: 8),
-              GlassWrapper(child: OutlinedButton.icon(
-                onPressed: progress.dailyLimitReached
-                    ? null
-                    : () => Navigator.of(
-                        context,
-                      ).pop(_NoScanCreditsAction.watchAd),
-                icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
-                label: Text(buttonLabel),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.textPrimary,
-                  side: BorderSide(color: colors.border),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+              GlassWrapper(
+                child: OutlinedButton.icon(
+                  onPressed: progress.dailyLimitReached
+                      ? null
+                      : () => Navigator.of(
+                          context,
+                        ).pop(_NoScanCreditsAction.watchAd),
+                  icon: const Icon(Icons.play_circle_outline_rounded, size: 18),
+                  label: Text(buttonLabel),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.border),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        LogMyPlateSpacing.elementBorderRadius,
+                      ),
+                    ),
                   ),
                 ),
-              )),
+              ),
               const SizedBox(height: 8),
-              GlassWrapper(child: OutlinedButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(_NoScanCreditsAction.addManually),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.textPrimary,
-                  side: BorderSide(color: colors.border),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+              GlassWrapper(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop(_NoScanCreditsAction.addManually),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.border),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        LogMyPlateSpacing.elementBorderRadius,
+                      ),
+                    ),
                   ),
+                  child: const Text('Add manually'),
                 ),
-                child: const Text('Add manually'),
-              )),
+              ),
               const SizedBox(height: 8),
-              GlassWrapper(child: TextButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(_NoScanCreditsAction.refresh),
-                child: const Text('Refresh quota'),
-              )),
+              GlassWrapper(
+                child: TextButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_NoScanCreditsAction.refresh),
+                  child: const Text('Refresh quota'),
+                ),
+              ),
             ],
           ),
         ),
@@ -2450,7 +2476,9 @@ class _RewardedAdLoadingOverlay extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.42),
         child: Center(
           child: LiteGlassCard(
-            borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.heroCardBorderRadius,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
               child: Column(
@@ -2548,9 +2576,10 @@ class _AppUpdateOverlay extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: LiteGlassCard(
-              
               padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-              borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.heroCardBorderRadius,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2615,14 +2644,15 @@ class _AppUpdateOverlay extends StatelessWidget {
                           ),
                     icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     label: const Text('Update app'),
-                    
                   ),
                   if (!policy.isMandatory) ...[
                     const SizedBox(height: 8),
-                    GlassWrapper(child: TextButton(
-                      onPressed: onDismissOptional,
-                      child: const Text('Later'),
-                    )),
+                    GlassWrapper(
+                      child: TextButton(
+                        onPressed: onDismissOptional,
+                        child: const Text('Later'),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -2650,7 +2680,6 @@ class _DailyTargetReachedSheet extends StatelessWidget {
 
     return SafeArea(
       child: LiteGlassCard(
-        
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         borderRadius: BorderRadius.circular(20),
         child: Column(
@@ -2703,13 +2732,15 @@ class _DailyTargetReachedSheet extends StatelessWidget {
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             PremiumButton(
               onPressed: () => Navigator.of(context).pop(true),
-              
+
               child: const Text('Scan anyway'),
             ),
-            GlassWrapper(child: TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Stay on journal'),
-            )),
+            GlassWrapper(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Stay on journal'),
+              ),
+            ),
           ],
         ),
       ),
@@ -2730,147 +2761,156 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LiteGlassCard(
-      
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      borderRadius: BorderRadius.circular(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(
-            child: Container(
-              width: 38,
-              height: 5,
-              decoration: BoxDecoration(
-                color: colors.textTertiary.withValues(alpha: 0.36),
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-          Row(
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: LiteGlassCard(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          borderRadius: BorderRadius.circular(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: LogMyPlateColors.accent.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: colors.accentText,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'AI Nutritionist',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ],
-          ),
-          const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-          PremiumButton.icon(
-            onPressed: () => Navigator.of(context).pop(newChatKey),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Start new chat'),
-            
-          ),
-          if (pastSessions.isNotEmpty) ...[
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 5,
                   decoration: BoxDecoration(
-                    color: LogMyPlateColors.accent.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.history_rounded,
-                    color: colors.accentText,
-                    size: 16,
+                    color: colors.textTertiary.withValues(alpha: 0.36),
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  'Past sessions',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop('__history__'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: colors.textSecondary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    minimumSize: Size.zero,
-                  ),
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...pastSessions
-                .take(5)
-                .map(
-                  (s) => InkWell(
-                    onTap: () => Navigator.of(context).pop(s.id),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: colors.mutedFill,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(Icons.chat_rounded, size: 18),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${s.createdAt.day}/${s.createdAt.month}/${s.createdAt.year}',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(color: colors.textPrimary),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${s.turnCount} message${s.turnCount == 1 ? '' : 's'}',
-                                  style: Theme.of(context).textTheme.labelSmall
-                                      ?.copyWith(color: colors.textSecondary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: colors.textTertiary,
-                            size: 20,
-                          ),
-                        ],
-                      ),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: LogMyPlateColors.accent.withValues(alpha: 0.16),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      color: colors.accentText,
+                      size: 21,
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'AI Nutritionist',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              PremiumButton.icon(
+                onPressed: () => Navigator.of(context).pop(newChatKey),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Start new chat'),
+              ),
+              if (pastSessions.isNotEmpty) ...[
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.history_rounded,
+                        color: colors.accentText,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Past sessions',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop('__history__'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: colors.textSecondary,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                      ),
+                      child: const Text('View All'),
+                    ),
+                  ],
                 ),
-          ],
-        ],
+                const SizedBox(height: 8),
+                ...pastSessions
+                    .take(5)
+                    .map(
+                      (s) => InkWell(
+                        onTap: () => Navigator.of(context).pop(s.id),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: colors.mutedFill,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.chat_rounded, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${s.createdAt.day}/${s.createdAt.month}/${s.createdAt.year}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(color: colors.textPrimary),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${s.turnCount} message${s.turnCount == 1 ? '' : 's'}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: colors.textSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: colors.textTertiary,
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 }
-
-

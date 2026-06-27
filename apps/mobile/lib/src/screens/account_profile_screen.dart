@@ -22,7 +22,6 @@ class AccountProfileScreen extends StatelessWidget {
     this.subscription,
     this.error,
     this.onClearError,
-    required this.onSignOut,
     required this.onDeactivateProfile,
     required this.onDeleteProfile,
     this.onPasswordResetRequest,
@@ -34,7 +33,6 @@ class AccountProfileScreen extends StatelessWidget {
   final SubscriptionStatus? subscription;
   final String? error;
   final VoidCallback? onClearError;
-  final Future<bool> Function() onSignOut;
   final Future<bool> Function() onDeactivateProfile;
   final Future<bool> Function() onDeleteProfile;
   final Future<bool> Function(String email)? onPasswordResetRequest;
@@ -42,7 +40,8 @@ class AccountProfileScreen extends StatelessWidget {
     String email,
     String code,
     String password,
-  )? onPasswordResetConfirm;
+  )?
+  onPasswordResetConfirm;
 
   @override
   Widget build(BuildContext context) {
@@ -56,153 +55,136 @@ class AccountProfileScreen extends StatelessWidget {
           child: Stack(
             children: [
               ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    onPressed: loading
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: loading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const BackMark(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-                Center(child: _AccountAvatar(session: session)),
-                const SizedBox(height: 24),
-                Text(
-                  'Profile',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                    letterSpacing: 1.8,
+                  const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                  Center(child: _AccountAvatar(session: session)),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Profile',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.textSecondary,
+                      letterSpacing: 1.8,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  session.displayName,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: colors.textPrimary,
+                  const SizedBox(height: 8),
+                  Text(
+                    session.displayName,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: colors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${session.provider.label} account',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-                ),
-                if (error != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '${session.provider.label} account',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _AccountErrorBanner(
+                      message: error!,
+                      onDismiss: onClearError,
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  _ProfileSection(
+                    title: 'Account and Journal Status',
+                    children: [
+                      _ProfileRow(label: 'Status', value: 'Signed in'),
+                      _ProfileRow(
+                        label: 'Provider',
+                        value: session.provider.label,
+                      ),
+                      _ProfileRow(
+                        label: 'Journal',
+                        value: 'Synced to this account',
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  _AccountErrorBanner(message: error!, onDismiss: onClearError),
-                ],
-                const SizedBox(height: 28),
-                _ProfileSection(
-                  title: 'Account and Journal Status',
-                  children: [
-                    _ProfileRow(label: 'Status', value: 'Signed in'),
-                    _ProfileRow(
-                      label: 'Provider',
-                      value: session.provider.label,
-                    ),
-                    _ProfileRow(
-                      label: 'Journal',
-                      value: 'Synced to this account',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                _ProfileSection(
-                  title: 'Membership Status',
-                  children: [
-                    _ProfileRow(
-                      label: 'Current Plan',
-                      value: subscription?.active == true ? 'Premium' : 'Free',
-                    ),
-                    _ProfileRow(
-                      label: 'Subscribed on',
-                      value: _formatDate(subscription?.currentPeriodStart),
-                    ),
-                    _ProfileRow(
-                      label: 'Auto Renewal on',
-                      value: _renewalLabel(subscription),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                _ProfileSection(
-                  title: 'Manage Account',
-                  children: [
-                    if (onPasswordResetRequest != null)
+                  _ProfileSection(
+                    title: 'Membership Status',
+                    children: [
+                      _ProfileRow(
+                        label: 'Current Plan',
+                        value: subscription?.active == true
+                            ? 'Premium'
+                            : 'Free',
+                      ),
+                      _ProfileRow(
+                        label: 'Subscribed on',
+                        value: _formatDate(subscription?.currentPeriodStart),
+                      ),
+                      _ProfileRow(
+                        label: 'Auto Renewal on',
+                        value: _renewalLabel(subscription),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                  _ProfileSection(
+                    title: 'Manage Account',
+                    children: [
+                      if (onPasswordResetRequest != null)
+                        _ProfileActionRow(
+                          label: 'Reset Password',
+                          value: '',
+                          color: colors.textPrimary,
+                          enabled: !loading,
+                          onTap: () => _showPasswordResetSheet(context),
+                        ),
                       _ProfileActionRow(
-                        label: 'Reset Password',
-                        value: '',
-                        color: colors.textPrimary,
+                        label: 'Deactivate profile',
+                        value: 'Pause access',
+                        color: LogMyPlateColors.accent,
                         enabled: !loading,
-                        onTap: () => _showPasswordResetSheet(context),
+                        onTap: () => _requestLifecycleAction(
+                          context,
+                          action: _ProfileLifecycleAction.deactivate,
+                        ),
                       ),
-                    _ProfileActionRow(
-                      label: 'Deactivate profile',
-                      value: 'Pause access',
-                      color: LogMyPlateColors.accent,
-                      enabled: !loading,
-                      onTap: () => _requestLifecycleAction(
-                        context,
-                        action: _ProfileLifecycleAction.deactivate,
+                      _ProfileActionRow(
+                        label: 'Delete account and data',
+                        value: 'Permanent',
+                        color: LogMyPlateColors.destructive,
+                        enabled: !loading,
+                        onTap: () => _requestLifecycleAction(
+                          context,
+                          action: _ProfileLifecycleAction.delete,
+                        ),
                       ),
+                    ],
+                  ),
+                ],
+              ),
+              if (loading)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: colors.background.withValues(alpha: 0.42),
+                    child: Center(
+                      child: CircularProgressIndicator(color: colors.accent),
                     ),
-                    _ProfileActionRow(
-                      label: 'Delete account and data',
-                      value: 'Permanent',
-                      color: LogMyPlateColors.destructive,
-                      enabled: !loading,
-                      onTap: () => _requestLifecycleAction(
-                        context,
-                        action: _ProfileLifecycleAction.delete,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: 54,
-                  child: GlassWrapper(child: OutlinedButton(
-                    onPressed: loading ? null : () => _signOut(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colors.textPrimary,
-                      side: BorderSide(color: colors.border),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                      ),
-                    ),
-                    child: const Text('Log out'),
-                  )),
-                ),
-              ],
-            ),
-            if (loading)
-              Positioned.fill(
-                child: ColoredBox(
-                  color: colors.background.withValues(alpha: 0.42),
-                  child: Center(
-                    child: CircularProgressIndicator(color: colors.accent),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
-      ),
     );
-  }
-
-  Future<void> _signOut(BuildContext context) async {
-    final shouldPop = await onSignOut();
-    if (!context.mounted || !shouldPop) return;
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) navigator.pop();
   }
 
   Future<void> _showPasswordResetSheet(BuildContext context) async {
@@ -231,10 +213,8 @@ class AccountProfileScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ProfileLifecycleSheet(
-        action: action,
-        subscription: subscription,
-      ),
+      builder: (_) =>
+          _ProfileLifecycleSheet(action: action, subscription: subscription),
     );
     if (confirmed != true || !context.mounted || loading) return;
 
@@ -250,7 +230,20 @@ class AccountProfileScreen extends StatelessWidget {
 
 String _formatDate(DateTime? date) {
   if (date == null) return '\u2014';
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
@@ -363,7 +356,9 @@ class _ProfileSection extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
         LiteGlassCard(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           child: Column(children: children),
         ),
       ],
@@ -513,7 +508,7 @@ class _ProfileLifecycleSheet extends StatelessWidget {
                 height: 54,
                 child: PremiumButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  
+
                   child: Text(
                     isDelete ? 'Delete account' : 'Deactivate profile',
                   ),
@@ -522,10 +517,12 @@ class _ProfileLifecycleSheet extends StatelessWidget {
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: GlassWrapper(child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Keep profile'),
-                )),
+                child: GlassWrapper(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Keep profile'),
+                  ),
+                ),
               ),
             ],
           ),
@@ -547,7 +544,7 @@ class _PasswordResetSheet extends StatefulWidget {
   final LogMyPlateThemeColors colors;
   final Future<bool> Function() onRequestCode;
   final Future<AuthSession?> Function(String code, String password)
-      onConfirmReset;
+  onConfirmReset;
 
   @override
   State<_PasswordResetSheet> createState() => _PasswordResetSheetState();
@@ -594,10 +591,9 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
               const SizedBox(height: 24),
               Text(
                 _codeSent ? 'Enter reset code' : 'Reset password',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(color: colors.textPrimary),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: 10),
               Text(
@@ -605,9 +601,9 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
                     ? 'A code was sent to ${widget.email}.'
                     : 'A reset code will be sent to ${widget.email}.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colors.textSecondary,
-                      height: 1.35,
-                    ),
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               if (!_codeSent) ...[
@@ -621,10 +617,12 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 50,
-                  child: GlassWrapper(child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  )),
+                  child: GlassWrapper(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
                 ),
               ],
               if (_codeSent) ...[
@@ -653,8 +651,8 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
                   Text(
                     _error!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: LogMyPlateColors.destructive,
-                        ),
+                      color: LogMyPlateColors.destructive,
+                    ),
                   ),
                 ],
                 const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
@@ -668,10 +666,14 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
                 const SizedBox(height: 10),
                 SizedBox(
                   height: 50,
-                  child: GlassWrapper(child: TextButton(
-                    onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  )),
+                  child: GlassWrapper(
+                    child: TextButton(
+                      onPressed: _loading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -708,7 +710,10 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
     final password = _passwordController.text;
 
     if (code.isEmpty || password.length < 6) {
-      setState(() => _error = 'Enter a valid code and a password of at least 6 characters.');
+      setState(
+        () => _error =
+            'Enter a valid code and a password of at least 6 characters.',
+      );
       return;
     }
 

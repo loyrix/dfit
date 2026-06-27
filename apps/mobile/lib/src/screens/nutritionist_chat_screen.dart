@@ -88,66 +88,73 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
           child: LiteGlassCard(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
             borderRadius: BorderRadius.circular(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 38, height: 5,
-                  decoration: BoxDecoration(
-                    color: colors.textTertiary.withValues(alpha: 0.36),
-                    borderRadius: BorderRadius.circular(99),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: colors.textTertiary.withValues(alpha: 0.36),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              Row(
-                children: [
-                  Container(
-                    width: 42, height: 42,
-                    decoration: BoxDecoration(
-                      color: colors.mutedFill,
-                      shape: BoxShape.circle,
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: colors.mutedFill,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.logout_rounded, size: 20),
                     ),
-                    child: const Icon(Icons.logout_rounded, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Exit chat?', style: Theme.of(ctx).textTheme.titleMedium),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Your conversation will be saved. You can start a new session anytime.',
-                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                            color: colors.textSecondary,
-                            height: 1.35,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Exit chat?',
+                            style: Theme.of(ctx).textTheme.titleMedium,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'Your conversation will be saved. You can start a new session anytime.',
+                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                              color: colors.textSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                PremiumButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+
+                  child: const Text('Exit'),
+                ),
+                const SizedBox(height: 8),
+                GlassWrapper(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('Stay'),
                   ),
-                ],
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              PremiumButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                
-                child: const Text('Exit'),
-              ),
-              const SizedBox(height: 8),
-              GlassWrapper(child: TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: const Text('Stay'),
-              )),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
     if (confirmed == true && mounted) {
       Navigator.of(context).pop();
     }
@@ -179,105 +186,108 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
         }
       },
       child: Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      body: GlassBackdrop(
-        child: SafeArea(
-          child: Column(
-            children: [
-              _ChatAppBar(
-                readOnly: ctrl.readOnly,
-                colors: colors,
-                turnNumber: ctrl.turnNumber,
-                maxTurns: ctrl.maxTurns,
-                sessionComplete: ctrl.sessionComplete,
-                focusMealId: widget.focusMealId,
-                apiClient: widget.controller.apiClient,
-                onNewChat: ctrl.readOnly
-                    ? () {
-                        final fresh = NutritionistController(
-                          apiClient: widget.controller.apiClient,
-                        );
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => NutritionistChatScreen(
-                              controller: fresh,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
+        body: GlassBackdrop(
+          child: SafeArea(
+            child: Column(
+              children: [
+                _ChatAppBar(
+                  readOnly: ctrl.readOnly,
+                  colors: colors,
+                  turnNumber: ctrl.turnNumber,
+                  maxTurns: ctrl.maxTurns,
+                  sessionComplete: ctrl.sessionComplete,
+                  focusMealId: widget.focusMealId,
+                  apiClient: widget.controller.apiClient,
+                  onNewChat: ctrl.readOnly
+                      ? () {
+                          final fresh = NutritionistController(
+                            apiClient: widget.controller.apiClient,
+                          );
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  NutritionistChatScreen(controller: fresh),
                             ),
-                          ),
-                        );
-                      }
-                    : null,
-                onBack: () {
-                  if (ctrl.readOnly) {
-                    Navigator.of(context).pop();
-                  } else if (ctrl.turnNumber > 0 && !ctrl.sessionComplete) {
-                    _confirmExit();
-                  } else {
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-              if (widget.focusMealId != null)
-                _FocusMealBanner(colors: colors),
-              if (ctrl.readOnly && ctrl.messages.isNotEmpty)
-                _ReadOnlyBanner(colors: colors, messageCount: ctrl.turnNumber),
-              Expanded(
-                child: _buildMessageList(ctrl, colors),
-              ),
-              if (!ctrl.readOnly && ctrl.suggestedFollowUps.isNotEmpty && !ctrl.sessionComplete)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: NutritionistSuggestedChips(
-                    prompts: ctrl.suggestedFollowUps,
-                    disabled: ctrl.sendingMessage,
-                    onTap: (prompt) {
-                      _textController.text = prompt;
-                      _sendMessage();
-                    },
-                  ),
+                          );
+                        }
+                      : null,
+                  onBack: () {
+                    if (ctrl.readOnly) {
+                      Navigator.of(context).pop();
+                    } else if (ctrl.turnNumber > 0 && !ctrl.sessionComplete) {
+                      _confirmExit();
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  },
                 ),
-              if (ctrl.readOnly && ctrl.messages.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: PremiumButton.icon(
-                      onPressed: () {
-                        final fresh = NutritionistController(
-                          apiClient: widget.controller.apiClient,
-                        );
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => NutritionistChatScreen(
-                              controller: fresh,
-                            ),
-                          ),
-                        );
+                if (widget.focusMealId != null)
+                  _FocusMealBanner(colors: colors),
+                if (ctrl.readOnly && ctrl.messages.isNotEmpty)
+                  _ReadOnlyBanner(
+                    colors: colors,
+                    messageCount: ctrl.turnNumber,
+                  ),
+                Expanded(child: _buildMessageList(ctrl, colors)),
+                if (!ctrl.readOnly &&
+                    ctrl.suggestedFollowUps.isNotEmpty &&
+                    !ctrl.sessionComplete)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: NutritionistSuggestedChips(
+                      prompts: ctrl.suggestedFollowUps,
+                      disabled: ctrl.sendingMessage,
+                      onTap: (prompt) {
+                        _textController.text = prompt;
+                        _sendMessage();
                       },
-                      icon: const Icon(Icons.add_rounded, size: 18),
-                      label: const Text('Start new chat'),
-                      
                     ),
                   ),
-                ),
-              if (!ctrl.readOnly && !ctrl.sessionComplete)
-                _ChatInputBar(
-                  controller: _textController,
-                  focusNode: _focusNode,
-                  sendingMessage: ctrl.sendingMessage,
-                  onSend: _sendMessage,
-                  colors: colors,
-                ),
-            ],
+                if (ctrl.readOnly && ctrl.messages.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: PremiumButton.icon(
+                        onPressed: () {
+                          final fresh = NutritionistController(
+                            apiClient: widget.controller.apiClient,
+                          );
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  NutritionistChatScreen(controller: fresh),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: const Text('Start new chat'),
+                      ),
+                    ),
+                  ),
+                if (!ctrl.readOnly && !ctrl.sessionComplete)
+                  _ChatInputBar(
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    sendingMessage: ctrl.sendingMessage,
+                    onSend: _sendMessage,
+                    colors: colors,
+                  ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
 
-  Widget _buildMessageList(NutritionistController ctrl, LogMyPlateThemeColors colors) {
+  Widget _buildMessageList(
+    NutritionistController ctrl,
+    LogMyPlateThemeColors colors,
+  ) {
     if (ctrl.creatingSession || ctrl.loadingHistory) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -288,17 +298,23 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
           padding: const EdgeInsets.all(40),
           child: LiteGlassCard(
             padding: const EdgeInsets.all(24),
-            borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.elementBorderRadius,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive.withValues(alpha: 0.7), size: 36),
+                Icon(
+                  Icons.error_outline_rounded,
+                  color: LogMyPlateColors.destructive.withValues(alpha: 0.7),
+                  size: 36,
+                ),
                 const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                 Text(
                   'Unable to load',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.textPrimary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -317,9 +333,13 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                         ? (widget.onPremiumRequired ?? () {})
                         : () {
                             if (widget.existingSessionId != null) {
-                              widget.controller.loadExistingSession(widget.existingSessionId!);
+                              widget.controller.loadExistingSession(
+                                widget.existingSessionId!,
+                              );
                             } else {
-                              ctrl.startSession(focusMealId: widget.focusMealId);
+                              ctrl.startSession(
+                                focusMealId: widget.focusMealId,
+                              );
                             }
                           },
                     child: Text(ctrl.premiumRequired ? 'Get Premium' : 'Retry'),
@@ -336,10 +356,11 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
       controller: _scrollController,
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: ctrl.messages.length 
-          + (ctrl.sendingMessage ? 1 : 0) 
-          + ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0)
-          + ((ctrl.error != null && ctrl.messages.isNotEmpty) ? 1 : 0),
+      itemCount:
+          ctrl.messages.length +
+          (ctrl.sendingMessage ? 1 : 0) +
+          ((ctrl.sessionComplete && !ctrl.readOnly) ? 1 : 0) +
+          ((ctrl.error != null && ctrl.messages.isNotEmpty) ? 1 : 0),
       itemBuilder: (context, index) {
         int currentIndex = index;
 
@@ -349,7 +370,8 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: _SessionCompleteCard(
                 colors: colors,
-                onNewSession: () => ctrl.startSession(focusMealId: widget.focusMealId),
+                onNewSession: () =>
+                    ctrl.startSession(focusMealId: widget.focusMealId),
               ),
             );
           }
@@ -373,7 +395,11 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline_rounded, color: LogMyPlateColors.destructive, size: 16),
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: LogMyPlateColors.destructive,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -434,36 +460,43 @@ class _ChatAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: readOnly ? BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: colors.border, width: 0.3),
-        ),
-      ) : null,
+      padding: const EdgeInsets.fromLTRB(8, 8, 16, 8),
+      decoration: readOnly
+          ? BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: colors.border, width: 0.3),
+              ),
+            )
+          : null,
       child: Row(
         children: [
-          GestureDetector(onTap: onBack, child: const BackMark()),
-          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Back',
+            onPressed: onBack,
+            icon: const BackMark(),
+          ),
+          const SizedBox(width: 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'AI Nutritionist',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.textPrimary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
                 ),
                 Text(
                   readOnly
                       ? 'Past session · $turnNumber message${turnNumber == 1 ? '' : 's'}'
-                      : focusMealId != null 
-                          ? 'Analyzing specific meal'
-                          : 'Based on your last 7 days',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                      : focusMealId != null
+                      ? 'Analyzing specific meal'
+                      : 'Based on your last 7 days',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
                 ),
               ],
             ),
@@ -484,7 +517,9 @@ class _ChatAppBar extends StatelessWidget {
               child: Text(
                 '$turnNumber/$maxTurns',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: LogMyPlateColors.accentDeep,
+                  color: isDark
+                      ? LogMyPlateColors.accent
+                      : LogMyPlateColors.accentDeep,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -528,57 +563,59 @@ class _ChatInputBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: colors.border, width: 0.3),
-          ),
+          border: Border(top: BorderSide(color: colors.border, width: 0.3)),
         ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              textInputAction: TextInputAction.send,
-              minLines: 1,
-              maxLines: 5,
-              onSubmitted: (_) => onSend(),
-              decoration: InputDecoration(
-                hintText: 'Ask anything about your nutrition...',
-                hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textTertiary,
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                textInputAction: TextInputAction.send,
+                minLines: 1,
+                maxLines: 5,
+                onSubmitted: (_) => onSend(),
+                decoration: InputDecoration(
+                  hintText: 'Ask anything about your nutrition...',
+                  hintStyle: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textTertiary),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                 ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textPrimary,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textPrimary),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Material(
-            color: LogMyPlateColors.accent,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: sendingMessage ? null : onSend,
-              child: Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.arrow_upward_rounded,
-                  color: sendingMessage
-                      ? LogMyPlateColors.accentDeep.withValues(alpha: 0.5)
-                      : LogMyPlateColors.accentDeep,
-                  size: 20,
+            const SizedBox(width: 8),
+            Material(
+              color: LogMyPlateColors.accent,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: sendingMessage ? null : onSend,
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.arrow_upward_rounded,
+                    color: sendingMessage
+                        ? LogMyPlateColors.accentDeep.withValues(alpha: 0.5)
+                        : LogMyPlateColors.accentDeep,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ));
+    );
   }
 }
 
@@ -597,30 +634,38 @@ class _SessionCompleteCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: LiteGlassCard(
         padding: const EdgeInsets.all(20),
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         child: Column(
           children: [
-            Icon(Icons.check_circle_rounded, color: LogMyPlateColors.accent, size: 40),
+            Icon(
+              Icons.check_circle_rounded,
+              color: LogMyPlateColors.accent,
+              size: 40,
+            ),
             const SizedBox(height: LogMyPlateSpacing.itemSpacing),
             Text(
               'Session complete',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: colors.textPrimary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
               'You can start a new session anytime.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            GlassWrapper(child: ElevatedButton(
-              onPressed: onNewSession,
-              child: const Text('New session'),
-            )),
+            GlassWrapper(
+              child: ElevatedButton(
+                onPressed: onNewSession,
+                child: const Text('New session'),
+              ),
+            ),
           ],
         ),
       ),
@@ -629,10 +674,7 @@ class _SessionCompleteCard extends StatelessWidget {
 }
 
 class _ReadOnlyBanner extends StatelessWidget {
-  const _ReadOnlyBanner({
-    required this.colors,
-    required this.messageCount,
-  });
+  const _ReadOnlyBanner({required this.colors, required this.messageCount});
 
   final LogMyPlateThemeColors colors;
   final int messageCount;
@@ -684,7 +726,13 @@ class _FocusMealBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.auto_awesome_rounded, size: 18, color: LogMyPlateColors.accentDeep),
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: 18,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? LogMyPlateColors.accent
+                : LogMyPlateColors.accentDeep,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
