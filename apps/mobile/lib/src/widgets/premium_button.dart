@@ -9,6 +9,7 @@ class PremiumButton extends StatelessWidget {
     required this.onPressed,
     required this.child,
     this.icon,
+    this.padding = const EdgeInsets.symmetric(vertical: 15, horizontal: 24),
   });
 
   const PremiumButton.icon({
@@ -16,11 +17,13 @@ class PremiumButton extends StatelessWidget {
     required this.onPressed,
     required Widget label,
     required this.icon,
+    this.padding = const EdgeInsets.symmetric(vertical: 15, horizontal: 24),
   }) : child = label;
 
   final VoidCallback? onPressed;
   final Widget child;
   final Widget? icon;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +60,12 @@ class PremiumButton extends StatelessWidget {
           onTap: onPressed,
           borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+            padding: padding,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
               children: [
                 if (icon != null) ...[
                   IconTheme.merge(
@@ -80,6 +85,7 @@ class PremiumButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

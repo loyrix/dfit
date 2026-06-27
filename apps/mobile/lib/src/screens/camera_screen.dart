@@ -994,6 +994,7 @@ class _CaptureButton extends StatelessWidget {
       return Opacity(
         opacity: disabled ? 0.46 : 1,
         child: PremiumButton.icon(
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
           onPressed: disabled || loading ? null : onTap,
           icon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 140),
