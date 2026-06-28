@@ -4,7 +4,34 @@ import { InMemoryStore } from "../repositories/in-memory-store.js";
 import { MockChatAiProvider } from "./mock-chat-ai-provider.js";
 import { NutritionistSessionStore } from "./nutritionist-session-store.js";
 import { generateSuggestedPrompts } from "./nutritionist-suggested-prompts.js";
+import {
+  detectChatAbuse,
+  ensureNonEmptyChatContent,
+  CHAT_ABUSE_CLOSING_MESSAGE,
+} from "./nutritionist-moderation.js";
+import type { ChatAiProvider, ChatGenerateInput, ChatGenerateResult } from "./chat-ai-provider.js";
 import type { NutritionistContext } from "./nutritionist-context.js";
+
+// Returns a fixed string for every call — used to simulate degenerate model
+// output such as a response consisting solely of the [END_SESSION] tag.
+class FixedReplyAiProvider implements ChatAiProvider {
+  constructor(private readonly reply: string) {}
+  async generateChatResponse(_input: ChatGenerateInput): Promise<ChatGenerateResult> {
+    return { content: this.reply, inputTokens: 1, outputTokens: 1, latencyMs: 0 };
+  }
+}
+
+const premium = async (repository: InMemoryStore): Promise<void> => {
+  await repository.upsertSubscriptionEntitlement({
+    appUserId: "profile_demo",
+    entitlementId: "premium",
+    status: "active",
+    store: "app_store",
+    currentPeriodStart: "2026-06-01T00:00:00Z",
+    currentPeriodEnd: "2026-07-01T00:00:00Z",
+    willRenew: true,
+  });
+};
 
 const testHeaders = {
   "x-logmyplate-platform": "ios",
@@ -405,5 +432,101 @@ describe("MockChatAiProvider", () => {
     });
 
     expect(result.content).toContain("AI Nutritionist");
+  });
+});
+
+describe("detectChatAbuse", () => {
+  it("flags profanity regardless of casing, leetspeak, and repeated letters", () => {
+    expect(detectChatAbuse("this is fucking useless")).toBe(true);
+    expect(detectChatAbuse("F U C K you")).toBe(true);
+    expect(detectChatAbuse("you are an a$$hole")).toBe(true);
+    expect(detectChatAbuse("shiiiit advice")).toBe(true);
+    expect(detectChatAbuse("stfu")).toBe(true);
+  });
+
+  it("does not flag benign nutrition messages", () => {
+    expect(detectChatAbuse("How's my protein intake today?")).toBe(false);
+    expect(detectChatAbuse("I had pasta and a class snack")).toBe(false);
+    expect(detectChatAbuse("Can you assess my breakfast?")).toBe(false);
+  });
+});
+
+describe("ensureNonEmptyChatContent", () => {
+  it("returns trimmed content when non-empty", () => {
+    expect(ensureNonEmptyChatContent("  hello  ")).toBe("hello");
+  });
+
+  it("falls back when content is empty or whitespace", () => {
+    expect(ensureNonEmptyChatContent("").length).toBeGreaterThan(0);
+    expect(ensureNonEmptyChatContent("   ").length).toBeGreaterThan(0);
+    expect(ensureNonEmptyChatContent("", "custom")).toBe("custom");
+  });
+});
+
+describe("Chat moderation routes", () => {
+  it("returns a non-empty reply when the model emits only [END_SESSION]", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+
+    const app = await buildApp({
+      repository,
+      chatAiProvider: new FixedReplyAiProvider("[END_SESSION]"),
+    });
+
+    const session = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+    const sessionId = JSON.parse(session.body).sessionId;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein intake today?" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.reply.content.length).toBeGreaterThan(0);
+  });
+
+  it("hard-ends the session with a firm closing message on abusive input", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+
+    const app = await buildApp({
+      repository,
+      chatAiProvider: new MockChatAiProvider(),
+    });
+
+    const session = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+    const sessionId = JSON.parse(session.body).sessionId;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "you are fucking useless" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.reply.content).toBe(CHAT_ABUSE_CLOSING_MESSAGE);
+
+    // The session is closed: a follow-up message is rejected.
+    const followUp = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein today?" },
+    });
+    expect(followUp.statusCode).toBe(400);
+    expect(JSON.parse(followUp.body).error).toBe("turn_limit_reached");
   });
 });

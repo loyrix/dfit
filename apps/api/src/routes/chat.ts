@@ -19,6 +19,13 @@ import {
   generateSuggestedPrompts,
   generateFollowUpSuggestions,
 } from "../services/nutritionist-suggested-prompts.js";
+import type { ChatGenerateResult } from "../services/chat-ai-provider.js";
+import {
+  detectChatAbuse,
+  ensureNonEmptyChatContent,
+  CHAT_ABUSE_CLOSING_MESSAGE,
+  EMPTY_CHAT_WELCOME_FALLBACK,
+} from "../services/nutritionist-moderation.js";
 import { createRouteTimer } from "./route-timing.js";
 
 // Builds a short, human-readable heading for a chat session from the first
@@ -117,7 +124,7 @@ export const registerChatRoutes = async (
         maxOutputTokens: chatConfig.maxOutputTokens,
         temperature: chatConfig.temperature,
       });
-      return result.content;
+      return ensureNonEmptyChatContent(result.content, EMPTY_CHAT_WELCOME_FALLBACK);
     });
 
     const sessionDb = await timer.measure("createDbSession", () =>
@@ -206,19 +213,42 @@ export const registerChatRoutes = async (
     activeSession.messages.push({ role: "user", content: body.message });
     activeSession.turnCount = turnNumber;
 
-    const aiResult = await timer.measure("aiResponse", () =>
-      chatAiProvider.generateChatResponse({
-        messages: activeSession.messages,
-        maxOutputTokens: chatConfig.maxOutputTokens,
-        temperature: chatConfig.temperature,
-      }),
-    );
+    // Profanity / abuse is caught deterministically before we spend an AI call:
+    // the session is hard-ended with a firm, polite closing message.
+    const isAbusive = detectChatAbuse(body.message);
 
-    let finalAiContent = aiResult.content;
+    let finalAiContent: string;
     let shouldEndSession = false;
-    if (finalAiContent.includes("[END_SESSION]")) {
+    let aiResult: ChatGenerateResult | null = null;
+
+    if (isAbusive) {
+      finalAiContent = CHAT_ABUSE_CLOSING_MESSAGE;
       shouldEndSession = true;
-      finalAiContent = finalAiContent.replace(/\[END_SESSION\]/g, "").trim();
+      request.log.warn(
+        {
+          route: "POST /v1/chat/nutritionist/message",
+          sessionId: activeSession.dbSessionId,
+          turnNumber,
+        },
+        "nutritionist session ended due to user abuse",
+      );
+    } else {
+      aiResult = await timer.measure("aiResponse", () =>
+        chatAiProvider.generateChatResponse({
+          messages: activeSession.messages,
+          maxOutputTokens: chatConfig.maxOutputTokens,
+          temperature: chatConfig.temperature,
+        }),
+      );
+
+      finalAiContent = aiResult.content;
+      if (finalAiContent.includes("[END_SESSION]")) {
+        shouldEndSession = true;
+        finalAiContent = finalAiContent.replace(/\[END_SESSION\]/g, "").trim();
+      }
+      // Guard against an empty reply (e.g. the model returned only the
+      // [END_SESSION] tag) which would otherwise fail contract validation.
+      finalAiContent = ensureNonEmptyChatContent(finalAiContent);
     }
 
     activeSession.messages.push({ role: "assistant", content: finalAiContent });
@@ -246,9 +276,9 @@ export const registerChatRoutes = async (
         role: "assistant",
         content: finalAiContent,
         turnNumber: turnNumber,
-        inputTokens: aiResult.inputTokens,
-        outputTokens: aiResult.outputTokens,
-        latencyMs: aiResult.latencyMs,
+        inputTokens: aiResult?.inputTokens,
+        outputTokens: aiResult?.outputTokens,
+        latencyMs: aiResult?.latencyMs,
       }),
     );
 
@@ -270,9 +300,10 @@ export const registerChatRoutes = async (
         sessionId: activeSession.dbSessionId,
         turnNumber,
         maxTurns: activeSession.maxTurns,
-        latencyMs: aiResult.latencyMs,
-        inputTokens: aiResult.inputTokens,
-        outputTokens: aiResult.outputTokens,
+        latencyMs: aiResult?.latencyMs,
+        inputTokens: aiResult?.inputTokens,
+        outputTokens: aiResult?.outputTokens,
+        endedForAbuse: isAbusive,
       },
       "nutritionist message processed",
     );
