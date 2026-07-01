@@ -1,8 +1,10 @@
 import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
+import '../services/app_links.dart';
 import '../services/revenuecat_subscription_service.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
@@ -18,6 +20,7 @@ class PremiumPaywallSheet extends StatefulWidget {
     required this.onPurchase,
     required this.onRestore,
     this.onManage,
+    this.onRetryLoadOffering,
   });
 
   final PremiumOffering offering;
@@ -25,21 +28,25 @@ class PremiumPaywallSheet extends StatefulWidget {
   final Future<bool> Function(PremiumPlan plan) onPurchase;
   final Future<bool> Function() onRestore;
   final VoidCallback? onManage;
+  final Future<PremiumOffering?> Function()? onRetryLoadOffering;
 
   @override
   State<PremiumPaywallSheet> createState() => _PremiumPaywallSheetState();
 }
 
 class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
+  late PremiumOffering _offering;
   PremiumPlan? _selectedPlan;
   PremiumPlan? _purchasingPlan;
   bool _restoring = false;
+  bool _retryingOffering = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _selectedPlan = widget.offering.defaultPlan;
+    _offering = widget.offering;
+    _selectedPlan = _offering.defaultPlan;
   }
 
   bool get _busy => _purchasingPlan != null || _restoring;
@@ -133,10 +140,15 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 title: 'Premium scans work without rewarded ads',
               ),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              if (widget.offering.plans.isEmpty)
-                _UnavailablePlans()
+              if (_offering.plans.isEmpty)
+                _UnavailablePlans(
+                  retrying: _retryingOffering,
+                  onRetry: widget.onRetryLoadOffering != null
+                      ? _retryLoadOffering
+                      : null,
+                )
               else
-                ...widget.offering.plans.map(
+                ..._offering.plans.map(
                   (plan) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _PlanCard(
@@ -194,9 +206,32 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                 'Subscription renews through the App Store or Google Play. Cancel anytime in store account settings.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textTertiary,
+                  color: colors.textSecondary,
                   height: 1.35,
                 ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _LegalLink(
+                    label: 'Privacy Policy',
+                    url: LogMyPlateLinks.privacy,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      '·',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  _LegalLink(
+                    label: 'Terms of Use',
+                    url: LogMyPlateLinks.terms,
+                  ),
+                ],
               ),
             ],
           ),
@@ -235,6 +270,32 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
       _restoring = true;
       _error = null;
     });
+  }
+
+  Future<void> _retryLoadOffering() async {
+    setState(() {
+      _retryingOffering = true;
+      _error = null;
+    });
+
+    try {
+      final newOffering = await widget.onRetryLoadOffering!();
+      if (!mounted) return;
+      if (newOffering != null) {
+        setState(() {
+          _offering = newOffering;
+          _selectedPlan = _offering.defaultPlan;
+        });
+      } else {
+        setState(() => _error = 'Plans are still unavailable. Try again later.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not load plans. Check your connection.');
+      }
+    } finally {
+      if (mounted) setState(() => _retryingOffering = false);
+    }
 
     try {
       final restored = await widget.onRestore();
@@ -521,6 +582,11 @@ class _PlanBadge extends StatelessWidget {
 }
 
 class _UnavailablePlans extends StatelessWidget {
+  const _UnavailablePlans({this.retrying = false, this.onRetry});
+
+  final bool retrying;
+  final VoidCallback? onRetry;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
@@ -532,12 +598,63 @@ class _UnavailablePlans extends StatelessWidget {
         borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
         border: Border.all(color: colors.border),
       ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Premium plans could not be loaded from the store. Please check your internet connection and try again.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 36,
+              child: TextButton(
+                onPressed: retrying ? null : onRetry,
+                child: retrying
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.accentText,
+                        ),
+                      )
+                    : Text(
+                        'Try again',
+                        style: TextStyle(color: colors.accentText),
+                      ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({required this.label, required this.url});
+
+  final String label;
+  final Uri url;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return GestureDetector(
+      onTap: () => launchUrl(url, mode: LaunchMode.externalApplication),
       child: Text(
-        'Premium plans are not available from the store yet.',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: colors.textSecondary,
-          height: 1.35,
+          decoration: TextDecoration.underline,
+          decorationColor: colors.textSecondary.withValues(alpha: 0.5),
         ),
       ),
     );
