@@ -26,22 +26,38 @@ class GlassBackdrop extends StatelessWidget {
           fit: BoxFit.cover,
         ),
       );
-    } else {
+    } else if (isDark) {
+      // Subtle vertical gradient from bgInk to a slightly lighter surface tone
+      // so the dark backdrop has depth instead of a flat black wash.
       background = Positioned.fill(
-        child: DecoratedBox(
+        child: const DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: isDark
-                  ? [
-                      Colors.black,
-                      Colors.black,
-                    ]
-                  : [
-                      const Color(0xFFFDF5E6), // Subtle warm/amber tint
-                      LogMyPlateColors.bgCream, // Fades to original background color
-                    ],
+              colors: [
+                LogMyPlateColors.bgInk,
+                LogMyPlateColors.surfaceCardDark,
+              ],
+              stops: [0.35, 1],
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Warm radial glow centered slightly above the meal photo area, fading to
+      // the standard cream background — gives the light backdrop visual depth.
+      background = Positioned.fill(
+        child: const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.35),
+              radius: 1.1,
+              colors: [
+                Color(0xFFFDF5E6), // Warm center glow
+                LogMyPlateColors.bgCream, // Fades to base background
+              ],
+              stops: [0, 0.85],
             ),
           ),
         ),

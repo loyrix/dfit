@@ -553,9 +553,16 @@ class LogMyPlateApiClient {
     bool contentTypeJson = false,
     String? idempotencyKey,
   }) async {
-    final identity = await _loadDeviceIdentity();
-    final appBuild = await _loadAppBuildInfo();
-    final session = await _loadAuthSession();
+    // Kick off all three independent loads together, then await — they overlap
+    // instead of running back-to-back. (Started before awaiting so the platform
+    // channel / SharedPreferences round-trips run concurrently; kept as typed
+    // futures rather than Future.wait to avoid downcasting a mixed list.)
+    final identityFuture = _loadDeviceIdentity();
+    final appBuildFuture = _loadAppBuildInfo();
+    final sessionFuture = _loadAuthSession();
+    final identity = await identityFuture;
+    final appBuild = await appBuildFuture;
+    final session = await sessionFuture;
     final headers = {
       ...identity.toHeaders(),
       ...appBuild.toHeaders(),

@@ -90,11 +90,16 @@ class JournalController extends ChangeNotifier {
     if (cached != null) {
       _applyBootstrap(cached);
       await _analytics.applyPolicy(cached.engagementPolicy.analytics);
-      await MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(
-          testDeviceIds: cached.engagementPolicy.admob.testDeviceIds,
-          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
-          tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
+      // AdMob request config only affects future ad requests, so it must not
+      // block the UI. Fire-and-forget keeps the journal rendering immediately.
+      unawaited(
+        MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(
+            testDeviceIds: cached.engagementPolicy.admob.testDeviceIds,
+            tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
+            tagForChildDirectedTreatment:
+                TagForChildDirectedTreatment.unspecified,
+          ),
         ),
       );
       notifyListeners();
@@ -104,11 +109,14 @@ class JournalController extends ChangeNotifier {
       final bootstrap = await _apiClient.fetchBootstrap();
       _applyBootstrap(bootstrap);
       await _analytics.applyPolicy(bootstrap.engagementPolicy.analytics);
-      await MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(
-          testDeviceIds: bootstrap.engagementPolicy.admob.testDeviceIds,
-          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
-          tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
+      unawaited(
+        MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(
+            testDeviceIds: bootstrap.engagementPolicy.admob.testDeviceIds,
+            tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
+            tagForChildDirectedTreatment:
+                TagForChildDirectedTreatment.unspecified,
+          ),
         ),
       );
       unawaited(

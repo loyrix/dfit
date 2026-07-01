@@ -46,6 +46,7 @@ import 'state/auth_controller.dart';
 import 'state/journal_controller.dart';
 import 'state/nutritionist_controller.dart';
 import 'theme/logmyplate_colors.dart';
+import 'widgets/app_brand_mark.dart';
 import 'theme/logmyplate_theme.dart';
 import 'widgets/glass/glass_cards.dart';
 import 'widgets/logmyplate_notice.dart';
@@ -188,9 +189,14 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _initializeApp() async {
-    await _analytics.initialize();
-    await _loadLocalPreferences();
-    await _authController.load();
+    // These three are independent: analytics boots Firebase, the other two read
+    // separate SharedPreferences keys (welcome/theme and auth session). Running
+    // them concurrently overlaps the slow Firebase init under the cheap reads.
+    await Future.wait([
+      _analytics.initialize(),
+      _loadLocalPreferences(),
+      _authController.load(),
+    ]);
     if (_authController.isSignedIn && !_hasSeenWelcome) {
       await _markWelcomeSeen();
     }
@@ -902,7 +908,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       message: 'Fetching live store prices.',
     );
 
-    late final PremiumOffering offering;
+    PremiumOffering offering;
     try {
       offering = await _subscriptions.loadOffering(appUserId: appUserId);
     } catch (error, stackTrace) {
@@ -911,12 +917,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         error,
         stackTrace: stackTrace,
       );
-      _showJournalNotice(
-        tone: LogMyPlateNoticeTone.error,
-        title: 'Premium unavailable',
-        message: _subscriptionErrorMessage(error),
-      );
-      return false;
+      offering = PremiumOffering(identifier: 'default', plans: const []);
     }
 
     final context = _navigatorKey.currentContext;
@@ -932,6 +933,16 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         onPurchase: (plan) => _purchasePremiumPlan(plan, appUserId: appUserId),
         onRestore: () => _restorePremiumPurchase(appUserId: appUserId),
         onManage: _openManageSubscription,
+        onRetryLoadOffering: () async {
+          try {
+            final retried = await _subscriptions.loadOffering(
+              appUserId: appUserId,
+            );
+            return retried.hasPlans ? retried : null;
+          } catch (_) {
+            return null;
+          }
+        },
       ),
     );
 
@@ -1207,13 +1218,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  String _subscriptionErrorMessage(Object error) {
-    if (error is RevenueCatSubscriptionException) return error.message;
-    if (error is LogMyPlateApiException) {
-      return error.message ?? 'Subscription sync failed.';
-    }
-    return 'Could not load Premium right now.';
-  }
 
   Future<AuthSession?> _openAccountHome(
     AccountGateReason reason, {
@@ -1622,17 +1626,17 @@ class _LaunchScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mirrors the native splash (dark background + centered logo) so the
+    // handoff from the OS splash to Flutter is seamless. No other elements.
     return const Scaffold(
       backgroundColor: LogMyPlateColors.bgInk,
-      body: SafeArea(
-        child: Center(
-          child: Text(
-            'LogMyPlate',
-            style: TextStyle(
-              color: LogMyPlateColors.accent,
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-            ),
+      body: Center(
+        child: SizedBox(
+          width: 112,
+          height: 112,
+          child: Image(
+            image: AssetImage(logMyPlateAppIconAsset),
+            fit: BoxFit.contain,
           ),
         ),
       ),

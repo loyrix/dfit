@@ -597,8 +597,15 @@ class _PreviewChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassPill(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    // A fixed dark scrim (not a glass pill) so the light text stays legible over
+    // any photo — a glass pill turns near-white in light mode, hiding the label.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(

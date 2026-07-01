@@ -29,8 +29,10 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
       blurSigma: 24.0,
       tintColor: Colors.white,
       tintOpacity: 0.45,
-      borderColor: Colors.white.withValues(alpha: 0.9),
-      borderWidth: 1.5,
+      // A faint neutral hairline gives the (near-white) card a defined edge
+      // against the cream background — a white border was invisible there.
+      borderColor: const Color(0xFF1A1F1C).withValues(alpha: 0.08),
+      borderWidth: 1.0,
       borderRadius: 24.0,
       gradient: LinearGradient(
         begin: Alignment.topLeft,
@@ -40,10 +42,13 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
           Colors.white.withValues(alpha: 0.2),
         ],
       ),
+      // Softer-but-present grounded shadow so cards visibly lift off the
+      // near-white background instead of blending into it.
       shadow: BoxShadow(
-        color: Colors.black.withValues(alpha: 0.08),
-        blurRadius: 20.0,
-        offset: const Offset(0, 8),
+        color: Colors.black.withValues(alpha: 0.12),
+        blurRadius: 28.0,
+        offset: const Offset(0, 12),
+        spreadRadius: -4.0,
       ),
       enabled: true,
     );

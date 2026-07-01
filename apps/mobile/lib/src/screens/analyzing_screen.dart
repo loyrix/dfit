@@ -109,7 +109,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
       backgroundColor: colors.background,
       body: GlassBackdrop(
         child: SafeArea(
-            child: LayoutBuilder(
+          child: Stack(
+            children: [
+              LayoutBuilder(
               builder: (context, constraints) {
                 final compact = constraints.maxHeight < 720;
                 final horizontalPadding = compact ? 20.0 : 24.0;
@@ -209,9 +211,23 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                   ),
                 );
               },
-            ),
+              ),
+              Positioned(
+                top: 4,
+                left: 4,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back_rounded,
+                    color: colors.textPrimary,
+                  ),
+                  tooltip: 'Back',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 
@@ -414,8 +430,8 @@ class _AnalyzingMealPreview extends StatelessWidget {
                     boxShadow: [
                       BoxShadow(
                         color: surface.shadowColor,
-                        blurRadius: surface.isDark ? 42 : 34,
-                        offset: const Offset(0, 24),
+                        blurRadius: surface.isDark ? 42 : 22,
+                        offset: Offset(0, surface.isDark ? 24 : 14),
                       ),
                     ],
                   ),
@@ -482,16 +498,26 @@ class _AnalyzingMealPreview extends StatelessWidget {
               Positioned(
                 top: 18,
                 left: 18,
-                child: GlassPill(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-      child: Text(
-        'Analyzing',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Colors.white,
-          letterSpacing: 0.5,
-        ),
-      ),
-    ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: Text(
+                    'Analyzing',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -539,7 +565,7 @@ class _AnalysisStepTimeline extends StatelessWidget {
         ? 'Needs attention'
         : steps[activeStep.clamp(0, steps.length - 1)];
 
-    return LiteGlassCard(
+    return GlassCard(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
       child: Column(
@@ -562,7 +588,7 @@ class _AnalysisStepTimeline extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: !failed && index < activeStep
                               ? LogMyPlateColors.accent
-                              : colors.border.withValues(alpha: 0.72),
+                              : colors.textSecondary.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(99),
                         ),
                       ),
@@ -620,7 +646,7 @@ class _StepDot extends StatelessWidget {
         ? LogMyPlateColors.destructive
         : done || active
         ? LogMyPlateColors.accent
-        : colors.mutedFill;
+        : colors.textSecondary.withValues(alpha: 0.28);
     final borderColor = failed
         ? LogMyPlateColors.destructive
         : done || active

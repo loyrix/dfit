@@ -50,19 +50,23 @@ void main() {
 
       LogMyPlateAdConfig.validateForCurrentBuild();
       
-      final cachedBootstrap = await JournalCacheStore().load();
-      final testDeviceIds = cachedBootstrap?.engagementPolicy.admob.testDeviceIds ?? const [];
-
-      await MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(
-          testDeviceIds: testDeviceIds,
-          tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
-          tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
-        ),
-      );
-      await MobileAds.instance.initialize();
-
       runApp(const LogMyPlateApp());
+
+      unawaited(
+        JournalCacheStore().load().then((cachedBootstrap) async {
+          final testDeviceIds =
+              cachedBootstrap?.engagementPolicy.admob.testDeviceIds ?? const [];
+          await MobileAds.instance.updateRequestConfiguration(
+            RequestConfiguration(
+              testDeviceIds: testDeviceIds,
+              tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.unspecified,
+              tagForChildDirectedTreatment:
+                  TagForChildDirectedTreatment.unspecified,
+            ),
+          );
+          await MobileAds.instance.initialize();
+        }),
+      );
     },
     (error, stack) {
       AppDiagnostics.instance.record('zone.error', error, stackTrace: stack);
