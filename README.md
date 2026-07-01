@@ -19,6 +19,8 @@ this repository.
 apps/
   mobile/        Flutter iOS + Android app
   api/           Fastify TypeScript API
+  admin/         Next.js admin backoffice
+  web/           Next.js public website
 
 packages/
   contracts/     Zod API contracts
@@ -113,21 +115,19 @@ serverless adapter in `apps/api/dist/vercel.js`. The empty `public/` directory
 exists only to satisfy Vercel's static output directory check for API-only
 deployments.
 
-## Phase 0 Status
+## Status
 
-- Flutter app scaffold exists with iOS/Android platform projects.
-- Mobile shell includes Welcome, Today, Camera placeholder, Analyzing, Review, Meal Detail, and Settings.
-- API has health/config/profile/journal/scan endpoints backed by Postgres when
-  `DATABASE_URL` is configured, with in-memory repositories for tests.
-- Scan analysis supports the mock provider for tests/dev and Gemini for real
-  food-photo analysis when `AI_PROVIDER=gemini` and `GEMINI_API_KEY` are set.
+- Flutter app ships the full scan flow: Welcome, Today journal, Camera capture
+  (`image_picker`), Analyzing, Review, Meal Detail, weekly journal, and Settings.
+- Real food-photo analysis runs through Gemini (`AI_PROVIDER=gemini`), with a
+  mock provider retained for tests and local dev.
+- Premium is live via RevenueCat (`purchases_flutter`), including paywall,
+  entitlement checks, and subscription management.
+- Rewarded/interstitial ads are integrated via AdMob (`google_mobile_ads`).
+- AI nutritionist chat and AI food-learning features are implemented (see
+  `docs/ai-nutritionist.md` and `docs/ai-food-learning.md`).
+- API exposes health/config/profile/journal/scan endpoints backed by Postgres
+  when `DATABASE_URL` is set, with in-memory repositories for tests.
 - Domain package has tested nutrition and quota logic.
-- Initial Supabase-compatible Postgres migration exists.
-
-## Current Intentional Gaps
-
-- Real camera plugin integration is deferred to scan-flow implementation.
-- Supabase runtime connection is wired through the API repository layer.
-- AdMob SSV is not wired yet.
-- AI provider calls are mocked behind the planned adapter boundary.
-- Account-link and premium screens are scaffold targets, not complete flows.
+- Admin backoffice (`apps/admin`) and public website (`apps/web`) are built on
+  Next.js.
