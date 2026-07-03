@@ -3,6 +3,7 @@ import type { ApiConfig } from "../config.js";
 import type { SqlClient } from "../db/client.js";
 import { GeminiAiProvider } from "./gemini-ai-provider.js";
 import { MockAiProvider } from "./mock-ai-provider.js";
+import { RuntimeGeminiAiProvider } from "./runtime-gemini-ai-provider.js";
 import { RuntimeVertexAiProvider } from "./runtime-vertex-ai-provider.js";
 import { VertexAiProvider } from "./vertex-ai-provider.js";
 
@@ -64,11 +65,15 @@ export class AiProviderError extends Error {
 export const createAiProvider = (config: ApiConfig, sql?: SqlClient): AiProvider => {
   switch (config.aiProvider) {
     case "gemini":
+      if (sql) {
+        return new RuntimeGeminiAiProvider(config.gemini, sql);
+      }
       return new GeminiAiProvider({
         apiKey: config.gemini.apiKey,
         model: config.gemini.model,
         endpoint: config.gemini.endpoint,
         timeoutMs: config.gemini.timeoutMs,
+        thinkingBudget: config.gemini.thinkingBudget,
       });
     case "vertex":
       if (sql) {

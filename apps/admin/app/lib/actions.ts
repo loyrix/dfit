@@ -169,6 +169,20 @@ export async function updateAiChatSettingsAction(formData: FormData) {
   redirect("/ai?section=chat");
 }
 
+export async function updateAiScanConfigAction(formData: FormData) {
+  await requireAdminSession();
+  await adminSend(
+    "/admin/ai/scan-config",
+    {
+      thinkingBudget: numberValue(formData, "thinkingBudget"),
+      reason: stringValue(formData, "reason"),
+    },
+    { idempotencyKey: readMutationKey(formData), method: "PUT" },
+  );
+  revalidatePath("/ai");
+  redirect("/ai?section=models");
+}
+
 export async function updateFeatureFlagAction(formData: FormData) {
   await requireAdminSession();
   const key = stringValue(formData, "key");

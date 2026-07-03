@@ -21,14 +21,20 @@ class FixedReplyAiProvider implements ChatAiProvider {
   }
 }
 
+// Dynamic dates so the entitlement never expires by wall-clock time; the
+// previous hardcoded 2026-07-01 period end made premium tests fail once the
+// calendar passed it.
+const entitlementPeriodStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+const entitlementPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
 const premium = async (repository: InMemoryStore): Promise<void> => {
   await repository.upsertSubscriptionEntitlement({
     appUserId: "profile_demo",
     entitlementId: "premium",
     status: "active",
     store: "app_store",
-    currentPeriodStart: "2026-06-01T00:00:00Z",
-    currentPeriodEnd: "2026-07-01T00:00:00Z",
+    currentPeriodStart: entitlementPeriodStart,
+    currentPeriodEnd: entitlementPeriodEnd,
     willRenew: true,
   });
 };
@@ -82,8 +88,8 @@ describe("Chat Routes", () => {
       entitlementId: "premium",
       status: "active",
       store: "app_store",
-      currentPeriodStart: "2026-06-01T00:00:00Z",
-      currentPeriodEnd: "2026-07-01T00:00:00Z",
+      currentPeriodStart: entitlementPeriodStart,
+      currentPeriodEnd: entitlementPeriodEnd,
       willRenew: true,
     });
 
@@ -115,8 +121,8 @@ describe("Chat Routes", () => {
       entitlementId: "premium",
       status: "active",
       store: "app_store",
-      currentPeriodStart: "2026-06-01T00:00:00Z",
-      currentPeriodEnd: "2026-07-01T00:00:00Z",
+      currentPeriodStart: entitlementPeriodStart,
+      currentPeriodEnd: entitlementPeriodEnd,
       willRenew: true,
     });
 
@@ -226,8 +232,8 @@ describe("Chat Routes", () => {
       entitlementId: "premium",
       status: "active",
       store: "app_store",
-      currentPeriodStart: "2026-06-01T00:00:00Z",
-      currentPeriodEnd: "2026-07-01T00:00:00Z",
+      currentPeriodStart: entitlementPeriodStart,
+      currentPeriodEnd: entitlementPeriodEnd,
       willRenew: true,
     });
 

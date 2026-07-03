@@ -191,6 +191,25 @@ export const registerScanRoutes = async (
 
     const userHint = parsed.data.hint?.trim() || undefined;
     const imageHash = imageBytes ? sha256Hex(imageBytes) : undefined;
+
+    // Kick off the quota and no-food reads now so they run concurrently with
+    // the cache lookup instead of sequentially after a cache miss. Rejections
+    // are surfaced where the promises are awaited below; the extra .catch on
+    // a separate derived promise only prevents unhandled-rejection noise when
+    // a cache hit returns early.
+    const quotaPromise = timer.measure("quota", () => repository.getQuota());
+    quotaPromise.catch(() => undefined);
+    const noFoodLimit = noFoodScanLimit();
+    const noFoodAttemptsPromise =
+      noFoodLimit > 0
+        ? timer.measure("noFoodAttempts", () =>
+            repository.countNoFoodScanAttemptsSince(
+              new Date(Date.now() - noFoodScanWindowMs).toISOString(),
+            ),
+          )
+        : undefined;
+    noFoodAttemptsPromise?.catch(() => undefined);
+
     if (imageHash) {
       try {
         const cachedAnalysis = await timer.measure("scanAnalysisCacheLookup", () =>
@@ -237,7 +256,7 @@ export const registerScanRoutes = async (
       }
     }
 
-    const quota = await timer.measure("quota", () => repository.getQuota());
+    const quota = await quotaPromise;
     const decision = decideScanQuota(quota);
     if (!decision.allowed) {
       return reply.status(402).send({
@@ -247,13 +266,8 @@ export const registerScanRoutes = async (
       });
     }
 
-    const noFoodLimit = noFoodScanLimit();
-    if (noFoodLimit > 0) {
-      const noFoodAttempts = await timer.measure("noFoodAttempts", () =>
-        repository.countNoFoodScanAttemptsSince(
-          new Date(Date.now() - noFoodScanWindowMs).toISOString(),
-        ),
-      );
+    if (noFoodAttemptsPromise) {
+      const noFoodAttempts = await noFoodAttemptsPromise;
       if (noFoodAttempts >= noFoodLimit) {
         return reply.status(429).send(noFoodLimitResponse());
       }
@@ -274,7 +288,16 @@ export const registerScanRoutes = async (
       imageHash,
       imageHashAlgorithm: imageHash ? scanImageHashAlgorithm : undefined,
     };
-    await timer.measure("scanMarkAnalyzing", () => repository.updateScan(scanWithRequestContext));
+    // Run the bookkeeping "analyzing" write concurrently with the AI call.
+    // Write ordering against the later ready/failed updates is preserved by
+    // awaiting this promise before either of them. A failure here is logged
+    // instead of aborting: the scan-ready write below surfaces persistent
+    // database problems anyway, and the AI work should not be wasted.
+    const markAnalyzingPromise = timer
+      .measure("scanMarkAnalyzing", () => repository.updateScan(scanWithRequestContext))
+      .catch((error) => {
+        request.log.error({ err: error, scanId: scan.id }, "scan mark analyzing failed");
+      });
 
     let analyzedResult;
     try {
@@ -290,6 +313,7 @@ export const registerScanRoutes = async (
         }),
       );
     } catch (error) {
+      await markAnalyzingPromise;
       await timer.measure("scanMarkFailed", () =>
         repository.updateScan({
           ...scanWithRequestContext,
@@ -332,25 +356,61 @@ export const registerScanRoutes = async (
     }
 
     const hasFoodItems = analyzedResult.analysis.items.length > 0;
-    if (hasFoodItems) {
-      await timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason));
-    }
 
-    let storedScanImage: StoredMealImage | undefined;
-    if (hasFoodItems && image && imageBytes && mealImageStorage.enabled) {
-      try {
-        storedScanImage = await timer.measure("scanImageUpload", () =>
-          mealImageStorage.uploadScanImage({
-            profileId: scan.profileId,
-            scanId: scan.id,
-            bytes: imageBytes,
-            mimeType: image.mimeType,
-          }),
-        );
-      } catch (error) {
-        request.log.error({ err: error, scanId: scan.id }, "scan image upload failed");
-      }
-    }
+    // Credit consumption, image storage upload, and analysis-cache store are
+    // independent of each other, so run them concurrently instead of paying
+    // for three sequential round-trips. Only consumeCredit is fatal (same as
+    // before); upload and cache-store failures stay logged and non-fatal.
+    const consumeCreditPromise = hasFoodItems
+      ? timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason))
+      : undefined;
+
+    const scanImageUploadPromise: Promise<StoredMealImage | undefined> | undefined =
+      hasFoodItems && image && imageBytes && mealImageStorage.enabled
+        ? timer
+            .measure("scanImageUpload", () =>
+              mealImageStorage.uploadScanImage({
+                profileId: scan.profileId,
+                scanId: scan.id,
+                bytes: imageBytes,
+                mimeType: image.mimeType,
+              }),
+            )
+            .catch((error) => {
+              request.log.error({ err: error, scanId: scan.id }, "scan image upload failed");
+              return undefined;
+            })
+        : undefined;
+
+    const cacheStorePromise =
+      hasFoodItems && imageHash
+        ? timer
+            .measure("scanAnalysisCacheStore", () =>
+              repository.upsertScanAnalysisCache({
+                profileId: scan.profileId,
+                imageHash,
+                hashAlgorithm: scanImageHashAlgorithm,
+                imageMimeType: image?.mimeType,
+                imageByteSize: image?.byteSize,
+                analyzedResponse: analyzedResult.analysis,
+              }),
+            )
+            .catch((error) => {
+              request.log.error(
+                { err: error, scanId: scan.id },
+                "scan analysis cache store failed",
+              );
+            })
+        : undefined;
+
+    const [storedScanImage] = await Promise.all([
+      scanImageUploadPromise,
+      consumeCreditPromise,
+      cacheStorePromise,
+      // Preserve write ordering: the "analyzing" update must land before the
+      // ready/failed update below. Never rejects (caught above).
+      markAnalyzingPromise,
+    ]);
 
     await timer.measure("scanMarkReady", () =>
       repository.updateScan({
@@ -363,23 +423,6 @@ export const registerScanRoutes = async (
         imageObjectKey: storedScanImage?.objectKey,
       }),
     );
-
-    if (hasFoodItems && imageHash) {
-      try {
-        await timer.measure("scanAnalysisCacheStore", () =>
-          repository.upsertScanAnalysisCache({
-            profileId: scan.profileId,
-            imageHash,
-            hashAlgorithm: scanImageHashAlgorithm,
-            imageMimeType: image?.mimeType,
-            imageByteSize: image?.byteSize,
-            analyzedResponse: analyzedResult.analysis,
-          }),
-        );
-      } catch (error) {
-        request.log.error({ err: error, scanId: scan.id }, "scan analysis cache store failed");
-      }
-    }
 
     const response = {
       ...analyzedResult.analysis,

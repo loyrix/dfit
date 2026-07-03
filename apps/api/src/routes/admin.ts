@@ -7,6 +7,14 @@ import { config } from "../config.js";
 import type { SqlClient } from "../db/client.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 import {
+  AI_SCAN_CONFIG_KEY,
+  aiScanConfigSchema,
+  clearAiScanConfigCache,
+  defaultAiScanConfig,
+  loadAiScanConfig,
+  parseAiScanConfig,
+} from "../services/ai-scan-config.js";
+import {
   APP_UPDATE_POLICY_KEY,
   appUpdatePolicyConfigSchema,
   loadAppUpdatePolicyConfig,
@@ -327,6 +335,18 @@ export const registerAdminRoutes = async (
     const body = updateChatSettingsSchema.parse(request.body ?? {});
     const settings = await updateChatSettings(sql, request, body);
     return { settings };
+  });
+
+  app.get("/admin/ai/scan-config", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return { config: (await loadAiScanConfig(sql)) ?? defaultAiScanConfig() };
+  });
+
+  app.put("/admin/ai/scan-config", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const body = updateAiScanConfigSchema.parse(request.body ?? {});
+    const config = await updateAiScanConfig(sql, request, body);
+    return { config };
   });
 
   app.get("/admin/feature-flags", { preHandler: requireAdmin }, async (_request, reply) => {
@@ -728,6 +748,10 @@ const updateNoticeSchema = z.object({
 });
 
 const updateAppUpdatePolicySchema = appUpdatePolicyConfigSchema.extend({
+  reason: requiredReasonSchema,
+});
+
+const updateAiScanConfigSchema = aiScanConfigSchema.extend({
   reason: requiredReasonSchema,
 });
 
@@ -3082,6 +3106,57 @@ const updateAppUpdatePolicy = async (
     });
 
     return parseAppUpdatePolicyConfig(row.value);
+  });
+
+const updateAiScanConfig = async (
+  sql: SqlClient,
+  request: FastifyRequest,
+  input: z.infer<typeof updateAiScanConfigSchema>,
+) =>
+  sql.begin(async (tx) => {
+    const actor = getAdminActor(request) ?? "unknown";
+    const { reason, ...configInput } = input;
+    const nextConfig = aiScanConfigSchema.parse(configInput);
+    const [before] = await tx<AppRuntimeConfigRow[]>`
+      select key, value, description, updated_by, updated_at::text
+      from app_runtime_config
+      where key = ${AI_SCAN_CONFIG_KEY}
+      limit 1
+    `;
+
+    const [row] = await tx<AppRuntimeConfigRow[]>`
+      insert into app_runtime_config (key, value, description, updated_by)
+      values (
+        ${AI_SCAN_CONFIG_KEY},
+        ${tx.json(nextConfig)},
+        'Runtime AI settings for food-photo scan analysis (thinking budget).',
+        ${actor}
+      )
+      on conflict (key) do update
+      set
+        value = excluded.value,
+        description = excluded.description,
+        updated_by = excluded.updated_by,
+        updated_at = now()
+      returning key, value, description, updated_by, updated_at::text
+    `;
+
+    await insertAuditLog(tx, request, {
+      action: "update_ai_scan_config",
+      targetType: "app_runtime_config",
+      targetId: AI_SCAN_CONFIG_KEY,
+      reason,
+      before: before
+        ? { ...mapAppRuntimeConfigRow(before), value: parseAiScanConfig(before.value) }
+        : null,
+      after: { ...mapAppRuntimeConfigRow(row), value: parseAiScanConfig(row.value) },
+    });
+
+    // Make the change visible immediately on this instance instead of waiting
+    // out the 30s loader cache. Other instances converge within the TTL.
+    clearAiScanConfigCache();
+
+    return parseAiScanConfig(row.value);
   });
 
 const updateEngagementPolicy = async (

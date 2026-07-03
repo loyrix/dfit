@@ -51,6 +51,12 @@ type GeminiProviderOptions = {
   model: string;
   endpoint: string;
   timeoutMs: number;
+  /**
+   * Gemini 2.5 thinking budget. -1 (default) keeps dynamic thinking for
+   * accuracy; 0 disables thinking for the fastest scans; a positive value
+   * caps the thinking token budget.
+   */
+  thinkingBudget?: number;
   fetchFn?: typeof fetch;
 };
 
@@ -190,6 +196,9 @@ export class GeminiAiProvider implements AiProvider {
             temperature: 0.1,
             responseMimeType: "application/json",
             responseJsonSchema: foodPhotoResponseSchema,
+            thinkingConfig: {
+              thinkingBudget: this.options.thinkingBudget ?? -1,
+            },
           },
         }),
       });

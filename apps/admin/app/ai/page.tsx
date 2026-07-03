@@ -5,10 +5,17 @@ import {
   createPromptAction,
   setDefaultModelAction,
   updateAiChatSettingsAction,
+  updateAiScanConfigAction,
   updateModelAction,
   updatePromptAction,
 } from "../lib/actions";
-import { adminGet, type AiChatSettings, type AiModel, type AiPrompt } from "../lib/api";
+import {
+  adminGet,
+  type AiChatSettings,
+  type AiModel,
+  type AiPrompt,
+  type AiScanConfig,
+} from "../lib/api";
 import { createMutationKey } from "../lib/idempotency";
 
 export const dynamic = "force-dynamic";
@@ -23,10 +30,11 @@ type AiSearchParams = {
 
 export default async function AiPage({ searchParams }: { searchParams?: Promise<AiSearchParams> }) {
   const params = (await searchParams) ?? {};
-  const [{ models }, { prompts }, { settings }] = await Promise.all([
+  const [{ models }, { prompts }, { settings }, { config: scanConfig }] = await Promise.all([
     adminGet<{ models: AiModel[] }>("/admin/ai/models"),
     adminGet<{ prompts: AiPrompt[] }>("/admin/ai/prompts"),
     adminGet<{ settings: AiChatSettings }>("/admin/ai/chat-settings"),
+    adminGet<{ config: AiScanConfig }>("/admin/ai/scan-config"),
   ]);
   const activeModel = models.find((model) => model.isDefault);
   const activePrompts = prompts.filter((prompt) => prompt.isActive);
@@ -265,6 +273,54 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
             </table>
             {filteredModels.length === 0 ? <EmptyState title="No models matched" /> : null}
           </div>
+        </section>
+      ) : null}
+
+      {section === "models" ? (
+        <section className="panel">
+          <div className="section-head">
+            <h2 className="text-xl font-bold">Scan analysis settings</h2>
+          </div>
+          <form action={updateAiScanConfigAction} className="form-grid mt-4">
+            <input
+              name="idempotencyKey"
+              type="hidden"
+              value={createMutationKey("ai-scan-config:update")}
+            />
+            <label>
+              <span className="metric-label">
+                Thinking budget
+                <span className="muted text-xs ml-2">
+                  Gemini 2.5 reasoning before answering a food scan. -1 = dynamic (model decides,
+                  most accurate), 0 = off (fastest), positive = max thinking tokens. Applies to both
+                  Gemini and Vertex scan providers within ~30 seconds of saving.
+                </span>
+              </span>
+              <input
+                className="input"
+                name="thinkingBudget"
+                type="number"
+                min={-1}
+                max={24576}
+                step={1}
+                defaultValue={scanConfig.thinkingBudget}
+                required
+              />
+            </label>
+            <input
+              className="input"
+              name="reason"
+              placeholder="Reason for changing scan analysis settings"
+              minLength={8}
+              maxLength={500}
+              required
+            />
+            <div className="inline-controls justify-between items-center">
+              <button className="button" type="submit">
+                Save settings
+              </button>
+            </div>
+          </form>
         </section>
       ) : null}
 

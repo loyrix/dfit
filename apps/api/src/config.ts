@@ -62,6 +62,7 @@ export type ApiConfig = {
     model: string;
     endpoint: string;
     timeoutMs: number;
+    thinkingBudget: number;
   };
   vertex: {
     project: string;
@@ -152,6 +153,11 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       model: env.GEMINI_MODEL ?? "gemini-2.5-flash",
       endpoint: env.GEMINI_API_ENDPOINT ?? "https://generativelanguage.googleapis.com/v1beta",
       timeoutMs: Number(env.GEMINI_TIMEOUT_MS ?? 25_000),
+      // -1 keeps Gemini 2.5 dynamic thinking (default, accuracy-first).
+      // Set GEMINI_THINKING_BUDGET=0 to disable thinking for faster scans,
+      // or a positive token budget to cap it. Runtime ai_scan_config from
+      // the admin backoffice overrides this when present.
+      thinkingBudget: Number(env.GEMINI_THINKING_BUDGET ?? -1),
     },
     vertex: {
       project: env.GOOGLE_CLOUD_PROJECT ?? "",

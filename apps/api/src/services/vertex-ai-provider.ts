@@ -25,6 +25,11 @@ export type VertexAiProviderOptions = {
   maxOutputTokens: number;
   temperature?: number;
   topP?: number;
+  /**
+   * Gemini 2.5 thinking budget: -1 dynamic, 0 off, positive = capped.
+   * Defaults to 0 (off) for 2.5 models, preserving historical behaviour.
+   */
+  thinkingBudget?: number;
   promptTemplate?: string;
   promptVersion?: string;
   client?: VertexGenerateClient;
@@ -114,7 +119,7 @@ export class VertexAiProvider implements AiProvider {
           maxOutputTokens: this.options.maxOutputTokens,
           responseMimeType: "application/json",
           responseSchema: foodPhotoResponseSchema,
-          ...thinkingConfigForModel(this.options.model),
+          ...thinkingConfigForModel(this.options.model, this.options.thinkingBudget),
         },
       });
 
@@ -320,8 +325,8 @@ const toVertexUpstreamProviderError = (error: unknown) => {
   );
 };
 
-const thinkingConfigForModel = (model: string) =>
-  model.includes("gemini-2.5-") ? { thinkingConfig: { thinkingBudget: 0 } } : {};
+const thinkingConfigForModel = (model: string, thinkingBudget?: number) =>
+  model.includes("gemini-2.5-") ? { thinkingConfig: { thinkingBudget: thinkingBudget ?? 0 } } : {};
 
 const previewText = (text: string) => text.slice(0, 2_000);
 

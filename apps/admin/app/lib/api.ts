@@ -342,6 +342,10 @@ export type AiChatSettings = {
   updatedAt: string;
 };
 
+export type AiScanConfig = {
+  thinkingBudget: number;
+};
+
 export type AiPrompt = {
   id: string;
   key: string;
