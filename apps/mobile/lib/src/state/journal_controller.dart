@@ -438,6 +438,22 @@ class JournalController extends ChangeNotifier {
     return 'Could not refresh journal. Pull to retry.';
   }
 
+  Future<PreparedScan>? _pendingPreparedScan;
+
+  /// Starts the scan "prepare" round-trip early (e.g. when the camera opens)
+  /// so it overlaps the time the user spends framing the photo instead of
+  /// delaying the analyze call. Errors are surfaced when the pending scan is
+  /// consumed, where a fresh prepare is retried as a fallback.
+  void warmUpScanPreparation() {
+    if (_pendingPreparedScan != null) return;
+    final future = _apiClient.prepareScan(
+      idempotencyKey:
+          'scan-prepare-warm-${DateTime.now().microsecondsSinceEpoch}',
+    );
+    future.ignore();
+    _pendingPreparedScan = future;
+  }
+
   Future<ScanAnalysis> analyzeCapturedMeal(CapturedMealPhoto photo) async {
     _error = null;
     final seed = DateTime.now().microsecondsSinceEpoch;
@@ -451,9 +467,24 @@ class JournalController extends ChangeNotifier {
           },
         ),
       );
-      final prepared = await _apiClient.prepareScan(
-        idempotencyKey: 'scan-prepare-$seed',
-      );
+      final pending = _pendingPreparedScan;
+      _pendingPreparedScan = null;
+      PreparedScan prepared;
+      if (pending != null) {
+        try {
+          prepared = await pending;
+        } catch (_) {
+          // The warm-up prepare failed (e.g. briefly offline when the camera
+          // opened); retry fresh so a stale failure never blocks the scan.
+          prepared = await _apiClient.prepareScan(
+            idempotencyKey: 'scan-prepare-$seed',
+          );
+        }
+      } else {
+        prepared = await _apiClient.prepareScan(
+          idempotencyKey: 'scan-prepare-$seed',
+        );
+      }
       _quota = prepared.quota;
       notifyListeners();
 

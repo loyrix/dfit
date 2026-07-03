@@ -558,6 +558,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _pushCameraFlow() async {
+    // Overlap the scan "prepare" round-trip with the time the user spends
+    // framing the photo, so analysis starts immediately after capture.
+    _journalController.warmUpScanPreparation();
     await _navigatorKey.currentState!.push<void>(
       logmyplatePageRoute<void>(
         builder: (_) => CameraScreen(

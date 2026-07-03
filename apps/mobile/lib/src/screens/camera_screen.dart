@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/captured_meal_photo.dart';
+import '../services/meal_photo_optimizer.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
@@ -113,11 +114,28 @@ class _CameraScreenState extends State<CameraScreen>
       if (image == null) return;
 
       final bytes = await image.readAsBytes();
+
+      // Re-encode toward JPEG with a hard byte ceiling. The picker's
+      // imageQuality only compresses JPEG, so PNG picks (screenshots, some
+      // gallery sources) could exceed the API's upload body limit and fail
+      // with a 413 after a full upload attempt.
+      final optimized = await optimizeMealPhotoForUpload(
+        bytes,
+        _mimeTypeFor(image),
+      );
       if (!mounted) return;
+      if (optimized == null) {
+        setState(() {
+          _captureNotice =
+              'That photo is too large to analyze. Try another photo.';
+        });
+        return;
+      }
+
       setState(() {
         _preparedCapture = _PreparedCapture(
-          bytes: bytes,
-          mimeType: _mimeTypeFor(image),
+          bytes: optimized.bytes,
+          mimeType: optimized.mimeType,
           fileName: image.name.isEmpty
               ? '${source.filePrefix}-meal.jpg'
               : image.name,
