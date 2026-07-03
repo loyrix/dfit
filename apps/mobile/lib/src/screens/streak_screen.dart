@@ -10,10 +10,7 @@ import '../widgets/glass/glass_cards.dart';
 import '../widgets/primitive_icons.dart';
 
 class StreakScreen extends StatelessWidget {
-  const StreakScreen({
-    super.key,
-    required this.streak,
-  });
+  const StreakScreen({super.key, required this.streak});
 
   final StreakSummary streak;
 
@@ -26,19 +23,19 @@ class StreakScreen extends StatelessWidget {
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-          children: [
-            _Header(),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _StreakHero(streak: streak),
-            const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-            _MilestoneSection(streak: streak),
-            if (streak.achievedMilestoneTitle != null) ...[
+            children: [
+              _Header(),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _StreakHero(streak: streak),
               const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-              _AchievedMilestoneSection(streak: streak),
+              _MilestoneSection(streak: streak),
+              if (streak.achievedMilestoneTitle != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                _AchievedMilestoneSection(streak: streak),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -98,7 +95,10 @@ class _StreakHero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.local_fire_department_rounded, color: surface.textPrimary),
+              Icon(
+                Icons.local_fire_department_rounded,
+                color: surface.textPrimary,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Current Streak',
@@ -126,7 +126,9 @@ class _StreakHero extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   streak.currentStreakDays == 1 ? 'day' : 'days',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
                 ),
               ),
             ],
@@ -145,7 +147,9 @@ class _StreakHero extends StatelessWidget {
               Expanded(
                 child: _HeroStat(
                   label: 'Status',
-                  value: streak.todayLogged ? 'Logged today' : 'Needs log today',
+                  value: streak.todayLogged
+                      ? 'Logged today'
+                      : 'Needs log today',
                   primaryText: surface.textPrimary,
                   secondaryText: surface.textSecondary,
                 ),
@@ -178,9 +182,9 @@ class _HeroStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: secondaryText,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: secondaryText),
         ),
         const SizedBox(height: 4),
         Text(
@@ -211,14 +215,13 @@ class _MilestoneSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Next Milestone',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('Next Milestone', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 10),
         LiteGlassCard(
           padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.cardBorderRadius,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -239,9 +242,9 @@ class _MilestoneSection extends StatelessWidget {
                 streak.nextRewardScans > 0
                     ? 'Only ${streak.daysUntilNextMilestone} days left to reach this milestone. Keep logging your meals daily to earn +${streak.nextRewardScans} scans as a reward!'
                     : 'Only ${streak.daysUntilNextMilestone} days left to reach this milestone. Keep logging your meals daily!',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
               ),
             ],
           ),
@@ -270,13 +273,19 @@ class _AchievedMilestoneSection extends StatelessWidget {
         const SizedBox(height: 10),
         LiteGlassCard(
           padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.cardBorderRadius,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.emoji_events_rounded, color: LogMyPlateColors.accent, size: 24),
+                  Icon(
+                    Icons.emoji_events_rounded,
+                    color: LogMyPlateColors.accent,
+                    size: 24,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -288,10 +297,11 @@ class _AchievedMilestoneSection extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                streak.achievedMilestoneBody ?? 'Great job on your consistency!',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colors.textSecondary,
-                ),
+                streak.achievedMilestoneBody ??
+                    'Great job on your consistency!',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
               ),
             ],
           ),

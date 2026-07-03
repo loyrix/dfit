@@ -101,7 +101,9 @@ class EnergyHeroCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: style.chipFill,
-                            borderRadius: BorderRadius.circular(99),
+                            borderRadius: BorderRadius.circular(
+                              LogMyPlateSpacing.pillBorderRadius,
+                            ),
                             border: Border.all(color: style.chipBorder),
                           ),
                           child: Row(
@@ -109,10 +111,11 @@ class EnergyHeroCard extends StatelessWidget {
                             children: [
                               Text(
                                 'Target $targetCalories kCal',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: style.accentText,
-                                  letterSpacing: 0,
-                                ),
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: style.accentText,
+                                      letterSpacing: 0,
+                                    ),
                               ),
                               const SizedBox(width: 6),
                               Icon(
@@ -124,7 +127,11 @@ class EnergyHeroCard extends StatelessWidget {
                           ),
                         ),
                       )
-                    : _TargetCTA(onSetTarget: onSetTarget, style: style, hasTarget: false),
+                    : _TargetCTA(
+                        onSetTarget: onSetTarget,
+                        style: style,
+                        hasTarget: false,
+                      ),
               ],
             ),
           ),
@@ -275,7 +282,11 @@ class _HeroRings extends StatelessWidget {
 }
 
 class _TargetCTA extends StatelessWidget {
-  const _TargetCTA({required this.onSetTarget, required this.style, required this.hasTarget});
+  const _TargetCTA({
+    required this.onSetTarget,
+    required this.style,
+    required this.hasTarget,
+  });
 
   final VoidCallback? onSetTarget;
   final LogMyPlateHeroSurfaceStyle style;
@@ -296,7 +307,9 @@ class _TargetCTA extends StatelessWidget {
               style.accentText.withValues(alpha: 0.05),
             ],
           ),
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.pillBorderRadius,
+          ),
           border: Border.all(
             color: style.accentText.withValues(alpha: 0.3),
             width: 1,
@@ -314,9 +327,9 @@ class _TargetCTA extends StatelessWidget {
             Text(
               hasTarget ? 'Edit daily target' : 'Set daily target',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: style.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: style.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),

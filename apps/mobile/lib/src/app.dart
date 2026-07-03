@@ -35,6 +35,7 @@ import 'screens/welcome_screen.dart';
 import 'services/app_build_info.dart';
 import 'services/app_diagnostics.dart';
 import 'services/app_links.dart';
+import 'services/app_review_service.dart';
 import 'services/interstitial_ad_store.dart';
 import 'services/logmyplate_analytics.dart';
 import 'services/logmyplate_api_client.dart';
@@ -725,9 +726,18 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       );
       if (accepted != true || !context.mounted) return true;
 
+      // Android: show the Play in-app star dialog so the user rates without
+      // leaving the app; fall back to the Play listing if unavailable.
+      // iOS: the write-review link opens the App Store review composer
+      // directly instead of the listing page.
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        final nativeShown = await AppReviewService().tryNativeReview();
+        if (nativeShown) return true;
+        if (!context.mounted) return true;
+      }
       await openLogMyPlateLink(
         context,
-        storeUrl,
+        AppReviewService.writeReviewUrl(storeUrl),
         copiedMessage: 'Store link copied',
       );
       return true;
@@ -1220,7 +1230,6 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       message: message,
     );
   }
-
 
   Future<AuthSession?> _openAccountHome(
     AccountGateReason reason, {
@@ -1940,13 +1949,15 @@ class _ShellRailScanButton extends StatelessWidget {
     return InkWell(
       key: const ValueKey('shell-scan-action'),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.panelBorderRadius),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           border: Border.all(
             color: LogMyPlateColors.accent.withValues(alpha: 0.28),
             width: 0.6,
@@ -2688,7 +2699,9 @@ class _DailyTargetReachedSheet extends StatelessWidget {
     return SafeArea(
       child: LiteGlassCard(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.panelBorderRadius,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2772,7 +2785,9 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
       child: SingleChildScrollView(
         child: LiteGlassCard(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2783,7 +2798,9 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
                   height: 5,
                   decoration: BoxDecoration(
                     color: colors.textTertiary.withValues(alpha: 0.36),
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(
+                      LogMyPlateSpacing.pillBorderRadius,
+                    ),
                   ),
                 ),
               ),
@@ -2861,7 +2878,9 @@ class _AiNutritionistPickerSheet extends StatelessWidget {
                     .map(
                       (s) => InkWell(
                         onTap: () => Navigator.of(context).pop(s.id),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          LogMyPlateSpacing.chipBorderRadius,
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 4,

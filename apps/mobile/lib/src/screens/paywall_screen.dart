@@ -69,7 +69,9 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: GlassCard(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.panelBorderRadius,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -83,11 +85,14 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
                       height: 5,
                       decoration: BoxDecoration(
                         color: colors.textTertiary.withValues(alpha: 0.34),
-                        borderRadius: BorderRadius.circular(99),
+                        borderRadius: BorderRadius.circular(
+                          LogMyPlateSpacing.pillBorderRadius,
+                        ),
                       ),
                     ),
                     const Spacer(),
                     IconButton(
+                      tooltip: 'Close',
                       onPressed: _busy
                           ? null
                           : () => Navigator.of(context).pop(),
@@ -342,7 +347,9 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: GlassCard(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.panelBorderRadius,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -587,7 +594,7 @@ class _PlanBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: LogMyPlateColors.accent,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
       ),
       child: Text(
         label,

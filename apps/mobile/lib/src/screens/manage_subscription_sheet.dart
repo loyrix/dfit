@@ -38,7 +38,9 @@ class ManageSubscriptionSheet extends StatelessWidget {
           padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: GlassCard(
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.panelBorderRadius,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -82,17 +84,17 @@ class ManageSubscriptionSheet extends StatelessWidget {
                 Text(
                   storeLabel,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.textSecondary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   '${usage.remainingToday}/${usage.dailyLimit} today · ${usage.remainingThisPeriod}/${usage.monthlyLimit} this month',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colors.textPrimary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 GlassWrapper(

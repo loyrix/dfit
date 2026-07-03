@@ -103,207 +103,209 @@ class _MealItemEditorSheetState extends State<MealItemEditorSheet> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 680),
             child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-            children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.cardPadding),
-              Row(
-                children: [
-                  Text(
-                    'Edit item',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const Spacer(),
-                  if (widget.allowDelete)
-                    IconButton(
-                      tooltip: 'Delete',
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).pop(const MealItemEditResult.delete()),
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        color: LogMyPlateColors.destructive,
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.border,
+                      borderRadius: BorderRadius.circular(
+                        LogMyPlateSpacing.pillBorderRadius,
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (locked) ...[
-                _ReadonlyIdentityCard(name: _workingItem.name),
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                  ),
+                ),
+                const SizedBox(height: LogMyPlateSpacing.cardPadding),
                 Row(
                   children: [
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-quantity'),
-                        label: 'Portions',
-                        controller: _quantityController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                    Text(
+                      'Edit item',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    if (widget.allowDelete)
+                      IconButton(
+                        tooltip: 'Delete',
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(const MealItemEditResult.delete()),
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          color: LogMyPlateColors.destructive,
                         ),
-                        textInputAction: TextInputAction.next,
-                        onChanged: _updateLockedFromQuantity,
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-grams'),
-                        label: 'Grams',
-                        controller: _gramsController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.done,
-                        onChanged: _updateLockedFromGrams,
-                      ),
-                    ),
                   ],
                 ),
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                _CalculatedNutritionGrid(totals: _workingItem.nutrition),
-              ] else ...[
-                _EditTextField(
-                  key: const ValueKey('edit-item-name'),
-                  label: 'Food',
-                  controller: _nameController,
-                  textInputAction: TextInputAction.next,
-                ),
-                if (widget.onFoodSearch != null &&
-                    (_searchingFoods || _foodSuggestions.isNotEmpty)) ...[
+                const SizedBox(height: 10),
+                if (locked) ...[
+                  _ReadonlyIdentityCard(name: _workingItem.name),
+                  const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-quantity'),
+                          label: 'Portions',
+                          controller: _quantityController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                          onChanged: _updateLockedFromQuantity,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-grams'),
+                          label: 'Grams',
+                          controller: _gramsController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.done,
+                          onChanged: _updateLockedFromGrams,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                  _CalculatedNutritionGrid(totals: _workingItem.nutrition),
+                ] else ...[
+                  _EditTextField(
+                    key: const ValueKey('edit-item-name'),
+                    label: 'Food',
+                    controller: _nameController,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  if (widget.onFoodSearch != null &&
+                      (_searchingFoods || _foodSuggestions.isNotEmpty)) ...[
+                    const SizedBox(height: 10),
+                    _FoodSuggestionStrip(
+                      suggestions: _foodSuggestions,
+                      searching: _searchingFoods,
+                      onSelect: _applyFoodSuggestion,
+                    ),
+                  ],
                   const SizedBox(height: 10),
-                  _FoodSuggestionStrip(
-                    suggestions: _foodSuggestions,
-                    searching: _searchingFoods,
-                    onSelect: _applyFoodSuggestion,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-quantity'),
+                          label: 'Qty',
+                          controller: _quantityController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _unit,
+                          items: [
+                            for (final unit in _portionUnits)
+                              DropdownMenuItem(value: unit, child: Text(unit)),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _unit = value);
+                          },
+                          decoration: _fieldDecoration(context, 'Unit'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-grams'),
+                          label: 'Grams',
+                          controller: _gramsController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-calories'),
+                          label: 'kCal',
+                          controller: _caloriesController,
+                          keyboardType: TextInputType.number,
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-protein'),
+                          label: 'Protein',
+                          controller: _proteinController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-carbs'),
+                          label: 'Carbs',
+                          controller: _carbsController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _EditTextField(
+                          key: const ValueKey('edit-item-fat'),
+                          label: 'Fat',
+                          controller: _fatController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          textInputAction: TextInputAction.done,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-quantity'),
-                        label: 'Qty',
-                        controller: _quantityController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _unit,
-                        items: [
-                          for (final unit in _portionUnits)
-                            DropdownMenuItem(value: unit, child: Text(unit)),
-                        ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() => _unit = value);
-                        },
-                        decoration: _fieldDecoration(context, 'Unit'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-grams'),
-                        label: 'Grams',
-                        controller: _gramsController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-calories'),
-                        label: 'kCal',
-                        controller: _caloriesController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-protein'),
-                        label: 'Protein',
-                        controller: _proteinController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-carbs'),
-                        label: 'Carbs',
-                        controller: _carbsController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        textInputAction: TextInputAction.next,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _EditTextField(
-                        key: const ValueKey('edit-item-fat'),
-                        label: 'Fat',
-                        controller: _fatController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        textInputAction: TextInputAction.done,
-                      ),
-                    ),
-                  ],
+                if (_validation != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _validation!,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: colors.accentText),
+                  ),
+                ],
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                PremiumButton(
+                  onPressed: _save,
+
+                  child: const Text('Save changes'),
                 ),
               ],
-              if (_validation != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _validation!,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.accentText),
-                ),
-              ],
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              PremiumButton(
-                onPressed: _save,
-                
-                child: const Text('Save changes'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _save() {
     final name = _nameController.text.trim();
@@ -554,10 +556,14 @@ class _FoodSuggestionChip extends StatelessWidget {
         .calories;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.elementBorderRadius,
+      ),
       onTap: () => onSelect(food),
       child: LiteGlassCard(
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         child: Container(
           constraints: const BoxConstraints(minWidth: 150, maxWidth: 220),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -815,19 +821,19 @@ InputDecoration _fieldDecoration(BuildContext context, String label) {
     fillColor: enabledFill,
     contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
       borderSide: BorderSide(color: enabledBorder),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
       borderSide: BorderSide(color: enabledBorder),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
       borderSide: BorderSide(color: colors.accent),
     ),
     disabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
       borderSide: BorderSide(color: colors.border.withValues(alpha: 0.48)),
     ),
   );

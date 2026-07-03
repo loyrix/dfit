@@ -67,10 +67,7 @@ Future<OptimizedMealPhoto?> optimizeMealPhotoForUpload(
         bestMimeType = 'image/jpeg';
       }
       if (compressed.length <= mealPhotoTargetBytes) {
-        return OptimizedMealPhoto(
-          bytes: compressed,
-          mimeType: 'image/jpeg',
-        );
+        return OptimizedMealPhoto(bytes: compressed, mimeType: 'image/jpeg');
       }
     }
   } catch (_) {

@@ -217,6 +217,7 @@ class _CameraScreenState extends State<CameraScreen>
               top: 16,
               left: 12,
               child: IconButton(
+                tooltip: 'Back',
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const BackMark(),
               ),
@@ -507,7 +508,9 @@ class _PreparedMealPreview extends StatelessWidget {
             child: RepaintBoundary(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.sheetBorderRadius,
+                  ),
                   border: Border.all(color: colors.border, width: 0.7),
                   boxShadow: [
                     BoxShadow(
@@ -518,7 +521,9 @@ class _PreparedMealPreview extends StatelessWidget {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.sheetBorderRadius,
+                  ),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -568,7 +573,9 @@ class _PreparedMealPreview extends StatelessWidget {
               height: 2,
               decoration: BoxDecoration(
                 color: LogMyPlateColors.accent,
-                borderRadius: BorderRadius.circular(99),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: LogMyPlateColors.accent.withValues(alpha: 0.35),
@@ -611,7 +618,7 @@ class _PreviewClearButton extends StatelessWidget {
       label: 'Remove selected photo',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
         child: Container(
           width: 38,
           height: 38,
@@ -640,7 +647,7 @@ class _PreviewChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
         border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Text(
@@ -679,7 +686,9 @@ class _PlateHintField extends StatelessWidget {
 
         return LiteGlassCard(
           padding: const EdgeInsets.fromLTRB(15, 14, 12, 12),
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           child: _buildContent(context, colors, empty),
         );
       },
@@ -805,7 +814,7 @@ class _CaptureComposerPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       padding: EdgeInsets.all(keyboardOpen ? 10 : 12),
-      borderRadius: BorderRadius.circular(30),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.sheetBorderRadius),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

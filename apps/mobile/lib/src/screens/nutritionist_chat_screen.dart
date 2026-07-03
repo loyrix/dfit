@@ -87,7 +87,9 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
           padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
           child: LiteGlassCard(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.panelBorderRadius,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -98,7 +100,9 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                     height: 5,
                     decoration: BoxDecoration(
                       color: colors.textTertiary.withValues(alpha: 0.36),
-                      borderRadius: BorderRadius.circular(99),
+                      borderRadius: BorderRadius.circular(
+                        LogMyPlateSpacing.pillBorderRadius,
+                      ),
                     ),
                   ),
                 ),
@@ -512,7 +516,9 @@ class _ChatAppBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(99),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
               ),
               child: Text(
                 '$turnNumber/$maxTurns',
@@ -719,7 +725,7 @@ class _FocusMealBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.accent.withValues(alpha: 0.25),
         ),

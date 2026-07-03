@@ -316,7 +316,9 @@ class _MacroSplitBar extends StatelessWidget {
     return Column(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.pillBorderRadius,
+          ),
           child: Row(
             children: [
               for (final item in shares)
@@ -418,7 +420,9 @@ class _ItemContributionRow extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.pillBorderRadius,
+            ),
             child: LinearProgressIndicator(
               minHeight: 5,
               value: percent,
@@ -494,7 +498,7 @@ class _ProfileBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: LogMyPlateColors.accent.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
       ),
       child: Text(
         label,

@@ -99,7 +99,9 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
         padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
         child: LiteGlassCard(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

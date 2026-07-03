@@ -53,119 +53,123 @@ class ProfileScreen extends StatelessWidget {
         child: SafeArea(
           child: ListView(
             padding: EdgeInsets.fromLTRB(16, 18, 16, bottomPadding),
-          children: [
-            Text(
-              'Profile',
-              style: Theme.of(
-                context,
-              ).textTheme.displayLarge?.copyWith(color: colors.textPrimary),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              signedIn
-                  ? 'Targets, account and app preferences.'
-                  : 'Save your journal and tune your targets.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colors.textSecondary,
-                height: 1.35,
+            children: [
+              Text(
+                'Profile',
+                style: Theme.of(
+                  context,
+                ).textTheme.displayLarge?.copyWith(color: colors.textPrimary),
               ),
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _AccountHero(session: session, onTap: onOpenAccount),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _ProfileSection(
-              title: 'Health Target',
-              child: _HealthTargetCard(
-                target: healthTarget,
-                onTap: onSetTarget,
-              ),
-            ),
-            if (onOpenPaywall != null) ...[
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _ProfileSection(
-                title: 'Premium',
-                child: _PremiumAccessCard(
-                  subscription: subscription,
-                  onTap: onOpenPaywall!,
-                  onManage: onManage ?? () {},
+              const SizedBox(height: 6),
+              Text(
+                signedIn
+                    ? 'Targets, account and app preferences.'
+                    : 'Save your journal and tune your targets.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
                 ),
               ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _AccountHero(session: session, onTap: onOpenAccount),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _ProfileSection(
+                title: 'Health Target',
+                child: _HealthTargetCard(
+                  target: healthTarget,
+                  onTap: onSetTarget,
+                ),
+              ),
+              if (onOpenPaywall != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                _ProfileSection(
+                  title: 'Premium',
+                  child: _PremiumAccessCard(
+                    subscription: subscription,
+                    onTap: onOpenPaywall!,
+                    onManage: onManage ?? () {},
+                  ),
+                ),
+              ],
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _ProfileSection(
+                title: 'Theme',
+                child: _ThemeSegment(
+                  themeMode: themeMode,
+                  onThemeChanged: onThemeChanged,
+                ),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _ProfileSection(
+                title: 'Privacy & legal',
+                child: Column(
+                  children: [
+                    _LinkRow(
+                      icon: Icons.privacy_tip_outlined,
+                      label: 'Privacy policy',
+                      onTap: () => openLogMyPlateLink(
+                        context,
+                        LogMyPlateLinks.privacy,
+                        copiedMessage: 'Privacy link copied',
+                      ),
+                    ),
+                    const _ProfileRowDivider(),
+                    _LinkRow(
+                      icon: Icons.description_outlined,
+                      label: 'Legal terms',
+                      onTap: () => openLogMyPlateLink(
+                        context,
+                        LogMyPlateLinks.terms,
+                        copiedMessage: 'Terms link copied',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _ProfileSection(
+                title: 'Support',
+                child: Column(
+                  children: [
+                    _LinkRow(
+                      icon: Icons.support_agent_rounded,
+                      label: 'Contact support',
+                      onTap: () => openLogMyPlateLink(
+                        context,
+                        LogMyPlateLinks.support,
+                        copiedMessage: 'Support link copied',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (signedIn) ...[
+                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                SizedBox(
+                  height: 52,
+                  child: GlassWrapper(
+                    child: OutlinedButton(
+                      onPressed: onSignOut,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colors.textPrimary,
+                        side: BorderSide(color: colors.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            LogMyPlateSpacing.cardBorderRadius,
+                          ),
+                        ),
+                      ),
+                      child: const Text('Log out'),
+                    ),
+                  ),
+                ),
+              ],
             ],
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _ProfileSection(
-              title: 'Theme',
-              child: _ThemeSegment(
-                themeMode: themeMode,
-                onThemeChanged: onThemeChanged,
-              ),
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _ProfileSection(
-              title: 'Privacy & legal',
-              child: Column(
-                children: [
-                  _LinkRow(
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'Privacy policy',
-                    onTap: () => openLogMyPlateLink(
-                      context,
-                      LogMyPlateLinks.privacy,
-                      copiedMessage: 'Privacy link copied',
-                    ),
-                  ),
-                  const _ProfileRowDivider(),
-                  _LinkRow(
-                    icon: Icons.description_outlined,
-                    label: 'Legal terms',
-                    onTap: () => openLogMyPlateLink(
-                      context,
-                      LogMyPlateLinks.terms,
-                      copiedMessage: 'Terms link copied',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _ProfileSection(
-              title: 'Support',
-              child: Column(
-                children: [
-                  _LinkRow(
-                    icon: Icons.support_agent_rounded,
-                    label: 'Contact support',
-                    onTap: () => openLogMyPlateLink(
-                      context,
-                      LogMyPlateLinks.support,
-                      copiedMessage: 'Support link copied',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (signedIn) ...[
-              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-              SizedBox(
-                height: 52,
-                child: GlassWrapper(child: OutlinedButton(
-                  onPressed: onSignOut,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: colors.textPrimary,
-                    side: BorderSide(color: colors.border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                    ),
-                  ),
-                  child: const Text('Log out'),
-                )),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
-    ));
+    );
   }
-
 }
 
 class _AccountHero extends StatelessWidget {
@@ -184,10 +188,14 @@ class _AccountHero extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
       child: GlassCard(
         padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.heroCardBorderRadius,
+        ),
         child: Row(
           children: [
             Container(
@@ -268,12 +276,13 @@ class _PremiumAccessCard extends StatelessWidget {
     final colors = context.logmyplate;
     final active = subscription?.active == true;
     final usage = subscription?.usage;
-    final cancelled = subscription?.status == SubscriptionAccessStatus.cancelled;
+    final cancelled =
+        subscription?.status == SubscriptionAccessStatus.cancelled;
     final title = !active
         ? 'Upgrade to Premium'
         : cancelled
-            ? 'Premium (not renewing)'
-            : 'Premium active';
+        ? 'Premium (not renewing)'
+        : 'Premium active';
     final subtitle = active && usage != null
         ? '${usage.remainingToday}/${usage.dailyLimit} scans today · ${usage.remainingThisPeriod}/${usage.monthlyLimit} this month'
         : '300 AI meal scans/month · up to 10 scans/day';
@@ -349,7 +358,9 @@ class _ProfileSection extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
         LiteGlassCard(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.cardBorderRadius,
+          ),
           padding: EdgeInsets.zero,
           child: child,
         ),
@@ -411,13 +422,15 @@ class _ThemePill extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: selected ? LogMyPlateColors.accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.chipBorderRadius,
+            ),
           ),
           child: Text(
             label,
@@ -469,12 +482,17 @@ class _LinkRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: colors.textPrimary, height: 1.25),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textPrimary,
+                  height: 1.25,
+                ),
               ),
             ),
-            Icon(Icons.open_in_new_rounded, color: colors.textTertiary, size: 17),
+            Icon(
+              Icons.open_in_new_rounded,
+              color: colors.textTertiary,
+              size: 17,
+            ),
           ],
         ),
       ),
@@ -510,7 +528,9 @@ class DeleteAccountSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
         child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.sheetBorderRadius,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -521,7 +541,9 @@ class DeleteAccountSheet extends StatelessWidget {
                   height: 5,
                   decoration: BoxDecoration(
                     color: colors.textTertiary.withValues(alpha: 0.36),
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(
+                      LogMyPlateSpacing.pillBorderRadius,
+                    ),
                   ),
                 ),
               ),
@@ -555,17 +577,19 @@ class DeleteAccountSheet extends StatelessWidget {
                 height: 54,
                 child: PremiumButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  
+
                   child: const Text('Delete account'),
                 ),
               ),
               const SizedBox(height: 10),
               SizedBox(
                 height: 50,
-                child: GlassWrapper(child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Keep account'),
-                )),
+                child: GlassWrapper(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Keep account'),
+                  ),
+                ),
               ),
             ],
           ),
@@ -601,7 +625,9 @@ class _HealthTargetCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                hasTarget ? Icons.track_changes_rounded : Icons.add_circle_outline_rounded,
+                hasTarget
+                    ? Icons.track_changes_rounded
+                    : Icons.add_circle_outline_rounded,
                 color: colors.accentText,
                 size: 22,
               ),
@@ -612,10 +638,12 @@ class _HealthTargetCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    hasTarget ? '${target!.dailyCalorieTarget} kCal / day' : 'No target set',
+                    hasTarget
+                        ? '${target!.dailyCalorieTarget} kCal / day'
+                        : 'No target set',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: colors.textPrimary,
-                        ),
+                      color: colors.textPrimary,
+                    ),
                   ),
                   if (hasTarget) ...[
                     const SizedBox(height: 4),
@@ -624,18 +652,18 @@ class _HealthTargetCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colors.textSecondary,
-                            height: 1.3,
-                          ),
+                        color: colors.textSecondary,
+                        height: 1.3,
+                      ),
                     ),
                   ] else ...[
                     const SizedBox(height: 4),
                     Text(
                       'Set a daily goal for guidance',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colors.textSecondary,
-                            height: 1.3,
-                          ),
+                        color: colors.textSecondary,
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ],
@@ -646,15 +674,17 @@ class _HealthTargetCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.chipBorderRadius,
+                ),
                 border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: Text(
                 hasTarget ? 'Edit' : 'Set',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.textPrimary,
-                      letterSpacing: 0,
-                    ),
+                  color: colors.textPrimary,
+                  letterSpacing: 0,
+                ),
               ),
             ),
           ],

@@ -3,11 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/glass_theme.dart';
 
 class FakeGlassRow extends StatelessWidget {
-  const FakeGlassRow({
-    super.key,
-    required this.child,
-    this.borderRadius,
-  });
+  const FakeGlassRow({super.key, required this.child, this.borderRadius});
 
   final Widget child;
   final BorderRadius? borderRadius;
@@ -15,7 +11,8 @@ class FakeGlassRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.glassTheme;
-    final effectiveRadius = borderRadius ?? BorderRadius.circular(theme.borderRadius);
+    final effectiveRadius =
+        borderRadius ?? BorderRadius.circular(theme.borderRadius);
 
     return Container(
       decoration: BoxDecoration(

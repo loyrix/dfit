@@ -20,7 +20,8 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double height;
 
   @override
-  Size get preferredSize => Size.fromHeight(height + (bottom?.preferredSize.height ?? 0.0));
+  Size get preferredSize =>
+      Size.fromHeight(height + (bottom?.preferredSize.height ?? 0.0));
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +43,10 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
                 height: height,
                 child: Row(
                   children: [
-                    if (leading != null) leading! else const SizedBox(width: 16.0),
+                    if (leading != null)
+                      leading!
+                    else
+                      const SizedBox(width: 16.0),
                     Expanded(
                       child: title != null
                           ? DefaultTextStyle(

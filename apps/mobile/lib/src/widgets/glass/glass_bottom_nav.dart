@@ -15,10 +15,10 @@ class GlassBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
-    
+
     return GlassSurface(
       isPremium: true,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24.0)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: SizedBox(
         height: height + bottomPadding,
         child: Padding(

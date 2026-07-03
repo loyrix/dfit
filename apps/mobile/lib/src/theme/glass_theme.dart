@@ -120,7 +120,8 @@ class GlassTheme extends ThemeExtension<GlassTheme> {
       tintOpacity: lerpDouble(tintOpacity, other.tintOpacity, t) ?? tintOpacity,
       borderColor: Color.lerp(borderColor, other.borderColor, t) ?? borderColor,
       borderWidth: lerpDouble(borderWidth, other.borderWidth, t) ?? borderWidth,
-      borderRadius: lerpDouble(borderRadius, other.borderRadius, t) ?? borderRadius,
+      borderRadius:
+          lerpDouble(borderRadius, other.borderRadius, t) ?? borderRadius,
       gradient: LinearGradient.lerp(gradient, other.gradient, t) ?? gradient,
       shadow: BoxShadow.lerp(shadow, other.shadow, t) ?? shadow,
       enabled: t < 0.5 ? enabled : other.enabled,

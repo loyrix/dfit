@@ -72,7 +72,6 @@ class WelcomeScreen extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: PremiumButton(
-                        
                         onPressed: onStart,
                         child: const Text('Start first scan'),
                       ),

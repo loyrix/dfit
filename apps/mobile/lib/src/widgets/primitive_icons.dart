@@ -8,11 +8,7 @@ Color logmyplatePrimitiveIconColor(BuildContext context, Color? color) {
 }
 
 class PrimitiveCameraIcon extends StatelessWidget {
-  const PrimitiveCameraIcon({
-    super.key,
-    this.color,
-    this.size = 24,
-  });
+  const PrimitiveCameraIcon({super.key, this.color, this.size = 24});
 
   final Color? color;
   final double size;
@@ -22,7 +18,8 @@ class PrimitiveCameraIcon extends StatelessWidget {
     return Icon(
       Icons.camera_alt_outlined,
       color: logmyplatePrimitiveIconColor(context, color),
-      size: size * 1.3, // make it slightly larger to match previous bounding box
+      size:
+          size * 1.3, // make it slightly larger to match previous bounding box
     );
   }
 }

@@ -30,54 +30,54 @@ class SettingsScreen extends StatelessWidget {
       body: GlassBackdrop(
         child: SafeArea(
           child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const BackMark(),
-                ),
-                const Spacer(),
-              ],
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            Text('Settings', style: Theme.of(context).textTheme.displayLarge),
-            const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-            _AccountCard(session: session, onTap: onOpenAccount),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _SettingsSection(
-              title: 'Theme',
-              children: [
-                _ThemeOption(
-                  label: 'System',
-                  selected: themeMode == ThemeMode.system,
-                  onTap: () => onThemeChanged(ThemeMode.system),
-                ),
-                _ThemeOption(
-                  label: 'Light',
-                  selected: themeMode == ThemeMode.light,
-                  onTap: () => onThemeChanged(ThemeMode.light),
-                ),
-                _ThemeOption(
-                  label: 'Dark',
-                  selected: themeMode == ThemeMode.dark,
-                  onTap: () => onThemeChanged(ThemeMode.dark),
-                ),
-              ],
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _SettingsSection(
-              title: 'Privacy',
-              children: const [
-                _StaticRow(label: 'Food photos are saved with meal logs'),
-                _StaticRow(label: 'Nutrition estimates are approximate'),
-                _StaticRow(label: 'Anonymous journal on this device'),
-              ],
-            ),
-          ],
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const BackMark(),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              Text('Settings', style: Theme.of(context).textTheme.displayLarge),
+              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+              _AccountCard(session: session, onTap: onOpenAccount),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _SettingsSection(
+                title: 'Theme',
+                children: [
+                  _ThemeOption(
+                    label: 'System',
+                    selected: themeMode == ThemeMode.system,
+                    onTap: () => onThemeChanged(ThemeMode.system),
+                  ),
+                  _ThemeOption(
+                    label: 'Light',
+                    selected: themeMode == ThemeMode.light,
+                    onTap: () => onThemeChanged(ThemeMode.light),
+                  ),
+                  _ThemeOption(
+                    label: 'Dark',
+                    selected: themeMode == ThemeMode.dark,
+                    onTap: () => onThemeChanged(ThemeMode.dark),
+                  ),
+                ],
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _SettingsSection(
+                title: 'Privacy',
+                children: const [
+                  _StaticRow(label: 'Food photos are saved with meal logs'),
+                  _StaticRow(label: 'Nutrition estimates are approximate'),
+                  _StaticRow(label: 'Anonymous journal on this device'),
+                ],
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -99,12 +99,16 @@ class _AccountCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.elementBorderRadius,
+      ),
       child: Container(
         padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         decoration: BoxDecoration(
           color: LogMyPlateColors.accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           border: Border.all(
             color: LogMyPlateColors.accent.withValues(alpha: 0.35),
             width: 0.5,
@@ -181,7 +185,9 @@ class _SettingsSection extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: 8),
         LiteGlassCard(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           padding: EdgeInsets.zero,
           child: Column(children: children),
         ),

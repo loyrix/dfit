@@ -2140,7 +2140,9 @@ class SubscriptionStatus {
     if (!active) return 'Not active';
     if (currentPeriodEnd == null) return 'Active';
     final date = _formatPeriodEnd(currentPeriodEnd!);
-    return willRenew == false ? 'Active until $date · not renewing' : 'Active · renews $date';
+    return willRenew == false
+        ? 'Active until $date · not renewing'
+        : 'Active · renews $date';
   }
 
   static String _formatPeriodEnd(DateTime value) {

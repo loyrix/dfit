@@ -1,3 +1,4 @@
+import '../../theme/logmyplate_spacing.dart';
 import 'package:flutter/material.dart';
 
 import 'glass_surface.dart';
@@ -20,11 +21,10 @@ class GlassDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.all(24.0),
       child: GlassSurface(
         isPremium: true,
-        borderRadius: BorderRadius.circular(32.0),
-        child: Padding(
-          padding: padding,
-          child: child,
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.heroImageBorderRadius,
         ),
+        child: Padding(padding: padding, child: child),
       ),
     );
   }
@@ -44,12 +44,9 @@ class GlassBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassSurface(
       isPremium: true,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(32.0)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
       child: SafeArea(
-        child: Padding(
-          padding: padding,
-          child: child,
-        ),
+        child: Padding(padding: padding, child: child),
       ),
     );
   }

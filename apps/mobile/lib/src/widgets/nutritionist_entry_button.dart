@@ -29,7 +29,9 @@ class NutritionistEntryButton extends StatelessWidget {
           height: 56,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.cardBorderRadius,
+            ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -52,14 +54,17 @@ class NutritionistEntryButton extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 'Ask AI Nutritionist',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colors.textPrimary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
               ),
               if (!isPremium) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: LogMyPlateColors.accent.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),

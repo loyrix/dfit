@@ -87,141 +87,138 @@ class TodayScreen extends StatelessWidget {
       body: GlassBackdrop(
         child: SafeArea(
           child: Stack(
-          children: [
-            RefreshIndicator(
-              color: LogMyPlateColors.accent,
-              onRefresh: onRefresh,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPadding),
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _dateLabel(DateTime.now()),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: colors.textSecondary,
-                                letterSpacing: 1.4,
-                              ),
-                        ),
-                      ),
-                      if (quota != null) ...[
-                        _QuotaPill(
-                          quota: quota!,
-                          progress: adProgress,
-                          onUnlockWithAd: onUnlockWithAd,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      if (showSettingsAction)
-                        IconButton(
-                          tooltip: 'Settings',
-                          onPressed: onOpenSettings,
-                          icon: Icon(
-                            Icons.settings_outlined,
-                            color: colors.icon,
-                            size: 22,
+            children: [
+              RefreshIndicator(
+                color: LogMyPlateColors.accent,
+                onRefresh: onRefresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPadding),
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _dateLabel(DateTime.now()),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colors.textSecondary,
+                                  letterSpacing: 1.4,
+                                ),
                           ),
                         ),
+                        if (quota != null) ...[
+                          _QuotaPill(
+                            quota: quota!,
+                            progress: adProgress,
+                            onUnlockWithAd: onUnlockWithAd,
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        if (showSettingsAction)
+                          IconButton(
+                            tooltip: 'Settings',
+                            onPressed: onOpenSettings,
+                            icon: Icon(
+                              Icons.settings_outlined,
+                              color: colors.icon,
+                              size: 22,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (loading && !initialLoading) ...[
+                      LinearProgressIndicator(
+                        minHeight: 2,
+                        color: LogMyPlateColors.accent,
+                        backgroundColor: colors.border,
+                      ),
+                      const SizedBox(height: 10),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  if (loading && !initialLoading) ...[
-                    LinearProgressIndicator(
+                    if (syncMessage != null) ...[
+                      _SyncBanner(message: syncMessage!, onRetry: onRefresh),
+                      const SizedBox(height: 10),
+                    ],
+                    if (initialLoading)
+                      const _TodayLoadingBody()
+                    else ...[
+                      if (streakSummary != null) ...[
+                        GestureDetector(
+                          onTap: onOpenStreak,
+                          child: _CardStreakPanel(streak: streakSummary),
+                        ),
+                        const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      ],
+                      EnergyHeroCard(
+                        totals: totals,
+                        mealCount: meals.length,
+                        target: target,
+                        onSetTarget: onSetTarget,
+                      ),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      MacroBarGroup(totals: totals),
+                      if (weeklyRange != null) ...[
+                        const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                        _WeeklyRhythmCard(
+                          range: weeklyRange!,
+                          onOpenJournal: onOpenWeeklyJournal,
+                          syncing: loading || weeklyJournalOpening,
+                          opening: weeklyJournalOpening,
+                          hasSyncIssue: syncMessage != null,
+                        ),
+                      ],
+                      if (onOpenNutritionist != null) ...[
+                        const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                        NutritionistEntryButton(
+                          isPremium: isPremium,
+                          onTap: onOpenNutritionist!,
+                        ),
+                      ],
+                      const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                      if (isEmpty)
+                        _EmptyTodayBody(onAddManually: onAddManually)
+                      else
+                        _MealsList(
+                          meals: meals,
+                          onOpenMeal: onOpenMeal,
+                          onDeleteMeal: onDeleteMeal,
+                          onAddManually: onAddManually,
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              if (loading && meals.isNotEmpty && !initialLoading)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: LinearProgressIndicator(
                       minHeight: 2,
                       color: LogMyPlateColors.accent,
-                      backgroundColor: colors.border,
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  if (syncMessage != null) ...[
-                    _SyncBanner(message: syncMessage!, onRetry: onRefresh),
-                    const SizedBox(height: 10),
-                  ],
-                  if (initialLoading)
-                    const _TodayLoadingBody()
-                  else ...[
-                    if (streakSummary != null) ...[
-                      GestureDetector(
-                        onTap: onOpenStreak,
-                        child: _CardStreakPanel(streak: streakSummary),
+                      backgroundColor: LogMyPlateColors.accent.withValues(
+                        alpha: 0.08,
                       ),
-                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                    ],
-                    EnergyHeroCard(
-                      totals: totals,
-                      mealCount: meals.length,
-                      target: target,
-                      onSetTarget: onSetTarget,
-                    ),
-                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                    MacroBarGroup(totals: totals),
-                    if (weeklyRange != null) ...[
-                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                      _WeeklyRhythmCard(
-                        range: weeklyRange!,
-                        onOpenJournal: onOpenWeeklyJournal,
-                        syncing: loading || weeklyJournalOpening,
-                        opening: weeklyJournalOpening,
-                        hasSyncIssue: syncMessage != null,
-                      ),
-                    ],
-                    if (onOpenNutritionist != null) ...[
-                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                      NutritionistEntryButton(
-                        isPremium: isPremium,
-                        onTap: onOpenNutritionist!,
-                      ),
-                    ],
-                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-                    if (isEmpty)
-                      _EmptyTodayBody(onAddManually: onAddManually)
-                    else
-                      _MealsList(
-                        meals: meals,
-                        onOpenMeal: onOpenMeal,
-                        onDeleteMeal: onDeleteMeal,
-                        onAddManually: onAddManually,
-                      ),
-                  ],
-                ],
-              ),
-            ),
-            if (loading && meals.isNotEmpty && !initialLoading)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: LinearProgressIndicator(
-                    minHeight: 2,
-                    color: LogMyPlateColors.accent,
-                    backgroundColor: LogMyPlateColors.accent.withValues(
-                      alpha: 0.08,
                     ),
                   ),
                 ),
-              ),
-            if (!initialLoading && showScanAction)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 24,
-                child: Center(
-                  child: LogMyPlateFab(
-                    onPressed: onScan,
-                    pulsing: isEmpty,
+              if (!initialLoading && showScanAction)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 24,
+                  child: Center(
+                    child: LogMyPlateFab(onPressed: onScan, pulsing: isEmpty),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   String _dateLabel(DateTime date) {
     const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -262,7 +259,7 @@ class _WeeklyRhythmCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final summary = range.summary;
-    
+
     final targetCalories = range.target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
     final averageCalories = summary.trackedDayAverage.calories > 0
@@ -278,79 +275,81 @@ class _WeeklyRhythmCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: colors.surfaceCard,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.chipBorderRadius,
+          ),
         ),
         child: Text(
           'Meals logged this week: ${summary.activeDays}',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: colors.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: colors.textSecondary),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-                  '${summary.activeDays} Active Day${summary.activeDays == 1 ? '' : 's'}',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                _WeeklyCoveragePanel(
-                  key: const ValueKey('journal'),
-                  activeDays: summary.activeDays,
-                  totalDays: summary.windowDays,
-                  days: range.days,
-                  averageCalories: averageCalories,
-                  targetCalories: hasTarget ? targetCalories : null,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Text(
-                      hasSyncIssue
-                          ? 'Showing saved data'
-                          : opening
-                          ? 'Loading details'
-                          : 'Tap for details',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
+            '${summary.activeDays} Active Day${summary.activeDays == 1 ? '' : 's'}',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+          _WeeklyCoveragePanel(
+            key: const ValueKey('journal'),
+            activeDays: summary.activeDays,
+            totalDays: summary.windowDays,
+            days: range.days,
+            averageCalories: averageCalories,
+            targetCalories: hasTarget ? targetCalories : null,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                hasSyncIssue
+                    ? 'Showing saved data'
+                    : opening
+                    ? 'Loading details'
+                    : 'Tap for details',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+              ),
+              const Spacer(),
+              opening
+                  ? SizedBox(
+                      key: const ValueKey('weekly-card-spinner'),
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: LogMyPlateColors.accent,
+                        backgroundColor: colors.mutedFill,
                       ),
+                    )
+                  : Icon(
+                      Icons.arrow_forward_rounded,
+                      color: colors.textSecondary,
+                      size: 17,
                     ),
-                    const Spacer(),
-                    opening
-                        ? SizedBox(
-                            key: const ValueKey('weekly-card-spinner'),
-                            width: 15,
-                            height: 15,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: LogMyPlateColors.accent,
-                              backgroundColor: colors.mutedFill,
-                            ),
-                          )
-                        : Icon(
-                            Icons.arrow_forward_rounded,
-                            color: colors.textSecondary,
-                            size: 17,
-                          ),
-                  ],
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: syncing
-                      ? Padding(
-                          key: const ValueKey('weekly-syncing'),
-                          padding: const EdgeInsets.only(top: 12),
-                          child: LinearProgressIndicator(
-                            minHeight: 2,
-                            color: LogMyPlateColors.accent,
-                            backgroundColor: colors.mutedFill,
-                          ),
-                        )
-                      : const SizedBox.shrink(key: ValueKey('weekly-idle')),
-                ),
+            ],
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: syncing
+                ? Padding(
+                    key: const ValueKey('weekly-syncing'),
+                    padding: const EdgeInsets.only(top: 12),
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      color: LogMyPlateColors.accent,
+                      backgroundColor: colors.mutedFill,
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('weekly-idle')),
+          ),
         ],
       ),
     );
@@ -385,13 +384,11 @@ class _CardStreakPanel extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Image.asset(
-                  'assets/icons/shield.png',
-                  width: 48,
-                  height: 48,
-                ),
+                Image.asset('assets/icons/shield.png', width: 48, height: 48),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 2), // adjust for visual center of shield
+                  padding: const EdgeInsets.only(
+                    bottom: 2,
+                  ), // adjust for visual center of shield
                   child: Text(
                     streak!.currentStreakDays.toString(),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -427,7 +424,10 @@ class _CardStreakPanel extends StatelessWidget {
                 if (streak!.nextRewardScans > 0) ...[
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: LogMyPlateColors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -435,14 +435,19 @@ class _CardStreakPanel extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.star_rounded, size: 14, color: LogMyPlateColors.accent),
+                        Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: LogMyPlateColors.accent,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '+${streak!.nextRewardScans} scan reward',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: LogMyPlateColors.accent,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: LogMyPlateColors.accent,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                       ],
                     ),
@@ -456,6 +461,7 @@ class _CardStreakPanel extends StatelessWidget {
     );
   }
 }
+
 class _WeeklyCoveragePanel extends StatelessWidget {
   const _WeeklyCoveragePanel({
     super.key,
@@ -569,7 +575,8 @@ class _WeeklyCoverageSegments extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final now = DateTime.now();
-    final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final todayStr =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -579,7 +586,7 @@ class _WeeklyCoverageSegments extends StatelessWidget {
             builder: (context) {
               bool isLogged = false;
               bool isPast = false;
-              
+
               if (index < days.length) {
                 final dayData = days[index];
                 isLogged = dayData.mealCount > 0;
@@ -589,10 +596,10 @@ class _WeeklyCoverageSegments extends StatelessWidget {
               } else {
                 isLogged = index < activeDays;
               }
-              
+
               Color bgColor = colors.mutedFill;
               Color textColor = colors.textSecondary;
-              
+
               if (isLogged) {
                 bgColor = LogMyPlateColors.accent.withValues(alpha: 0.15);
                 textColor = colors.accentText;
@@ -600,7 +607,7 @@ class _WeeklyCoverageSegments extends StatelessWidget {
                 bgColor = LogMyPlateColors.destructive.withValues(alpha: 0.15);
                 textColor = LogMyPlateColors.destructive;
               }
-              
+
               return Expanded(
                 child: Container(
                   margin: EdgeInsets.only(right: index != 6 ? 4 : 0),
@@ -631,10 +638,7 @@ class _WeeklyCoverageSegments extends StatelessWidget {
 }
 
 class _WeeklyInfoPill extends StatelessWidget {
-  const _WeeklyInfoPill({
-    required this.label,
-    required this.value,
-  });
+  const _WeeklyInfoPill({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -647,7 +651,7 @@ class _WeeklyInfoPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -673,8 +677,6 @@ class _WeeklyInfoPill extends StatelessWidget {
     );
   }
 }
-
-
 
 class _TodayLoadingBody extends StatefulWidget {
   const _TodayLoadingBody();
@@ -886,7 +888,9 @@ class _LoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LiteGlassCard(
       padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.elementBorderRadius,
+      ),
       child: child,
     );
   }
@@ -965,16 +969,18 @@ class _SyncBanner extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          GlassWrapper(child: TextButton(
-            onPressed: onRetry,
-            style: TextButton.styleFrom(
-              foregroundColor: colors.accentText,
-              minimumSize: const Size(48, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          GlassWrapper(
+            child: TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                foregroundColor: colors.accentText,
+                minimumSize: const Size(48, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('Retry'),
             ),
-            child: const Text('Retry'),
-          )),
+          ),
         ],
       ),
     );
@@ -1017,14 +1023,16 @@ class _QuotaPill extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
         onTap: canUnlockWithAd ? onUnlockWithAd : null,
         child: Ink(
           height: 34,
           padding: const EdgeInsets.symmetric(horizontal: 11),
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(17),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.cardBorderRadius,
+            ),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.08),
               width: 0.5,
@@ -1080,7 +1088,12 @@ class _MealsList extends StatelessWidget {
             onDelete: () => _deleteMeal(context, meal),
           ),
         const SizedBox(height: 8),
-        GlassWrapper(child: TextButton(onPressed: onAddManually, child: const Text('Add manually'))),
+        GlassWrapper(
+          child: TextButton(
+            onPressed: onAddManually,
+            child: const Text('Add manually'),
+          ),
+        ),
       ],
     );
   }
@@ -1127,7 +1140,9 @@ class _EmptyTodayBody extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.panelBorderRadius,
+            ),
             border: Border.all(
               color: isDark
                   ? Colors.white.withValues(alpha: 0.08)
@@ -1223,22 +1238,26 @@ class _EmptyTodayBody extends StatelessWidget {
                     const SizedBox(height: 11),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: GlassWrapper(child: TextButton(
-                        onPressed: onAddManually,
-                        style: TextButton.styleFrom(
-                          foregroundColor: colors.accentText,
-                          backgroundColor: LogMyPlateColors.accent.withValues(
-                            alpha: 0.12,
+                      child: GlassWrapper(
+                        child: TextButton(
+                          onPressed: onAddManually,
+                          style: TextButton.styleFrom(
+                            foregroundColor: colors.accentText,
+                            backgroundColor: LogMyPlateColors.accent.withValues(
+                              alpha: 0.12,
+                            ),
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                LogMyPlateSpacing.pillBorderRadius,
+                              ),
+                            ),
                           ),
-                          minimumSize: const Size(0, 34),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(99),
-                          ),
+                          child: const Text('Add manually'),
                         ),
-                        child: const Text('Add manually'),
-                      )),
+                      ),
                     ),
                   ],
                 ),

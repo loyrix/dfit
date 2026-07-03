@@ -461,7 +461,9 @@ class _ProfileLifecycleSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
         child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.sheetBorderRadius,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -472,7 +474,9 @@ class _ProfileLifecycleSheet extends StatelessWidget {
                   height: 5,
                   decoration: BoxDecoration(
                     color: colors.textTertiary.withValues(alpha: 0.36),
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(
+                      LogMyPlateSpacing.pillBorderRadius,
+                    ),
                   ),
                 ),
               ),
@@ -573,7 +577,9 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
         padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
         child: GlassCard(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.sheetBorderRadius,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -584,7 +590,9 @@ class _PasswordResetSheetState extends State<_PasswordResetSheet> {
                   height: 5,
                   decoration: BoxDecoration(
                     color: colors.textTertiary.withValues(alpha: 0.36),
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(
+                      LogMyPlateSpacing.pillBorderRadius,
+                    ),
                   ),
                 ),
               ),

@@ -1,3 +1,4 @@
+import '../theme/logmyplate_spacing.dart';
 import 'package:flutter/material.dart';
 
 import '../models/meal.dart';
@@ -98,7 +99,7 @@ class _MacroStackedBar extends StatelessWidget {
     ].where((entry) => entry.$1 > 0).toList(growable: false);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(99),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
       child: Container(
         height: 12,
         color: colors.mutedFill,

@@ -24,9 +24,12 @@ class ChatSession {
       suggestedPrompts: (json['suggestedPrompts'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),
-      sessionsUsedToday: (json['usage'] as Map<String, dynamic>)['sessionsUsedToday'] as int,
-      maxSessionsPerDay: (json['usage'] as Map<String, dynamic>)['maxSessionsPerDay'] as int,
-      maxTurns: (json['usage'] as Map<String, dynamic>)['maxTurns'] as int? ?? 15,
+      sessionsUsedToday:
+          (json['usage'] as Map<String, dynamic>)['sessionsUsedToday'] as int,
+      maxSessionsPerDay:
+          (json['usage'] as Map<String, dynamic>)['maxSessionsPerDay'] as int,
+      maxTurns:
+          (json['usage'] as Map<String, dynamic>)['maxTurns'] as int? ?? 15,
     );
   }
 }
@@ -86,8 +89,10 @@ class ChatReply {
           .toList(),
       turnNumber: (json['usage'] as Map<String, dynamic>)['turnNumber'] as int,
       maxTurns: (json['usage'] as Map<String, dynamic>)['maxTurns'] as int,
-      sessionsUsedToday: (json['usage'] as Map<String, dynamic>)['sessionsUsedToday'] as int,
-      maxSessionsPerDay: (json['usage'] as Map<String, dynamic>)['maxSessionsPerDay'] as int,
+      sessionsUsedToday:
+          (json['usage'] as Map<String, dynamic>)['sessionsUsedToday'] as int,
+      maxSessionsPerDay:
+          (json['usage'] as Map<String, dynamic>)['maxSessionsPerDay'] as int,
     );
   }
 }

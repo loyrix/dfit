@@ -1,3 +1,4 @@
+import '../theme/logmyplate_spacing.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_theme.dart';
@@ -19,7 +20,7 @@ class _GlassTintBox extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.20),
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
         border: Border.all(color: color.withValues(alpha: 0.35), width: 0.5),
       ),
       child: child,
@@ -120,9 +121,9 @@ class MacroDetailChip extends StatelessWidget {
             const SizedBox(height: 1),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
             ),
           ],
         ),

@@ -30,9 +30,11 @@ class PremiumButton extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final gradientColors = [const Color(0xFFFFE3A3), LogMyPlateColors.accent];
-        
+
     final textColor = LogMyPlateColors.bgInk;
-    final shadowColor = LogMyPlateColors.accent.withValues(alpha: isDark ? 0.3 : 0.4);
+    final shadowColor = LogMyPlateColors.accent.withValues(
+      alpha: isDark ? 0.3 : 0.4,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -41,7 +43,9 @@ class PremiumButton extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         boxShadow: [
           BoxShadow(
             color: shadowColor,
@@ -58,7 +62,9 @@ class PremiumButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           child: Padding(
             padding: padding,
             child: FittedBox(
@@ -66,26 +72,26 @@ class PremiumButton extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  IconTheme.merge(
-                    data: IconThemeData(color: textColor, size: 18),
-                    child: icon!,
+                children: [
+                  if (icon != null) ...[
+                    IconTheme.merge(
+                      data: IconThemeData(color: textColor, size: 18),
+                      child: icon!,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  DefaultTextStyle.merge(
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    child: child,
                   ),
-                  const SizedBox(width: 8),
                 ],
-                DefaultTextStyle.merge(
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  child: child,
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
       ),
     );
   }

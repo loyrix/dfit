@@ -1,3 +1,4 @@
+import '../theme/logmyplate_spacing.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/logmyplate_theme.dart';
@@ -31,14 +32,23 @@ class NutritionistSuggestedChips extends StatelessWidget {
           final prompt = prompts[index];
           return Material(
             color: colors.mutedFill,
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.pillBorderRadius,
+            ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(99),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.pillBorderRadius,
+              ),
               onTap: disabled ? null : () => onTap?.call(prompt),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(99),
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.pillBorderRadius,
+                  ),
                   border: Border.all(color: colors.border, width: 0.5),
                 ),
                 child: Text(

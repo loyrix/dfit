@@ -1,3 +1,4 @@
+import '../theme/logmyplate_spacing.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -239,76 +240,79 @@ class _LogMyPlateNoticeCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: LiteGlassCard(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: toneColor.withValues(alpha: 0.16),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: toneColor.withValues(alpha: 0.26),
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Icon(icon, size: 20, color: toneColor),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: toneColor.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: toneColor.withValues(alpha: 0.26),
+                      width: 0.8,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: colors.textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.15,
-                                ),
-                          ),
-                          if (message != null) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              message!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: colors.textSecondary,
-                                    height: 1.2,
-                                  ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (actionLabel != null && onAction != null) ...[
-                      const SizedBox(width: 10),
-                      GlassWrapper(child: TextButton(
-                        onPressed: onAction,
-                        style: TextButton.styleFrom(
-                          foregroundColor: toneColor,
-                          minimumSize: const Size(44, 34),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(actionLabel!),
-                      )),
-                    ],
-                  ],
+                  ),
+                  child: Icon(icon, size: 20, color: toneColor),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                        ),
+                      ),
+                      if (message != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          message!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: colors.textSecondary,
+                                height: 1.2,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(width: 10),
+                  GlassWrapper(
+                    child: TextButton(
+                      onPressed: onAction,
+                      style: TextButton.styleFrom(
+                        foregroundColor: toneColor,
+                        minimumSize: const Size(44, 34),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(actionLabel!),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+        ),
+      ),
     );
   }
 

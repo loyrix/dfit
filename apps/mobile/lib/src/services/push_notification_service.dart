@@ -82,7 +82,8 @@ class FirebasePushNotificationRegistrar implements PushNotificationRegistrar {
         // Detect APNs sandbox: debug/profile builds always use sandbox.
         // Release builds use production unless the API points at a non-prod URL,
         // which covers TestFlight testing against staging environments.
-        final isSandbox = kDebugMode ||
+        final isSandbox =
+            kDebugMode ||
             kProfileMode ||
             _apiClient.baseUrl.contains('staging') ||
             _apiClient.baseUrl.contains('sandbox') ||
@@ -200,4 +201,3 @@ class FirebasePushNotificationRegistrar implements PushNotificationRegistrar {
     };
   }
 }
-

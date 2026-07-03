@@ -424,7 +424,9 @@ class _AnalyzingMealPreview extends StatelessWidget {
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(34),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.heroImageBorderRadius,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: surface.shadowColor,
@@ -441,7 +443,9 @@ class _AnalyzingMealPreview extends StatelessWidget {
           Positioned.fill(
             child: RepaintBoundary(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(34),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.heroImageBorderRadius,
+                ),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -475,7 +479,9 @@ class _AnalyzingMealPreview extends StatelessWidget {
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(34),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.heroImageBorderRadius,
+                ),
                 border: Border.all(color: surface.border),
               ),
             ),
@@ -494,7 +500,9 @@ class _AnalyzingMealPreview extends StatelessWidget {
               height: 2.5,
               decoration: BoxDecoration(
                 color: LogMyPlateColors.accent,
-                borderRadius: BorderRadius.circular(99),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: LogMyPlateColors.accent.withValues(alpha: 0.45),
@@ -512,7 +520,9 @@ class _AnalyzingMealPreview extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(100),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
               ),
               child: Text(
@@ -537,7 +547,7 @@ class _AnalyzingMealFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     return LiteGlassCard(
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(LogMyPlateSpacing.panelBorderRadius),
       child: Center(
         child: Icon(
           Icons.restaurant_rounded,
@@ -594,7 +604,9 @@ class _AnalysisStepTimeline extends StatelessWidget {
                         color: !failed && index < activeStep
                             ? LogMyPlateColors.accent
                             : colors.textSecondary.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(99),
+                        borderRadius: BorderRadius.circular(
+                          LogMyPlateSpacing.pillBorderRadius,
+                        ),
                       ),
                     ),
                   ),

@@ -20,7 +20,10 @@ class LogMyPlateTheme {
       textTheme: _textTheme(LogMyPlateColors.textPrimaryLight),
       iconTheme: const IconThemeData(color: LogMyPlateColors.textPrimaryLight),
       iconButtonTheme: _iconButtonTheme(LogMyPlateColors.textPrimaryLight),
-      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.light(), GlassTheme.light()],
+      extensions: <ThemeExtension<dynamic>>[
+        LogMyPlateThemeColors.light(),
+        GlassTheme.light(),
+      ],
     );
   }
 
@@ -38,7 +41,10 @@ class LogMyPlateTheme {
       textTheme: _textTheme(Colors.white),
       iconTheme: const IconThemeData(color: Colors.white),
       iconButtonTheme: _iconButtonTheme(Colors.white),
-      extensions: <ThemeExtension<dynamic>>[LogMyPlateThemeColors.dark(), GlassTheme.dark()],
+      extensions: <ThemeExtension<dynamic>>[
+        LogMyPlateThemeColors.dark(),
+        GlassTheme.dark(),
+      ],
     );
   }
 

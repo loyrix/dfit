@@ -23,10 +23,7 @@ class GlassCard extends StatelessWidget {
       isPremium: true,
       borderRadius: borderRadius,
       tintColor: tintColor,
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
+      child: Padding(padding: padding, child: child),
     );
   }
 }
@@ -51,10 +48,7 @@ class LiteGlassCard extends StatelessWidget {
       isPremium: false,
       borderRadius: borderRadius,
       tintColor: tintColor,
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
+      child: Padding(padding: padding, child: child),
     );
   }
 }
@@ -73,11 +67,10 @@ class GlassPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassSurface(
       isPremium: true,
-      borderRadius: BorderRadius.circular(100.0), // Stadium shape
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.pillBorderRadius,
+      ), // Stadium shape
+      child: Padding(padding: padding, child: child),
     );
   }
 }

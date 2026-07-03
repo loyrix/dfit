@@ -5,7 +5,7 @@ import '../services/logmyplate_api_client.dart';
 
 class NutritionistController extends ChangeNotifier {
   NutritionistController({required LogMyPlateApiClient apiClient})
-      : _apiClient = apiClient;
+    : _apiClient = apiClient;
 
   final LogMyPlateApiClient _apiClient;
 
@@ -54,7 +54,9 @@ class NutritionistController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final history = await _apiClient.getNutritionistSessionMessages(sessionId);
+      final history = await _apiClient.getNutritionistSessionMessages(
+        sessionId,
+      );
       _sessionId = sessionId;
       _messages.clear();
       _messages.addAll(history.messages);
@@ -105,7 +107,9 @@ class NutritionistController extends ChangeNotifier {
   }
 
   Future<void> sendMessage(String text) async {
-    if (_sessionId == null || _readOnly || sessionComplete || _sendingMessage) return;
+    if (_sessionId == null || _readOnly || sessionComplete || _sendingMessage) {
+      return;
+    }
 
     final userMessage = ChatMessage(
       role: ChatMessageRole.user,
@@ -143,12 +147,19 @@ class NutritionistController extends ChangeNotifier {
     notifyListeners();
   }
 
-
   String _parseError(LogMyPlateApiException e) {
-    if (e.errorCode == 'free_allowance_exhausted') return 'You\'ve exhausted your free usage. Subscribe to Premium for unlimited access.';
-    if (e.errorCode == 'daily_session_limit_reached') return 'Daily chat limit reached. Try again tomorrow.';
-    if (e.errorCode == 'session_not_found' || e.errorCode == 'session_expired') return 'Session expired or not found. Start a new chat.';
-    if (e.errorCode == 'turn_limit_reached') return 'This session is complete. Start a new chat.';
+    if (e.errorCode == 'free_allowance_exhausted') {
+      return 'You\'ve exhausted your free usage. Subscribe to Premium for unlimited access.';
+    }
+    if (e.errorCode == 'daily_session_limit_reached') {
+      return 'Daily chat limit reached. Try again tomorrow.';
+    }
+    if (e.errorCode == 'session_not_found' || e.errorCode == 'session_expired') {
+      return 'Session expired or not found. Start a new chat.';
+    }
+    if (e.errorCode == 'turn_limit_reached') {
+      return 'This session is complete. Start a new chat.';
+    }
     return e.message ?? 'Something went wrong.';
   }
 }

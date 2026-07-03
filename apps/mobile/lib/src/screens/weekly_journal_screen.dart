@@ -76,61 +76,61 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
       body: GlassBackdrop(
         child: SafeArea(
           child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, widget.bottomPadding),
-          children: [
-            _JournalHeader(
-              label: '7 Day Journal',
-              title: 'Weekly summary',
-              subtitle: _rangeLabel(_range),
-              showBackButton: widget.showBackButton,
-            ),
-            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-            if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
-              _WeekSelector(
-                range: _range,
-                loading: _loadingWeek || _loadingAvailableWeeks,
-                onTap: _openWeekPicker,
+            padding: EdgeInsets.fromLTRB(16, 12, 16, widget.bottomPadding),
+            children: [
+              _JournalHeader(
+                label: '7 Day Journal',
+                title: 'Weekly summary',
+                subtitle: _rangeLabel(_range),
+                showBackButton: widget.showBackButton,
               ),
-            if (widget.isSyncing ||
-                widget.syncMessage != null ||
-                _loadingWeek ||
-                _weekLoadError != null) ...[
               const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              _JournalSyncStrip(
-                isSyncing: widget.isSyncing || _loadingWeek,
-                message: _weekLoadError ?? widget.syncMessage,
-                onRefresh: widget.onRefresh,
-              ),
-            ],
-            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-            _WeeklyJournalHero(range: _range),
-            if (widget.onOpenNutritionist != null) ...[
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              NutritionistEntryButton(
-                isPremium: widget.isPremium,
-                onTap: widget.onOpenNutritionist!,
-              ),
-            ],
-            const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-            _LabeledPanel(
-              label: 'Tracked Day Average',
-              child: MacroBarGroup(totals: _range.summary.trackedDayAverage),
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _SectionLabel('Day Wise'),
-            const SizedBox(height: 10),
-            if (days.isEmpty)
-              const _EmptyWeekCard()
-            else
-              for (final day in days)
-                _JournalDayRow(
-                  day: day,
-                  target: _range.target,
-                  onTap: () => _openDay(context, day),
+              if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
+                _WeekSelector(
+                  range: _range,
+                  loading: _loadingWeek || _loadingAvailableWeeks,
+                  onTap: _openWeekPicker,
                 ),
-          ],
+              if (widget.isSyncing ||
+                  widget.syncMessage != null ||
+                  _loadingWeek ||
+                  _weekLoadError != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                _JournalSyncStrip(
+                  isSyncing: widget.isSyncing || _loadingWeek,
+                  message: _weekLoadError ?? widget.syncMessage,
+                  onRefresh: widget.onRefresh,
+                ),
+              ],
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+              _WeeklyJournalHero(range: _range),
+              if (widget.onOpenNutritionist != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                NutritionistEntryButton(
+                  isPremium: widget.isPremium,
+                  onTap: widget.onOpenNutritionist!,
+                ),
+              ],
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+              _LabeledPanel(
+                label: 'Tracked Day Average',
+                child: MacroBarGroup(totals: _range.summary.trackedDayAverage),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _SectionLabel('Day Wise'),
+              const SizedBox(height: 10),
+              if (days.isEmpty)
+                const _EmptyWeekCard()
+              else
+                for (final day in days)
+                  _JournalDayRow(
+                    day: day,
+                    target: _range.target,
+                    onTap: () => _openDay(context, day),
+                  ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -255,40 +255,40 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
       body: GlassBackdrop(
         child: SafeArea(
           child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-          children: [
-            _JournalHeader(
-              label: 'Day Analysis',
-              title: _dayTitle(_day.date),
-              subtitle: _mealCountLabel(_day.mealCount),
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            if (hasMeals) ...[
-              EnergyHeroCard(
-                totals: _day.totals,
-                mealCount: _day.mealCount,
-                label: 'Day Energy',
-                target: widget.target,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+            children: [
+              _JournalHeader(
+                label: 'Day Analysis',
+                title: _dayTitle(_day.date),
+                subtitle: _mealCountLabel(_day.mealCount),
               ),
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              MacroBarGroup(totals: _day.totals),
-            ] else
-              _EmptyDayOverview(day: _day),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            _SectionLabel('Meals'),
-            const SizedBox(height: 10),
-            if (meals.isEmpty)
-              const _EmptyDayCard()
-            else
-              for (final meal in meals)
-                _DayMealRow(
-                  meal: meal,
-                  onTap: () => _openMeal(context, meal),
-                  onDelete: () => _deleteMeal(context, meal),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              if (hasMeals) ...[
+                EnergyHeroCard(
+                  totals: _day.totals,
+                  mealCount: _day.mealCount,
+                  label: 'Day Energy',
+                  target: widget.target,
                 ),
-          ],
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                MacroBarGroup(totals: _day.totals),
+              ] else
+                _EmptyDayOverview(day: _day),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _SectionLabel('Meals'),
+              const SizedBox(height: 10),
+              if (meals.isEmpty)
+                const _EmptyDayCard()
+              else
+                for (final meal in meals)
+                  _DayMealRow(
+                    meal: meal,
+                    onTap: () => _openMeal(context, meal),
+                    onDelete: () => _deleteMeal(context, meal),
+                  ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -360,55 +360,57 @@ class _DayMealRow extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.cardBorderRadius,
+          ),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
-          child: Row(
-            children: [
-              _MealBadge(type: meal.type),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      meal.type.label,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.textSecondary,
-                        letterSpacing: 1.4,
+            child: Row(
+              children: [
+                _MealBadge(type: meal.type),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        meal.type.label,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.textSecondary,
+                          letterSpacing: 1.4,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      meal.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      itemNames,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textSecondary,
+                      const SizedBox(height: 4),
+                      Text(
+                        meal.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 5),
+                      Text(
+                        itemNames,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${totals.calories} kCal',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
+                const SizedBox(width: 12),
+                Text(
+                  '${totals.calories} kCal',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
 
@@ -541,7 +543,9 @@ class _JournalSyncStrip extends StatelessWidget {
         color: hasError
             ? LogMyPlateColors.accent.withValues(alpha: 0.12)
             : colors.mutedFill,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         border: Border.all(
           color: hasError
               ? LogMyPlateColors.accent.withValues(alpha: 0.24)
@@ -573,18 +577,20 @@ class _JournalSyncStrip extends StatelessWidget {
                 ),
               ),
               if (hasError && onRefresh != null)
-                GlassWrapper(child: TextButton(
-                  onPressed: () {
-                    onRefresh?.call();
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: colors.accentText,
-                    minimumSize: const Size(52, 30),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                GlassWrapper(
+                  child: TextButton(
+                    onPressed: () {
+                      onRefresh?.call();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: colors.accentText,
+                      minimumSize: const Size(52, 30),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Retry'),
                   ),
-                  child: const Text('Retry'),
-                )),
+                ),
             ],
           ),
           AnimatedSwitcher(
@@ -623,51 +629,55 @@ class _WeekSelector extends StatelessWidget {
     final colors = context.logmyplate;
 
     return FakeGlassRow(
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.elementBorderRadius,
+      ),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
           onTap: loading ? null : onTap,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           child: Padding(
             padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Week',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.textSecondary,
-                        letterSpacing: 1.2,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Week',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.textSecondary,
+                          letterSpacing: 1.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _rangeLabel(range),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ],
-                ),
-              ),
-              if (loading)
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.accent,
+                      const SizedBox(height: 4),
+                      Text(
+                        _rangeLabel(range),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
                   ),
-                )
-              else
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: colors.textSecondary,
                 ),
-            ],
-          ),
+                if (loading)
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colors.accent,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: colors.textSecondary,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -693,33 +703,38 @@ class _WeekPickerSheet extends StatelessWidget {
         margin: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
         child: GlassCard(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Choose week', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-            for (final week in weeks)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: Text(_weekOffsetLabel(week.weekOffset)),
-                subtitle: Text(
-                  '${_compactDate(week.startDate)} - ${_compactDate(week.endDate)}'
-                  '  ·  ${week.activeDays} ${week.activeDays == 1 ? 'day' : 'days'} tracked',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
-                ),
-                trailing: week.weekOffset == selectedWeekOffset
-                    ? Icon(Icons.check_rounded, color: colors.accent)
-                    : null,
-                onTap: () => Navigator.of(context).pop(week.weekOffset),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.heroCardBorderRadius,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose week',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-          ],
+              const SizedBox(height: 10),
+              for (final week in weeks)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(_weekOffsetLabel(week.weekOffset)),
+                  subtitle: Text(
+                    '${_compactDate(week.startDate)} - ${_compactDate(week.endDate)}'
+                    '  ·  ${week.activeDays} ${week.activeDays == 1 ? 'day' : 'days'} tracked',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  trailing: week.weekOffset == selectedWeekOffset
+                      ? Icon(Icons.check_rounded, color: colors.accent)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(week.weekOffset),
+                ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -832,7 +847,9 @@ class _SegmentedProgress extends StatelessWidget {
             margin: EdgeInsets.only(right: index == 6 ? 0 : 5),
             decoration: BoxDecoration(
               color: active ? LogMyPlateColors.accent : colors.mutedFill,
-              borderRadius: BorderRadius.circular(99),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.pillBorderRadius,
+              ),
             ),
           ),
         );
@@ -911,7 +928,9 @@ class _EmptyWeekCard extends StatelessWidget {
             height: 42,
             decoration: BoxDecoration(
               color: colors.mutedFill,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.chipBorderRadius,
+              ),
             ),
             child: Center(
               child: Container(
@@ -974,69 +993,70 @@ class _JournalDayRow extends StatelessWidget {
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
-            borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.cardBorderRadius,
+            ),
             onTap: onTap,
             child: Padding(
               padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
               child: Row(
-              children: [
-                _DateBadge(date: date, active: hasMeals),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _dayTitle(day.date),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleMedium,
+                children: [
+                  _DateBadge(date: date, active: hasMeals),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _dayTitle(day.date),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '${day.totals.calories} kCal',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
+                            Text(
+                              '${day.totals.calories} kCal',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _mealCountLabel(day.mealCount),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                        const SizedBox(height: 11),
+                        _MacroTriplet(totals: day.totals, muted: !hasMeals),
+                        if (hasTarget) ...[
+                          const SizedBox(height: 10),
+                          _DayTargetStrip(
+                            calories: day.totals.calories,
+                            targetCalories: targetCalories,
+                            progress: targetProgress,
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _mealCountLabel(day.mealCount),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 11),
-                      _MacroTriplet(totals: day.totals, muted: !hasMeals),
-                      if (hasTarget) ...[
-                        const SizedBox(height: 10),
-                        _DayTargetStrip(
-                          calories: day.totals.calories,
-                          targetCalories: targetCalories,
-                          progress: targetProgress,
-                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: colors.textTertiary,
-                  size: 22,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: colors.textTertiary,
+                    size: 22,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -1063,7 +1083,9 @@ class _DayTargetStrip extends StatelessWidget {
       children: [
         Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.pillBorderRadius,
+            ),
             child: LinearProgressIndicator(
               minHeight: 5,
               value: progress,
@@ -1114,7 +1136,9 @@ class _DateBadge extends StatelessWidget {
       height: 58,
       decoration: BoxDecoration(
         color: badgeColor,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         border: Border.all(color: borderColor, width: 0.8),
       ),
       child: Column(
@@ -1233,7 +1257,9 @@ class _EmptyDayOverview extends StatelessWidget {
 
     return LiteGlassCard(
       padding: const EdgeInsets.all(LogMyPlateSpacing.sectionSpacing),
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
       child: Row(
         children: [
           _DateBadge(date: _parseDate(day.date), active: false),

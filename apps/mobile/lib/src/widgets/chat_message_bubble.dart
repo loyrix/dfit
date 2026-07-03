@@ -6,10 +6,7 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 
 class ChatMessageBubble extends StatelessWidget {
-  const ChatMessageBubble({
-    super.key,
-    required this.message,
-  });
+  const ChatMessageBubble({super.key, required this.message});
 
   final ChatMessage message;
 
@@ -62,7 +59,11 @@ class _AiBubble extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
                 decoration: BoxDecoration(
-                  color: colors.surfaceCard.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.8),
+                  color: colors.surfaceCard.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.3
+                        : 0.8,
+                  ),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(4),
                     topRight: Radius.circular(18),
@@ -70,7 +71,11 @@ class _AiBubble extends StatelessWidget {
                     bottomRight: Radius.circular(18),
                   ),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.05 : 0.4),
+                    color: Colors.white.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.dark
+                          ? 0.05
+                          : 0.4,
+                    ),
                     width: 0.5,
                   ),
                 ),
@@ -114,7 +119,11 @@ class _UserBubble extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
           decoration: BoxDecoration(
-            color: colors.accent.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.15 : 0.1),
+            color: colors.accent.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.15
+                  : 0.1,
+            ),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(18),
               topRight: Radius.circular(4),
@@ -122,7 +131,11 @@ class _UserBubble extends StatelessWidget {
               bottomRight: Radius.circular(18),
             ),
             border: Border.all(
-              color: colors.accent.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.2),
+              color: colors.accent.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.3
+                    : 0.2,
+              ),
               width: 0.5,
             ),
           ),

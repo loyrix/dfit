@@ -156,18 +156,20 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
                 const SizedBox(height: 8),
               ],
               if (!_passwordResetMode) ...[
-                GlassWrapper(child: TextButton(
-                  onPressed: widget.loading
-                      ? null
-                      : widget.reason == AccountGateReason.quotaExhausted
-                      ? widget.onManualLog
-                      : () => Navigator.of(context).pop(),
-                  child: Text(
-                    widget.reason == AccountGateReason.quotaExhausted
-                        ? 'Log manually instead'
-                        : 'Maybe later',
+                GlassWrapper(
+                  child: TextButton(
+                    onPressed: widget.loading
+                        ? null
+                        : widget.reason == AccountGateReason.quotaExhausted
+                        ? widget.onManualLog
+                        : () => Navigator.of(context).pop(),
+                    child: Text(
+                      widget.reason == AccountGateReason.quotaExhausted
+                          ? 'Log manually instead'
+                          : 'Maybe later',
+                    ),
                   ),
-                )),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   widget.reason == AccountGateReason.accountDeletion
@@ -207,7 +209,7 @@ class _GatePill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
         border: Border.all(color: colors.border, width: 0.6),
       ),
       child: Text(
@@ -279,7 +281,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
 
     return LiteGlassCard(
       padding: const EdgeInsets.all(10),
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -288,7 +292,9 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
                 color: colors.mutedFill,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.chipBorderRadius,
+                ),
               ),
               child: Row(
                 children: [
@@ -359,15 +365,17 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
             if (!isSignUp)
               Align(
                 alignment: Alignment.centerRight,
-                child: GlassWrapper(child: TextButton(
-                  onPressed: widget.loading ? null : _requestReset,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: const Size(0, 34),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                child: GlassWrapper(
+                  child: TextButton(
+                    onPressed: widget.loading ? null : _requestReset,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: const Size(0, 34),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text('Forgot password?'),
                   ),
-                  child: const Text('Forgot password?'),
-                )),
+                ),
               ),
           ],
           if (_validation != null) ...[
@@ -390,21 +398,23 @@ class _EmailAuthPanelState extends State<_EmailAuthPanel> {
           ),
           if (isResetting) ...[
             const SizedBox(height: 4),
-            GlassWrapper(child: TextButton(
-              onPressed: widget.loading
-                  ? null
-                  : () {
-                      setState(() {
-                        _resetEmail = null;
-                        _resetCodeController.clear();
-                        _newPasswordController.clear();
-                        _validation = null;
-                      });
-                      widget.onPasswordResetModeChanged(false);
-                      widget.onClearError?.call();
-                    },
-              child: const Text('Back to login'),
-            )),
+            GlassWrapper(
+              child: TextButton(
+                onPressed: widget.loading
+                    ? null
+                    : () {
+                        setState(() {
+                          _resetEmail = null;
+                          _resetCodeController.clear();
+                          _newPasswordController.clear();
+                          _validation = null;
+                        });
+                        widget.onPasswordResetModeChanged(false);
+                        widget.onClearError?.call();
+                      },
+                child: const Text('Back to login'),
+              ),
+            ),
           ],
         ],
       ),
@@ -517,7 +527,9 @@ class _ResetEmailNote extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
       ),
       child: Text(
         'Code sent to $email',
@@ -545,7 +557,7 @@ class _InlineAuthError extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: LogMyPlateColors.destructive.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.chipBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.destructive.withValues(alpha: 0.22),
           width: 0.6,
@@ -581,21 +593,23 @@ class _InlineAuthError extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: GlassWrapper(child: TextButton.icon(
-                onPressed: () => openLogMyPlateLink(
-                  context,
-                  LogMyPlateLinks.accountSupport,
-                  copiedMessage: 'Support link copied',
+              child: GlassWrapper(
+                child: TextButton.icon(
+                  onPressed: () => openLogMyPlateLink(
+                    context,
+                    LogMyPlateLinks.accountSupport,
+                    copiedMessage: 'Support link copied',
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: LogMyPlateColors.destructiveDeep,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.support_agent_rounded, size: 16),
+                  label: const Text('Contact support'),
                 ),
-                style: TextButton.styleFrom(
-                  foregroundColor: LogMyPlateColors.destructiveDeep,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 34),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                icon: const Icon(Icons.support_agent_rounded, size: 16),
-                label: const Text('Contact support'),
-              )),
+              ),
             ),
           ],
         ],
@@ -686,11 +700,15 @@ class _AuthTextField extends StatelessWidget {
           vertical: 12,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           borderSide: const BorderSide(
             color: LogMyPlateColors.accent,
             width: 0.8,
@@ -764,7 +782,9 @@ class _AccountMark extends StatelessWidget {
             height: 58,
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.elementBorderRadius,
+              ),
             ),
             child: const Center(
               child: SizedBox(
@@ -806,13 +826,15 @@ class _ProviderButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: loading ? null : onTap,
-          borderRadius:
-              BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           child: Ink(
             decoration: BoxDecoration(
               color: colors.mutedFill,
-              borderRadius:
-                  BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.elementBorderRadius,
+              ),
               border: Border.all(color: colors.border, width: 0.8),
             ),
             child: Center(

@@ -51,7 +51,9 @@ class _ChatTypingIndicatorState extends State<ChatTypingIndicator>
             return AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
-                final value = sin((_controller.value * 2 * pi) + (index * 2.094));
+                final value = sin(
+                  (_controller.value * 2 * pi) + (index * 2.094),
+                );
                 final opacity = (value + 1) / 2;
                 final clamped = opacity.clamp(0.3, 1.0);
                 return Container(

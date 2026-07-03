@@ -90,105 +90,216 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     children: [
                       if (!_isCapturing) ...[
                         Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Back',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
-                  ),
-                  const Spacer(),
-                  if (_hasChanges) const _UnsavedChangesPill(),
-                  const SizedBox(width: 8),
-                  GlassCard(
-                    padding: EdgeInsets.zero,
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Share meal',
-                          onPressed: _deleting ? null : _shareMeal,
-                          icon: Icon(
-                            Icons.ios_share_rounded,
-                            color: colors.textPrimary,
-                            size: 20,
-                          ),
-                        ),
-                        if (canDelete) ...[
-                          Container(
-                            width: 1,
-                            height: 20,
-                            color: colors.border,
-                          ),
-                          IconButton(
-                            tooltip: 'Delete meal',
-                            onPressed: _deleting ? null : _requestDeleteMeal,
-                            icon: Icon(
-                              Icons.delete_outline_rounded,
-                              color: LogMyPlateColors.destructive,
-                              size: 20,
+                          children: [
+                            IconButton(
+                              tooltip: 'Back',
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: const BackMark(),
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              if (!_isCapturing && _meal.image != null) const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-            ],
-              if (_meal.image != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                _MealHeroImage(image: _meal.image!),
-              ],
-              if (!_isCapturing && widget.onAskNutritionist != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                PremiumButton(
-                  onPressed: _hasChanges ? null : () => widget.onAskNutritionist!(_meal),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.auto_awesome_rounded,
-                        size: 22,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? LogMyPlateColors.accentDeep
-                            : LogMyPlateColors.accent,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Analyze this meal with AI',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          letterSpacing: -0.2,
+                            const Spacer(),
+                            if (_hasChanges) const _UnsavedChangesPill(),
+                            const SizedBox(width: 8),
+                            GlassCard(
+                              padding: EdgeInsets.zero,
+                              borderRadius: BorderRadius.circular(
+                                LogMyPlateSpacing.cardBorderRadius,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Share meal',
+                                    onPressed: _deleting ? null : _shareMeal,
+                                    icon: Icon(
+                                      Icons.ios_share_rounded,
+                                      color: colors.textPrimary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  if (canDelete) ...[
+                                    Container(
+                                      width: 1,
+                                      height: 20,
+                                      color: colors.border,
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Delete meal',
+                                      onPressed: _deleting
+                                          ? null
+                                          : _requestDeleteMeal,
+                                      icon: Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: LogMyPlateColors.destructive,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      if (!widget.isPremium && !_hasChanges) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: LogMyPlateColors.accent.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                        if (!_isCapturing && _meal.image != null)
+                          const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      ],
+                      if (_meal.image != null) ...[
+                        const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                        _MealHeroImage(image: _meal.image!),
+                      ],
+                      if (!_isCapturing &&
+                          widget.onAskNutritionist != null) ...[
+                        const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                        PremiumButton(
+                          onPressed: _hasChanges
+                              ? null
+                              : () => widget.onAskNutritionist!(_meal),
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.lock_rounded,
-                                size: 10,
-                                color: LogMyPlateColors.accent,
+                                Icons.auto_awesome_rounded,
+                                size: 22,
+                                color:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? LogMyPlateColors.accentDeep
+                                    : LogMyPlateColors.accent,
                               ),
-                              const SizedBox(width: 2),
-                                Text(
-                                  'PRO',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: LogMyPlateColors.accent,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
+                              const SizedBox(width: 8),
+                              Text(
+                                'Analyze this meal with AI',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              if (!widget.isPremium && !_hasChanges) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: LogMyPlateColors.accent.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.lock_rounded,
+                                        size: 10,
+                                        color: LogMyPlateColors.accent,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        'PRO',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
+                                              color: LogMyPlateColors.accent,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.5,
+                                            ),
+                                      ),
+                                    ],
                                   ),
                                 ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: LogMyPlateSpacing.cardPadding),
+                      _MealDetailSummaryCard(meal: _draftMeal),
+                      const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                      MacroProfileCard(meal: _draftMeal),
+                      if (!_isCapturing) ...[
+                        const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                        Text(
+                          'Items',
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                        const SizedBox(height: 10),
+                        for (var index = 0; index < _draftItems.length; index++)
+                          _MealDetailItemRow(
+                            item: _draftItems[index],
+                            editable: canEdit,
+                            onEdit: () => _openEditItemSheet(index),
+                          ),
+                        if (_error != null) ...[
+                          const SizedBox(height: LogMyPlateSpacing.cardPadding),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colors.accentText),
+                          ),
+                        ],
+                        if (canEdit) ...[
+                          const SizedBox(
+                            height: LogMyPlateSpacing.sectionSpacing,
+                          ),
+                          PremiumButton(
+                            onPressed: !_hasChanges || _saving || _deleting
+                                ? null
+                                : _saveChanges,
+
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 180),
+                              child: _saving
+                                  ? SizedBox(
+                                      key: const ValueKey(
+                                        'saving-updated-meal',
+                                      ),
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: colors.primaryActionText,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Save updated meal',
+                                      key: ValueKey('save-updated-meal'),
+                                    ),
+                            ),
+                          ),
+                          if (_hasChanges)
+                            GlassWrapper(
+                              child: TextButton(
+                                onPressed: _saving || _deleting
+                                    ? null
+                                    : _resetChanges,
+                                child: const Text('Reset changes'),
+                              ),
+                            ),
+                        ],
+                      ],
+                      if (_isCapturing) ...[
+                        const SizedBox(height: 32),
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Tracked with LogMyPlate AI',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: colors.textSecondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'logmyplate.com',
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(color: colors.textTertiary),
+                              ),
                             ],
                           ),
                         ),
@@ -196,93 +307,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                     ],
                   ),
                 ),
-              ],
-              const SizedBox(height: LogMyPlateSpacing.cardPadding),
-              _MealDetailSummaryCard(meal: _draftMeal),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              MacroProfileCard(meal: _draftMeal),
-              if (!_isCapturing) ...[
-                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-                Text('Items', style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 10),
-                for (var index = 0; index < _draftItems.length; index++)
-                  _MealDetailItemRow(
-                    item: _draftItems[index],
-                    editable: canEdit,
-                    onEdit: () => _openEditItemSheet(index),
-                  ),
-                if (_error != null) ...[
-                  const SizedBox(height: LogMyPlateSpacing.cardPadding),
-                  Text(
-                    _error!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: colors.accentText),
-                  ),
-                ],
-                if (canEdit) ...[
-                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  PremiumButton(
-                    onPressed: !_hasChanges || _saving || _deleting
-                        ? null
-                        : _saveChanges,
-                    
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: _saving
-                          ? SizedBox(
-                              key: const ValueKey('saving-updated-meal'),
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: colors.primaryActionText,
-                              ),
-                            )
-                          : const Text(
-                              'Save updated meal',
-                              key: ValueKey('save-updated-meal'),
-                            ),
-                    ),
-                  ),
-                  if (_hasChanges)
-                    GlassWrapper(child: TextButton(
-                      onPressed: _saving || _deleting ? null : _resetChanges,
-                      child: const Text('Reset changes'),
-                    )),
-                ],
-              ],
-              if (_isCapturing) ...[
-                const SizedBox(height: 32),
-                Center(
-                  child: Column(
-                    children: [
-                      Text(
-                        'Tracked with LogMyPlate AI',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: colors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'logmyplate.com',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: colors.textTertiary,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+              ),
+            ),
           ),
         ),
-      ),
-      ),
-      ),
-      ),
       ),
     );
   }
@@ -366,12 +394,12 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     setState(() => _isCapturing = true);
     // Give the UI a frame to update
     await Future.delayed(const Duration(milliseconds: 50));
-    
+
     final image = await _screenshotController.capture(
       delay: const Duration(milliseconds: 20),
       pixelRatio: 2.0,
     );
-    
+
     setState(() => _isCapturing = false);
 
     if (image == null) return;
@@ -473,8 +501,6 @@ class _MealDetailSummaryCard extends StatelessWidget {
   }
 }
 
-
-
 class _MealHeroImage extends StatelessWidget {
   const _MealHeroImage({required this.image});
 
@@ -485,9 +511,13 @@ class _MealHeroImage extends StatelessWidget {
     return AspectRatio(
       aspectRatio: 1.55,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.panelBorderRadius,
+        ),
         child: LiteGlassCard(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           padding: EdgeInsets.zero,
           child: Stack(
             fit: StackFit.expand,
@@ -581,7 +611,9 @@ class _MealDetailItemRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.mutedFill,
                 border: Border.all(color: colors.border, width: 0.5),
-                borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.elementBorderRadius,
+                ),
               ),
               child: Icon(
                 Icons.edit_rounded,
@@ -638,7 +670,7 @@ class _UnsavedChangesPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
         color: LogMyPlateColors.accent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
         border: Border.all(
           color: LogMyPlateColors.accent.withValues(alpha: 0.24),
         ),

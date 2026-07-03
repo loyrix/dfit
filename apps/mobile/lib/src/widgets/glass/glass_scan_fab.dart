@@ -1,3 +1,4 @@
+import '../../theme/logmyplate_spacing.dart';
 import 'package:flutter/material.dart';
 
 import 'glass_surface.dart';
@@ -22,13 +23,17 @@ class GlassScanFab extends StatelessWidget {
     // is a premium glass surface.
     Widget fabContent = GlassSurface(
       isPremium: true,
-      borderRadius: BorderRadius.circular(28.0), // Rounded rect or stadium depending on FAB style
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.sheetBorderRadius,
+      ), // Rounded rect or stadium depending on FAB style
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(28.0),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.sheetBorderRadius,
+        ),
         child: Container(
           constraints: const BoxConstraints(minWidth: 56.0, minHeight: 56.0),
-          padding: label != null 
+          padding: label != null
               ? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0)
               : EdgeInsets.zero,
           child: Row(
@@ -36,15 +41,22 @@ class GlassScanFab extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               icon,
-              if (label != null) ...[
-                const SizedBox(width: 8.0),
-                label!,
-              ]
+              if (label != null) ...[const SizedBox(width: 8.0), label!],
             ],
           ),
         ),
       ),
     );
+
+    // Icon-only FABs carry no text for screen readers; labelled ones announce
+    // their own label.
+    if (label == null) {
+      fabContent = Semantics(
+        button: true,
+        label: 'Scan a meal',
+        child: fabContent,
+      );
+    }
 
     if (isPulsing) {
       // Basic pulse placeholder (real implementation would use AnimationController)
@@ -56,7 +68,9 @@ class GlassScanFab extends StatelessWidget {
             height: 72,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
             ),
           ),
           fabContent,

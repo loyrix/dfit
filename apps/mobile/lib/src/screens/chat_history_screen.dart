@@ -184,13 +184,15 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
               Expanded(
                 child: _isLoading
                     ? Center(
-                        child: CircularProgressIndicator(color: LogMyPlateColors.accent),
+                        child: CircularProgressIndicator(
+                          color: LogMyPlateColors.accent,
+                        ),
                       )
                     : _error != null
-                        ? _buildErrorState(colors)
-                        : _sessions.isEmpty
-                            ? _buildEmptyState(colors, isDark)
-                            : _buildList(colors, isDark),
+                    ? _buildErrorState(colors)
+                    : _sessions.isEmpty
+                    ? _buildEmptyState(colors, isDark)
+                    : _buildList(colors, isDark),
               ),
               if (_isSelectionMode) _buildSelectionActionBar(colors),
             ],
@@ -202,10 +204,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
 
   Widget _buildAppBar(BuildContext context, LogMyPlateThemeColors colors) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24.0,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
       child: Row(
         children: [
           GlassWrapper(
@@ -218,9 +217,9 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           Expanded(
             child: Text(
               'Chat History',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           if (_sessions.isNotEmpty && !_isDeleting)
@@ -228,8 +227,12 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
               child: IconButton(
                 onPressed: _toggleSelectionMode,
                 icon: Icon(
-                  _isSelectionMode ? Icons.close_rounded : Icons.checklist_rounded,
-                  color: _isSelectionMode ? LogMyPlateColors.destructive : colors.textPrimary,
+                  _isSelectionMode
+                      ? Icons.close_rounded
+                      : Icons.checklist_rounded,
+                  color: _isSelectionMode
+                      ? LogMyPlateColors.destructive
+                      : colors.textPrimary,
                 ),
               ),
             ),
@@ -243,11 +246,17 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline_rounded, size: 48, color: colors.textTertiary),
+          Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: colors.textTertiary,
+          ),
           const SizedBox(height: 16),
           Text(
             _error!,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: colors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 24),
           PremiumButton(
@@ -267,26 +276,32 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.black.withValues(alpha: 0.05),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.chat_bubble_outline_rounded, size: 48, color: colors.textTertiary),
+            child: Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 48,
+              color: colors.textTertiary,
+            ),
           ),
           const SizedBox(height: 24),
           Text(
             'No chat history yet',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             'Your conversations with the AI\nNutritionist will appear here.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.4,
-                ),
+              color: colors.textSecondary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -302,10 +317,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24.0,
-        vertical: 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
       itemCount: groups.length,
       itemBuilder: (context, index) {
         final dateKey = groups.keys.elementAt(index);
@@ -319,9 +331,9 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
               child: Text(
                 dateKey,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: colors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: colors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             ...daySessions.map((s) => _buildSessionCard(s, colors, isDark)),
@@ -332,7 +344,11 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
     );
   }
 
-  Widget _buildSessionCard(ChatSessionSummary s, LogMyPlateThemeColors colors, bool isDark) {
+  Widget _buildSessionCard(
+    ChatSessionSummary s,
+    LogMyPlateThemeColors colors,
+    bool isDark,
+  ) {
     final isSelected = _selectedIds.contains(s.id);
     final tintColor = isSelected
         ? LogMyPlateColors.accent.withValues(alpha: isDark ? 0.2 : 0.1)
@@ -355,22 +371,30 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           }
         },
         child: GlassSurface(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.panelBorderRadius,
+          ),
           tintColor: tintColor,
           child: Container(
             decoration: BoxDecoration(
               border: isSelected
                   ? Border.all(color: LogMyPlateColors.accent, width: 1.5)
                   : Border.all(color: Colors.transparent, width: 1.5),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.panelBorderRadius,
+              ),
             ),
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 if (_isSelectionMode) ...[
                   Icon(
-                    isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                    color: isSelected ? LogMyPlateColors.accent : colors.textTertiary,
+                    isSelected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: isSelected
+                        ? LogMyPlateColors.accent
+                        : colors.textTertiary,
                     size: 24,
                   ),
                   const SizedBox(width: 16),
@@ -387,11 +411,15 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(
+                      LogMyPlateSpacing.elementBorderRadius,
+                    ),
                   ),
                   child: Icon(
                     Icons.auto_awesome_rounded,
-                    color: isDark ? LogMyPlateColors.accent : LogMyPlateColors.accentDeep,
+                    color: isDark
+                        ? LogMyPlateColors.accent
+                        : LogMyPlateColors.accentDeep,
                     size: 24,
                   ),
                 ),
@@ -404,16 +432,15 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                         s.title ?? 'Nutritionist Chat',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${s.turnCount} message${s.turnCount == 1 ? '' : 's'} • ${_formatTime(s.createdAt)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colors.textSecondary,
-                            ),
+                          color: colors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -421,7 +448,12 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                 if (!_isSelectionMode)
                   IconButton(
                     onPressed: () => _deleteSingle(s.id),
-                    icon: Icon(Icons.delete_outline_rounded, color: LogMyPlateColors.destructive.withValues(alpha: 0.8)),
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      color: LogMyPlateColors.destructive.withValues(
+                        alpha: 0.8,
+                      ),
+                    ),
                     tooltip: 'Delete chat',
                   ),
               ],
@@ -451,9 +483,9 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
           children: [
             Text(
               '${_selectedIds.length} selected',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const Spacer(),
             if (_isDeleting)
@@ -493,12 +525,27 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
       return 'Last ${weekdays[date.weekday - 1]}';
     }
 
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String _formatTime(DateTime date) {
-    final hour = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
+    final hour = date.hour == 0
+        ? 12
+        : (date.hour > 12 ? date.hour - 12 : date.hour);
     final minute = date.minute.toString().padLeft(2, '0');
     final amPm = date.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $amPm';
@@ -525,7 +572,9 @@ class _DeleteConfirmationSheet extends StatelessWidget {
               height: 5,
               decoration: BoxDecoration(
                 color: colors.textTertiary.withValues(alpha: 0.36),
-                borderRadius: BorderRadius.circular(99),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
               ),
             ),
           ),
@@ -576,17 +625,19 @@ class _DeleteConfirmationSheet extends StatelessWidget {
             child: const Text('Yes, delete'),
           ),
           const SizedBox(height: 10),
-          GlassWrapper(child: TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(
-              foregroundColor: colors.textPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          GlassWrapper(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              style: TextButton.styleFrom(
+                foregroundColor: colors.textPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          )),
+          ),
         ],
       ),
     );

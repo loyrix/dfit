@@ -23,7 +23,7 @@ class GlassSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    
+
     final content = Padding(
       padding: padding,
       child: Column(
@@ -40,10 +40,7 @@ class GlassSectionCard extends StatelessWidget {
                   letterSpacing: 1.3,
                 ),
               ),
-              if (trailing != null) ...[
-                const Spacer(),
-                trailing!,
-              ],
+              if (trailing != null) ...[const Spacer(), trailing!],
             ],
           ),
           const SizedBox(height: LogMyPlateSpacing.itemSpacing),
@@ -58,7 +55,9 @@ class GlassSectionCard extends StatelessWidget {
           ? Material(
               type: MaterialType.transparency,
               child: InkWell(
-                borderRadius: BorderRadius.circular(24.0), // match standard glass border radius
+                borderRadius: BorderRadius.circular(
+                  24,
+                ), // match standard glass border radius
                 onTap: onTap,
                 child: content,
               ),

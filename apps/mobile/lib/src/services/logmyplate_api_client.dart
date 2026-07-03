@@ -504,10 +504,7 @@ class LogMyPlateApiClient {
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/chat/nutritionist/message'),
       headers: await _headers(contentTypeJson: true),
-      body: jsonEncode({
-        'sessionId': sessionId,
-        'message': message,
-      }),
+      body: jsonEncode({'sessionId': sessionId, 'message': message}),
     );
     _throwIfBad(response);
     return ChatReply.fromJson(

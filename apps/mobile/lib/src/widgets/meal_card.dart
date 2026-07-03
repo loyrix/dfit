@@ -26,77 +26,81 @@ class MealCard extends StatelessWidget {
     final names = meal.items.map((item) => item.name).join(', ');
 
     final card = FakeGlassRow(
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.elementBorderRadius,
+      ),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
-          child: Row(
-            children: [
-              _MealTimeDisk(type: meal.type),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      meal.type.label,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.textSecondary,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            names,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
+            child: Row(
+              children: [
+                _MealTimeDisk(type: meal.type),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        meal.type.label,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.textSecondary,
+                          letterSpacing: 1.4,
                         ),
-                        if (meal.syncState == MealSyncState.pending) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: LogMyPlateColors.accentLow,
-                              shape: BoxShape.circle,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              names,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
+                          if (meal.syncState == MealSyncState.pending) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: LogMyPlateColors.accentLow,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Protein ${totals.proteinG.round()}g  Carbs ${totals.carbsG.round()}g  Fat ${totals.fatG.round()}g',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.textSecondary,
-                        letterSpacing: 0,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Protein ${totals.proteinG.round()}g  Carbs ${totals.carbsG.round()}g  Fat ${totals.fatG.round()}g',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.textSecondary,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${totals.calories} kCal',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
+                const SizedBox(width: 12),
+                Text(
+                  '${totals.calories} kCal',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
 
