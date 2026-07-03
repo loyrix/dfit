@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/logmyplate_spacing.dart';
 
 import '../theme/logmyplate_colors.dart';
@@ -13,6 +16,9 @@ Future<bool> confirmMealDeletion(BuildContext context) async {
     backgroundColor: Colors.transparent,
     builder: (_) => const MealDeleteConfirmationSheet(),
   );
+  if (confirmed ?? false) {
+    unawaited(HapticFeedback.heavyImpact());
+  }
   return confirmed ?? false;
 }
 
@@ -94,37 +100,39 @@ class MealDeleteConfirmationSheet extends StatelessWidget {
         child: LiteGlassCard(
           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
           borderRadius: BorderRadius.circular(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Delete this meal?',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'This removes the meal, its saved image, and the linked AI scan record.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colors.textSecondary,
-                height: 1.35,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Delete this meal?',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-            ),
-            const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-            PremiumButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              
-              child: const Text('Delete meal'),
-            ),
-            const SizedBox(height: 8),
-            GlassWrapper(child: TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            )),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'This removes the meal, its saved image, and the linked AI scan record.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              PremiumButton(
+                onPressed: () => Navigator.of(context).pop(true),
+
+                child: const Text('Delete meal'),
+              ),
+              const SizedBox(height: 8),
+              GlassWrapper(
+                child: TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 }

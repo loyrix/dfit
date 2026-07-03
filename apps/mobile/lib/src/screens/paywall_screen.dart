@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/logmyplate_spacing.dart';
 
@@ -68,176 +71,186 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
             borderRadius: BorderRadius.circular(20),
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const SizedBox(width: 40),
-                  const Spacer(),
-                  Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: colors.textTertiary.withValues(alpha: 0.34),
-                      borderRadius: BorderRadius.circular(99),
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(width: 40),
+                    const Spacer(),
+                    Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: colors.textTertiary.withValues(alpha: 0.34),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const LogMyPlateBrandMark(size: 52, showHalo: false),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'LogMyPlate Premium',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(color: colors.textPrimary),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Your personal AI nutrition coach, more meal scans, and no ads.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: colors.textSecondary,
-                                height: 1.35,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _FeatureRow(
-                icon: Icons.auto_awesome_rounded,
-                title: 'AI Nutritionist — personalized nutrition advice',
-              ),
-              const SizedBox(height: 10),
-              _FeatureRow(
-                icon: Icons.auto_awesome_rounded,
-                title: '300 AI meal scans/month',
-              ),
-              const SizedBox(height: 10),
-              _FeatureRow(
-                icon: Icons.today_rounded,
-                title: 'Up to 10 scans/day',
-              ),
-              const SizedBox(height: 10),
-              _FeatureRow(
-                icon: Icons.bolt_rounded,
-                title: 'Premium scans work without rewarded ads',
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              if (_offering.plans.isEmpty)
-                _UnavailablePlans(
-                  retrying: _retryingOffering,
-                  onRetry: widget.onRetryLoadOffering != null
-                      ? _retryLoadOffering
-                      : null,
-                )
-              else
-                ..._offering.plans.map(
-                  (plan) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _PlanCard(
-                      plan: plan,
-                      selected: plan == selectedPlan,
-                      busy: _purchasingPlan == plan,
-                      onTap: _busy
+                    const Spacer(),
+                    IconButton(
+                      onPressed: _busy
                           ? null
-                          : () => setState(() => _selectedPlan = plan),
+                          : () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
                     ),
-                  ),
-                ),
-              if (_error != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: LogMyPlateColors.destructive,
-                    height: 1.3,
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 8),
-              ] else
-                const SizedBox(height: 8),
-              SizedBox(
-                height: 54,
-                child: PremiumButton(
-                  onPressed: selectedPlan == null || _busy
-                      ? null
-                      : () => _purchase(selectedPlan),
-                  
-                  child: _purchasingPlan == selectedPlan
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: colors.primaryActionText,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const LogMyPlateBrandMark(size: 52, showHalo: false),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'LogMyPlate Premium',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(color: colors.textPrimary),
                           ),
-                        )
-                      : Text(
-                          selectedPlan == null
-                              ? 'Continue'
-                              : 'Continue with ${selectedPlan.kind.displayName}',
-                        ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Your personal AI nutrition coach, more meal scans, and no ads.',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: colors.textSecondary,
+                                  height: 1.35,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              GlassWrapper(child: TextButton(
-                onPressed: _busy ? null : _restore,
-                child: Text(_restoring ? 'Restoring...' : 'Restore purchase'),
-              )),
-              Text(
-                'Subscription renews through the App Store or Google Play. Cancel anytime in store account settings.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.35,
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                _FeatureRow(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'AI Nutritionist — personalized nutrition advice',
                 ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _LegalLink(
-                    label: 'Privacy Policy',
-                    url: LogMyPlateLinks.privacy,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      '·',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colors.textSecondary,
+                const SizedBox(height: 10),
+                _FeatureRow(
+                  icon: Icons.auto_awesome_rounded,
+                  title: '300 AI meal scans/month',
+                ),
+                const SizedBox(height: 10),
+                _FeatureRow(
+                  icon: Icons.today_rounded,
+                  title: 'Up to 10 scans/day',
+                ),
+                const SizedBox(height: 10),
+                _FeatureRow(
+                  icon: Icons.bolt_rounded,
+                  title: 'Premium scans work without rewarded ads',
+                ),
+                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                if (_offering.plans.isEmpty)
+                  _UnavailablePlans(
+                    retrying: _retryingOffering,
+                    onRetry: widget.onRetryLoadOffering != null
+                        ? _retryLoadOffering
+                        : null,
+                  )
+                else
+                  ..._offering.plans.map(
+                    (plan) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _PlanCard(
+                        plan: plan,
+                        selected: plan == selectedPlan,
+                        busy: _purchasingPlan == plan,
+                        onTap: _busy
+                            ? null
+                            : () {
+                                unawaited(HapticFeedback.selectionClick());
+                                setState(() => _selectedPlan = plan);
+                              },
                       ),
                     ),
                   ),
-                  _LegalLink(
-                    label: 'Terms of Use',
-                    url: LogMyPlateLinks.terms,
+                if (_error != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _error!,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: LogMyPlateColors.destructive,
+                      height: 1.3,
+                    ),
                   ),
-                ],
-              ),
-            ],
+                  const SizedBox(height: 8),
+                ] else
+                  const SizedBox(height: 8),
+                SizedBox(
+                  height: 54,
+                  child: PremiumButton(
+                    onPressed: selectedPlan == null || _busy
+                        ? null
+                        : () => _purchase(selectedPlan),
+
+                    child: _purchasingPlan == selectedPlan
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.primaryActionText,
+                            ),
+                          )
+                        : Text(
+                            selectedPlan == null
+                                ? 'Continue'
+                                : 'Continue with ${selectedPlan.kind.displayName}',
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GlassWrapper(
+                  child: TextButton(
+                    onPressed: _busy ? null : _restore,
+                    child: Text(
+                      _restoring ? 'Restoring...' : 'Restore purchase',
+                    ),
+                  ),
+                ),
+                Text(
+                  'Subscription renews through the App Store or Google Play. Cancel anytime in store account settings.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _LegalLink(
+                      label: 'Privacy Policy',
+                      url: LogMyPlateLinks.privacy,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '·',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    _LegalLink(
+                      label: 'Terms of Use',
+                      url: LogMyPlateLinks.terms,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Future<void> _purchase(PremiumPlan plan) async {
@@ -250,6 +263,7 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
       final activated = await widget.onPurchase(plan);
       if (!mounted) return;
       if (activated) {
+        unawaited(HapticFeedback.mediumImpact());
         Navigator.of(context).pop(true);
         return;
       }
@@ -287,7 +301,9 @@ class _PremiumPaywallSheetState extends State<PremiumPaywallSheet> {
           _selectedPlan = _offering.defaultPlan;
         });
       } else {
-        setState(() => _error = 'Plans are still unavailable. Try again later.');
+        setState(
+          () => _error = 'Plans are still unavailable. Try again later.',
+        );
       }
     } catch (_) {
       if (mounted) {
@@ -453,22 +469,24 @@ class _PlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final borderColor = selected
-        ? LogMyPlateColors.accent
-        : colors.border;
+    final borderColor = selected ? LogMyPlateColors.accent : colors.border;
     final fillColor = selected
         ? LogMyPlateColors.accent.withValues(alpha: 0.11)
         : colors.mutedFill;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.elementBorderRadius,
+      ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
         decoration: BoxDecoration(
           color: fillColor,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.elementBorderRadius,
+          ),
           border: Border.all(color: borderColor, width: selected ? 1.2 : 0.6),
         ),
         child: Row(
@@ -595,7 +613,9 @@ class _UnavailablePlans extends StatelessWidget {
       padding: const EdgeInsets.all(LogMyPlateSpacing.cardPadding),
       decoration: BoxDecoration(
         color: colors.mutedFill,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -660,4 +680,3 @@ class _LegalLink extends StatelessWidget {
     );
   }
 }
-

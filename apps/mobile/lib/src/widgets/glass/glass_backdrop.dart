@@ -1,15 +1,10 @@
-
 import 'package:flutter/material.dart';
 
 import '../../models/captured_meal_photo.dart';
 import '../../theme/logmyplate_colors.dart';
 
 class GlassBackdrop extends StatelessWidget {
-  const GlassBackdrop({
-    super.key,
-    required this.child,
-    this.photo,
-  });
+  const GlassBackdrop({super.key, required this.child, this.photo});
 
   final Widget child;
   final CapturedMealPhoto? photo;
@@ -20,10 +15,15 @@ class GlassBackdrop extends StatelessWidget {
 
     Widget background;
     if (photo != null) {
+      final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
       background = Positioned.fill(
         child: Image.memory(
           photo!.bytes,
           fit: BoxFit.cover,
+          gaplessPlayback: true,
+          // Decode at screen width instead of the full capture resolution.
+          cacheWidth: (MediaQuery.sizeOf(context).width * devicePixelRatio)
+              .round(),
         ),
       );
     } else if (isDark) {

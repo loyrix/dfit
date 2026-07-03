@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 import '../theme/logmyplate_spacing.dart';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/captured_meal_photo.dart';
@@ -83,10 +84,21 @@ class _CameraScreenState extends State<CameraScreen>
   _CaptureSource? _activeSource;
   _PreparedCapture? _preparedCapture;
   String? _captureNotice;
+  // Drives the scan-line sweep over the photo preview. Only runs while a
+  // prepared capture is showing — nothing else on this screen animates, so
+  // the loop stays stopped otherwise.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat();
+  );
+
+  void _syncScanAnimation() {
+    if (_preparedCapture == null) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -143,6 +155,8 @@ class _CameraScreenState extends State<CameraScreen>
         );
         _captureNotice = null;
       });
+      _syncScanAnimation();
+      unawaited(HapticFeedback.lightImpact());
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -179,6 +193,7 @@ class _CameraScreenState extends State<CameraScreen>
       _preparedCapture = null;
       _captureNotice = null;
     });
+    _syncScanAnimation();
   }
 
   @override
@@ -193,132 +208,120 @@ class _CameraScreenState extends State<CameraScreen>
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            return Stack(
-              children: [
-                Positioned.fill(
-                  child: GlassBackdrop(
-                    child: const SizedBox.shrink(),
-                  ),
-                ),
-                Positioned(
-                  top: 16,
-                  left: 12,
-                  child: IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
-                  ),
-                ),
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 54, 24, 24),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxHeight < 720;
-                        final keyboardOpen =
-                            MediaQuery.viewInsetsOf(context).bottom > 0;
-                        final hasPhoto = preparedCapture != null;
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GlassBackdrop(child: const SizedBox.shrink()),
+            ),
+            Positioned(
+              top: 16,
+              left: 12,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const BackMark(),
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 54, 24, 24),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxHeight < 720;
+                    final keyboardOpen =
+                        MediaQuery.viewInsetsOf(context).bottom > 0;
+                    final hasPhoto = preparedCapture != null;
 
-                        return Column(
-                          children: [
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOutCubic,
-                              child: keyboardOpen
-                                  ? const SizedBox.shrink()
-                                  : _ScanIntroCard(
-                                      activeSource: activeSource,
-                                      hasPhoto: hasPhoto,
-                                    ),
-                            ),
-                            SizedBox(
-                              height: keyboardOpen
-                                  ? 8
-                                  : compact
-                                  ? 16
-                                  : 22,
-                            ),
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, previewConstraints) {
-                                  final maxPreviewWidth = math.min(
-                                    370.0,
-                                    previewConstraints.maxWidth,
-                                  );
-                                  final emptySize = math.min(
-                                    compact ? 214.0 : 292.0,
-                                    math.min(
-                                      previewConstraints.maxWidth,
+                    return Column(
+                      children: [
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: keyboardOpen
+                              ? const SizedBox.shrink()
+                              : _ScanIntroCard(
+                                  activeSource: activeSource,
+                                  hasPhoto: hasPhoto,
+                                ),
+                        ),
+                        SizedBox(
+                          height: keyboardOpen
+                              ? 8
+                              : compact
+                              ? 16
+                              : 22,
+                        ),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, previewConstraints) {
+                              final maxPreviewWidth = math.min(
+                                370.0,
+                                previewConstraints.maxWidth,
+                              );
+                              final emptySize = math.min(
+                                compact ? 214.0 : 292.0,
+                                math.min(
+                                  previewConstraints.maxWidth,
+                                  previewConstraints.maxHeight,
+                                ),
+                              );
+                              final preparedHeight = keyboardOpen
+                                  ? math.min(
+                                      126.0,
                                       previewConstraints.maxHeight,
-                                    ),
-                                  );
-                                  final preparedHeight = keyboardOpen
-                                      ? math.min(
-                                          126.0,
-                                          previewConstraints.maxHeight,
-                                        )
-                                      : math.min(
-                                          compact ? 252.0 : 330.0,
-                                          previewConstraints.maxHeight,
-                                        );
+                                    )
+                                  : math.min(
+                                      compact ? 252.0 : 330.0,
+                                      previewConstraints.maxHeight,
+                                    );
 
-                                  return Center(
-                                    child: AnimatedSwitcher(
-                                      duration: const Duration(
-                                        milliseconds: 260,
-                                      ),
-                                      child: preparedCapture == null
-                                          ? _EmptyCaptureState(size: emptySize)
-                                          : _PreparedMealPreview(
-                                              key: ValueKey(
-                                                preparedCapture.fileName,
-                                              ),
-                                              capture: preparedCapture,
-                                              progress: _controller.value,
-                                              onClear: _clearPreparedCapture,
-                                              frameWidth: maxPreviewWidth,
-                                              frameHeight: preparedHeight,
-                                            ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              height: keyboardOpen
-                                  ? 8
-                                  : compact
-                                  ? 12
-                                  : 18,
-                            ),
-                            _CaptureComposerPanel(
-                              controller: _hintController,
-                              compact: compact,
-                              keyboardOpen: keyboardOpen,
-                              progress: _controller.value,
-                              activeSource: activeSource,
-                              prepared: hasPhoto,
-                              canAnalyze: hasValidHint,
-                              notice: _captureNotice,
-                              onChanged: () =>
-                                  setState(() => _captureNotice = null),
-                              onCamera: () =>
-                                  _captureFrom(_CaptureSource.camera),
-                              onGallery: () =>
-                                  _captureFrom(_CaptureSource.gallery),
-                              onAnalyze: _submitPreparedCapture,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
+                              return Center(
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 260),
+                                  child: preparedCapture == null
+                                      ? _EmptyCaptureState(size: emptySize)
+                                      : _PreparedMealPreview(
+                                          key: ValueKey(
+                                            preparedCapture.fileName,
+                                          ),
+                                          capture: preparedCapture,
+                                          progress: _controller,
+                                          onClear: _clearPreparedCapture,
+                                          frameWidth: maxPreviewWidth,
+                                          frameHeight: preparedHeight,
+                                        ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        SizedBox(
+                          height: keyboardOpen
+                              ? 8
+                              : compact
+                              ? 12
+                              : 18,
+                        ),
+                        _CaptureComposerPanel(
+                          controller: _hintController,
+                          compact: compact,
+                          keyboardOpen: keyboardOpen,
+                          activeSource: activeSource,
+                          prepared: hasPhoto,
+                          canAnalyze: hasValidHint,
+                          notice: _captureNotice,
+                          onChanged: () =>
+                              setState(() => _captureNotice = null),
+                          onCamera: () => _captureFrom(_CaptureSource.camera),
+                          onGallery: () => _captureFrom(_CaptureSource.gallery),
+                          onAnalyze: _submitPreparedCapture,
+                        ),
+                      ],
+                    );
+                  },
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -462,8 +465,7 @@ class _EmptyPlatePainter extends CustomPainter {
   final LogMyPlateThemeColors colors;
 
   @override
-  void paint(Canvas canvas, Size size) {
-  }
+  void paint(Canvas canvas, Size size) {}
 
   @override
   bool shouldRepaint(covariant _EmptyPlatePainter oldDelegate) {
@@ -482,7 +484,7 @@ class _PreparedMealPreview extends StatelessWidget {
   });
 
   final _PreparedCapture capture;
-  final double progress;
+  final Animation<double> progress;
   final VoidCallback onClear;
   final double frameWidth;
   final double frameHeight;
@@ -491,60 +493,77 @@ class _PreparedMealPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final compactPreview = frameHeight < 170;
-    final scanY =
-        26 + (math.sin(progress * math.pi * 2) + 1) * (frameHeight * 0.30);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
 
     return SizedBox(
       width: frameWidth,
       height: frameHeight,
       child: Stack(
         children: [
+          // The photo and its scrim never change while the scan line sweeps;
+          // the boundary keeps their raster cached instead of repainting the
+          // image every animation frame.
           Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: colors.border, width: 0.7),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.18),
-                    blurRadius: 24,
-                    offset: const Offset(0, 16),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(
-                      capture.bytes,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                    ),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.10),
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.48),
-                          ],
-                          stops: const [0, 0.42, 1],
-                        ),
-                      ),
+            child: RepaintBoundary(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: colors.border, width: 0.7),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, 16),
                     ),
                   ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.memory(
+                        capture.bytes,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        cacheWidth: (frameWidth * devicePixelRatio).round(),
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.10),
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.48),
+                            ],
+                            stops: const [0, 0.42, 1],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-          Positioned(
-            left: compactPreview ? 18 : 26,
-            right: compactPreview ? 18 : 26,
-            top: scanY,
+          // Only this AnimatedBuilder re-runs per animation frame; the rest
+          // of the screen builds once per state change.
+          AnimatedBuilder(
+            animation: progress,
+            builder: (context, child) {
+              final scanY =
+                  26 +
+                  (math.sin(progress.value * math.pi * 2) + 1) *
+                      (frameHeight * 0.30);
+              return Positioned(
+                left: compactPreview ? 18 : 26,
+                right: compactPreview ? 18 : 26,
+                top: scanY,
+                child: child!,
+              );
+            },
             child: Container(
               height: 2,
               decoration: BoxDecoration(
@@ -667,14 +686,15 @@ class _PlateHintField extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, LogMyPlateThemeColors colors, bool empty) {
+  Widget _buildContent(
+    BuildContext context,
+    LogMyPlateThemeColors colors,
+    bool empty,
+  ) {
     final text = controller.text.trim();
     final wordCount = empty
         ? 0
-        : text
-              .split(RegExp(r'\s+'))
-              .where((word) => word.isNotEmpty)
-              .length;
+        : text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
     final overLimit = wordCount > 50;
 
     return Column(
@@ -705,17 +725,15 @@ class _PlateHintField extends StatelessWidget {
                   alignLabelWithHint: true,
                   hintText: 'e.g. 2 eggs, toast, and orange juice',
                   labelText: 'Food note:*',
-                  labelStyle: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(
-                        color: colors.textSecondary,
-                        letterSpacing: 0.8,
-                      ),
-                  hintStyle: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(
-                        color: colors.textTertiary,
-                        letterSpacing: 0,
-                        height: 1.3,
-                      ),
+                  labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.textSecondary,
+                    letterSpacing: 0.8,
+                  ),
+                  hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colors.textTertiary,
+                    letterSpacing: 0,
+                    height: 1.3,
+                  ),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
@@ -745,9 +763,7 @@ class _PlateHintField extends StatelessWidget {
             Text(
               '$wordCount/ 50 words',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: overLimit
-                    ? colors.accentText
-                    : colors.textSecondary,
+                color: overLimit ? colors.accentText : colors.textSecondary,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -763,7 +779,6 @@ class _CaptureComposerPanel extends StatelessWidget {
     required this.controller,
     required this.compact,
     required this.keyboardOpen,
-    required this.progress,
     required this.activeSource,
     required this.prepared,
     required this.canAnalyze,
@@ -777,7 +792,6 @@ class _CaptureComposerPanel extends StatelessWidget {
   final TextEditingController controller;
   final bool compact;
   final bool keyboardOpen;
-  final double progress;
   final _CaptureSource? activeSource;
   final bool prepared;
   final bool canAnalyze;
@@ -811,7 +825,6 @@ class _CaptureComposerPanel extends StatelessWidget {
                   ),
           ),
           _CaptureActionBar(
-            progress: progress,
             activeSource: activeSource,
             prepared: prepared,
             canAnalyze: canAnalyze,
@@ -846,11 +859,17 @@ class _VoiceHintButton extends StatelessWidget {
         label: 'Voice input coming soon',
         child: GlassSurface(
           isPremium: false,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.cardBorderRadius,
+          ),
           child: SizedBox(
             width: 42,
             height: 42,
-            child: Icon(Icons.mic_rounded, color: colors.textTertiary, size: 20),
+            child: Icon(
+              Icons.mic_rounded,
+              color: colors.textTertiary,
+              size: 20,
+            ),
           ),
         ),
       ),
@@ -860,7 +879,6 @@ class _VoiceHintButton extends StatelessWidget {
 
 class _CaptureActionBar extends StatelessWidget {
   const _CaptureActionBar({
-    required this.progress,
     required this.activeSource,
     required this.prepared,
     required this.canAnalyze,
@@ -870,7 +888,6 @@ class _CaptureActionBar extends StatelessWidget {
     required this.onAnalyze,
   });
 
-  final double progress;
   final _CaptureSource? activeSource;
   final bool prepared;
   final bool canAnalyze;
@@ -895,12 +912,8 @@ class _CaptureActionBar extends StatelessWidget {
                   width: double.infinity,
                   child: _CaptureButton(
                     label: 'Analyze plate',
-                    icon: const Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 20,
-                    ),
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 20),
                     primary: true,
-                    progress: progress,
                     loading: false,
                     disabled: disabled || !canAnalyze,
                     height: compact ? 52 : 58,
@@ -919,7 +932,6 @@ class _CaptureActionBar extends StatelessWidget {
                           size: 18,
                         ),
                         primary: false,
-                        progress: progress,
                         loading: activeSource == _CaptureSource.camera,
                         disabled:
                             disabled && activeSource != _CaptureSource.camera,
@@ -937,7 +949,6 @@ class _CaptureActionBar extends StatelessWidget {
                           size: 18,
                         ),
                         primary: false,
-                        progress: progress,
                         loading: activeSource == _CaptureSource.gallery,
                         disabled:
                             disabled && activeSource != _CaptureSource.gallery,
@@ -954,11 +965,8 @@ class _CaptureActionBar extends StatelessWidget {
                 Expanded(
                   child: _CaptureButton(
                     label: 'Take Photo',
-                    icon: const PrimitiveCameraIcon(
-                      size: 22,
-                    ),
+                    icon: const PrimitiveCameraIcon(size: 22),
                     primary: true,
-                    progress: progress,
                     loading: activeSource == _CaptureSource.camera,
                     disabled: disabled && activeSource != _CaptureSource.camera,
                     onTap: onCamera,
@@ -974,7 +982,6 @@ class _CaptureActionBar extends StatelessWidget {
                       size: 21,
                     ),
                     primary: false,
-                    progress: progress,
                     loading: activeSource == _CaptureSource.gallery,
                     disabled:
                         disabled && activeSource != _CaptureSource.gallery,
@@ -992,7 +999,6 @@ class _CaptureButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.primary,
-    required this.progress,
     required this.loading,
     required this.disabled,
     required this.onTap,
@@ -1002,7 +1008,6 @@ class _CaptureButton extends StatelessWidget {
   final String label;
   final Widget icon;
   final bool primary;
-  final double progress;
   final bool loading;
   final bool disabled;
   final VoidCallback onTap;
@@ -1030,8 +1035,8 @@ class _CaptureButton extends StatelessWidget {
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Theme.of(context).brightness == Brightness.dark 
-                          ? LogMyPlateColors.accentDeep 
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? LogMyPlateColors.accentDeep
                           : colors.primaryActionText,
                     ),
                   )
@@ -1053,10 +1058,14 @@ class _CaptureButton extends StatelessWidget {
       opacity: disabled ? 0.46 : 1,
       child: InkWell(
         onTap: disabled || loading ? null : onTap,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.heroCardBorderRadius,
+        ),
         child: GlassSurface(
           isPremium: false,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.heroCardBorderRadius,
+          ),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: height,
@@ -1117,7 +1126,9 @@ class _CaptureNotice extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: colors.textPrimary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+        borderRadius: BorderRadius.circular(
+          LogMyPlateSpacing.elementBorderRadius,
+        ),
         border: Border.all(color: colors.border, width: 0.6),
       ),
       child: Row(
@@ -1142,4 +1153,3 @@ class _CaptureNotice extends StatelessWidget {
     );
   }
 }
-

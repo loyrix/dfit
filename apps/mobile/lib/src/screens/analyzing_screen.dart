@@ -3,8 +3,8 @@ import 'dart:async';
 import '../theme/logmyplate_spacing.dart';
 import 'dart:math' as math;
 
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
@@ -76,6 +76,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     try {
       final analysis = await widget.onAnalyze(widget.photo);
       if (!mounted) return;
+      unawaited(HapticFeedback.mediumImpact());
       widget.onAnalyzed(analysis);
     } catch (error) {
       if (!mounted) return;
@@ -112,105 +113,106 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
           child: Stack(
             children: [
               LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxHeight < 720;
-                final horizontalPadding = compact ? 20.0 : 24.0;
-                final imageWidth = math.min(
-                  constraints.maxWidth - horizontalPadding * 2,
-                  compact ? 300.0 : 340.0,
-                );
-                final imageHeight = math.max(
-                  compact ? 188.0 : 230.0,
-                  math.min(
-                    constraints.maxHeight * (compact ? 0.32 : 0.38),
-                    imageWidth * 0.9,
-                  ),
-                );
-
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
+                builder: (context, constraints) {
+                  final compact = constraints.maxHeight < 720;
+                  final horizontalPadding = compact ? 20.0 : 24.0;
+                  final imageWidth = math.min(
+                    constraints.maxWidth - horizontalPadding * 2,
+                    compact ? 300.0 : 340.0,
+                  );
+                  final imageHeight = math.max(
+                    compact ? 188.0 : 230.0,
+                    math.min(
+                      constraints.maxHeight * (compact ? 0.32 : 0.38),
+                      imageWidth * 0.9,
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        compact ? 14 : 20,
-                        horizontalPadding,
-                        compact ? 18 : 24,
+                  );
+
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _AnalyzingMealPreview(
-                            photo: widget.photo,
-                            animation: _controller,
-                            width: imageWidth,
-                            height: imageHeight,
-                          ),
-                          SizedBox(height: compact ? 16 : 22),
-                          Text(
-                            failure == null
-                                ? 'Reading your plate'
-                                : failure.title,
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  color: colors.textPrimary,
-                                  letterSpacing: 0,
-                                ),
-                          ),
-                          SizedBox(height: compact ? 5 : 7),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
-                            child: Text(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          compact ? 14 : 20,
+                          horizontalPadding,
+                          compact ? 18 : 24,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _AnalyzingMealPreview(
+                              photo: widget.photo,
+                              animation: _controller,
+                              width: imageWidth,
+                              height: imageHeight,
+                            ),
+                            SizedBox(height: compact ? 16 : 22),
+                            Text(
                               failure == null
-                                  ? _progressLabel(_activeStep)
-                                  : failure.subtitle,
-                              key: ValueKey(
-                                failure == null ? _activeStep : failure.kind,
-                              ),
+                                  ? 'Reading your plate'
+                                  : failure.title,
                               textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyMedium
+                              style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(
-                                    color: colors.textSecondary,
+                                    color: colors.textPrimary,
                                     letterSpacing: 0,
                                   ),
                             ),
-                          ),
-                          if (plateHint != null && plateHint.isNotEmpty) ...[
-                            SizedBox(height: compact ? 10 : 14),
-                            _HintPill(label: plateHint),
-                          ],
-                          SizedBox(height: compact ? 16 : 22),
-                          _AnalysisStepTimeline(
-                            steps: _steps,
-                            activeStep: _activeStep,
-                            failure: failure,
-                          ),
-                          if (failure != null) ...[
-                            SizedBox(height: compact ? 12 : 18),
-                            Text(
-                              failure.message,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: colors.textSecondary),
+                            SizedBox(height: compact ? 5 : 7),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              child: Text(
+                                failure == null
+                                    ? _progressLabel(_activeStep)
+                                    : failure.subtitle,
+                                key: ValueKey(
+                                  failure == null ? _activeStep : failure.kind,
+                                ),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: colors.textSecondary,
+                                      letterSpacing: 0,
+                                    ),
+                              ),
                             ),
-                            SizedBox(height: compact ? 10 : 12),
-                            _FailureActions(
+                            if (plateHint != null && plateHint.isNotEmpty) ...[
+                              SizedBox(height: compact ? 10 : 14),
+                              _HintPill(label: plateHint),
+                            ],
+                            SizedBox(height: compact ? 16 : 22),
+                            _AnalysisStepTimeline(
+                              steps: _steps,
+                              activeStep: _activeStep,
                               failure: failure,
-                              onRetry: _runAnalysis,
-                              onScanCreditRequired: widget.onScanCreditRequired,
-                              onAddManually: widget.onAddManually,
                             ),
+                            if (failure != null) ...[
+                              SizedBox(height: compact ? 12 : 18),
+                              Text(
+                                failure.message,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: colors.textSecondary),
+                              ),
+                              SizedBox(height: compact ? 10 : 12),
+                              _FailureActions(
+                                failure: failure,
+                                onRetry: _runAnalysis,
+                                onScanCreditRequired:
+                                    widget.onScanCreditRequired,
+                                onAddManually: widget.onAddManually,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
               ),
               Positioned(
                 top: 4,
@@ -344,18 +346,20 @@ class _FailureActions extends StatelessWidget {
       children: [
         PremiumButton(
           onPressed: isQuota ? _handleQuotaAction : onRetry,
-          
+
           child: Text(isQuota ? 'Open account' : 'Retry scan'),
         ),
         const SizedBox(height: 4),
-        GlassWrapper(child: TextButton(
-          onPressed: isQuota && onAddManually != null
-              ? onAddManually
-              : () => Navigator.of(context).pop(),
-          child: Text(
-            isQuota && onAddManually != null ? 'Add manually' : 'Back',
+        GlassWrapper(
+          child: TextButton(
+            onPressed: isQuota && onAddManually != null
+                ? onAddManually
+                : () => Navigator.of(context).pop(),
+            child: Text(
+              isQuota && onAddManually != null ? 'Add manually' : 'Back',
+            ),
           ),
-        )),
+        ),
       ],
     );
   }
@@ -394,7 +398,6 @@ class _HintPill extends StatelessWidget {
   }
 }
 
-
 class _AnalyzingMealPreview extends StatelessWidget {
   const _AnalyzingMealPreview({
     required this.photo,
@@ -411,118 +414,118 @@ class _AnalyzingMealPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
 
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, _) {
-        final t = animation.value;
-        final scanY = 34 + (math.sin(t * math.pi * 2) + 1) * (height * 0.32);
-
-        return SizedBox(
-          width: width,
-          height: height,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(34),
-                    boxShadow: [
-                      BoxShadow(
-                        color: surface.shadowColor,
-                        blurRadius: surface.isDark ? 42 : 22,
-                        offset: Offset(0, surface.isDark ? 24 : 14),
-                      ),
-                    ],
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(34),
+                boxShadow: [
+                  BoxShadow(
+                    color: surface.shadowColor,
+                    blurRadius: surface.isDark ? 42 : 22,
+                    offset: Offset(0, surface.isDark ? 24 : 14),
                   ),
-                ),
+                ],
               ),
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(34),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image.memory(
-                        photo.bytes,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const _AnalyzingMealFallback(),
-                      ),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.12),
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: 0.38),
-                            ],
-                            stops: const [0, 0.42, 1],
-                          ),
+            ),
+          ),
+          // The photo and scrim are static for the whole analysis wait; the
+          // boundary keeps their raster cached while the scan line animates,
+          // instead of repainting the image on every frame.
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(34),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.memory(
+                      photo.bytes,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      cacheWidth: (width * devicePixelRatio).round(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const _AnalyzingMealFallback(),
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.12),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.38),
+                          ],
+                          stops: const [0, 0.42, 1],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(34),
-                    border: Border.all(color: surface.border),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 26,
-                right: 26,
-                top: scanY,
-                child: Container(
-                  height: 2.5,
-                  decoration: BoxDecoration(
-                    color: LogMyPlateColors.accent,
-                    borderRadius: BorderRadius.circular(99),
-                    boxShadow: [
-                      BoxShadow(
-                        color: LogMyPlateColors.accent.withValues(alpha: 0.45),
-                        blurRadius: 18,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 18,
-                left: 18,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.16),
                     ),
-                  ),
-                  child: Text(
-                    'Analyzing',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-        );
-      },
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(34),
+                border: Border.all(color: surface.border),
+              ),
+            ),
+          ),
+          // Only this builder re-runs per animation frame.
+          AnimatedBuilder(
+            animation: animation,
+            builder: (context, child) {
+              final scanY =
+                  34 +
+                  (math.sin(animation.value * math.pi * 2) + 1) *
+                      (height * 0.32);
+              return Positioned(left: 26, right: 26, top: scanY, child: child!);
+            },
+            child: Container(
+              height: 2.5,
+              decoration: BoxDecoration(
+                color: LogMyPlateColors.accent,
+                borderRadius: BorderRadius.circular(99),
+                boxShadow: [
+                  BoxShadow(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 18,
+            left: 18,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+              ),
+              child: Text(
+                'Analyzing',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -567,67 +570,69 @@ class _AnalysisStepTimeline extends StatelessWidget {
 
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 12),
-      borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
       child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                for (var index = 0; index < steps.length; index++) ...[
-                  _StepDot(
-                    done: !failed && index < activeStep,
-                    active: !failed && index == activeStep,
-                    failed: failed && index == activeStep,
-                  ),
-                  if (index < steps.length - 1)
-                    Expanded(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        height: 2,
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        decoration: BoxDecoration(
-                          color: !failed && index < activeStep
-                              ? LogMyPlateColors.accent
-                              : colors.textSecondary.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: Text(
-                      activeLabel,
-                      key: ValueKey(activeLabel),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: failed
-                            ? LogMyPlateColors.destructive
-                            : colors.textPrimary,
-                        letterSpacing: 0,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              for (var index = 0; index < steps.length; index++) ...[
+                _StepDot(
+                  done: !failed && index < activeStep,
+                  active: !failed && index == activeStep,
+                  failed: failed && index == activeStep,
+                ),
+                if (index < steps.length - 1)
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      height: 2,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: !failed && index < activeStep
+                            ? LogMyPlateColors.accent
+                            : colors.textSecondary.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(99),
                       ),
                     ),
                   ),
-                ),
-                Text(
-                  failed ? 'Paused' : '${activeStep + 1}/${steps.length}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textSecondary,
-                    letterSpacing: 0,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: Text(
+                    activeLabel,
+                    key: ValueKey(activeLabel),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: failed
+                          ? LogMyPlateColors.destructive
+                          : colors.textPrimary,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+              Text(
+                failed ? 'Paused' : '${activeStep + 1}/${steps.length}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.textSecondary,
+                  letterSpacing: 0,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

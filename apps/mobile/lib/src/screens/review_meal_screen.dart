@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/logmyplate_spacing.dart';
 
 import '../models/captured_meal_photo.dart';
@@ -30,7 +33,12 @@ class ReviewMealScreen extends StatefulWidget {
   final bool lockInitialItems;
   final CapturedMealPhoto? photo;
   final Future<List<FoodSearchResult>> Function(String query)? onFoodSearch;
-  final Future<void> Function(MealType type, List<MealItem> items, {bool analyzeWithAI}) onConfirm;
+  final Future<void> Function(
+    MealType type,
+    List<MealItem> items, {
+    bool analyzeWithAI,
+  })
+  onConfirm;
   final bool isPremium;
 
   @override
@@ -103,7 +111,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ),
               const SizedBox(height: 10),
               LiteGlassCard(
-                borderRadius: BorderRadius.circular(LogMyPlateSpacing.heroCardBorderRadius),
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.heroCardBorderRadius,
+                ),
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
@@ -120,18 +130,22 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 ),
               ),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              GlassWrapper(child: OutlinedButton(
-                onPressed: _openAddCustomItemSheet,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: primaryText,
-                  side: BorderSide(color: borderColor),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+              GlassWrapper(
+                child: OutlinedButton(
+                  onPressed: _openAddCustomItemSheet,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: primaryText,
+                    side: BorderSide(color: borderColor),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        LogMyPlateSpacing.elementBorderRadius,
+                      ),
+                    ),
                   ),
+                  child: const Text('Add custom item'),
                 ),
-                child: const Text('Add custom item'),
-              )),
+              ),
               const SizedBox(height: 10),
               if (_error != null) ...[
                 Text(
@@ -173,6 +187,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
 
     try {
       await widget.onConfirm(_mealType, _items, analyzeWithAI: analyzeWithAI);
+      unawaited(HapticFeedback.lightImpact());
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -264,13 +279,18 @@ class _ReviewSummaryCard extends StatelessWidget {
             children: [
               if (photo != null) ...[
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.cardBorderRadius,
+                  ),
                   child: Image.memory(
                     photo.bytes,
                     width: 74,
                     height: 74,
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
+                    // Decode at thumbnail size instead of the full capture.
+                    cacheWidth: (74 * MediaQuery.devicePixelRatioOf(context))
+                        .round(),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -385,20 +405,20 @@ class _MealTypePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassWrapper(child: TextButton(
-      onPressed: onTap,
-      child: Text(
-        type.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: _reviewPrimaryText(context),
-          letterSpacing: 1.6,
+    return GlassWrapper(
+      child: TextButton(
+        onPressed: onTap,
+        child: Text(
+          type.label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: _reviewPrimaryText(context),
+            letterSpacing: 1.6,
+          ),
         ),
       ),
-    ));
+    );
   }
 }
-
-
 
 class _ReviewItemRow extends StatelessWidget {
   const _ReviewItemRow({
@@ -452,7 +472,9 @@ class _ReviewItemRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.mutedFill,
                   border: Border.all(color: borderColor, width: 0.5),
-                  borderRadius: BorderRadius.circular(LogMyPlateSpacing.elementBorderRadius),
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.elementBorderRadius,
+                  ),
                 ),
                 child: Icon(
                   Icons.edit_rounded,
