@@ -296,6 +296,13 @@ export type AdminScan = {
   rawAiJson?: unknown;
 };
 
+export type AdminScanCounts = {
+  today: number;
+  last7d: number;
+  last30d: number;
+  total: number;
+};
+
 export type AdminConversionSummary = {
   totalInstalls: number;
   registeredInstalls: number;

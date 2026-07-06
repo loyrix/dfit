@@ -278,6 +278,12 @@ export const registerAdminRoutes = async (
     return listAdminScans(sql, query);
   });
 
+  app.get("/admin/scans/counts", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    await reconcileStaleScanSessionsThrottled(sql);
+    return { counts: await loadAdminScanCounts(sql) };
+  });
+
   app.get("/admin/scans/:scanId", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const { scanId } = scanParamsSchema.parse(request.params);
@@ -2492,6 +2498,36 @@ const listAdminScans = async (
   return {
     scans: rows.map(mapAdminScanRow),
     pageInfo: pageInfoFrom(page, pageSize, sort, direction, total),
+  };
+};
+
+type AdminScanCountsRow = {
+  today: number | string | null;
+  last_7d: number | string | null;
+  last_30d: number | string | null;
+  total: number | string | null;
+};
+
+// Real scans only: prepared/cancelled are camera warm-ups the user abandoned
+// before capture, so they are excluded to match the overview scan metrics.
+const loadAdminScanCounts = async (sql: SqlClient) => {
+  const [row] = await sql<AdminScanCountsRow[]>`
+    select
+      count(*) filter (
+        where (created_at at time zone 'Asia/Kolkata')::date =
+          (now() at time zone 'Asia/Kolkata')::date
+      )::int as today,
+      count(*) filter (where created_at >= now() - interval '7 days')::int as last_7d,
+      count(*) filter (where created_at >= now() - interval '30 days')::int as last_30d,
+      count(*)::int as total
+    from scan_sessions
+    where status not in ('prepared', 'cancelled')
+  `;
+  return {
+    today: numberValue(row?.today),
+    last7d: numberValue(row?.last_7d),
+    last30d: numberValue(row?.last_30d),
+    total: numberValue(row?.total),
   };
 };
 

@@ -15,7 +15,7 @@ import {
   shortId,
   type QueryParams,
 } from "../components/ui";
-import { adminGet, type AdminScan, type PageInfo } from "../lib/api";
+import { adminGet, type AdminScan, type AdminScanCounts, type PageInfo } from "../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +48,10 @@ export default async function ScansPage({
   const listParams = scanListParams(params);
   const apiQuery = toScanApiQuery(listParams);
 
-  const [{ scans, pageInfo }, detail] = await Promise.all([
+  const [{ scans, pageInfo }, detail, counts] = await Promise.all([
     adminGet<{ scans: AdminScan[]; pageInfo?: PageInfo }>(`/admin/scans?${apiQuery}`),
     params.scanId ? adminGet<{ scan: AdminScan }>(`/admin/scans/${params.scanId}`) : undefined,
+    params.scanId ? undefined : adminGet<{ counts: AdminScanCounts }>("/admin/scans/counts"),
   ]);
   const { rows: visibleScans, pageInfo: effectivePageInfo } = resolveTableState(
     scans,
@@ -99,6 +100,8 @@ export default async function ScansPage({
         title="Scan history"
         description="Review scan sessions with profile, model, prompt, latency, confidence, image metadata, parsed AI output, and failure state."
       />
+
+      {counts ? <ScanVolumeCard counts={counts.counts} /> : null}
 
       <form className="toolbar toolbar-four" action="/scans">
         <input name="page" type="hidden" value="1" />
@@ -405,6 +408,39 @@ export default async function ScansPage({
         </div>
       </section>
     </AdminShell>
+  );
+}
+
+function ScanVolumeCard({ counts }: { counts: AdminScanCounts }) {
+  return (
+    <section className="panel">
+      <div className="section-head">
+        <div>
+          <h2 className="text-xl font-bold">Scan volume</h2>
+          <p className="muted text-sm">
+            Real scans only; abandoned camera warm-ups are excluded. Today is IST calendar day.
+          </p>
+        </div>
+      </div>
+      <div className="stat-strip mt-4">
+        <div className="stat-tile">
+          <div className="metric-label">Today</div>
+          <div className="metric-value mt-1">{formatNumber(counts.today)}</div>
+        </div>
+        <div className="stat-tile">
+          <div className="metric-label">Last 7 days</div>
+          <div className="metric-value mt-1">{formatNumber(counts.last7d)}</div>
+        </div>
+        <div className="stat-tile">
+          <div className="metric-label">Last 30 days</div>
+          <div className="metric-value mt-1">{formatNumber(counts.last30d)}</div>
+        </div>
+        <div className="stat-tile">
+          <div className="metric-label">All time</div>
+          <div className="metric-value mt-1">{formatNumber(counts.total)}</div>
+        </div>
+      </div>
+    </section>
   );
 }
 
