@@ -122,14 +122,15 @@ export default async function ScansPage({
         </label>
         <label>
           <span className="metric-label">Status</span>
-          <select className="select" name="status" defaultValue={listParams.status ?? "all"}>
+          <select className="select" name="status" defaultValue={listParams.status ?? "attempted"}>
+            <option value="attempted">Attempted (hides prepared)</option>
             <option value="all">All statuses</option>
             <option value="failed">Failed</option>
             <option value="ready_for_review">Ready for review</option>
             <option value="confirmed">Confirmed</option>
             <option value="analyzing">Analyzing</option>
             <option value="prepared">Prepared</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="cancelled">Cancelled (abandoned)</option>
           </select>
         </label>
         <label>
@@ -369,7 +370,7 @@ export default async function ScansPage({
                       ) : null}
                     </td>
                     <td>
-                      <Badge tone={scan.status === "failed" ? "red" : "green"}>{scan.status}</Badge>
+                      <Badge tone={scanStatusTone(scan.status)}>{scan.status}</Badge>
                       {scan.ai?.errorCode ? (
                         <div className="muted mt-1 text-xs">{scan.ai.errorCode}</div>
                       ) : null}
@@ -421,7 +422,7 @@ function ScanDetail({ scan }: { scan?: AdminScan }) {
     <div className="panel">
       <div className="section-head">
         <h2 className="text-xl font-bold">Scan detail</h2>
-        <Badge tone={scan.status === "failed" ? "red" : "green"}>{scan.status}</Badge>
+        <Badge tone={scanStatusTone(scan.status)}>{scan.status}</Badge>
       </div>
       <div className="stat-strip">
         <div className="stat-tile">
@@ -536,7 +537,7 @@ function scanListParams(params: ScansSearchParams): QueryParams {
     platform: params.platform ?? "all",
     appVersion: params.appVersion,
     appBuild: params.appBuild,
-    status: params.status ?? "all",
+    status: params.status ?? "attempted",
     model: params.model,
     promptVersion: params.promptVersion,
     aiState: params.aiState ?? "all",
@@ -554,6 +555,13 @@ function platformLabel(value: string | undefined) {
   if (value === "ios") return "iOS";
   if (value === "android") return "Android";
   return "Unknown";
+}
+
+function scanStatusTone(status: string) {
+  if (status === "failed") return "red";
+  if (status === "confirmed" || status === "ready_for_review") return "green";
+  if (status === "cancelled") return "gray";
+  return "default";
 }
 
 function scanUserLabel(scan: Pick<AdminScan, "profileDisplayName" | "profileEmail" | "profileId">) {

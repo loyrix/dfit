@@ -236,6 +236,43 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorWithMessage"
 
+  /internal/cron/scan-maintenance:
+    get:
+      tags: [Internal]
+      summary: Reconcile stale scan sessions
+      description: |
+        Internal scheduler endpoint that marks scan sessions still in `prepared` state after one hour
+        as `cancelled`. The mobile app creates a prepared session when the camera opens (scan warm-up),
+        so sessions abandoned before capture would otherwise stay `prepared` forever and pollute scan
+        metrics. Also runs opportunistically (throttled) when admin scan views are loaded.
+        Requires `Authorization: Bearer <CRON_SECRET>`.
+      security:
+        - cronBearer: []
+      responses:
+        "200":
+          description: Scan maintenance run summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scanMaintenance]
+                properties:
+                  scanMaintenance:
+                    type: object
+                    required: [cancelledPreparedScans]
+                    properties:
+                      cancelledPreparedScans:
+                        type: integer
+                        description: Number of stale prepared scan sessions marked as cancelled.
+        "401":
+          description: Missing or invalid cron bearer secret.
+        "503":
+          description: Cron secret or database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorWithMessage"
+
   /v1/app/bootstrap:
     get:
       tags: [Bootstrap]

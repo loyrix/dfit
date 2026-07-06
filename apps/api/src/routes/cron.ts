@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { config } from "../config.js";
 import type { SqlClient } from "../db/client.js";
@@ -10,32 +10,52 @@ import {
   PushNotificationRouter,
 } from "../services/push-notifications.js";
 import { runScheduledPushReminders } from "../services/push-reminders.js";
+import { reconcileStaleScanSessions } from "../services/scan-maintenance.js";
 
 const cronQuerySchema = z.object({
   dryRun: z.preprocess(parseBooleanQuery, z.boolean()).default(false),
   limit: z.coerce.number().int().min(1).max(5000).default(500),
 });
 
+const requireCronAccess = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+  sql?: SqlClient,
+): sql is SqlClient => {
+  const secret = config.cron.secret?.trim();
+  if (!secret) {
+    reply.status(503).send({
+      error: "cron_not_configured",
+      message: "CRON_SECRET is required before scheduled jobs can run.",
+    });
+    return false;
+  }
+
+  if (extractBearerToken(request.headers.authorization) !== secret) {
+    reply.status(401).send({ error: "unauthorized" });
+    return false;
+  }
+
+  if (!sql) {
+    reply.status(503).send({
+      error: "database_unavailable",
+      message: "A database connection is required before scheduled jobs can run.",
+    });
+    return false;
+  }
+
+  return true;
+};
+
 export const registerCronRoutes = async (app: FastifyInstance, sql?: SqlClient): Promise<void> => {
+  app.get("/internal/cron/scan-maintenance", async (request, reply) => {
+    if (!requireCronAccess(request, reply, sql)) return reply;
+    const cancelledPreparedScans = await reconcileStaleScanSessions(sql);
+    return { scanMaintenance: { cancelledPreparedScans } };
+  });
+
   app.get("/internal/cron/push-reminders", async (request, reply) => {
-    const secret = config.cron.secret?.trim();
-    if (!secret) {
-      return reply.status(503).send({
-        error: "cron_not_configured",
-        message: "CRON_SECRET is required before scheduled jobs can run.",
-      });
-    }
-
-    if (extractBearerToken(request.headers.authorization) !== secret) {
-      return reply.status(401).send({ error: "unauthorized" });
-    }
-
-    if (!sql) {
-      return reply.status(503).send({
-        error: "database_unavailable",
-        message: "A database connection is required before scheduled jobs can run.",
-      });
-    }
+    if (!requireCronAccess(request, reply, sql)) return reply;
 
     const query = cronQuerySchema.parse(request.query ?? {});
     const fcmSender = new FirebaseCloudMessagingSender(config.push);

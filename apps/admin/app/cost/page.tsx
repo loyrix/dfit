@@ -22,6 +22,12 @@ export default async function CostPage({
   const totalTokens = cost.overall.inputTokens + cost.overall.outputTokens;
   const dailyAverage = cost.overall.costInr / days;
   const maxDailyCost = Math.max(0.01, ...cost.daily.map((day) => day.costInr));
+  const successRate =
+    cost.overall.runs > 0 ? cost.overall.successfulRuns / cost.overall.runs : null;
+  const confirmedScans = cost.overall.confirmedScans ?? 0;
+  const cachedScans = cost.overall.cachedScans ?? 0;
+  const analyzedScans = cost.overall.scans + cachedScans;
+  const runsPerScan = cost.overall.scans > 0 ? cost.overall.runs / cost.overall.scans : null;
 
   return (
     <AdminShell>
@@ -87,9 +93,9 @@ export default async function CostPage({
           sub={`${formatNumber(cost.overall.inputTokens)} in / ${formatNumber(cost.overall.outputTokens)} out`}
         />
         <Metric
-          label="Success"
-          value={formatNumber(cost.overall.successfulRuns)}
-          sub={`${formatNumber(cost.overall.failedRuns)} failed runs`}
+          label="Success rate"
+          value={successRate === null ? "None" : `${Number((successRate * 100).toFixed(1))}%`}
+          sub={`${formatNumber(cost.overall.successfulRuns)} ok · ${formatNumber(cost.overall.failedRuns)} failed`}
         />
         <Metric
           label="Avg confidence"
@@ -106,6 +112,27 @@ export default async function CostPage({
           sub="provider response time"
         />
         <Metric label="Daily avg cost" value={formatInr(dailyAverage)} sub="selected window" />
+        <Metric
+          label="Cost / confirmed meal"
+          value={confirmedScans > 0 ? formatInr(cost.overall.costInr / confirmedScans) : "None"}
+          sub={`${formatNumber(confirmedScans)} confirmed meals`}
+        />
+        <Metric
+          label="Served from cache"
+          value={formatNumber(cachedScans)}
+          sub={
+            analyzedScans > 0
+              ? `${Math.round((cachedScans / analyzedScans) * 100)}% of analyzed scans · ~${formatInr(
+                  cachedScans * cost.overall.averageRunCostInr,
+                )} saved`
+              : "no analyzed scans"
+          }
+        />
+        <Metric
+          label="Runs per scan"
+          value={runsPerScan === null ? "None" : Number(runsPerScan.toFixed(2))}
+          sub="above 1.0 means retries or fallbacks"
+        />
       </section>
 
       <section className="usage-split mt-4">
@@ -285,8 +312,8 @@ export default async function CostPage({
                 </tr>
               </thead>
               <tbody>
-                {cost.recentRuns.map((run) => (
-                  <tr key={`${run.createdAt}-${run.provider}-${run.model}`}>
+                {cost.recentRuns.map((run, index) => (
+                  <tr key={`${run.createdAt}-${run.provider}-${run.model}-${index}`}>
                     <td>{formatDate(run.createdAt)}</td>
                     <td>
                       <Badge>{platformLabel(run.platform)}</Badge>

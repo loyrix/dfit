@@ -2,11 +2,24 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+export type ScanFunnelStage = {
+  started: number;
+  analyzed: number;
+  readyForReview: number;
+  confirmed: number;
+  failed: number;
+};
+
 export type AdminOverview = {
   profiles: number;
   accountProfiles: number;
   scans: number;
   failedScans: number;
+  confirmedScans?: number;
+  scanFunnel?: {
+    today: ScanFunnelStage;
+    last7d: ScanFunnelStage;
+  };
   meals: number;
   activeNotices: number;
   installs?: number;
@@ -86,6 +99,8 @@ export type AiCostData = {
     scansPerTenInr: number;
     averageLatencyMs: number | null;
     averageConfidence: number | null;
+    confirmedScans?: number;
+    cachedScans?: number;
   };
   daily: Array<{
     date: string;

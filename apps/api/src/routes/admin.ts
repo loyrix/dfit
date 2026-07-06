@@ -32,6 +32,7 @@ import {
   PushNotificationRouter,
   pushNotificationFailureKey,
 } from "../services/push-notifications.js";
+import { reconcileStaleScanSessionsThrottled } from "../services/scan-maintenance.js";
 
 const usdToInr = Number(process.env.AI_COST_USD_TO_INR ?? 95.4);
 
@@ -65,6 +66,8 @@ type AiCostOverall = {
   scansPerTenInr: number;
   averageLatencyMs: number | null;
   averageConfidence: number | null;
+  confirmedScans: number;
+  cachedScans: number;
 };
 
 type DailyAiCost = {
@@ -123,6 +126,11 @@ type RecentAiRun = {
   latencyMs: number | null;
   confidence: number | null;
   success: boolean;
+};
+
+type ScanHealthRow = {
+  confirmed_scans: number | string | null;
+  cached_scans: number | string | null;
 };
 
 type OverallRow = {
@@ -185,6 +193,7 @@ export const registerAdminRoutes = async (
 
   app.get("/admin/overview", { preHandler: requireAdmin }, async (_request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    await reconcileStaleScanSessionsThrottled(sql);
     return loadAdminOverview(sql);
   });
 
@@ -265,6 +274,7 @@ export const registerAdminRoutes = async (
   app.get("/admin/scans", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const query = adminScanQuerySchema.parse(request.query ?? {});
+    await reconcileStaleScanSessionsThrottled(sql);
     return listAdminScans(sql, query);
   });
 
@@ -544,7 +554,15 @@ const adminScanQuerySchema = adminPaginationQuerySchema.extend({
   appVersion: z.string().trim().max(32).optional(),
   appBuild: z.coerce.number().int().min(0).optional(),
   status: z
-    .enum(["prepared", "analyzing", "ready_for_review", "confirmed", "cancelled", "failed"])
+    .enum([
+      "attempted",
+      "prepared",
+      "analyzing",
+      "ready_for_review",
+      "confirmed",
+      "cancelled",
+      "failed",
+    ])
     .optional(),
   query: z.string().trim().max(160).optional(),
   model: z.string().trim().max(120).optional(),
@@ -799,6 +817,7 @@ type AdminOverviewRow = {
   account_profiles: number | string;
   scans: number | string;
   failed_scans: number | string;
+  confirmed_scans: number | string;
   meals: number | string;
   active_notices: number | string;
   installs: number | string;
@@ -816,6 +835,19 @@ type AdminDailyActivityRow = {
   scans: number | string;
   meal_profiles: number | string;
   meals: number | string;
+};
+
+type AdminScanFunnelRow = {
+  started_today: number | string;
+  analyzed_today: number | string;
+  ready_today: number | string;
+  confirmed_today: number | string;
+  failed_today: number | string;
+  started_7d: number | string;
+  analyzed_7d: number | string;
+  ready_7d: number | string;
+  confirmed_7d: number | string;
+  failed_7d: number | string;
 };
 
 type AdminPlatformOverviewRow = {
@@ -854,8 +886,9 @@ const loadAdminOverview = async (sql: SqlClient) => {
     select
       (select count(*) from profiles)::int as profiles,
       (select count(*) from profiles where auth_method <> 'anonymous')::int as account_profiles,
-      (select count(*) from scan_sessions)::int as scans,
+      (select count(*) from scan_sessions where status not in ('prepared', 'cancelled'))::int as scans,
       (select count(*) from scan_sessions where status = 'failed')::int as failed_scans,
+      (select count(*) from scan_sessions where status = 'confirmed')::int as confirmed_scans,
       (select count(*) from meals)::int as meals,
       (select count(*) from app_notices where active)::int as active_notices,
       (select count(*) from devices)::int as installs,
@@ -885,6 +918,7 @@ const loadAdminOverview = async (sql: SqlClient) => {
         from scan_sessions
         where (created_at at time zone 'Asia/Kolkata')::date =
           (now() at time zone 'Asia/Kolkata')::date
+          and status not in ('prepared', 'cancelled')
       )::int as scan_active_profiles_today,
       (
         select count(distinct profile_id)
@@ -905,6 +939,7 @@ const loadAdminOverview = async (sql: SqlClient) => {
         count(*)::int as scans
       from scan_sessions
       where created_at >= now() - interval '15 days'
+        and status not in ('prepared', 'cancelled')
       group by (created_at at time zone 'Asia/Kolkata')::date
     ),
     meal_activity as (
@@ -928,6 +963,31 @@ const loadAdminOverview = async (sql: SqlClient) => {
     order by days.local_date desc
   `;
 
+  const [funnelRow] = await sql<AdminScanFunnelRow[]>`
+    with sessions as (
+      select
+        status,
+        (created_at at time zone 'Asia/Kolkata')::date =
+          (now() at time zone 'Asia/Kolkata')::date as is_today
+      from scan_sessions
+      where created_at >= now() - interval '7 days'
+    )
+    select
+      count(*) filter (where is_today)::int as started_today,
+      count(*) filter (where is_today and status not in ('prepared', 'cancelled'))::int
+        as analyzed_today,
+      count(*) filter (where is_today and status in ('ready_for_review', 'confirmed'))::int
+        as ready_today,
+      count(*) filter (where is_today and status = 'confirmed')::int as confirmed_today,
+      count(*) filter (where is_today and status = 'failed')::int as failed_today,
+      count(*)::int as started_7d,
+      count(*) filter (where status not in ('prepared', 'cancelled'))::int as analyzed_7d,
+      count(*) filter (where status in ('ready_for_review', 'confirmed'))::int as ready_7d,
+      count(*) filter (where status = 'confirmed')::int as confirmed_7d,
+      count(*) filter (where status = 'failed')::int as failed_7d
+    from sessions
+  `;
+
   const platformRows = await sql<AdminPlatformOverviewRow[]>`
     with platforms(platform) as (
       values ('ios'::text), ('android'::text)
@@ -938,6 +998,7 @@ const loadAdminOverview = async (sql: SqlClient) => {
         count(*)::int as scans
       from scan_sessions
       where created_at >= now() - interval '30 days'
+        and status not in ('prepared', 'cancelled')
       group by platform
     ),
     ai_rollup as (
@@ -1018,6 +1079,7 @@ const loadAdminOverview = async (sql: SqlClient) => {
         count(*)::int as scans
       from scan_sessions
       where created_at >= now() - interval '15 days'
+        and status not in ('prepared', 'cancelled')
       group by (created_at at time zone 'Asia/Kolkata')::date, platform
     ),
     ai_rollup as (
@@ -1089,6 +1151,7 @@ const loadAdminOverview = async (sql: SqlClient) => {
     accountProfiles: numberValue(row?.account_profiles),
     scans: numberValue(row?.scans),
     failedScans: numberValue(row?.failed_scans),
+    confirmedScans: numberValue(row?.confirmed_scans),
     meals: numberValue(row?.meals),
     activeNotices: numberValue(row?.active_notices),
     installs: numberValue(row?.installs),
@@ -1098,6 +1161,22 @@ const loadAdminOverview = async (sql: SqlClient) => {
     inactiveInstalls30d: numberValue(row?.inactive_installs_30d),
     scanActiveProfilesToday: numberValue(row?.scan_active_profiles_today),
     mealActiveProfilesToday: numberValue(row?.meal_active_profiles_today),
+    scanFunnel: {
+      today: {
+        started: numberValue(funnelRow?.started_today),
+        analyzed: numberValue(funnelRow?.analyzed_today),
+        readyForReview: numberValue(funnelRow?.ready_today),
+        confirmed: numberValue(funnelRow?.confirmed_today),
+        failed: numberValue(funnelRow?.failed_today),
+      },
+      last7d: {
+        started: numberValue(funnelRow?.started_7d),
+        analyzed: numberValue(funnelRow?.analyzed_7d),
+        readyForReview: numberValue(funnelRow?.ready_7d),
+        confirmed: numberValue(funnelRow?.confirmed_7d),
+        failed: numberValue(funnelRow?.failed_7d),
+      },
+    },
     dailyActivity: dailyActivity.map((day) => ({
       date: day.local_date,
       activeProfiles: numberValue(day.active_profiles),
@@ -2344,7 +2423,11 @@ const listAdminScans = async (
     select *, count(*) over()::int as total_count
     from scan_rollup
     where (${profileId ?? null}::uuid is null or profile_id = ${profileId ?? null})
-      and (${status ?? null}::text is null or status = ${status ?? null})
+      and (
+        ${status ?? null}::text is null
+        or (${status ?? null} = 'attempted' and status not in ('prepared', 'cancelled'))
+        or status::text = ${status ?? null}
+      )
       and (${platform} = 'all' or platform = ${platform})
       and (${appVersion} = '' or app_version = ${appVersion})
       and (${appBuild ?? null}::int is null or app_build = ${appBuild ?? null})
@@ -3922,7 +4005,27 @@ const loadAiCostData = async (
     limit 20
   `;
 
-  const mappedOverall = mapOverall(overall);
+  const [scanHealth] = await sql<ScanHealthRow[]>`
+    select
+      count(*) filter (where status = 'confirmed')::int as confirmed_scans,
+      count(*) filter (
+        where status in ('ready_for_review', 'confirmed')
+          and not exists (
+            select 1
+            from ai_provider_runs runs
+            where runs.scan_session_id = scan_sessions.id
+          )
+      )::int as cached_scans
+    from scan_sessions
+    where created_at >= now() - (${days}::int * interval '1 day')
+      and (${platformFilter} = 'all' or platform = ${platformFilter})
+  `;
+
+  const mappedOverall = {
+    ...mapOverall(overall),
+    confirmedScans: numberValue(scanHealth?.confirmed_scans),
+    cachedScans: numberValue(scanHealth?.cached_scans),
+  };
 
   return {
     generatedAt: new Date().toISOString(),
@@ -3957,7 +4060,9 @@ const outputRateSql = (sql: SqlClient) => sql`
   end
 `;
 
-const mapOverall = (row: OverallRow | undefined): AiCostOverall => {
+const mapOverall = (
+  row: OverallRow | undefined,
+): Omit<AiCostOverall, "confirmedScans" | "cachedScans"> => {
   const runs = numberValue(row?.runs);
   const scans = numberValue(row?.scans);
   const costUsd = numberValue(row?.cost_usd);

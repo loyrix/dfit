@@ -50,7 +50,13 @@ export function Badge({
   tone?: string;
 }) {
   const className =
-    tone === "green" ? "badge badge-green" : tone === "red" ? "badge badge-red" : "badge";
+    tone === "green"
+      ? "badge badge-green"
+      : tone === "red"
+        ? "badge badge-red"
+        : tone === "gray"
+          ? "badge badge-gray"
+          : "badge";
   return <span className={className}>{children}</span>;
 }
 

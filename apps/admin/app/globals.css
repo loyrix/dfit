@@ -642,6 +642,12 @@ textarea {
   color: var(--red);
 }
 
+.badge-gray {
+  background: #f1efe9;
+  border-color: #d9d5c9;
+  color: #6f6a5d;
+}
+
 .input,
 .select,
 .textarea {

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
         <Metric
           label="Scans"
           value={formatNumber(overview.scans)}
-          sub={`${overview.failedScans} failed`}
+          sub={`${formatNumber(overview.confirmedScans ?? 0)} confirmed · ${overview.failedScans} failed`}
         />
         <Metric label="Meals" value={formatNumber(overview.meals)} sub="logged in journals" />
         <Metric label="AI cost" value={formatInr(cost.overall.costInr)} sub="last 30 days" />
@@ -156,6 +156,40 @@ export default async function DashboardPage() {
         </div>
 
         <div className="panel">
+          <div className="section-head">
+            <div>
+              <h2 className="text-xl font-bold">Scan funnel</h2>
+              <p className="muted text-sm">
+                Camera opens to confirmed meals; prepared sessions older than an hour are treated as
+                abandoned
+              </p>
+            </div>
+          </div>
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th>Today</th>
+                  <th>Last 7 days</th>
+                  <th>7d conversion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funnelStages(overview.scanFunnel).map((stage) => (
+                  <tr key={stage.label}>
+                    <td className="font-semibold">{stage.label}</td>
+                    <td>{formatNumber(stage.today)}</td>
+                    <td>{formatNumber(stage.last7d)}</td>
+                    <td className="muted">{stage.conversion}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="panel">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold">AI cost summary</h2>
@@ -267,17 +301,24 @@ export default async function DashboardPage() {
         </div>
 
         <div className="panel">
-          <h2 className="text-xl font-bold">Recent runs</h2>
+          <h2 className="text-xl font-bold">Needs attention</h2>
           <div className="mt-4 grid gap-3">
-            {cost.recentRuns.slice(0, 8).map((run) => (
-              <div className="panel-light rounded-lg p-3" key={`${run.createdAt}-${run.model}`}>
+            {attentionItems(overview, cost).map((item) => (
+              <div className="panel-light rounded-lg p-3" key={item.title}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="font-semibold">{run.model}</div>
-                    <div className="muted text-xs">{formatDate(run.createdAt)}</div>
+                    <div className="font-semibold">{item.title}</div>
+                    <div className="muted text-xs">{item.detail}</div>
                   </div>
-                  <div className={run.success ? "badge badge-green" : "badge badge-red"}>
-                    {formatInr(run.costInr)}
+                  <div className="inline-controls">
+                    <span className={item.ok ? "badge badge-green" : "badge badge-red"}>
+                      {item.value}
+                    </span>
+                    {item.href ? (
+                      <Link className="badge" href={item.href}>
+                        Review
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -327,6 +368,84 @@ function platformLabel(value: string | undefined) {
   if (value === "ios") return "iOS";
   if (value === "android") return "Android";
   return "Unknown";
+}
+
+function funnelStages(funnel: AdminOverview["scanFunnel"]) {
+  const today = funnel?.today;
+  const week = funnel?.last7d;
+  const conversion = (value: number) =>
+    week && week.started > 0 ? `${Math.round((value / week.started) * 100)}%` : "None";
+  return [
+    {
+      label: "Camera sessions started",
+      today: today?.started ?? 0,
+      last7d: week?.started ?? 0,
+      conversion: week && week.started > 0 ? "100%" : "None",
+    },
+    {
+      label: "Photo analyzed",
+      today: today?.analyzed ?? 0,
+      last7d: week?.analyzed ?? 0,
+      conversion: conversion(week?.analyzed ?? 0),
+    },
+    {
+      label: "Ready for review",
+      today: today?.readyForReview ?? 0,
+      last7d: week?.readyForReview ?? 0,
+      conversion: conversion(week?.readyForReview ?? 0),
+    },
+    {
+      label: "Meal confirmed",
+      today: today?.confirmed ?? 0,
+      last7d: week?.confirmed ?? 0,
+      conversion: conversion(week?.confirmed ?? 0),
+    },
+    {
+      label: "Failed",
+      today: today?.failed ?? 0,
+      last7d: week?.failed ?? 0,
+      conversion: conversion(week?.failed ?? 0),
+    },
+  ];
+}
+
+function attentionItems(overview: AdminOverview, cost: AiCostData) {
+  const failedToday = overview.scanFunnel?.today.failed ?? 0;
+  const istToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(
+    new Date(),
+  );
+  const todayCost = cost.daily.find((day) => day.date === istToday)?.costInr ?? 0;
+  const priorDays = cost.daily.filter((day) => day.date !== istToday).slice(-7);
+  const priorAverage =
+    priorDays.length > 0
+      ? priorDays.reduce((sum, day) => sum + day.costInr, 0) / priorDays.length
+      : 0;
+  const successRate =
+    cost.overall.runs > 0 ? cost.overall.successfulRuns / cost.overall.runs : null;
+
+  return [
+    {
+      title: "Failed scans today",
+      detail: "Model or pipeline failures since midnight IST.",
+      value: formatNumber(failedToday),
+      ok: failedToday === 0,
+      href: "/scans?status=failed&sort=createdAt&direction=desc",
+    },
+    {
+      title: "AI cost today",
+      detail: `Prior 7-day daily average ${formatInr(priorAverage)}.`,
+      value: formatInr(todayCost),
+      ok: priorAverage === 0 || todayCost <= priorAverage * 1.5,
+      href: "/cost",
+    },
+    {
+      title: "AI success rate (30d)",
+      detail: `${formatNumber(cost.overall.failedRuns)} failed of ${formatNumber(cost.overall.runs)} runs.`,
+      value: successRate === null ? "None" : `${Math.round(successRate * 100)}%`,
+      ok: successRate === null || successRate >= 0.95,
+      href: "/scans?aiState=failed_ai&sort=createdAt&direction=desc",
+    },
+  ];
 }
 
 function formatActivityDate(value: string) {
