@@ -63,6 +63,7 @@ void main() {
         return true;
       };
 
+      await LogMyPlateAdConfig.detectInstallSource();
       LogMyPlateAdConfig.validateForCurrentBuild();
       
       runApp(const LogMyPlateApp());

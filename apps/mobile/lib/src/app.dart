@@ -812,6 +812,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   String _interstitialAdUnitId(EngagementInterstitialAdsPolicy policy) {
+    // TestFlight installs always use the Google sample ad unit, ignoring the
+    // remotely configured production unit.
+    if (LogMyPlateAdConfig.isTestFlightInstall) {
+      return LogMyPlateAdConfig.interstitialAdUnitId;
+    }
     final configured = defaultTargetPlatform == TargetPlatform.android
         ? policy.adUnitIds.android
         : policy.adUnitIds.ios;

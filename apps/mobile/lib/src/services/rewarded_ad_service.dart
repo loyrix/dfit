@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'app_diagnostics.dart';
 
@@ -347,12 +348,28 @@ class LogMyPlateAdConfig {
       'ca-app-pub-6936425975956435/2997685695';
   static const iosRewardedAdUnitId = 'ca-app-pub-6936425975956435/9427362674';
 
+  /// True when this release build was installed through TestFlight, so team
+  /// builds always serve Google sample (test) ads. Set once at startup via
+  /// [detectInstallSource] before any ad is loaded.
+  static bool isTestFlightInstall = false;
+
+  static Future<void> detectInstallSource() async {
+    if (!kReleaseMode || defaultTargetPlatform != TargetPlatform.iOS) return;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      isTestFlightInstall = info.installerStore == 'com.apple.testflight';
+    } catch (_) {
+      // Detection is best effort; stay on production ad units when it fails.
+    }
+  }
+
   static String get rewardedAdUnitId {
     const configured = String.fromEnvironment('LOGMYPLATE_REWARDED_AD_UNIT_ID');
     return resolveRewardedAdUnitId(
       configured: configured,
       platform: defaultTargetPlatform,
       releaseMode: kReleaseMode,
+      testFlightInstall: isTestFlightInstall,
     );
   }
 
@@ -364,6 +381,7 @@ class LogMyPlateAdConfig {
       configured: configured,
       platform: defaultTargetPlatform,
       releaseMode: kReleaseMode,
+      testFlightInstall: isTestFlightInstall,
     );
   }
 
@@ -376,7 +394,17 @@ class LogMyPlateAdConfig {
     required String configured,
     required TargetPlatform platform,
     required bool releaseMode,
+    bool testFlightInstall = false,
   }) {
+    // TestFlight builds must never serve production ads, even when an ad
+    // unit is passed via dart-define.
+    if (testFlightInstall) {
+      return switch (platform) {
+        TargetPlatform.android => androidTestRewardedAdUnitId,
+        _ => iosTestRewardedAdUnitId,
+      };
+    }
+
     final configuredAdUnitId = configured.trim();
     if (configuredAdUnitId.isNotEmpty) return configuredAdUnitId;
 
@@ -400,7 +428,15 @@ class LogMyPlateAdConfig {
     required String configured,
     required TargetPlatform platform,
     required bool releaseMode,
+    bool testFlightInstall = false,
   }) {
+    if (testFlightInstall) {
+      return switch (platform) {
+        TargetPlatform.android => androidTestInterstitialAdUnitId,
+        _ => iosTestInterstitialAdUnitId,
+      };
+    }
+
     final configuredAdUnitId = configured.trim();
     if (configuredAdUnitId.isNotEmpty) return configuredAdUnitId;
 

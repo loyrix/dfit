@@ -83,6 +83,27 @@ void main() {
       );
     });
 
+    test('TestFlight installs use demo units even when configured', () {
+      expect(
+        LogMyPlateAdConfig.resolveRewardedAdUnitId(
+          configured: 'ca-app-pub-6936425975956435/1234567890',
+          platform: TargetPlatform.iOS,
+          releaseMode: true,
+          testFlightInstall: true,
+        ),
+        LogMyPlateAdConfig.iosTestRewardedAdUnitId,
+      );
+      expect(
+        LogMyPlateAdConfig.resolveInterstitialAdUnitId(
+          configured: 'ca-app-pub-6936425975956435/0987654321',
+          platform: TargetPlatform.iOS,
+          releaseMode: true,
+          testFlightInstall: true,
+        ),
+        LogMyPlateAdConfig.iosTestInterstitialAdUnitId,
+      );
+    });
+
     test('requires configured interstitial ad unit in release builds', () {
       expect(
         LogMyPlateAdConfig.resolveInterstitialAdUnitId(
