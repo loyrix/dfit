@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:ui';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -9,6 +10,20 @@ import 'src/screens/startup_error_screen.dart';
 import 'src/services/app_diagnostics.dart';
 import 'src/services/journal_cache_store.dart';
 import 'src/services/rewarded_ad_service.dart';
+
+Future<void> _printAdvertisingId() async {
+  // The ATT prompt is only shown once the app is active; give the first
+  // frame a moment to land before requesting.
+  await Future<void>.delayed(const Duration(seconds: 1));
+  final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+  if (status == TrackingStatus.notDetermined) {
+    await AppTrackingTransparency.requestTrackingAuthorization();
+  }
+  final adId = await AppTrackingTransparency.getAdvertisingIdentifier();
+  debugPrint('==============================================');
+  debugPrint('Advertising ID (IDFA/AAID): $adId');
+  debugPrint('==============================================');
+}
 
 void main() {
   runZonedGuarded<Future<void>>(
@@ -51,6 +66,10 @@ void main() {
       LogMyPlateAdConfig.validateForCurrentBuild();
       
       runApp(const LogMyPlateApp());
+
+      if (kDebugMode) {
+        unawaited(_printAdvertisingId());
+      }
 
       unawaited(
         JournalCacheStore().load().then((cachedBootstrap) async {

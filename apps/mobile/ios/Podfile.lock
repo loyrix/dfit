@@ -1,6 +1,8 @@
 PODS:
   - app_links (7.0.0):
     - Flutter
+  - app_tracking_transparency (0.0.1):
+    - Flutter
   - AppAuth (2.1.0):
     - AppAuth/Core (= 2.1.0)
     - AppAuth/ExternalUserAgent (= 2.1.0)
@@ -213,6 +215,7 @@ PODS:
 
 DEPENDENCIES:
   - app_links (from `.symlinks/plugins/app_links/ios`)
+  - app_tracking_transparency (from `.symlinks/plugins/app_tracking_transparency/ios`)
   - firebase_analytics (from `.symlinks/plugins/firebase_analytics/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
@@ -263,6 +266,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   app_links:
     :path: ".symlinks/plugins/app_links/ios"
+  app_tracking_transparency:
+    :path: ".symlinks/plugins/app_tracking_transparency/ios"
   firebase_analytics:
     :path: ".symlinks/plugins/firebase_analytics/ios"
   firebase_core:
@@ -298,6 +303,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   app_links: a754cbec3c255bd4bbb4d236ecc06f28cd9a7ce8
+  app_tracking_transparency: 3d84f147f67ca82d3c15355c36b1fa6b66ca7c92
   AppAuth: ef4da5a3fc2e10b90c09a0a94a9baeaedc0341d5
   AppCheckCore: 214137f5c378d1dec88a68425c467fe65aaff637
   Firebase: 7cc10425300768ec86292688af5cb228f0604bde
