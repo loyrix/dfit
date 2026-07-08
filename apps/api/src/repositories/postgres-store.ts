@@ -175,7 +175,7 @@ const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
 // Mobile clients have no token-refresh flow, so sessions renew on use (sliding
 // expiry). Recently-expired sessions are still accepted within the grace window;
 // past it the user must sign in again.
-const sessionExpiryGraceMs = 90 * 24 * 60 * 60 * 1000;
+const sessionExpiryGraceMs = 180 * 24 * 60 * 60 * 1000;
 // Only rewrite expires_at when under this threshold, so steady traffic causes at
 // most one renewal write every few days per session.
 const sessionRenewalThresholdMs = 25 * 24 * 60 * 60 * 1000;
