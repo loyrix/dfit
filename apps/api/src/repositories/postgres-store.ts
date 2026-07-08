@@ -172,6 +172,13 @@ const toJsonValue = (value: unknown): postgres.JSONValue =>
 
 const scrypt = promisify(scryptCallback);
 const sessionDurationMs = 30 * 24 * 60 * 60 * 1000;
+// Mobile clients have no token-refresh flow, so sessions renew on use (sliding
+// expiry). Recently-expired sessions are still accepted within the grace window;
+// past it the user must sign in again.
+const sessionExpiryGraceMs = 90 * 24 * 60 * 60 * 1000;
+// Only rewrite expires_at when under this threshold, so steady traffic causes at
+// most one renewal write every few days per session.
+const sessionRenewalThresholdMs = 25 * 24 * 60 * 60 * 1000;
 const passwordResetDurationMs = 15 * 60 * 1000;
 const maxPasswordResetAttempts = 5;
 const lifetimeFreeScanAllowance = 3;
@@ -3239,6 +3246,24 @@ export class PostgresStore implements AppRepository {
 
   private async getProfileForSession(token: string): Promise<Profile | undefined> {
     const [profile] = await this.sql<Profile[]>`
+      with matched_session as (
+        select
+          account_sessions.id as session_id,
+          account_sessions.profile_id
+        from account_sessions
+        inner join profiles on profiles.id = account_sessions.profile_id
+        where account_sessions.token_hash = ${hashToken(token)}
+          and account_sessions.revoked_at is null
+          and account_sessions.expires_at > now() - make_interval(secs => ${sessionExpiryGraceMs / 1000})
+          and profiles.deactivated_at is null
+        limit 1
+      ),
+      renewed as (
+        update account_sessions
+        set expires_at = now() + make_interval(secs => ${sessionDurationMs / 1000})
+        where id = (select session_id from matched_session)
+          and expires_at < now() + make_interval(secs => ${sessionRenewalThresholdMs / 1000})
+      )
       select
         profiles.id::text,
         profiles.auth_method as "authMethod",
@@ -3246,12 +3271,8 @@ export class PostgresStore implements AppRepository {
         profiles.timezone,
         profiles.linked_at::text as "linkedAt",
         profiles.created_at::text as "createdAt"
-      from account_sessions
-      inner join profiles on profiles.id = account_sessions.profile_id
-      where account_sessions.token_hash = ${hashToken(token)}
-        and account_sessions.revoked_at is null
-        and account_sessions.expires_at > now()
-        and profiles.deactivated_at is null
+      from profiles
+      where profiles.id = (select profile_id from matched_session)
       limit 1
     `;
     return profile;
