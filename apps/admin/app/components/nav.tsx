@@ -8,6 +8,7 @@ const primaryItems = [
   { href: "/cost", label: "AI Usage" },
   { href: "/conversions", label: "Conversion" },
   { href: "/scans", label: "Scan Sessions" },
+  { href: "/ads", label: "Ads & Credits" },
 ] as const;
 
 const navGroups = [
@@ -30,7 +31,6 @@ const navGroups = [
     label: "Growth",
     items: [
       { href: "/growth?section=analytics", label: "Analytics" },
-      { href: "/ads", label: "Ads & Credits" },
       { href: "/growth?section=review", label: "Review Prompt" },
       { href: "/growth?section=ads", label: "Interstitial Ads" },
       { href: "/growth?section=rewarded", label: "Rewarded Unlocks" },

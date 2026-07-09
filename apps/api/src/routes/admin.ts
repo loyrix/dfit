@@ -1364,8 +1364,16 @@ const loadAdminAdsAnalytics = async (sql: SqlClient) => {
       select (now() at time zone 'Asia/Kolkata')::date as today
     ),
     ad_events as (
-      select profile_id, transaction_id, created_at
+      select profile_id, created_at
       from rewarded_ad_events
+      union all
+      select callbacks.profile_id, callbacks.created_at
+      from rewarded_ad_callbacks callbacks
+      where callbacks.verified_at is not null
+        and not exists (
+          select 1 from rewarded_ad_events events
+          where events.transaction_id = callbacks.transaction_id
+        )
     ),
     grants as (
       select profile_id, reason, delta, created_at
@@ -1442,6 +1450,18 @@ const loadAdminAdsAnalytics = async (sql: SqlClient) => {
     with ist_today as (
       select (now() at time zone 'Asia/Kolkata')::date as today
     ),
+    ad_watches as (
+      select profile_id, created_at
+      from rewarded_ad_events
+      union all
+      select callbacks.profile_id, callbacks.created_at
+      from rewarded_ad_callbacks callbacks
+      where callbacks.verified_at is not null
+        and not exists (
+          select 1 from rewarded_ad_events events
+          where events.transaction_id = callbacks.transaction_id
+        )
+    ),
     ad_counts as (
       select
         profile_id,
@@ -1452,7 +1472,7 @@ const loadAdminAdsAnalytics = async (sql: SqlClient) => {
         count(*) filter (where created_at > now() - interval '7 days')::int as ads_7d,
         count(*) filter (where created_at > now() - interval '30 days')::int as ads_30d,
         max(created_at)::text as last_ad_at
-      from rewarded_ad_events
+      from ad_watches
       where profile_id is not null
       group by profile_id
     ),
