@@ -496,6 +496,7 @@ export type EngagementPolicy = {
     dailyScanLimit: number;
     adSuspensionDailyCredits: {
       enabled: boolean;
+      registeredUsersOnly: boolean;
       freeScansPerDay: number;
       platformFreeScansPerDay: {
         ios: number;

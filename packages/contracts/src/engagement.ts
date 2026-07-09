@@ -85,6 +85,7 @@ export const engagementRewardedAdsPolicySchema = z.object({
   adSuspensionDailyCredits: z
     .object({
       enabled: z.boolean().default(false),
+      registeredUsersOnly: z.boolean().default(true),
       freeScansPerDay: z.coerce.number().int().min(0).max(100).default(5),
       platformFreeScansPerDay: z
         .object({

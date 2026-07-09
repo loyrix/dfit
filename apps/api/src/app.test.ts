@@ -440,6 +440,7 @@ describe("LogMyPlate API", () => {
     expect(defaults.rewardedAds.dailyScanLimit).toBe(5);
     expect(defaults.rewardedAds.adSuspensionDailyCredits).toEqual({
       enabled: false,
+      registeredUsersOnly: true,
       freeScansPerDay: 5,
       platformFreeScansPerDay: {
         ios: 5,

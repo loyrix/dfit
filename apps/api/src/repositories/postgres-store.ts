@@ -3410,6 +3410,7 @@ export class PostgresStore implements AppRepository {
     const policy = await loadEngagementPolicy(this.sql);
     const creditsPolicy = policy.rewardedAds.adSuspensionDailyCredits;
     if (!creditsPolicy.enabled) return;
+    if (creditsPolicy.registeredUsersOnly && profile.authMethod === "anonymous") return;
 
     const nowMs = Date.now();
     if (creditsPolicy.startsAt && Date.parse(creditsPolicy.startsAt) > nowMs) return;

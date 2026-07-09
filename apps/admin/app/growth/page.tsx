@@ -742,6 +742,14 @@ function RewardedAdsPanel({ policy }: { policy: EngagementPolicy }) {
             />
             Enable temporary daily free credits
           </label>
+          <label className="inline-controls">
+            <input
+              name="rewardedAds.adSuspensionDailyCredits.registeredUsersOnly"
+              type="checkbox"
+              defaultChecked={adSuspensionCredits.registeredUsersOnly}
+            />
+            Registered accounts only (anonymous users get no daily top-up)
+          </label>
           <NumberField
             label="iOS free scans per day"
             name="rewardedAds.adSuspensionDailyCredits.platform.ios"

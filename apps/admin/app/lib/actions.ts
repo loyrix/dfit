@@ -517,6 +517,10 @@ const readRewardedAdsPolicy = (formData: FormData): EngagementPolicy["rewardedAd
     dailyScanLimit: numberValue(formData, "rewardedAds.dailyScanLimit"),
     adSuspensionDailyCredits: {
       enabled: booleanValue(formData, "rewardedAds.adSuspensionDailyCredits.enabled"),
+      registeredUsersOnly: booleanValue(
+        formData,
+        "rewardedAds.adSuspensionDailyCredits.registeredUsersOnly",
+      ),
       freeScansPerDay: Math.max(iosDailyCredits, androidDailyCredits),
       platformFreeScansPerDay: {
         ios: iosDailyCredits,
