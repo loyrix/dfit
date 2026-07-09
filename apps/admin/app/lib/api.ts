@@ -551,6 +551,47 @@ export type AuditEntry = {
   createdAt: string;
 };
 
+export type AdminAdsAnalyticsBuckets = {
+  today: number;
+  last7d: number;
+  last30d: number;
+};
+
+export type AdminAdsAnalyticsUser = {
+  profileId: string;
+  authMethod: string;
+  email?: string;
+  displayName?: string;
+  platform?: string;
+  ads: AdminAdsAnalyticsBuckets & { total: number };
+  lastAdAt?: string;
+  scansLeft: {
+    free: number;
+    rewarded: number;
+    premium: number;
+    total: number;
+  };
+  granted30d: {
+    byAds: number;
+    promo: number;
+    admin: number;
+    byUs: number;
+  };
+};
+
+export type AdminAdsAnalytics = {
+  generatedAt: string;
+  totals: {
+    ads: AdminAdsAnalyticsBuckets;
+    watchers: AdminAdsAnalyticsBuckets;
+    scansFromAds: AdminAdsAnalyticsBuckets;
+    promoScans: AdminAdsAnalyticsBuckets;
+    adminScans: AdminAdsAnalyticsBuckets;
+    uncreditedWatches30d: number;
+  };
+  users: AdminAdsAnalyticsUser[];
+};
+
 export async function adminGet<T>(path: string): Promise<T> {
   return adminFetch<T>(path, { method: "GET" });
 }

@@ -232,6 +232,11 @@ export const registerAdminRoutes = async (
     return listAdminConversions(sql, query);
   });
 
+  app.get("/admin/ads/analytics", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return loadAdminAdsAnalytics(sql);
+  });
+
   app.post(
     "/admin/users/:profileId/grants",
     { preHandler: requireAdmin },
@@ -1313,6 +1318,264 @@ type AdminLifecycleEventRow = {
   profile_created_at: string | null;
   profile_updated_at: string | null;
   created_at: string;
+};
+
+type AdminAdsAnalyticsTotalsRow = {
+  ads_today: number;
+  ads_7d: number;
+  ads_30d: number;
+  watchers_today: number;
+  watchers_7d: number;
+  watchers_30d: number;
+  scans_from_ads_today: number;
+  scans_from_ads_7d: number;
+  scans_from_ads_30d: number;
+  promo_scans_today: number;
+  promo_scans_7d: number;
+  promo_scans_30d: number;
+  admin_scans_today: number;
+  admin_scans_7d: number;
+  admin_scans_30d: number;
+  uncredited_watches_30d: number;
+};
+
+type AdminAdsAnalyticsUserRow = {
+  profile_id: string;
+  auth_method: string;
+  email: string | null;
+  display_name: string | null;
+  platform: string | null;
+  ads_today: number;
+  ads_7d: number;
+  ads_30d: number;
+  ads_total: number;
+  last_ad_at: string | null;
+  free_remaining: number;
+  rewarded_remaining: number;
+  premium_remaining: number;
+  granted_by_ads_30d: number;
+  granted_promo_30d: number;
+  granted_admin_30d: number;
+};
+
+const loadAdminAdsAnalytics = async (sql: SqlClient) => {
+  const [totals] = await sql<AdminAdsAnalyticsTotalsRow[]>`
+    with ist_today as (
+      select (now() at time zone 'Asia/Kolkata')::date as today
+    ),
+    ad_events as (
+      select profile_id, transaction_id, created_at
+      from rewarded_ad_events
+    ),
+    grants as (
+      select profile_id, reason, delta, created_at
+      from quota_events
+      where event_type = 'grant' and delta > 0
+    )
+    select
+      count(*) filter (
+        where (ad_events.created_at at time zone 'Asia/Kolkata')::date = (select today from ist_today)
+      )::int as ads_today,
+      count(*) filter (where ad_events.created_at > now() - interval '7 days')::int as ads_7d,
+      count(*) filter (where ad_events.created_at > now() - interval '30 days')::int as ads_30d,
+      count(distinct ad_events.profile_id) filter (
+        where (ad_events.created_at at time zone 'Asia/Kolkata')::date = (select today from ist_today)
+      )::int as watchers_today,
+      count(distinct ad_events.profile_id) filter (
+        where ad_events.created_at > now() - interval '7 days'
+      )::int as watchers_7d,
+      count(distinct ad_events.profile_id) filter (
+        where ad_events.created_at > now() - interval '30 days'
+      )::int as watchers_30d,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason = 'rewarded'
+          and (created_at at time zone 'Asia/Kolkata')::date = (select today from ist_today)
+      )::int as scans_from_ads_today,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason = 'rewarded' and created_at > now() - interval '7 days'
+      )::int as scans_from_ads_7d,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason = 'rewarded' and created_at > now() - interval '30 days'
+      )::int as scans_from_ads_30d,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason = 'ad_suspension_daily_free'
+          and (created_at at time zone 'Asia/Kolkata')::date = (select today from ist_today)
+      )::int as promo_scans_today,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason = 'ad_suspension_daily_free' and created_at > now() - interval '7 days'
+      )::int as promo_scans_7d,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason = 'ad_suspension_daily_free' and created_at > now() - interval '30 days'
+      )::int as promo_scans_30d,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason like 'admin\\_%'
+          and (created_at at time zone 'Asia/Kolkata')::date = (select today from ist_today)
+      )::int as admin_scans_today,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason like 'admin\\_%' and created_at > now() - interval '7 days'
+      )::int as admin_scans_7d,
+      (
+        select coalesce(sum(delta), 0) from grants
+        where reason like 'admin\\_%' and created_at > now() - interval '30 days'
+      )::int as admin_scans_30d,
+      (
+        select count(*) from rewarded_ad_callbacks callbacks
+        where callbacks.created_at > now() - interval '30 days'
+          and callbacks.verified_at is not null
+          and not exists (
+            select 1 from rewarded_ad_events events
+            where events.transaction_id = callbacks.transaction_id
+          )
+      )::int as uncredited_watches_30d
+    from ad_events
+  `;
+
+  const users = await sql<AdminAdsAnalyticsUserRow[]>`
+    with ist_today as (
+      select (now() at time zone 'Asia/Kolkata')::date as today
+    ),
+    ad_counts as (
+      select
+        profile_id,
+        count(*)::int as ads_total,
+        count(*) filter (
+          where (created_at at time zone 'Asia/Kolkata')::date = (select today from ist_today)
+        )::int as ads_today,
+        count(*) filter (where created_at > now() - interval '7 days')::int as ads_7d,
+        count(*) filter (where created_at > now() - interval '30 days')::int as ads_30d,
+        max(created_at)::text as last_ad_at
+      from rewarded_ad_events
+      where profile_id is not null
+      group by profile_id
+    ),
+    grant_counts as (
+      select
+        profile_id,
+        coalesce(sum(delta) filter (where reason = 'rewarded'), 0)::int as granted_by_ads_30d,
+        coalesce(sum(delta) filter (where reason = 'ad_suspension_daily_free'), 0)::int
+          as granted_promo_30d,
+        coalesce(sum(delta) filter (where reason like 'admin\\_%'), 0)::int as granted_admin_30d
+      from quota_events
+      where event_type = 'grant' and delta > 0 and created_at > now() - interval '30 days'
+      group by profile_id
+    ),
+    target_profiles as (
+      select profile_id from ad_counts
+      union
+      select profile_id from grant_counts
+    )
+    select
+      profiles.id::text as profile_id,
+      profiles.auth_method::text,
+      coalesce(identity.email, profiles.email) as email,
+      identity.display_name,
+      latest_device.platform,
+      coalesce(ad_counts.ads_today, 0)::int as ads_today,
+      coalesce(ad_counts.ads_7d, 0)::int as ads_7d,
+      coalesce(ad_counts.ads_30d, 0)::int as ads_30d,
+      coalesce(ad_counts.ads_total, 0)::int as ads_total,
+      ad_counts.last_ad_at,
+      coalesce(scan_credits.free_remaining, 0)::int as free_remaining,
+      coalesce(scan_credits.rewarded_remaining, 0)::int as rewarded_remaining,
+      coalesce(scan_credits.premium_remaining, 0)::int as premium_remaining,
+      coalesce(grant_counts.granted_by_ads_30d, 0)::int as granted_by_ads_30d,
+      coalesce(grant_counts.granted_promo_30d, 0)::int as granted_promo_30d,
+      coalesce(grant_counts.granted_admin_30d, 0)::int as granted_admin_30d
+    from target_profiles
+    inner join profiles on profiles.id = target_profiles.profile_id
+    left join ad_counts on ad_counts.profile_id = target_profiles.profile_id
+    left join grant_counts on grant_counts.profile_id = target_profiles.profile_id
+    left join scan_credits
+      on scan_credits.profile_id = profiles.id
+      and scan_credits.local_date = date '1970-01-01'
+    left join lateral (
+      select
+        account_identities.email,
+        account_identities.display_name
+      from account_identities
+      where account_identities.profile_id = profiles.id
+      order by account_identities.updated_at desc, account_identities.created_at desc
+      limit 1
+    ) identity on true
+    left join lateral (
+      select devices.platform
+      from devices
+      where devices.profile_id = profiles.id
+      order by devices.last_seen_at desc
+      limit 1
+    ) latest_device on true
+    order by
+      coalesce(ad_counts.ads_30d, 0) desc,
+      ad_counts.last_ad_at desc nulls last,
+      profiles.created_at desc
+    limit 500
+  `;
+
+  return {
+    generatedAt: new Date().toISOString(),
+    totals: {
+      ads: {
+        today: totals?.ads_today ?? 0,
+        last7d: totals?.ads_7d ?? 0,
+        last30d: totals?.ads_30d ?? 0,
+      },
+      watchers: {
+        today: totals?.watchers_today ?? 0,
+        last7d: totals?.watchers_7d ?? 0,
+        last30d: totals?.watchers_30d ?? 0,
+      },
+      scansFromAds: {
+        today: totals?.scans_from_ads_today ?? 0,
+        last7d: totals?.scans_from_ads_7d ?? 0,
+        last30d: totals?.scans_from_ads_30d ?? 0,
+      },
+      promoScans: {
+        today: totals?.promo_scans_today ?? 0,
+        last7d: totals?.promo_scans_7d ?? 0,
+        last30d: totals?.promo_scans_30d ?? 0,
+      },
+      adminScans: {
+        today: totals?.admin_scans_today ?? 0,
+        last7d: totals?.admin_scans_7d ?? 0,
+        last30d: totals?.admin_scans_30d ?? 0,
+      },
+      uncreditedWatches30d: totals?.uncredited_watches_30d ?? 0,
+    },
+    users: users.map((row) => ({
+      profileId: row.profile_id,
+      authMethod: row.auth_method,
+      email: row.email ?? undefined,
+      displayName: row.display_name ?? undefined,
+      platform: row.platform ?? undefined,
+      ads: {
+        today: row.ads_today,
+        last7d: row.ads_7d,
+        last30d: row.ads_30d,
+        total: row.ads_total,
+      },
+      lastAdAt: row.last_ad_at ?? undefined,
+      scansLeft: {
+        free: row.free_remaining,
+        rewarded: row.rewarded_remaining,
+        premium: row.premium_remaining,
+        total: row.free_remaining + row.rewarded_remaining + row.premium_remaining,
+      },
+      granted30d: {
+        byAds: row.granted_by_ads_30d,
+        promo: row.granted_promo_30d,
+        admin: row.granted_admin_30d,
+        byUs: row.granted_promo_30d + row.granted_admin_30d,
+      },
+    })),
+  };
 };
 
 const searchAdminUsers = async (
