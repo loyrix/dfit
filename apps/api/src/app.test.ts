@@ -2743,7 +2743,7 @@ describe("LogMyPlate API", () => {
     expect(entitlement).toBeUndefined();
   });
 
-  it("rejects rewarded ad completion while scan credits remain", async () => {
+  it("grants rewarded ad completion even while scan credits remain", async () => {
     const app = await testApp();
     const installHeaders = {
       "x-logmyplate-install-id": "install-rewarded-has-credit",
@@ -2768,10 +2768,10 @@ describe("LogMyPlate API", () => {
       payload: { provider: "admob", placement: "scan_unlock" },
     });
 
-    expect(response.statusCode).toBe(409);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      error: "scan_credit_available",
-      quota: { freeRemaining: 3, rewardedRemaining: 0, premiumRemaining: 0 },
+      grantedScan: true,
+      quota: { freeRemaining: 3, rewardedRemaining: 1, premiumRemaining: 0 },
     });
     await app.close();
   });

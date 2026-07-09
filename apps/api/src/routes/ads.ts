@@ -64,14 +64,12 @@ export const registerAdRoutes = async (
       });
     }
 
-    const quota = await repository.getQuota();
-    if (quota.freeRemaining + quota.rewardedRemaining + quota.premiumRemaining > 0) {
-      return reply.status(409).send({
-        error: "scan_credit_available",
-        message: "Use available scan credits before unlocking another scan with ads.",
-        quota,
-      });
-    }
+    // A watched ad is always rewarded, even while other scan credits remain —
+    // the client may act on stale quota (e.g. daily free credits landing
+    // mid-session) and the user has already paid with their attention. The
+    // per-day rewarded limit still caps total grants. getQuota() also applies
+    // any pending daily free-credit top-up before the grant.
+    await repository.getQuota();
 
     const input = { ...parsed.data };
     if (input.verificationToken) {
