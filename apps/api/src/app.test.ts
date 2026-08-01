@@ -879,6 +879,120 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("returns a general-tier plate score when the user has no health target", async () => {
+    const app = await testApp();
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "score-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "score-analyze" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+
+    const score = analyzed.json().plateScore;
+    expect(score).toBeDefined();
+    expect(score.tier).toBe("general");
+    // The calorie axis needs a daily target, so it is skipped rather than guessed.
+    expect(score.skipped).toContain("calorie_fit");
+    expect(score.score).toBeGreaterThanOrEqual(0);
+    expect(score.score).toBeLessThanOrEqual(100);
+    await app.close();
+  });
+
+  it("upgrades the plate score to the personal tier once a health target exists", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "plate-score-account",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "plate-score@example.com", password: "secret1" },
+    });
+    expect(signup.statusCode).toBe(201);
+
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: { ...accountHeaders, "idempotency-key": "score-health" },
+      payload: {
+        heightCm: 175,
+        weightKg: 70,
+        ageYears: 30,
+        sex: "male",
+        activityLevel: "moderate",
+        goal: "maintain",
+      },
+    });
+    expect(saved.statusCode).toBe(200);
+
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { ...accountHeaders, "idempotency-key": "score-personal-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { ...accountHeaders, "idempotency-key": "score-personal-analyze" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+
+    const score = analyzed.json().plateScore;
+    expect(score.tier).toBe("personal");
+    expect(score.skipped).not.toContain("calorie_fit");
+
+    const analysis = analyzed.json();
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { ...accountHeaders, "idempotency-key": "score-personal-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        items: analysis.items.map((item: AnalyzedTestItem) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          estimatedGrams: item.estimatedGrams,
+          nutrition: item.nutrition,
+        })),
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+    expect(confirmed.json().meal.plateScore.tier).toBe("personal");
+
+    // The journal must score the same meal identically, not fall back to general.
+    const today = await app.inject({
+      method: "GET",
+      url: "/v1/journal/today",
+      headers: accountHeaders,
+    });
+    expect(today.json().meals[0].plateScore.tier).toBe("personal");
+    expect(today.json().meals[0].plateScore.score).toBe(confirmed.json().meal.plateScore.score);
+    await app.close();
+  });
+
   it("recovers micronutrients an older app build dropped, without touching macros", async () => {
     const app = await testApp();
     const prepared = await app.inject({

@@ -1,4 +1,4 @@
-import { sumTotals } from "@logmyplate/domain";
+import { calculatePlateScore, sumTotals, type PlateScoreProfile } from "@logmyplate/domain";
 import type {
   AppRepository,
   Profile,
@@ -9,14 +9,41 @@ import type { MealImageStorage } from "../services/meal-image-storage.js";
 type RouteMeal =
   Awaited<ReturnType<AppRepository["getMeal"]>> extends infer T ? NonNullable<T> : never;
 
+/**
+ * Turns a stored health target into the little the score actually needs.
+ * Returns undefined for users without one, which selects the general tier
+ * rather than scoring them against an invented profile.
+ */
+export const toPlateScoreProfile = (
+  healthTarget: ProfileHealthTarget | null | undefined,
+): PlateScoreProfile | undefined =>
+  healthTarget?.dailyCalorieTarget
+    ? { dailyCalorieTarget: healthTarget.dailyCalorieTarget, goal: healthTarget.goal }
+    : undefined;
+
+/**
+ * `healthTarget` is a required parameter rather than an optional one so that
+ * every call site has to decide. Defaulting it would silently downgrade users
+ * who do have a target to the general tier.
+ */
 export const toApiMeal = async (
   profileId: string,
   meal: RouteMeal,
   mealImageStorage: MealImageStorage,
+  healthTarget: ProfileHealthTarget | null | undefined,
 ) => {
   const imageUrl = meal.image ? await mealImageStorage.createSignedReadUrl(meal.image) : undefined;
 
+  // Scored from per-item nutrition, never meal.totals: sumTotals coerces absent
+  // micronutrients to 0, which would make every meal look fiber-free.
+  const plateScore = calculatePlateScore({
+    items: meal.items.map((item) => item.nutrition),
+    mealType: meal.mealType,
+    profile: toPlateScoreProfile(healthTarget),
+  });
+
   return {
+    plateScore,
     id: meal.mealId,
     profileId,
     mealType: meal.mealType,
@@ -90,13 +117,28 @@ const dailyCalorieTarget = (healthTarget?: ProfileHealthTarget) =>
       }
     : undefined;
 
+/**
+ * `undefined` means "not supplied, go and load it"; `null` means "this user has
+ * none". Callers must resolve once and reuse the result, because both the
+ * calorie target and the Plate Score need the same answer — passing the raw
+ * optional through would silently score a user who has a target as if they did
+ * not.
+ */
+const resolveHealthTarget = async (
+  repository: AppRepository,
+  profileId: string,
+  healthTarget?: ProfileHealthTarget | null,
+): Promise<ProfileHealthTarget | null> =>
+  healthTarget === undefined
+    ? ((await repository.getHealthTarget(profileId)) ?? null)
+    : healthTarget;
+
 const resolveDailyCalorieTarget = async (
   repository: AppRepository,
   profileId: string,
   healthTarget?: ProfileHealthTarget | null,
 ) => {
-  const resolved =
-    healthTarget === undefined ? await repository.getHealthTarget(profileId) : healthTarget;
+  const resolved = await resolveHealthTarget(repository, profileId, healthTarget);
   return dailyCalorieTarget(resolved ?? undefined);
 };
 
@@ -107,14 +149,19 @@ export const buildTodayJournal = async (
   healthTarget?: ProfileHealthTarget | null,
 ) => {
   const today = toDateString(new Date());
-  const meals = await repository.listMeals({ fromDate: today, toDate: today });
+  const [meals, resolvedTarget] = await Promise.all([
+    repository.listMeals({ fromDate: today, toDate: today }),
+    resolveHealthTarget(repository, profile.id, healthTarget),
+  ]);
 
   return {
     date: today,
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
-    target: await resolveDailyCalorieTarget(repository, profile.id, healthTarget),
-    meals: await Promise.all(meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage))),
+    target: dailyCalorieTarget(resolvedTarget ?? undefined),
+    meals: await Promise.all(
+      meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage, resolvedTarget)),
+    ),
   };
 };
 
@@ -128,11 +175,14 @@ export const buildJournalRange = async (
 ) => {
   const endDate = addDays(new Date(), -(weekOffset * 7));
   const dates = dateWindow(daysCount, endDate);
-  const meals = await repository.listMeals({
-    fromDate: dates[0],
-    toDate: dates[dates.length - 1],
-    limit: daysCount * 20,
-  });
+  const [meals, resolvedTarget] = await Promise.all([
+    repository.listMeals({
+      fromDate: dates[0],
+      toDate: dates[dates.length - 1],
+      limit: daysCount * 20,
+    }),
+    resolveHealthTarget(repository, profile.id, healthTarget),
+  ]);
   const mealsByDate = new Map<string, RouteMeal[]>();
   for (const meal of meals) {
     const day = meal.loggedAt.slice(0, 10);
@@ -147,7 +197,7 @@ export const buildJournalRange = async (
         mealCount: dayMeals.length,
         totals: sumTotals(dayMeals.map((meal) => meal.totals)),
         meals: await Promise.all(
-          dayMeals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage)),
+          dayMeals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage, resolvedTarget)),
         ),
       };
     }),
@@ -159,7 +209,7 @@ export const buildJournalRange = async (
     startDate: dates[0],
     endDate: dates[dates.length - 1],
     timezone: profile.timezone,
-    target: await resolveDailyCalorieTarget(repository, profile.id, healthTarget),
+    target: dailyCalorieTarget(resolvedTarget ?? undefined),
     days,
     summary: {
       windowDays: daysCount,

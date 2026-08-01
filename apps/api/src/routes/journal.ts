@@ -99,9 +99,12 @@ export const registerJournalRoutes = async (
       }),
     );
 
-    const profile = await timer.measure("profile", () => repository.getProfile());
+    const [profile, healthTarget] = await Promise.all([
+      timer.measure("profile", () => repository.getProfile()),
+      timer.measure("healthTarget", () => repository.getHealthTarget()),
+    ]);
     const response = await timer.measure("hydrateMeal", () =>
-      toApiMeal(profile.id, meal, mealImageStorage),
+      toApiMeal(profile.id, meal, mealImageStorage, healthTarget),
     );
     request.log.info(
       {
@@ -119,8 +122,11 @@ export const registerJournalRoutes = async (
     const params = request.params as { id: string };
     const meal = await repository.getMeal(params.id);
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
-    const profile = await repository.getProfile();
-    return toApiMeal(profile.id, meal, mealImageStorage);
+    const [profile, healthTarget] = await Promise.all([
+      repository.getProfile(),
+      repository.getHealthTarget(),
+    ]);
+    return toApiMeal(profile.id, meal, mealImageStorage, healthTarget);
   });
 
   app.patch("/v1/meals/:id", async (request, reply) => {
@@ -160,9 +166,12 @@ export const registerJournalRoutes = async (
     );
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
 
-    const profile = await timer.measure("profile", () => repository.getProfile());
+    const [profile, healthTarget] = await Promise.all([
+      timer.measure("profile", () => repository.getProfile()),
+      timer.measure("healthTarget", () => repository.getHealthTarget()),
+    ]);
     const response = await timer.measure("hydrateMeal", () =>
-      toApiMeal(profile.id, meal, mealImageStorage),
+      toApiMeal(profile.id, meal, mealImageStorage, healthTarget),
     );
     request.log.info(
       {

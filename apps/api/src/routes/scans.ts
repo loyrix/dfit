@@ -7,6 +7,7 @@ import {
   type ConfirmScanRequestContract,
 } from "@logmyplate/contracts";
 import {
+  calculatePlateScore,
   confidenceAfterSignals,
   decideScanQuota,
   detectPortionSignals,
@@ -24,7 +25,7 @@ import { resolveFoodPhotoPromptKey } from "../services/food-photo-prompt-routing
 import { MockAiProvider } from "../services/mock-ai-provider.js";
 import type { MealImageStorage, StoredMealImage } from "../services/meal-image-storage.js";
 import type { ConfirmedScanFoodLearningItem } from "../repositories/app-repository.js";
-import { toApiMeal } from "./journal-presenter.js";
+import { toApiMeal, toPlateScoreProfile } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
 
 const isStoredImageMimeType = (value: string | undefined): value is StoredMealImage["mimeType"] =>
@@ -526,6 +527,23 @@ export const registerScanRoutes = async (
       );
     }
 
+    // Scored for the review screen. Non-fatal: a missing score just hides the
+    // card, and must never cost the user the scan they already paid a credit for.
+    if (analyzedResult.analysis.items.length > 0) {
+      try {
+        const analyzeHealthTarget = await timer.measure("healthTarget", () =>
+          repository.getHealthTarget(scan.profileId),
+        );
+        analyzedResult.analysis.plateScore = calculatePlateScore({
+          items: analyzedResult.analysis.items.map((item) => item.nutrition),
+          mealType: analyzedResult.analysis.mealType,
+          profile: toPlateScoreProfile(analyzeHealthTarget),
+        });
+      } catch (error) {
+        request.log.error({ err: error, scanId: scan.id }, "plate score for analysis failed");
+      }
+    }
+
     const hasFoodItems = analyzedResult.analysis.items.length > 0;
 
     // Credit consumption, image storage upload, and analysis-cache store are
@@ -767,8 +785,11 @@ export const registerScanRoutes = async (
       repository.updateScan({ ...scan, status: "confirmed" }),
     );
 
+    const confirmHealthTarget = await timer.measure("healthTarget", () =>
+      repository.getHealthTarget(scan.profileId),
+    );
     const responseMeal = await timer.measure("hydrateMeal", () =>
-      toApiMeal(scan.profileId, meal, mealImageStorage),
+      toApiMeal(scan.profileId, meal, mealImageStorage, confirmHealthTarget),
     );
 
     request.log.info(

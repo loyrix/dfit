@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { idSchema, isoDateTimeSchema, macroTotalsSchema, portionUnitSchema } from "./common.js";
+import { plateScoreSchema } from "./plate-score.js";
 
 export const mealTypeSchema = z.enum(["breakfast", "lunch", "snack", "dinner"]);
 
@@ -31,6 +32,8 @@ export const mealSchema = z.object({
   items: z.array(mealItemSchema),
   totals: macroTotalsSchema,
   image: mealImageSchema.optional(),
+  /** Absent when the meal has nothing scoreable; never sent as a zero. */
+  plateScore: plateScoreSchema.optional(),
 });
 
 export const createMealRequestSchema = z.object({

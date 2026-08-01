@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { idSchema, macroTotalsSchema, portionUnitSchema } from "./common.js";
 import { mealSchema, mealTypeSchema } from "./meals.js";
+import { plateScoreSchema } from "./plate-score.js";
 
 export const scanStatusSchema = z.enum([
   "prepared",
@@ -61,6 +62,8 @@ export const analyzeScanResponseSchema = z.object({
   imageStored: z.boolean().optional(),
   items: z.array(analyzedMealItemSchema),
   totals: macroTotalsSchema,
+  /** Score for the meal as the AI proposed it, before any review-screen edits. */
+  plateScore: plateScoreSchema.optional(),
 });
 
 export const confirmScanRequestSchema = z.object({
