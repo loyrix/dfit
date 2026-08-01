@@ -85,6 +85,7 @@ export const registerJournalRoutes = async (
             grams: item.grams,
           },
           nutrition: item.nutrition,
+          userEdited: item.userEdited,
         })),
       ),
     );
@@ -145,6 +146,7 @@ export const registerJournalRoutes = async (
             grams: item.grams,
           },
           nutrition: item.nutrition,
+          userEdited: item.userEdited,
         })),
       ),
     );

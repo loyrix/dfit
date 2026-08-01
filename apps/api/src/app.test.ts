@@ -31,6 +31,14 @@ import type {
 } from "./services/password-reset-email.js";
 import type { MealImageSummary } from "@logmyplate/domain";
 
+type AnalyzedTestItem = {
+  name: string;
+  quantity: number;
+  unit: string;
+  estimatedGrams: number;
+  nutrition: unknown;
+};
+
 const testApp = (options: BuildAppOptions = {}) =>
   buildApp({
     repository: options.repository ?? new InMemoryStore(),
@@ -825,6 +833,98 @@ describe("LogMyPlate API", () => {
       id: confirmed.json().mealId,
       title: "Dal rice, roti and sabzi",
     });
+    await app.close();
+  });
+
+  it("records no corrections when the user confirms the AI analysis unchanged", async () => {
+    const repository = new InMemoryStore();
+    const app = await testApp({ repository });
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "clean-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "clean-analyze" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+    const analysis = analyzed.json();
+
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "clean-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        items: analysis.items.map((item: AnalyzedTestItem) => ({
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          estimatedGrams: item.estimatedGrams,
+          nutrition: item.nutrition,
+        })),
+      },
+    });
+
+    expect(confirmed.statusCode).toBe(201);
+    expect(repository.listScanCorrections(scanId)).toEqual([]);
+    await app.close();
+  });
+
+  it("records a correction when the user changes a portion before confirming", async () => {
+    const repository = new InMemoryStore();
+    const app = await testApp({ repository });
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "corrected-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "corrected-analyze" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+    const analysis = analyzed.json();
+    const items = analysis.items as AnalyzedTestItem[];
+
+    // Halve the first item's portion, drop the last one entirely.
+    const editedItems = items.slice(0, -1).map((item, index) => ({
+      name: item.name,
+      quantity: index === 0 ? item.quantity / 2 : item.quantity,
+      unit: item.unit,
+      estimatedGrams: index === 0 ? item.estimatedGrams / 2 : item.estimatedGrams,
+      nutrition: item.nutrition,
+    }));
+
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "corrected-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        items: editedItems,
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+
+    const corrections = repository.listScanCorrections(scanId);
+    expect(corrections.some((entry) => entry.kind === "item_changed")).toBe(true);
+    expect(corrections.some((entry) => entry.kind === "item_removed")).toBe(true);
     await app.close();
   });
 

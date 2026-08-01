@@ -38,6 +38,8 @@ import type {
   SubscriptionStatusState,
   UpdateMealInput,
   LearnFoodsFromConfirmedScanInput,
+  RecordScanCorrectionsInput,
+  ScanCorrectionRecord,
   UpsertSubscriptionEntitlementInput,
   UpsertScanAnalysisCacheInput,
   UpsertProfileHealthTargetInput,
@@ -160,6 +162,7 @@ export class InMemoryStore implements AppRepository {
   private readonly sessions = new Map<string, string>();
   private readonly healthTargets = new Map<string, ProfileHealthTarget>();
   private readonly meals = new Map<string, MealSummary>();
+  private readonly scanCorrections = new Map<string, ScanCorrectionRecord[]>();
   private readonly foods: FoodRecord[] = seedFoods.map((food) => ({
     ...food,
     aliases: [...food.aliases],
@@ -860,6 +863,17 @@ export class InMemoryStore implements AppRepository {
         portions: [candidate.portion],
       });
     }
+  }
+
+  async recordScanCorrections(input: RecordScanCorrectionsInput): Promise<void> {
+    if (input.corrections.length === 0) return;
+    const existing = this.scanCorrections.get(input.scanId) ?? [];
+    this.scanCorrections.set(input.scanId, [...existing, ...input.corrections]);
+  }
+
+  /** Test helper: corrections recorded for a scan. */
+  listScanCorrections(scanId: string): ScanCorrectionRecord[] {
+    return this.scanCorrections.get(scanId) ?? [];
   }
 
   async updateMeal(mealId: string, input: UpdateMealInput) {

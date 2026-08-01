@@ -112,7 +112,16 @@ export type CreateMealInput = {
   loggedAt?: string;
   source?: "manual" | "ai_scan";
   scanSessionId?: string;
-  items: Array<Omit<MealItemNutrition, "foodId"> & { foodId?: string }>;
+  items: Array<
+    Omit<MealItemNutrition, "foodId"> & {
+      foodId?: string;
+      /**
+       * Whether the user changed this item away from what the AI suggested.
+       * Omitted for manual meals, where there is no AI suggestion to differ from.
+       */
+      userEdited?: boolean;
+    }
+  >;
 };
 
 export type UpdateMealInput = Omit<
@@ -135,6 +144,22 @@ export type LearnFoodsFromConfirmedScanInput = {
   region?: string;
   predictedItems: ConfirmedScanFoodLearningItem[];
   confirmedItems: ConfirmedScanFoodLearningItem[];
+};
+
+/**
+ * One audited difference between what the AI suggested and what the user
+ * confirmed. `before` is absent for items the user added, `after` is absent for
+ * items the user deleted.
+ */
+export type ScanCorrectionRecord = {
+  kind: "item_added" | "item_removed" | "item_changed";
+  before?: unknown;
+  after?: unknown;
+};
+
+export type RecordScanCorrectionsInput = {
+  scanId: string;
+  corrections: ScanCorrectionRecord[];
 };
 
 export type AttachMealImageInput = Omit<MealImageSummary, "imageId" | "createdAt">;
@@ -350,6 +375,7 @@ export interface AppRepository {
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
   learnFoodsFromConfirmedScan(input: LearnFoodsFromConfirmedScanInput): Promise<void>;
+  recordScanCorrections(input: RecordScanCorrectionsInput): Promise<void>;
   updateMeal(mealId: string, input: UpdateMealInput): Promise<MealSummary | undefined>;
   listMeals(input?: ListMealsInput): Promise<MealSummary[]>;
   summarizeMealsByDate(input?: ListMealsInput): Promise<DailyMealAggregate[]>;

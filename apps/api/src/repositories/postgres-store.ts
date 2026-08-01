@@ -33,6 +33,7 @@ import type {
   IdempotencyRecord,
   ListMealsInput,
   LearnFoodsFromConfirmedScanInput,
+  RecordScanCorrectionsInput,
   MealDeletionPlan,
   OAuthAccountInput,
   PasswordResetRequest,
@@ -2000,7 +2001,7 @@ export class PostgresStore implements AppRepository {
             ${item.portion.quantity},
             ${item.portion.unit},
             ${item.portion.grams},
-            true
+            ${item.userEdited ?? false}
           )
           returning id::text
         `;
@@ -2070,7 +2071,7 @@ export class PostgresStore implements AppRepository {
             ${item.portion.quantity},
             ${item.portion.unit},
             ${item.portion.grams},
-            true
+            ${item.userEdited ?? true}
           )
           returning id::text
         `;
@@ -2161,6 +2162,37 @@ export class PostgresStore implements AppRepository {
     await this.sql.begin(async (tx) => {
       for (const candidate of candidates) {
         await this.upsertLearnedFoodCandidate(tx, candidate);
+      }
+    });
+  }
+
+  /**
+   * Audit trail of AI-vs-confirmed differences, used to measure scan accuracy.
+   * Written on a best-effort basis by the confirm route; callers must not let a
+   * failure here fail the confirm.
+   */
+  async recordScanCorrections(input: RecordScanCorrectionsInput): Promise<void> {
+    if (input.corrections.length === 0) return;
+    const profile = await this.getProfile();
+
+    await this.sql.begin(async (tx) => {
+      for (const correction of input.corrections) {
+        await tx`
+          insert into user_corrections (
+            profile_id,
+            scan_session_id,
+            correction_kind,
+            before_json,
+            after_json
+          )
+          values (
+            ${profile.id},
+            ${input.scanId},
+            ${correction.kind},
+            ${correction.before === undefined ? null : this.sql.json(toJsonValue(correction.before))},
+            ${this.sql.json(toJsonValue(correction.after ?? {}))}
+          )
+        `;
       }
     });
   }

@@ -593,6 +593,48 @@ export type AdminAdsAnalytics = {
   users: AdminAdsAnalyticsUser[];
 };
 
+export type AdminScanAccuracy = {
+  summary: {
+    windowDays: number;
+    aiItems: number;
+    editedItems: number;
+    editRate: number;
+    aiMeals: number;
+    correctedScans: number;
+    itemsAdded: number;
+    itemsRemoved: number;
+    itemsChanged: number;
+  };
+  thresholds: {
+    calorieThreshold: number;
+    gramThreshold: number;
+    mealCalorieThreshold: number;
+  };
+  outlierItems: Array<{
+    mealId: string;
+    scanId: string | null;
+    name: string;
+    grams: number | null;
+    calories: number | null;
+    userEdited: boolean;
+    loggedAt: string;
+    reason: string;
+  }>;
+  heavyMeals: Array<{
+    mealId: string;
+    title: string;
+    calories: number;
+    loggedAt: string;
+  }>;
+  recentCorrections: Array<{
+    scanId: string | null;
+    kind: string;
+    before: unknown;
+    after: unknown;
+    createdAt: string;
+  }>;
+};
+
 export async function adminGet<T>(path: string): Promise<T> {
   return adminFetch<T>(path, { method: "GET" });
 }

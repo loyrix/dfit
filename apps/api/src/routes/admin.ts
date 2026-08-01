@@ -289,6 +289,12 @@ export const registerAdminRoutes = async (
     return { counts: await loadAdminScanCounts(sql) };
   });
 
+  app.get("/admin/scan-accuracy", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const query = adminScanAccuracyQuerySchema.parse(request.query ?? {});
+    return loadAdminScanAccuracy(sql, query);
+  });
+
   app.get("/admin/scans/:scanId", { preHandler: requireAdmin }, async (request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     const { scanId } = scanParamsSchema.parse(request.params);
@@ -557,6 +563,15 @@ const adminConversionQuerySchema = adminPaginationQuerySchema.extend({
       "linkedAt",
     ])
     .default("updatedAt"),
+});
+
+const adminScanAccuracyQuerySchema = z.object({
+  windowDays: z.coerce.number().int().min(1).max(365).default(30),
+  /** Item-level thresholds above which a portion estimate is almost certainly wrong. */
+  calorieThreshold: z.coerce.number().int().min(100).max(5_000).default(800),
+  gramThreshold: z.coerce.number().int().min(100).max(5_000).default(500),
+  mealCalorieThreshold: z.coerce.number().int().min(500).max(20_000).default(2_500),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
 const adminScanQuerySchema = adminPaginationQuerySchema.extend({
@@ -2811,6 +2826,176 @@ const loadAdminScanCounts = async (sql: SqlClient) => {
     last7d: numberValue(row?.last_7d),
     last30d: numberValue(row?.last_30d),
     total: numberValue(row?.total),
+  };
+};
+
+/**
+ * Scan accuracy review queue.
+ *
+ * `edit_rate` is the share of AI-suggested items the user changed before
+ * confirming — the primary signal for whether a prompt change helped. It is
+ * only meaningful for meals with `source = 'ai_scan'`; manual meals have no AI
+ * suggestion to differ from and are excluded throughout.
+ *
+ * Note that `user_edited` was written as a constant `true` before 2026-08-01,
+ * so edit rates covering earlier windows read as 100% and should be ignored.
+ */
+const loadAdminScanAccuracy = async (
+  sql: SqlClient,
+  query: z.infer<typeof adminScanAccuracyQuerySchema>,
+) => {
+  const { windowDays, calorieThreshold, gramThreshold, mealCalorieThreshold, limit } = query;
+
+  const [summaryRow] = await sql<
+    {
+      ai_items: string;
+      edited_items: string;
+      ai_meals: string;
+      corrected_scans: string;
+      items_added: string;
+      items_removed: string;
+      items_changed: string;
+    }[]
+  >`
+    with window_meals as (
+      select id, scan_session_id
+      from meals
+      where source = 'ai_scan'
+        and logged_at >= now() - (${windowDays} || ' days')::interval
+    ),
+    item_stats as (
+      select
+        count(*)::text as ai_items,
+        count(*) filter (where meal_items.user_edited)::text as edited_items,
+        count(distinct meal_items.meal_id)::text as ai_meals
+      from meal_items
+      join window_meals on window_meals.id = meal_items.meal_id
+    ),
+    correction_stats as (
+      select
+        count(distinct scan_session_id)::text as corrected_scans,
+        count(*) filter (where correction_kind = 'item_added')::text as items_added,
+        count(*) filter (where correction_kind = 'item_removed')::text as items_removed,
+        count(*) filter (where correction_kind = 'item_changed')::text as items_changed
+      from user_corrections
+      where created_at >= now() - (${windowDays} || ' days')::interval
+    )
+    select * from item_stats, correction_stats
+  `;
+
+  const outlierRows = await sql<
+    {
+      meal_id: string;
+      scan_session_id: string | null;
+      display_name: string;
+      grams: string | null;
+      calories: string | null;
+      user_edited: boolean;
+      logged_at: string;
+      reason: string;
+    }[]
+  >`
+    select
+      meals.id::text as meal_id,
+      meals.scan_session_id::text,
+      meal_items.display_name,
+      meal_items.grams::text,
+      nutrition_results.calories::text,
+      meal_items.user_edited,
+      meals.logged_at::text,
+      case
+        when nutrition_results.calories > ${calorieThreshold} then 'calories'
+        else 'grams'
+      end as reason
+    from meal_items
+    join meals on meals.id = meal_items.meal_id
+    left join nutrition_results on nutrition_results.meal_item_id = meal_items.id
+    where meals.source = 'ai_scan'
+      and meals.logged_at >= now() - (${windowDays} || ' days')::interval
+      and (nutrition_results.calories > ${calorieThreshold} or meal_items.grams > ${gramThreshold})
+    order by nutrition_results.calories desc nulls last
+    limit ${limit}
+  `;
+
+  const heavyMealRows = await sql<
+    { meal_id: string; title: string; calories: string; logged_at: string }[]
+  >`
+    select
+      meals.id::text as meal_id,
+      meals.title,
+      sum(nutrition_results.calories)::text as calories,
+      meals.logged_at::text
+    from meals
+    join meal_items on meal_items.meal_id = meals.id
+    join nutrition_results on nutrition_results.meal_item_id = meal_items.id
+    where meals.source = 'ai_scan'
+      and meals.logged_at >= now() - (${windowDays} || ' days')::interval
+    group by meals.id, meals.title, meals.logged_at
+    having sum(nutrition_results.calories) > ${mealCalorieThreshold}
+    order by sum(nutrition_results.calories) desc
+    limit ${limit}
+  `;
+
+  const correctionRows = await sql<
+    {
+      scan_session_id: string | null;
+      correction_kind: string;
+      before_json: unknown;
+      after_json: unknown;
+      created_at: string;
+    }[]
+  >`
+    select
+      scan_session_id::text,
+      correction_kind,
+      before_json,
+      after_json,
+      created_at::text
+    from user_corrections
+    where created_at >= now() - (${windowDays} || ' days')::interval
+    order by created_at desc
+    limit ${limit}
+  `;
+
+  const aiItems = numberValue(summaryRow?.ai_items);
+  const editedItems = numberValue(summaryRow?.edited_items);
+
+  return {
+    summary: {
+      windowDays,
+      aiItems,
+      editedItems,
+      editRate: aiItems > 0 ? editedItems / aiItems : 0,
+      aiMeals: numberValue(summaryRow?.ai_meals),
+      correctedScans: numberValue(summaryRow?.corrected_scans),
+      itemsAdded: numberValue(summaryRow?.items_added),
+      itemsRemoved: numberValue(summaryRow?.items_removed),
+      itemsChanged: numberValue(summaryRow?.items_changed),
+    },
+    thresholds: { calorieThreshold, gramThreshold, mealCalorieThreshold },
+    outlierItems: outlierRows.map((row) => ({
+      mealId: row.meal_id,
+      scanId: row.scan_session_id,
+      name: row.display_name,
+      grams: nullableNumberValue(row.grams),
+      calories: nullableNumberValue(row.calories),
+      userEdited: row.user_edited,
+      loggedAt: row.logged_at,
+      reason: row.reason,
+    })),
+    heavyMeals: heavyMealRows.map((row) => ({
+      mealId: row.meal_id,
+      title: row.title,
+      calories: numberValue(row.calories),
+      loggedAt: row.logged_at,
+    })),
+    recentCorrections: correctionRows.map((row) => ({
+      scanId: row.scan_session_id,
+      kind: row.correction_kind,
+      before: row.before_json,
+      after: row.after_json,
+      createdAt: row.created_at,
+    })),
   };
 };
 

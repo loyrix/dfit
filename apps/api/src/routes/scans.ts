@@ -5,8 +5,14 @@ import {
   confirmScanRequestSchema,
   type ConfirmScanRequestContract,
 } from "@logmyplate/contracts";
-import { decideScanQuota, sumTotals } from "@logmyplate/domain";
-import type { AppRepository } from "../repositories/app-repository.js";
+import {
+  decideScanQuota,
+  diffScanConfirmation,
+  sumTotals,
+  type ScanConfirmationDiff,
+  type ScanItemSnapshot,
+} from "@logmyplate/domain";
+import type { AppRepository, ScanCorrectionRecord } from "../repositories/app-repository.js";
 import { currentRequestIdentity } from "../request-context.js";
 import { AiProviderError, type AiProvider } from "../services/ai-provider.js";
 import { resolveFoodPhotoPromptKey } from "../services/food-photo-prompt-routing.js";
@@ -125,6 +131,47 @@ const learningItemsFromConfirmation = (
     estimatedGrams: item.estimatedGrams,
     nutrition: item.nutrition,
   }));
+
+const toScanItemSnapshot = (item: {
+  name: string;
+  quantity: number;
+  unit: string;
+  estimatedGrams: number;
+  nutrition?: { calories?: number };
+}): ScanItemSnapshot => ({
+  name: item.name,
+  quantity: Number(item.quantity) || 0,
+  unit: item.unit,
+  grams: Number(item.estimatedGrams) || 0,
+  calories: Number(item.nutrition?.calories) || 0,
+});
+
+/**
+ * Diffs what the AI suggested against what the user confirmed. Derived on the
+ * server rather than reported by the client so every already-installed app
+ * build feeds the accuracy loop without needing a release.
+ *
+ * Returns an empty diff when the scan has no stored analysis (for example a
+ * manually built meal), which correctly yields "nothing was corrected".
+ */
+const diffConfirmationAgainstAnalysis = (
+  analysis: unknown,
+  confirmedItems: ConfirmScanRequestContract["items"],
+): ScanConfirmationDiff =>
+  diffScanConfirmation(
+    learningItemsFromAnalysis(analysis).map(toScanItemSnapshot),
+    confirmedItems.map(toScanItemSnapshot),
+  );
+
+const correctionsFromDiff = (diff: ScanConfirmationDiff): ScanCorrectionRecord[] => [
+  ...diff.added.map((after) => ({ kind: "item_added" as const, after })),
+  ...diff.removed.map((before) => ({ kind: "item_removed" as const, before })),
+  ...diff.changed.map((change) => ({
+    kind: "item_changed" as const,
+    before: change.before,
+    after: { ...change.after, changedFields: change.fields },
+  })),
+];
 
 const noFoodScanLimit = () => {
   const configured = Number(process.env.NO_FOOD_SCAN_DAILY_LIMIT ?? defaultNoFoodScanLimit);
@@ -474,6 +521,11 @@ export const registerScanRoutes = async (
     const image = parsed.data.image;
     const storedScanImage = imageFromScan(scan);
 
+    const correctionDiff = diffConfirmationAgainstAnalysis(
+      scan.analyzedResponse,
+      parsed.data.items,
+    );
+
     let meal = await timer.measure("dbCreateMeal", () =>
       repository.createMeal({
         profileId: scan.profileId,
@@ -481,7 +533,7 @@ export const registerScanRoutes = async (
         title: parsed.data.title,
         source: "ai_scan",
         scanSessionId: scan.id,
-        items: parsed.data.items.map((item) => ({
+        items: parsed.data.items.map((item, index) => ({
           displayName: item.name,
           portion: {
             quantity: item.quantity,
@@ -489,6 +541,7 @@ export const registerScanRoutes = async (
             grams: item.estimatedGrams,
           },
           nutrition: item.nutrition,
+          userEdited: correctionDiff.confirmedItemEdited[index] ?? false,
         })),
       }),
     );
@@ -539,6 +592,23 @@ export const registerScanRoutes = async (
         { err: error, mealId: meal.mealId, scanId: scan.id },
         "confirmed food learning failed",
       );
+    }
+
+    // Best-effort accuracy telemetry: a failure here must never fail the confirm.
+    if (correctionDiff.hasChanges) {
+      try {
+        await timer.measure("recordCorrections", () =>
+          repository.recordScanCorrections({
+            scanId: scan.id,
+            corrections: correctionsFromDiff(correctionDiff),
+          }),
+        );
+      } catch (error) {
+        request.log.error(
+          { err: error, mealId: meal.mealId, scanId: scan.id },
+          "recording scan corrections failed",
+        );
+      }
     }
 
     const confirmedImageHash = scan.imageHash;

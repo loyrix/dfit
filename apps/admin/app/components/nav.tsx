@@ -8,6 +8,7 @@ const primaryItems = [
   { href: "/cost", label: "AI Usage" },
   { href: "/conversions", label: "Conversion" },
   { href: "/scans", label: "Scan Sessions" },
+  { href: "/accuracy", label: "Scan Accuracy" },
   { href: "/ads", label: "Ads & Credits" },
 ] as const;
 

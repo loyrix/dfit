@@ -4,3 +4,4 @@ export * from "./quota.js";
 export * from "./rewarded-ads.js";
 export * from "./meal.js";
 export * from "./foods.js";
+export * from "./scan-correction.js";
