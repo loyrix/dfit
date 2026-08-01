@@ -27,6 +27,8 @@ import type { MealImageStorage, StoredMealImage } from "../services/meal-image-s
 import type { ConfirmedScanFoodLearningItem } from "../repositories/app-repository.js";
 import { toApiMeal, toPlateScoreProfile } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
+import { loadPlateScorePolicy } from "../services/plate-score-policy.js";
+import type { SqlClient } from "../db/client.js";
 
 const isStoredImageMimeType = (value: string | undefined): value is StoredMealImage["mimeType"] =>
   value === "image/jpeg" || value === "image/png" || value === "image/webp";
@@ -295,6 +297,7 @@ export const registerScanRoutes = async (
   repository: AppRepository,
   mealImageStorage: MealImageStorage,
   aiProvider: AiProvider = new MockAiProvider(),
+  sql?: SqlClient,
 ): Promise<void> => {
   app.get("/v1/quota", async () => repository.getQuota());
 
@@ -531,14 +534,18 @@ export const registerScanRoutes = async (
     // card, and must never cost the user the scan they already paid a credit for.
     if (analyzedResult.analysis.items.length > 0) {
       try {
-        const analyzeHealthTarget = await timer.measure("healthTarget", () =>
-          repository.getHealthTarget(scan.profileId),
+        const [analyzeHealthTarget, analyzePolicy] = await Promise.all([
+          timer.measure("healthTarget", () => repository.getHealthTarget(scan.profileId)),
+          timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+        ]);
+        analyzedResult.analysis.plateScore = calculatePlateScore(
+          {
+            items: analyzedResult.analysis.items.map((item) => item.nutrition),
+            mealType: analyzedResult.analysis.mealType,
+            profile: toPlateScoreProfile(analyzeHealthTarget),
+          },
+          analyzePolicy,
         );
-        analyzedResult.analysis.plateScore = calculatePlateScore({
-          items: analyzedResult.analysis.items.map((item) => item.nutrition),
-          mealType: analyzedResult.analysis.mealType,
-          profile: toPlateScoreProfile(analyzeHealthTarget),
-        });
       } catch (error) {
         request.log.error({ err: error, scanId: scan.id }, "plate score for analysis failed");
       }
@@ -785,11 +792,15 @@ export const registerScanRoutes = async (
       repository.updateScan({ ...scan, status: "confirmed" }),
     );
 
-    const confirmHealthTarget = await timer.measure("healthTarget", () =>
-      repository.getHealthTarget(scan.profileId),
-    );
+    const [confirmHealthTarget, confirmPolicy] = await Promise.all([
+      timer.measure("healthTarget", () => repository.getHealthTarget(scan.profileId)),
+      timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+    ]);
     const responseMeal = await timer.measure("hydrateMeal", () =>
-      toApiMeal(scan.profileId, meal, mealImageStorage, confirmHealthTarget),
+      toApiMeal(scan.profileId, meal, mealImageStorage, {
+        healthTarget: confirmHealthTarget,
+        plateScorePolicy: confirmPolicy,
+      }),
     );
 
     request.log.info(

@@ -1,0 +1,654 @@
+{
+  "generatedFrom": "packages/domain/src/plate-score.ts",
+  "vectors": [
+    {
+      "name": "balanced lunch, no profile",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10,
+            "fiberG": 7
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9,
+            "fiberG": 6
+          }
+        ],
+        "mealType": "lunch"
+      },
+      "expected": {
+        "score": 100,
+        "band": "excellent",
+        "tier": "general",
+        "axes": [
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 40
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 33.3
+          },
+          {
+            "axis": "fiber",
+            "score": 100,
+            "weight": 26.7
+          }
+        ],
+        "skipped": [
+          "calorie_fit"
+        ]
+      }
+    },
+    {
+      "name": "balanced lunch, maintain",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10,
+            "fiberG": 7
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9,
+            "fiberG": 6
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 100,
+        "band": "excellent",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 100,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "balanced lunch, lose gently",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10,
+            "fiberG": 7
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9,
+            "fiberG": 6
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 1700,
+          "goal": "lose_gently"
+        }
+      },
+      "expected": {
+        "score": 87,
+        "band": "excellent",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 49.6,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 100,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "balanced lunch, gain gently",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10,
+            "fiberG": 7
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9,
+            "fiberG": 6
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 2600,
+          "goal": "gain_gently"
+        }
+      },
+      "expected": {
+        "score": 100,
+        "band": "excellent",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 100,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "no micronutrients recorded",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9
+          }
+        ],
+        "mealType": "lunch"
+      },
+      "expected": {
+        "score": 100,
+        "band": "excellent",
+        "tier": "general",
+        "axes": [
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 54.5
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 45.5
+          }
+        ],
+        "skipped": [
+          "calorie_fit",
+          "fiber"
+        ]
+      }
+    },
+    {
+      "name": "no micronutrients recorded, with profile",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 100,
+        "band": "excellent",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 100,
+            "weight": 31.3
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 37.5
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 31.3
+          }
+        ],
+        "skipped": [
+          "fiber"
+        ]
+      }
+    },
+    {
+      "name": "small breakfast is not penalised",
+      "input": {
+        "items": [
+          {
+            "calories": 339,
+            "proteinG": 9,
+            "carbsG": 63,
+            "fatG": 8
+          }
+        ],
+        "mealType": "breakfast",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 81,
+        "band": "good",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 100,
+            "weight": 31.3
+          },
+          {
+            "axis": "protein",
+            "score": 66.4,
+            "weight": 37.5
+          },
+          {
+            "axis": "macro_balance",
+            "score": 79.4,
+            "weight": 31.3
+          }
+        ],
+        "skipped": [
+          "fiber"
+        ]
+      }
+    },
+    {
+      "name": "ordinary snack",
+      "input": {
+        "items": [
+          {
+            "calories": 300,
+            "proteinG": 12,
+            "carbsG": 35,
+            "fatG": 10,
+            "fiberG": 5
+          }
+        ],
+        "mealType": "snack",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 82,
+        "band": "good",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 28.6,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 100,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "oversized dinner",
+      "input": {
+        "items": [
+          {
+            "calories": 1600,
+            "proteinG": 40,
+            "carbsG": 200,
+            "fatG": 50,
+            "fiberG": 10
+          }
+        ],
+        "mealType": "dinner",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 51,
+        "band": "moderate",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 0,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 62.5,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 92.5,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 44.6,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "fried, carb dominated",
+      "input": {
+        "items": [
+          {
+            "calories": 900,
+            "proteinG": 10,
+            "carbsG": 110,
+            "fatG": 45
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 38,
+        "band": "heavy",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 18.4,
+            "weight": 31.3
+          },
+          {
+            "axis": "protein",
+            "score": 27.8,
+            "weight": 37.5
+          },
+          {
+            "axis": "macro_balance",
+            "score": 69.2,
+            "weight": 31.3
+          }
+        ],
+        "skipped": [
+          "fiber"
+        ]
+      }
+    },
+    {
+      "name": "high protein",
+      "input": {
+        "items": [
+          {
+            "calories": 600,
+            "proteinG": 45,
+            "carbsG": 60,
+            "fatG": 15,
+            "fiberG": 8
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 99,
+        "band": "excellent",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 95.2,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "fiber on only one item",
+      "input": {
+        "items": [
+          {
+            "calories": 350,
+            "proteinG": 20,
+            "carbsG": 45,
+            "fatG": 10,
+            "fiberG": 7
+          },
+          {
+            "calories": 350,
+            "proteinG": 18,
+            "carbsG": 48,
+            "fatG": 9
+          }
+        ],
+        "mealType": "lunch",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 94,
+        "band": "excellent",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 100,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 71.4,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "family sized portion is scored, not capped",
+      "input": {
+        "items": [
+          {
+            "calories": 2400,
+            "proteinG": 90,
+            "carbsG": 300,
+            "fatG": 80,
+            "fiberG": 30
+          }
+        ],
+        "mealType": "dinner",
+        "profile": {
+          "dailyCalorieTarget": 2000,
+          "goal": "maintain"
+        }
+      },
+      "expected": {
+        "score": 71,
+        "band": "good",
+        "tier": "personal",
+        "axes": [
+          {
+            "axis": "calorie_fit",
+            "score": 0,
+            "weight": 25
+          },
+          {
+            "axis": "protein",
+            "score": 93.8,
+            "weight": 30
+          },
+          {
+            "axis": "macro_balance",
+            "score": 100,
+            "weight": 25
+          },
+          {
+            "axis": "fiber",
+            "score": 89.3,
+            "weight": 20
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "name": "empty meal",
+      "input": {
+        "items": [],
+        "mealType": "lunch"
+      },
+      "expected": null
+    },
+    {
+      "name": "zero calorie meal",
+      "input": {
+        "items": [
+          {
+            "calories": 0,
+            "proteinG": 0,
+            "carbsG": 0,
+            "fatG": 0
+          }
+        ],
+        "mealType": "lunch"
+      },
+      "expected": null
+    }
+  ]
+}

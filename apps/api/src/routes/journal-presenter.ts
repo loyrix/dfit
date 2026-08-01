@@ -1,4 +1,10 @@
-import { calculatePlateScore, sumTotals, type PlateScoreProfile } from "@logmyplate/domain";
+import {
+  calculatePlateScore,
+  defaultPlateScorePolicy,
+  sumTotals,
+  type PlateScorePolicy,
+  type PlateScoreProfile,
+} from "@logmyplate/domain";
 import type {
   AppRepository,
   Profile,
@@ -22,25 +28,36 @@ export const toPlateScoreProfile = (
     : undefined;
 
 /**
- * `healthTarget` is a required parameter rather than an optional one so that
- * every call site has to decide. Defaulting it would silently downgrade users
- * who do have a target to the general tier.
+ * Everything meal scoring needs beyond the meal itself.
+ *
+ * Bundled into one required parameter so that every call site has to supply it:
+ * defaulting the health target would silently downgrade users who have one to
+ * the general tier, and defaulting the policy would make the server disagree
+ * with the copy the app computes locally whenever an operator tunes it.
  */
+export type MealScoringContext = {
+  healthTarget: ProfileHealthTarget | null | undefined;
+  plateScorePolicy: PlateScorePolicy;
+};
+
 export const toApiMeal = async (
   profileId: string,
   meal: RouteMeal,
   mealImageStorage: MealImageStorage,
-  healthTarget: ProfileHealthTarget | null | undefined,
+  scoring: MealScoringContext,
 ) => {
   const imageUrl = meal.image ? await mealImageStorage.createSignedReadUrl(meal.image) : undefined;
 
   // Scored from per-item nutrition, never meal.totals: sumTotals coerces absent
   // micronutrients to 0, which would make every meal look fiber-free.
-  const plateScore = calculatePlateScore({
-    items: meal.items.map((item) => item.nutrition),
-    mealType: meal.mealType,
-    profile: toPlateScoreProfile(healthTarget),
-  });
+  const plateScore = calculatePlateScore(
+    {
+      items: meal.items.map((item) => item.nutrition),
+      mealType: meal.mealType,
+      profile: toPlateScoreProfile(scoring.healthTarget),
+    },
+    scoring.plateScorePolicy,
+  );
 
   return {
     plateScore,
@@ -147,6 +164,7 @@ export const buildTodayJournal = async (
   profile: Profile,
   mealImageStorage: MealImageStorage,
   healthTarget?: ProfileHealthTarget | null,
+  plateScorePolicy: PlateScorePolicy = defaultPlateScorePolicy,
 ) => {
   const today = toDateString(new Date());
   const [meals, resolvedTarget] = await Promise.all([
@@ -160,7 +178,12 @@ export const buildTodayJournal = async (
     totals: sumTotals(meals.map((meal) => meal.totals)),
     target: dailyCalorieTarget(resolvedTarget ?? undefined),
     meals: await Promise.all(
-      meals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage, resolvedTarget)),
+      meals.map((meal) =>
+        toApiMeal(profile.id, meal, mealImageStorage, {
+          healthTarget: resolvedTarget,
+          plateScorePolicy,
+        }),
+      ),
     ),
   };
 };
@@ -172,6 +195,7 @@ export const buildJournalRange = async (
   mealImageStorage: MealImageStorage,
   weekOffset = 0,
   healthTarget?: ProfileHealthTarget | null,
+  plateScorePolicy: PlateScorePolicy = defaultPlateScorePolicy,
 ) => {
   const endDate = addDays(new Date(), -(weekOffset * 7));
   const dates = dateWindow(daysCount, endDate);
@@ -197,7 +221,12 @@ export const buildJournalRange = async (
         mealCount: dayMeals.length,
         totals: sumTotals(dayMeals.map((meal) => meal.totals)),
         meals: await Promise.all(
-          dayMeals.map((meal) => toApiMeal(profile.id, meal, mealImageStorage, resolvedTarget)),
+          dayMeals.map((meal) =>
+            toApiMeal(profile.id, meal, mealImageStorage, {
+              healthTarget: resolvedTarget,
+              plateScorePolicy,
+            }),
+          ),
         ),
       };
     }),

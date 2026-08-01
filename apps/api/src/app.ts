@@ -122,8 +122,8 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   );
   await registerSubscriptionRoutes(app, repository, options.revenueCat ?? config.revenueCat);
   await registerBootstrapRoutes(app, repository, mealImageStorage, sql);
-  await registerJournalRoutes(app, repository, mealImageStorage);
-  await registerScanRoutes(app, repository, mealImageStorage, aiProvider);
+  await registerJournalRoutes(app, repository, mealImageStorage, sql);
+  await registerScanRoutes(app, repository, mealImageStorage, aiProvider, sql);
   await registerAdminRoutes(app, sql, mealImageStorage);
   await registerCronRoutes(app, sql);
   await registerChatRoutes(app, repository, chatAiProvider, config.chat);

@@ -66,59 +66,60 @@ export type PlateScoreResult = {
 };
 
 /**
- * Base weights. Inactive axes are dropped and the rest renormalise to 100, so
- * the general tier reuses this table rather than defining its own.
- */
-const BASE_WEIGHTS: Record<PlateScoreAxis, number> = {
-  calorie_fit: 25,
-  protein: 30,
-  macro_balance: 25,
-  fiber: 20,
-};
-
-/** Expected share of the day's calories, used only by the calorie-fit axis. */
-const MEAL_SHARE: Record<PlateScoreMealType, number> = {
-  breakfast: 0.25,
-  lunch: 0.35,
-  dinner: 0.3,
-  snack: 0.1,
-};
-
-/**
- * How far from the expected share still counts as a good fit. Snacks are
- * deliberately loose: a 300 kcal snack is normal, and a tight band would
- * penalise ordinary eating.
- */
-const CALORIE_TOLERANCE: Record<PlateScoreMealType, number> = {
-  breakfast: 0.35,
-  lunch: 0.35,
-  dinner: 0.35,
-  snack: 0.7,
-};
-
-/**
- * Protein g per 1000 kcal considered adequate, by goal.
+ * Every tunable number in one place.
  *
- * Density rather than absolute grams, deliberately. Judging a meal against a
- * share of a daily gram target punishes small meals: a 95 kcal chai and biscuit
- * would be asked for 20 g of protein and score near zero for a snack nobody
- * thinks is a protein source. Density asks the fair question — "for the calories
- * here, is this a reasonable amount of protein?" — at any portion size.
- *
- * Cutting calories raises the target because protein matters more when energy is
- * scarce; gaining sits between the two since total intake is already higher.
+ * The *shape* of the algorithm is fixed — sum items, score four axes,
+ * renormalise weights, weighted average, map to a band — but the numbers are
+ * conventions rather than facts. Keeping them in a policy object means the API
+ * can serve them from runtime config and the mobile app can compute an
+ * identical score locally, so the review screen updates instantly while the
+ * values stay tunable from the backend without an app release.
  */
-const PROTEIN_DENSITY_TARGET: Record<PlateScoreGoal, number> = {
-  maintain: 40,
-  lose_gently: 50,
-  gain_gently: 45,
+export type PlateScorePolicy = {
+  /** Base weights. Inactive axes drop out and the rest renormalise to 100. */
+  weights: Record<PlateScoreAxis, number>;
+  /** Expected share of the day's calories, used only by the calorie-fit axis. */
+  mealShare: Record<PlateScoreMealType, number>;
+  /** How far above the expected share still scores above zero. */
+  calorieTolerance: Record<PlateScoreMealType, number>;
+  /** Protein g per 1000 kcal considered adequate, by goal. */
+  proteinDensityTarget: Record<PlateScoreGoal, number>;
+  /** Protein target when no goal is known. */
+  generalProteinDensityTarget: number;
+  /** Fiber g per 1000 kcal; the widely used adequacy guideline is 14. */
+  fiberDensityTarget: number;
+  /** Acceptable share-of-energy bands, and how hard to punish straying. */
+  macroBands: {
+    proteinPct: { min: number; max: number };
+    carbsPct: { min: number; max: number };
+    fatPct: { min: number; max: number };
+    penaltyMultiplier: number;
+  };
+  /** Lower bound of each band. Anything below `moderate` is "heavy". */
+  bandCutoffs: { excellent: number; good: number; moderate: number };
 };
 
-/** Used when no goal is known. Matches the maintenance target. */
-const GENERAL_PROTEIN_DENSITY_TARGET = 40;
-
-/** Fiber g per 1000 kcal; the widely used adequacy guideline is 14. */
-const FIBER_DENSITY_TARGET = 14;
+export const defaultPlateScorePolicy: PlateScorePolicy = {
+  weights: { calorie_fit: 25, protein: 30, macro_balance: 25, fiber: 20 },
+  mealShare: { breakfast: 0.25, lunch: 0.35, dinner: 0.3, snack: 0.1 },
+  // Snacks are deliberately loose: a 300 kcal snack is normal, and a tight band
+  // would penalise ordinary eating.
+  calorieTolerance: { breakfast: 0.35, lunch: 0.35, dinner: 0.35, snack: 0.7 },
+  // Density rather than absolute grams. Judging a meal against a share of a
+  // daily gram target punishes small meals: a 95 kcal chai and biscuit would be
+  // asked for 20 g of protein. Cutting calories raises the target because
+  // protein matters more when energy is scarce.
+  proteinDensityTarget: { maintain: 40, lose_gently: 50, gain_gently: 45 },
+  generalProteinDensityTarget: 40,
+  fiberDensityTarget: 14,
+  macroBands: {
+    proteinPct: { min: 15, max: 35 },
+    carbsPct: { min: 40, max: 65 },
+    fatPct: { min: 20, max: 35 },
+    penaltyMultiplier: 1.5,
+  },
+  bandCutoffs: { excellent: 85, good: 70, moderate: 50 },
+};
 
 const clamp = (value: number, min = 0, max = 100): number => Math.max(min, Math.min(max, value));
 
@@ -194,6 +195,7 @@ const macroBalanceScore = (
   proteinG: number,
   carbsG: number,
   fatG: number,
+  bands: PlateScorePolicy["macroBands"],
 ): number => {
   if (calories <= 0) return 0;
 
@@ -207,15 +209,18 @@ const macroBalanceScore = (
     return 0;
   };
 
-  const total = penalty(proteinPct, 15, 35) + penalty(carbsPct, 40, 65) + penalty(fatPct, 20, 35);
+  const total =
+    penalty(proteinPct, bands.proteinPct.min, bands.proteinPct.max) +
+    penalty(carbsPct, bands.carbsPct.min, bands.carbsPct.max) +
+    penalty(fatPct, bands.fatPct.min, bands.fatPct.max);
 
-  return clamp(100 - total * 1.5);
+  return clamp(100 - total * bands.penaltyMultiplier);
 };
 
-const bandFor = (score: number): PlateScoreBand => {
-  if (score >= 85) return "excellent";
-  if (score >= 70) return "good";
-  if (score >= 50) return "moderate";
+const bandFor = (score: number, cutoffs: PlateScorePolicy["bandCutoffs"]): PlateScoreBand => {
+  if (score >= cutoffs.excellent) return "excellent";
+  if (score >= cutoffs.good) return "good";
+  if (score >= cutoffs.moderate) return "moderate";
   return "heavy";
 };
 
@@ -223,7 +228,10 @@ const bandFor = (score: number): PlateScoreBand => {
  * Scores a meal. Returns undefined only when there is nothing to score at all,
  * so callers can hide the card rather than render a meaningless zero.
  */
-export const calculatePlateScore = (input: PlateScoreInput): PlateScoreResult | undefined => {
+export const calculatePlateScore = (
+  input: PlateScoreInput,
+  policy: PlateScorePolicy = defaultPlateScorePolicy,
+): PlateScoreResult | undefined => {
   const totals = sumForScoring(input.items);
   if (totals.calories <= 0) return undefined;
 
@@ -233,10 +241,10 @@ export const calculatePlateScore = (input: PlateScoreInput): PlateScoreResult | 
 
   // Calorie fit — the only axis that needs personal data.
   if (profile && profile.dailyCalorieTarget > 0) {
-    const expected = profile.dailyCalorieTarget * MEAL_SHARE[input.mealType];
+    const expected = profile.dailyCalorieTarget * policy.mealShare[input.mealType];
     active.push({
       axis: "calorie_fit",
-      score: calorieFitScore(totals.calories, expected, CALORIE_TOLERANCE[input.mealType]),
+      score: calorieFitScore(totals.calories, expected, policy.calorieTolerance[input.mealType]),
     });
   } else {
     skipped.push("calorie_fit");
@@ -245,40 +253,46 @@ export const calculatePlateScore = (input: PlateScoreInput): PlateScoreResult | 
   // Protein — density in both tiers, so portion size never distorts it. The
   // goal shifts the target rather than the measure.
   const proteinTarget = profile
-    ? PROTEIN_DENSITY_TARGET[profile.goal]
-    : GENERAL_PROTEIN_DENSITY_TARGET;
+    ? policy.proteinDensityTarget[profile.goal]
+    : policy.generalProteinDensityTarget;
   const proteinPer1000 = (totals.proteinG / totals.calories) * 1000;
   active.push({ axis: "protein", score: adequacyScore(proteinPer1000, proteinTarget) });
 
   active.push({
     axis: "macro_balance",
-    score: macroBalanceScore(totals.calories, totals.proteinG, totals.carbsG, totals.fatG),
+    score: macroBalanceScore(
+      totals.calories,
+      totals.proteinG,
+      totals.carbsG,
+      totals.fatG,
+      policy.macroBands,
+    ),
   });
 
   // Fiber — skipped entirely when unknown, never scored as zero.
   if (totals.fiberG !== undefined) {
     const per1000 = (totals.fiberG / totals.calories) * 1000;
-    active.push({ axis: "fiber", score: adequacyScore(per1000, FIBER_DENSITY_TARGET) });
+    active.push({ axis: "fiber", score: adequacyScore(per1000, policy.fiberDensityTarget) });
   } else {
     skipped.push("fiber");
   }
 
-  const weightSum = active.reduce((sum, entry) => sum + BASE_WEIGHTS[entry.axis], 0);
+  const weightSum = active.reduce((sum, entry) => sum + policy.weights[entry.axis], 0);
   if (weightSum <= 0) return undefined;
 
   const axes: PlateScoreAxisResult[] = active.map((entry) => ({
     axis: entry.axis,
     score: round(entry.score),
-    weight: round((BASE_WEIGHTS[entry.axis] / weightSum) * 100),
+    weight: round((policy.weights[entry.axis] / weightSum) * 100),
   }));
 
   const score = Math.round(
-    active.reduce((sum, entry) => sum + entry.score * BASE_WEIGHTS[entry.axis], 0) / weightSum,
+    active.reduce((sum, entry) => sum + entry.score * policy.weights[entry.axis], 0) / weightSum,
   );
 
   return {
     score,
-    band: bandFor(score),
+    band: bandFor(score, policy.bandCutoffs),
     tier: profile ? "personal" : "general",
     axes,
     skipped,

@@ -10,6 +10,7 @@ import {
 import { loadEngagementPolicy } from "../services/engagement-policy.js";
 import { buildStreakSummary } from "../services/streak-summary.js";
 import { buildJournalSummary, buildTodayJournal } from "./journal-presenter.js";
+import { loadPlateScorePolicy } from "../services/plate-score-policy.js";
 import { createRouteTimer } from "./route-timing.js";
 
 export const registerBootstrapRoutes = async (
@@ -24,9 +25,10 @@ export const registerBootstrapRoutes = async (
     const updatePolicyConfig = await timer.measure("updatePolicy", () =>
       loadAppUpdatePolicyConfig(sql),
     );
-    const engagementPolicy = await timer.measure("engagementPolicy", () =>
-      loadEngagementPolicy(sql),
-    );
+    const [engagementPolicy, plateScorePolicy] = await Promise.all([
+      timer.measure("engagementPolicy", () => loadEngagementPolicy(sql)),
+      timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+    ]);
     const [quota, subscription, rawRewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
       timer.measure("subscription", () => repository.getSubscriptionStatus()),
@@ -44,7 +46,13 @@ export const registerBootstrapRoutes = async (
         };
     const [today, weeklySummary, streakSummary] = await Promise.all([
       timer.measure("today", () =>
-        buildTodayJournal(repository, profile, mealImageStorage, healthTarget ?? null),
+        buildTodayJournal(
+          repository,
+          profile,
+          mealImageStorage,
+          healthTarget ?? null,
+          plateScorePolicy,
+        ),
       ),
       timer.measure("weeklySummary", () =>
         buildJournalSummary(repository, profile, 7, 0, healthTarget ?? null),
@@ -70,6 +78,9 @@ export const registerBootstrapRoutes = async (
       healthTarget,
       updatePolicy: resolveAppUpdatePolicy(updatePolicyConfig, readClientAppBuild(request)),
       engagementPolicy,
+      // Served so the app can compute an identical score locally while the user
+      // edits a meal, without a network round-trip per change.
+      plateScorePolicy,
       quota,
       subscription,
       rewardedAdProgress,
