@@ -2,6 +2,7 @@ import 'package:logmyplate_mobile/src/widgets/premium_button.dart';
 import 'dart:math' as math;
 import '../theme/logmyplate_spacing.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -47,6 +48,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
   HealthSex _sex = HealthSex.notSpecified;
   ActivityLevel _activityLevel = ActivityLevel.light;
   HealthGoal _goal = HealthGoal.maintain;
+  Set<HealthFocus> _healthFocus = <HealthFocus>{};
   bool _saving = false;
   String? _error;
   _HeightUnit _heightUnit = _HeightUnit.metric;
@@ -72,6 +74,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       _sex = target.sex;
       _activityLevel = target.activityLevel;
       _goal = target.goal;
+      _healthFocus = target.healthFocus.toSet();
     }
     _syncHeightText();
     _weightController.text = _formatMetric(_weightKg, decimalPlaces: 1);
@@ -217,6 +220,11 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                 onSelected: _saving
                     ? null
                     : (value) => setState(() => _goal = value),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _HealthFocusGroup(
+                selected: _healthFocus,
+                onToggle: _saving ? null : _toggleHealthFocus,
               ),
               if (_error != null) ...[
                 const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
@@ -392,6 +400,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
           sex: _sex,
           activityLevel: _activityLevel,
           goal: _goal,
+          healthFocus: _healthFocus.toList(),
         ),
       );
       if (!mounted) return;
@@ -425,7 +434,18 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
         _ageYears != initial.ageYears ||
         _sex != initial.sex ||
         _activityLevel != initial.activityLevel ||
-        _goal != initial.goal;
+        _goal != initial.goal ||
+        !setEquals(_healthFocus, initial.healthFocus.toSet());
+  }
+
+  void _toggleHealthFocus(HealthFocus focus) {
+    setState(() {
+      if (_healthFocus.contains(focus)) {
+        _healthFocus.remove(focus);
+      } else {
+        _healthFocus.add(focus);
+      }
+    });
   }
 
   static double _clampMetric(double value, double min, double max) {
@@ -1614,5 +1634,96 @@ class _HealthPreview {
   static double _round(double value, int decimals) {
     final factor = math.pow(10, decimals).toDouble();
     return (value * factor).round() / factor;
+  }
+}
+
+/// Optional multi-select for health focus areas.
+///
+/// Optional by design: the Plate Score works without it, and these only change
+/// the wording of advice, never the number. Selecting none is a valid answer, so
+/// there is no "None" chip to pick.
+class _HealthFocusGroup extends StatelessWidget {
+  const _HealthFocusGroup({required this.selected, this.onToggle});
+
+  final Set<HealthFocus> selected;
+  final ValueChanged<HealthFocus>? onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Health focus (optional)',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textSecondary,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'We will tailor the wording of meal feedback. This is guidance, not '
+          'medical advice.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final focus in HealthFocus.values)
+              _HealthFocusChip(
+                focus: focus,
+                selected: selected.contains(focus),
+                onTap: onToggle == null ? null : () => onToggle!(focus),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HealthFocusChip extends StatelessWidget {
+  const _HealthFocusChip({
+    required this.focus,
+    required this.selected,
+    this.onTap,
+  });
+
+  final HealthFocus focus;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            border: Border.all(color: selected ? colors.accent : colors.border),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            focus.label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: selected ? colors.accentOn : colors.textPrimary,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

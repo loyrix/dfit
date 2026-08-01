@@ -993,6 +993,72 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("rescores a cached analysis after the user changes their health target", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "rescore-account",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "rescore@example.com", password: "secret1" },
+    });
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { ...accountHeaders, "idempotency-key": "rescore-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const first = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { ...accountHeaders, "idempotency-key": "rescore-analyze" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+    expect(first.json().plateScore.tier).toBe("general");
+
+    await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: { ...accountHeaders, "idempotency-key": "rescore-health" },
+      payload: {
+        heightCm: 175,
+        weightKg: 70,
+        ageYears: 30,
+        sex: "male",
+        activityLevel: "moderate",
+        goal: "maintain",
+      },
+    });
+
+    // Re-reading the same scan hits the cached analysis. The score must reflect
+    // the new target rather than the one cached before it existed.
+    const cached = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { ...accountHeaders, "idempotency-key": "rescore-analyze-2" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+
+    expect(cached.json().plateScore.tier).toBe("personal");
+    expect(cached.json().plateScore.skipped).not.toContain("calorie_fit");
+    await app.close();
+  });
+
   it("recovers micronutrients an older app build dropped, without touching macros", async () => {
     const app = await testApp();
     const prepared = await app.inject({

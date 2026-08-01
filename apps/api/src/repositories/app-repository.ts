@@ -311,6 +311,8 @@ export type DailyMealAggregate = {
   totals: MacroTotals;
 };
 
+export type HealthFocus = "diabetes" | "blood_pressure" | "cholesterol" | "pcos";
+
 export type ProfileHealthTarget = {
   profileId: string;
   heightCm: number;
@@ -324,6 +326,11 @@ export type ProfileHealthTarget = {
   bmrCalories: number;
   dailyCalorieTarget: number;
   formula: string;
+  /**
+   * Optional health focus areas. These change the wording around a Plate Score,
+   * never the number.
+   */
+  healthFocus: HealthFocus[];
   createdAt: string;
   updatedAt: string;
 };

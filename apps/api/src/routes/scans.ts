@@ -287,6 +287,51 @@ const applyPortionSignals = (items: AnalyzeScanResponseContract["items"]) => {
   };
 };
 
+/**
+ * Attaches a freshly computed Plate Score to an analysis.
+ *
+ * Applied on every return path, including the two cached ones, because the
+ * score depends on the user's health target and policy rather than on the
+ * photo. Caching it would mean a user who updates their goal keeps seeing the
+ * score from before the change on any repeat image.
+ *
+ * Non-fatal: a failure leaves whatever score was already there rather than
+ * costing the user a scan.
+ */
+const withFreshPlateScore = async (
+  analysis: Record<string, unknown>,
+  profileId: string,
+  repository: AppRepository,
+  sql: SqlClient | undefined,
+  log: FastifyBaseLogger,
+): Promise<Record<string, unknown>> => {
+  try {
+    const items = (analysis.items as Array<{ nutrition?: unknown }> | undefined) ?? [];
+    if (items.length === 0) return analysis;
+
+    const [healthTarget, policy] = await Promise.all([
+      repository.getHealthTarget(profileId),
+      loadPlateScorePolicy(sql),
+    ]);
+
+    const plateScore = calculatePlateScore(
+      {
+        items: items.map(
+          (item) => item.nutrition as AnalyzeScanResponseContract["items"][number]["nutrition"],
+        ),
+        mealType: analysis.mealType as AnalyzeScanResponseContract["mealType"],
+        profile: toPlateScoreProfile(healthTarget),
+      },
+      policy,
+    );
+
+    return { ...analysis, plateScore };
+  } catch (error) {
+    log.error({ err: error, profileId }, "plate score for analysis failed");
+    return analysis;
+  }
+};
+
 const noFoodScanLimit = () => {
   const configured = Number(process.env.NO_FOOD_SCAN_DAILY_LIMIT ?? defaultNoFoodScanLimit);
   return Number.isFinite(configured) ? Math.max(0, Math.floor(configured)) : defaultNoFoodScanLimit;
@@ -330,7 +375,13 @@ export const registerScanRoutes = async (
         "scan analyze timings",
       );
       return {
-        ...(scan.analyzedResponse as Record<string, unknown>),
+        ...(await withFreshPlateScore(
+          scan.analyzedResponse as Record<string, unknown>,
+          scan.profileId,
+          repository,
+          sql,
+          request.log,
+        )),
         imageStored: Boolean(imageFromScan(scan)),
       };
     }
@@ -409,7 +460,13 @@ export const registerScanRoutes = async (
           );
 
           return {
-            ...response,
+            ...(await withFreshPlateScore(
+              response as Record<string, unknown>,
+              scan.profileId,
+              repository,
+              sql,
+              request.log,
+            )),
             imageStored: false,
           };
         }
@@ -530,27 +587,6 @@ export const registerScanRoutes = async (
       );
     }
 
-    // Scored for the review screen. Non-fatal: a missing score just hides the
-    // card, and must never cost the user the scan they already paid a credit for.
-    if (analyzedResult.analysis.items.length > 0) {
-      try {
-        const [analyzeHealthTarget, analyzePolicy] = await Promise.all([
-          timer.measure("healthTarget", () => repository.getHealthTarget(scan.profileId)),
-          timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
-        ]);
-        analyzedResult.analysis.plateScore = calculatePlateScore(
-          {
-            items: analyzedResult.analysis.items.map((item) => item.nutrition),
-            mealType: analyzedResult.analysis.mealType,
-            profile: toPlateScoreProfile(analyzeHealthTarget),
-          },
-          analyzePolicy,
-        );
-      } catch (error) {
-        request.log.error({ err: error, scanId: scan.id }, "plate score for analysis failed");
-      }
-    }
-
     const hasFoodItems = analyzedResult.analysis.items.length > 0;
 
     // Credit consumption, image storage upload, and analysis-cache store are
@@ -621,7 +657,15 @@ export const registerScanRoutes = async (
     );
 
     const response = {
-      ...analyzedResult.analysis,
+      ...(await timer.measure("plateScore", () =>
+        withFreshPlateScore(
+          analyzedResult.analysis as unknown as Record<string, unknown>,
+          scan.profileId,
+          repository,
+          sql,
+          request.log,
+        ),
+      )),
       imageStored: Boolean(storedScanImage),
     };
 

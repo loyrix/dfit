@@ -1,6 +1,17 @@
 import { z } from "zod";
 import { idSchema } from "./common.js";
 
+/**
+ * Optional health focus areas.
+ *
+ * Launched with four only. Kidney disease, gout, IBS, pregnancy and allergies
+ * carry the highest medical risk and the smallest audience, so they are not in
+ * v1. These change the wording around a Plate Score, never the number.
+ */
+export const healthFocusSchema = z.enum(["diabetes", "blood_pressure", "cholesterol", "pcos"]);
+
+export type HealthFocusContract = z.infer<typeof healthFocusSchema>;
+
 export const profileHealthTargetRequestSchema = z.object({
   heightCm: z.number().min(90).max(250),
   weightKg: z.number().min(25).max(300),
@@ -8,6 +19,8 @@ export const profileHealthTargetRequestSchema = z.object({
   sex: z.enum(["female", "male", "not_specified"]),
   activityLevel: z.enum(["sedentary", "light", "moderate", "active"]),
   goal: z.enum(["maintain", "lose_gently", "gain_gently"]),
+  // Defaulted so older app builds that omit it keep validating.
+  healthFocus: z.array(healthFocusSchema).max(4).default([]),
 });
 
 export const profileHealthTargetSchema = profileHealthTargetRequestSchema.extend({

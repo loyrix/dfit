@@ -123,7 +123,12 @@ export const registerProfileRoutes = async (
     }
 
     try {
-      const healthTarget = await repository.upsertHealthTarget(calculateHealthTarget(parsed.data));
+      // healthFocus is stored as given: it never feeds the calorie maths, only
+      // the wording of AI advice.
+      const healthTarget = await repository.upsertHealthTarget({
+        ...calculateHealthTarget(parsed.data),
+        healthFocus: parsed.data.healthFocus,
+      });
       return { healthTarget };
     } catch (error) {
       if (error instanceof AccountAuthError) {

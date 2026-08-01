@@ -230,6 +230,7 @@ type HealthTargetRow = {
   bmr_calories: number;
   daily_calorie_target: number;
   formula: string;
+  health_focus: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -360,6 +361,8 @@ const healthTargetFromRow = (row: HealthTargetRow): ProfileHealthTarget => ({
   bmrCalories: row.bmr_calories,
   dailyCalorieTarget: row.daily_calorie_target,
   formula: row.formula,
+  // Rows created before the column existed default to an empty array.
+  healthFocus: (row.health_focus ?? []) as ProfileHealthTarget["healthFocus"],
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -783,6 +786,7 @@ export class PostgresStore implements AppRepository {
         bmr_calories,
         daily_calorie_target,
         formula,
+        health_focus,
         created_at::text,
         updated_at::text
       from profile_health_targets
@@ -816,7 +820,8 @@ export class PostgresStore implements AppRepository {
         bmi_category,
         bmr_calories,
         daily_calorie_target,
-        formula
+        formula,
+        health_focus
       )
       values (
         ${profile.id},
@@ -830,7 +835,8 @@ export class PostgresStore implements AppRepository {
         ${input.bmiCategory},
         ${input.bmrCalories},
         ${input.dailyCalorieTarget},
-        ${input.formula}
+        ${input.formula},
+        ${input.healthFocus}
       )
       on conflict (profile_id) do update
       set
@@ -845,6 +851,7 @@ export class PostgresStore implements AppRepository {
         bmr_calories = excluded.bmr_calories,
         daily_calorie_target = excluded.daily_calorie_target,
         formula = excluded.formula,
+        health_focus = excluded.health_focus,
         updated_at = now()
       returning
         profile_id::text,
@@ -859,6 +866,7 @@ export class PostgresStore implements AppRepository {
         bmr_calories,
         daily_calorie_target,
         formula,
+        health_focus,
         created_at::text,
         updated_at::text
     `;

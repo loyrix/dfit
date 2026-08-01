@@ -364,7 +364,9 @@ class MealLog {
       image: json['image'] == null
           ? null
           : MealImage.fromJson(json['image'] as Map<String, dynamic>),
-      plateScore: PlateScore.fromJson(json['plateScore'] as Map<String, dynamic>?),
+      plateScore: PlateScore.fromJson(
+        json['plateScore'] as Map<String, dynamic>?,
+      ),
     );
   }
 
@@ -767,6 +769,44 @@ extension HealthGoalApi on HealthGoal {
   }
 }
 
+/// Optional health focus areas.
+///
+/// Launched with four only; kidney disease, gout, IBS, pregnancy and allergies
+/// carry the highest medical risk and the smallest audience. These change the
+/// wording around a Plate Score, never the number.
+enum HealthFocus { diabetes, bloodPressure, cholesterol, pcos }
+
+extension HealthFocusApi on HealthFocus {
+  String get apiName => switch (this) {
+    HealthFocus.diabetes => 'diabetes',
+    HealthFocus.bloodPressure => 'blood_pressure',
+    HealthFocus.cholesterol => 'cholesterol',
+    HealthFocus.pcos => 'pcos',
+  };
+
+  String get label => switch (this) {
+    HealthFocus.diabetes => 'Diabetes or prediabetes',
+    HealthFocus.bloodPressure => 'High blood pressure',
+    HealthFocus.cholesterol => 'High cholesterol',
+    HealthFocus.pcos => 'PCOS',
+  };
+
+  static HealthFocus? fromApi(String value) => switch (value) {
+    'diabetes' => HealthFocus.diabetes,
+    'blood_pressure' => HealthFocus.bloodPressure,
+    'cholesterol' => HealthFocus.cholesterol,
+    'pcos' => HealthFocus.pcos,
+    _ => null,
+  };
+
+  static List<HealthFocus> listFromApi(List<dynamic>? value) =>
+      (value ?? const [])
+          .whereType<String>()
+          .map(HealthFocusApi.fromApi)
+          .whereType<HealthFocus>()
+          .toList();
+}
+
 class HealthTargetInput {
   const HealthTargetInput({
     required this.heightCm,
@@ -775,6 +815,7 @@ class HealthTargetInput {
     required this.sex,
     required this.activityLevel,
     required this.goal,
+    this.healthFocus = const [],
   });
 
   final double heightCm;
@@ -783,6 +824,7 @@ class HealthTargetInput {
   final HealthSex sex;
   final ActivityLevel activityLevel;
   final HealthGoal goal;
+  final List<HealthFocus> healthFocus;
 
   Map<String, dynamic> toJson() {
     return {
@@ -792,6 +834,7 @@ class HealthTargetInput {
       'sex': sex.apiName,
       'activityLevel': activityLevel.apiName,
       'goal': goal.apiName,
+      'healthFocus': healthFocus.map((focus) => focus.apiName).toList(),
     };
   }
 }
@@ -810,6 +853,7 @@ class HealthTarget {
     required this.bmrCalories,
     required this.dailyCalorieTarget,
     required this.formula,
+    this.healthFocus = const [],
   });
 
   final String profileId;
@@ -824,6 +868,7 @@ class HealthTarget {
   final int bmrCalories;
   final int dailyCalorieTarget;
   final String formula;
+  final List<HealthFocus> healthFocus;
 
   String get friendlyBmiCategory {
     switch (bmiCategory) {
@@ -854,6 +899,10 @@ class HealthTarget {
       bmrCalories: json['bmrCalories'] as int,
       dailyCalorieTarget: json['dailyCalorieTarget'] as int,
       formula: json['formula'] as String? ?? '',
+      // Absent on older API responses; an empty list is the correct default.
+      healthFocus: HealthFocusApi.listFromApi(
+        json['healthFocus'] as List<dynamic>?,
+      ),
     );
   }
 
