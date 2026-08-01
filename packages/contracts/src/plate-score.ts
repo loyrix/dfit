@@ -45,6 +45,23 @@ export const plateWarningSchema = z.object({
 
 export type PlateWarningContract = z.infer<typeof plateWarningSchema>;
 
+/**
+ * Short, educational commentary on a meal from the model.
+ *
+ * Every field is optional: advice is a bonus on top of the score, never a
+ * requirement, so a model that returns none simply produces no card. Lengths are
+ * capped so the UI cannot be flooded, and the copy is explicitly guidance rather
+ * than medical advice.
+ */
+export const mealAdviceSchema = z.object({
+  summary: z.string().trim().min(1).max(240).optional(),
+  positives: z.array(z.string().trim().min(1).max(120)).max(2).default([]),
+  watchOuts: z.array(z.string().trim().min(1).max(120)).max(2).default([]),
+  swaps: z.array(z.string().trim().min(1).max(140)).max(2).default([]),
+});
+
+export type MealAdviceContract = z.infer<typeof mealAdviceSchema>;
+
 export const plateScoreSchema = z.object({
   score: z.number().int().min(0).max(100),
   band: plateScoreBandSchema,

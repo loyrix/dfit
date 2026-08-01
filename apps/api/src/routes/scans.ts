@@ -341,6 +341,22 @@ const withFreshPlateScore = async (
   }
 };
 
+/**
+ * Removes advice from a cached analysis.
+ *
+ * The analysis cache is keyed on the image, but advice is written for the
+ * user's goal and health focus at the time it was generated. Rather than fold
+ * the profile into the cache key — which would cost a scan credit every time
+ * someone edits their conditions, since cache hits skip credit consumption — we
+ * simply drop advice on a cache hit. The score is recomputed and stays correct;
+ * advice reappears on the next fresh analysis.
+ */
+const withoutStaleAdvice = (analysis: Record<string, unknown>): Record<string, unknown> => {
+  if (!("advice" in analysis)) return analysis;
+  const { advice: _stale, ...rest } = analysis;
+  return rest;
+};
+
 const noFoodScanLimit = () => {
   const configured = Number(process.env.NO_FOOD_SCAN_DAILY_LIMIT ?? defaultNoFoodScanLimit);
   return Number.isFinite(configured) ? Math.max(0, Math.floor(configured)) : defaultNoFoodScanLimit;
@@ -385,7 +401,7 @@ export const registerScanRoutes = async (
       );
       return {
         ...(await withFreshPlateScore(
-          scan.analyzedResponse as Record<string, unknown>,
+          withoutStaleAdvice(scan.analyzedResponse as Record<string, unknown>),
           scan.profileId,
           repository,
           sql,
@@ -470,7 +486,7 @@ export const registerScanRoutes = async (
 
           return {
             ...(await withFreshPlateScore(
-              response as Record<string, unknown>,
+              withoutStaleAdvice(response as Record<string, unknown>),
               scan.profileId,
               repository,
               sql,
@@ -529,6 +545,12 @@ export const registerScanRoutes = async (
 
     let analyzedResult;
     try {
+      // Only goal and health focus travel to the model, and only to shape the
+      // wording of optional advice. The score stays deterministic.
+      const adviceProfile = await timer
+        .measure("healthTargetForAdvice", () => repository.getHealthTarget(scan.profileId))
+        .catch(() => undefined);
+
       analyzedResult = await timer.measure("aiAnalyze", () =>
         aiProvider.analyzeMealImage({
           scanId: scan.id,
@@ -538,6 +560,9 @@ export const registerScanRoutes = async (
           region: identity.region,
           timezone: identity.timezone,
           image,
+          userProfile: adviceProfile
+            ? { goal: adviceProfile.goal, healthFocus: adviceProfile.healthFocus }
+            : undefined,
         }),
       );
     } catch (error) {

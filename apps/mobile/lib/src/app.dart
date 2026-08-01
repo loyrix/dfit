@@ -587,6 +587,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                           plateScorePolicy:
                               _journalController.plateScorePolicy,
                           onPersonaliseScore: _openHealthTargetEditor,
+                          mealAdvice: analysis.advice,
                           initialItems: analysis.items,
                           initialMealType: mealTypeForReview(
                             localTime: DateTime.now(),

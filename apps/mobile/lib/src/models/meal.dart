@@ -2417,6 +2417,7 @@ class ScanAnalysis {
     required this.detectedLanguage,
     required this.items,
     this.imageStored = false,
+    this.advice,
   });
 
   final String scanId;
@@ -2425,6 +2426,9 @@ class ScanAnalysis {
   final String detectedLanguage;
   final List<MealItem> items;
   final bool imageStored;
+
+  /// Absent when the model had nothing worth saying, or on an older API.
+  final MealAdvice? advice;
 
   MacroTotals get totals {
     return items.fold<MacroTotals>(
@@ -2445,6 +2449,7 @@ class ScanAnalysis {
             (item) => MealItem.fromAnalysisJson(item as Map<String, dynamic>),
           )
           .toList(),
+      advice: MealAdvice.fromJson(json['advice'] as Map<String, dynamic>?),
     );
   }
 }

@@ -263,6 +263,83 @@ void main() {
     });
   });
 
+  group('meal advice', () {
+    Widget sheetWith(MealAdvice? advice) => _wrap(
+      Scaffold(
+        body: PlateScoreSheet(
+          score: const PlateScore(
+            score: 72,
+            band: PlateScoreBand.good,
+            tier: PlateScoreTier.personal,
+            axes: [],
+            skipped: [],
+          ),
+          advice: advice,
+        ),
+      ),
+    );
+
+    test('treats an all-empty advice payload as absent', () {
+      // An unremarkable meal should produce no card rather than empty headings.
+      expect(
+        MealAdvice.fromJson({
+          'summary': '',
+          'positives': <dynamic>[],
+          'watchOuts': <dynamic>[],
+          'swaps': <dynamic>[],
+        }),
+        isNull,
+      );
+      expect(MealAdvice.fromJson(null), isNull);
+    });
+
+    test('drops blank strings the model may emit', () {
+      final advice = MealAdvice.fromJson({
+        'summary': 'A balanced plate.',
+        'positives': <dynamic>['Good protein', '   ', 42],
+      });
+
+      expect(advice, isNotNull);
+      expect(advice!.positives, ['Good protein']);
+    });
+
+    testWidgets('shows nothing extra when there is no advice', (tester) async {
+      await tester.pumpWidget(sheetWith(null));
+
+      expect(find.text('WORKS WELL'), findsNothing);
+      expect(find.text('TRY INSTEAD'), findsNothing);
+    });
+
+    testWidgets('renders summary, positives and swaps', (tester) async {
+      await tester.pumpWidget(
+        sheetWith(
+          const MealAdvice(
+            summary: 'A balanced plate with decent protein.',
+            positives: ['Good protein source'],
+            watchOuts: ['Fairly carb heavy'],
+            swaps: ['Swap one roti for a salad'],
+          ),
+        ),
+      );
+
+      expect(
+        find.text('A balanced plate with decent protein.'),
+        findsOneWidget,
+      );
+      expect(find.text('Good protein source'), findsOneWidget);
+      expect(find.text('Fairly carb heavy'), findsOneWidget);
+      expect(find.text('Swap one roti for a salad'), findsOneWidget);
+    });
+
+    testWidgets('always states this is not medical advice', (tester) async {
+      await tester.pumpWidget(
+        sheetWith(const MealAdvice(summary: 'A balanced plate.')),
+      );
+
+      expect(find.textContaining('not medical advice'), findsOneWidget);
+    });
+  });
+
   group('PlateScoreChip', () {
     testWidgets('shows the number and colours by band', (tester) async {
       await tester.pumpWidget(

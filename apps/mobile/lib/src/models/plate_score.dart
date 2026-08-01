@@ -229,6 +229,47 @@ class PlateWarning {
   }
 }
 
+/// Short educational commentary from the model.
+///
+/// Every field is optional and the whole object may be absent: an unremarkable
+/// meal gets no advice rather than filler. This never affects the Plate Score.
+class MealAdvice {
+  const MealAdvice({
+    this.summary,
+    this.positives = const [],
+    this.watchOuts = const [],
+    this.swaps = const [],
+  });
+
+  final String? summary;
+  final List<String> positives;
+  final List<String> watchOuts;
+  final List<String> swaps;
+
+  bool get isEmpty =>
+      (summary == null || summary!.isEmpty) &&
+      positives.isEmpty &&
+      watchOuts.isEmpty &&
+      swaps.isEmpty;
+
+  static List<String> _strings(dynamic value) =>
+      ((value as List<dynamic>?) ?? const [])
+          .whereType<String>()
+          .where((entry) => entry.trim().isNotEmpty)
+          .toList();
+
+  static MealAdvice? fromJson(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    final advice = MealAdvice(
+      summary: (json['summary'] as String?)?.trim(),
+      positives: _strings(json['positives']),
+      watchOuts: _strings(json['watchOuts']),
+      swaps: _strings(json['swaps']),
+    );
+    return advice.isEmpty ? null : advice;
+  }
+}
+
 class PlateScoreAxisResult {
   const PlateScoreAxisResult({
     required this.axis,

@@ -11,9 +11,18 @@ import 'plate_score_chip.dart';
 /// most often opened from has an unfinished task on it, and pushing a route
 /// risks users dropping out before confirming their meal.
 class PlateScoreSheet extends StatelessWidget {
-  const PlateScoreSheet({super.key, required this.score, this.onPersonalise});
+  const PlateScoreSheet({
+    super.key,
+    required this.score,
+    this.advice,
+    this.onPersonalise,
+  });
 
   final PlateScore score;
+
+  /// Optional commentary from the model. Absent for saved meals and whenever
+  /// the model had nothing worth saying.
+  final MealAdvice? advice;
 
   /// Invoked when a general-tier user taps the prompt to set up their profile.
   final VoidCallback? onPersonalise;
@@ -21,14 +30,18 @@ class PlateScoreSheet extends StatelessWidget {
   static Future<void> show(
     BuildContext context, {
     required PlateScore score,
+    MealAdvice? advice,
     VoidCallback? onPersonalise,
   }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) =>
-          PlateScoreSheet(score: score, onPersonalise: onPersonalise),
+      builder: (sheetContext) => PlateScoreSheet(
+        score: score,
+        advice: advice,
+        onPersonalise: onPersonalise,
+      ),
     );
   }
 
@@ -83,6 +96,37 @@ class PlateScoreSheet extends StatelessWidget {
                 ),
               ],
             ),
+            if (advice?.summary != null) ...[
+              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+              Text(
+                advice!.summary!,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+            if (advice != null && advice!.positives.isNotEmpty) ...[
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _AdviceList(
+                title: 'WORKS WELL',
+                lines: advice!.positives,
+                icon: Icons.check_rounded,
+              ),
+            ],
+            if (advice != null && advice!.watchOuts.isNotEmpty) ...[
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _AdviceList(
+                title: 'WORTH NOTICING',
+                lines: advice!.watchOuts,
+                icon: Icons.info_outline_rounded,
+              ),
+            ],
+            if (advice != null && advice!.swaps.isNotEmpty) ...[
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _AdviceList(
+                title: 'TRY INSTEAD',
+                lines: advice!.swaps,
+                icon: Icons.swap_horiz_rounded,
+              ),
+            ],
             if (score.warnings.isNotEmpty) ...[
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               Text(
@@ -127,7 +171,7 @@ class PlateScoreSheet extends StatelessWidget {
             ],
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             Text(
-              'A guide to how balanced this meal is, not medical advice.',
+              'Guidance to help you eat well, not medical advice.',
               style: Theme.of(
                 context,
               ).textTheme.labelSmall?.copyWith(color: colors.textTertiary),
@@ -268,6 +312,58 @@ class _WarningRow extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// A titled list of advice lines.
+class _AdviceList extends StatelessWidget {
+  const _AdviceList({
+    required this.title,
+    required this.lines,
+    required this.icon,
+  });
+
+  final String title;
+  final List<String> lines;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colors.textSecondary,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Icon(icon, size: 15, color: colors.textSecondary),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    line,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

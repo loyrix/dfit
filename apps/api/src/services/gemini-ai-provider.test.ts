@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { AiProviderError } from "./ai-provider.js";
-import { buildFoodPhotoPrompt, GeminiAiProvider } from "./gemini-ai-provider.js";
+import {
+  buildFoodPhotoPrompt,
+  buildUserProfileBlock,
+  GeminiAiProvider,
+} from "./gemini-ai-provider.js";
 
 const buildProvider = (fetchFn: typeof fetch) =>
   new GeminiAiProvider({
@@ -164,6 +168,51 @@ describe("GeminiAiProvider", () => {
       code: "ai_provider_not_configured",
       statusCode: 503,
       retryable: false,
+    });
+  });
+
+  describe("user profile block", () => {
+    it("says so plainly when nothing is known", () => {
+      expect(buildUserProfileBlock()).toContain("No user goal or health focus");
+      expect(buildUserProfileBlock({})).toContain("No user goal or health focus");
+    });
+
+    it("describes the goal and health focus in words the model can use", () => {
+      const block = buildUserProfileBlock({
+        goal: "lose_gently",
+        healthFocus: ["diabetes", "blood_pressure"],
+      });
+
+      expect(block).toContain("lose weight gently");
+      expect(block).toContain("diabetes or prediabetes");
+      expect(block).toContain("high blood pressure");
+    });
+
+    it("ignores focus values it does not recognise", () => {
+      const block = buildUserProfileBlock({ healthFocus: ["not_a_condition"] });
+      expect(block).toContain("No user goal or health focus");
+    });
+
+    it("is interpolated into a prompt that has the placeholder", () => {
+      const prompt = buildFoodPhotoPrompt(
+        undefined,
+        "Analyze this.\n\n{{USER_HINT_BLOCK}}\n\n{{USER_PROFILE_BLOCK}}",
+        { goal: "maintain", healthFocus: ["pcos"] },
+      );
+
+      expect(prompt).toContain("PCOS");
+      expect(prompt).not.toContain("{{USER_PROFILE_BLOCK}}");
+    });
+
+    it("leaves older prompts without the placeholder unchanged", () => {
+      // v5 and v6 have no profile token; they must keep behaving exactly as before.
+      const prompt = buildFoodPhotoPrompt(undefined, "Analyze this.\n\n{{USER_HINT_BLOCK}}", {
+        goal: "maintain",
+        healthFocus: ["diabetes"],
+      });
+
+      expect(prompt).not.toContain("diabetes or prediabetes");
+      expect(prompt).not.toContain("{{USER_PROFILE_BLOCK}}");
     });
   });
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { idSchema, macroTotalsSchema, portionUnitSchema } from "./common.js";
 import { mealSchema, mealTypeSchema } from "./meals.js";
-import { plateScoreSchema } from "./plate-score.js";
+import { mealAdviceSchema, plateScoreSchema } from "./plate-score.js";
 
 export const scanStatusSchema = z.enum([
   "prepared",
@@ -64,6 +64,8 @@ export const analyzeScanResponseSchema = z.object({
   totals: macroTotalsSchema,
   /** Score for the meal as the AI proposed it, before any review-screen edits. */
   plateScore: plateScoreSchema.optional(),
+  /** Optional commentary. Absent when the model returned none. */
+  advice: mealAdviceSchema.optional(),
 });
 
 export const confirmScanRequestSchema = z.object({

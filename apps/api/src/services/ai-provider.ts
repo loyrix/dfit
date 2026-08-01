@@ -14,6 +14,11 @@ export type AnalyzeMealImageInput = {
   locale?: string;
   region?: string;
   timezone?: string;
+  /**
+   * Goal and health focus, used only to shape the wording of optional advice.
+   * Never used for any calculation: the Plate Score stays deterministic.
+   */
+  userProfile?: { goal?: string; healthFocus?: string[] };
   image?: {
     mimeType: "image/jpeg" | "image/png" | "image/webp";
     base64: string;

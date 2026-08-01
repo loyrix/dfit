@@ -102,7 +102,13 @@ export class VertexAiProvider implements AiProvider {
           {
             role: "user",
             parts: [
-              { text: buildFoodPhotoPrompt(input.userHint, this.options.promptTemplate) },
+              {
+                text: buildFoodPhotoPrompt(
+                  input.userHint,
+                  this.options.promptTemplate,
+                  input.userProfile,
+                ),
+              },
               {
                 inlineData: {
                   mimeType: input.image.mimeType,

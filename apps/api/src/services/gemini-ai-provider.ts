@@ -37,11 +37,19 @@ const geminiItemSchema = z.object({
   }),
 });
 
+const geminiAdviceSchema = z.object({
+  summary: z.string().trim().max(240).optional(),
+  positives: z.array(z.string().trim().min(1).max(120)).max(2).default([]),
+  watchOuts: z.array(z.string().trim().min(1).max(120)).max(2).default([]),
+  swaps: z.array(z.string().trim().min(1).max(140)).max(2).default([]),
+});
+
 const geminiAnalysisSchema = z.object({
   mealType: mealTypeSchema,
   mealName: z.string().min(1),
   detectedLanguage: z.string().min(2).default("en"),
   items: z.array(geminiItemSchema).max(12).default([]),
+  advice: geminiAdviceSchema.optional(),
 });
 
 export type GeminiAnalysis = z.infer<typeof geminiAnalysisSchema>;
@@ -135,7 +143,18 @@ export const foodPhotoResponseSchema = {
         ],
       },
     },
+    advice: {
+      type: "object",
+      properties: {
+        summary: { type: "string" },
+        positives: { type: "array", items: { type: "string" } },
+        watchOuts: { type: "array", items: { type: "string" } },
+        swaps: { type: "array", items: { type: "string" } },
+      },
+    },
   },
+  // advice is intentionally absent from `required`: forcing it would guarantee
+  // filler commentary on meals that warrant none.
   required: ["mealType", "mealName", "detectedLanguage", "items"],
 };
 
@@ -182,7 +201,7 @@ export class GeminiAiProvider implements AiProvider {
             {
               role: "user",
               parts: [
-                { text: buildFoodPhotoPrompt(input.userHint) },
+                { text: buildFoodPhotoPrompt(input.userHint, undefined, input.userProfile) },
                 {
                   inline_data: {
                     mime_type: input.image.mimeType,
@@ -291,6 +310,7 @@ export const mapFoodPhotoAnalysisToScan = (scanId: string, analysis: GeminiAnaly
       id: randomUUID(),
     })),
     totals: sumTotals(analysis.items.map((item) => item.nutrition)),
+    advice: analysis.advice,
   });
 
 const defaultFoodPhotoPromptTemplate = `
@@ -372,6 +392,33 @@ NUTRITION DERIVATION:
 
 {{USER_HINT_BLOCK}}
 
+ABOUT THIS USER:
+{{USER_PROFILE_BLOCK}}
+
+MEAL ADVICE (optional "advice" object):
+- Write short, practical, educational commentary about the food in this photo.
+- summary: one sentence on what this meal is like nutritionally. Plain and neutral.
+- positives: up to 2 genuinely good things about it.
+- watchOuts: up to 2 things worth noticing. Omit entirely if nothing stands out.
+- swaps: up to 2 realistic changes, using foods from the same cuisine as the meal.
+- Omit the whole advice object when the meal is unremarkable. Say nothing rather
+  than padding.
+
+ADVICE SAFETY RULES (these override everything else in this section):
+- You are not a doctor and this is not medical advice. Never diagnose, never
+  predict a health outcome, and never mention medication.
+- Never claim a food causes, treats, cures, prevents or worsens any disease.
+- Never tell the user their blood sugar, blood pressure, cholesterol or weight
+  will change.
+- Never instruct the user to avoid a food entirely, and never call a food bad,
+  dangerous, forbidden or unhealthy. Any food can fit into a balanced diet.
+- Where a health focus is relevant, prefer softening language such as "may not
+  suit", "worth watching" or "you might prefer", rather than commands.
+- Do not restate numbers from the nutrition fields. No calorie, gram or
+  milligram figures anywhere in the advice.
+- Do not reference the user's weight, age or calorie target.
+- Keep every string under 120 characters and free of emoji.
+
 Return JSON only. Calories are kcal. Protein, carbs, fat, fiber, and sugar are grams. Sodium
 is milligrams. Prefer these portion units when appropriate: gram, ml, piece, serving, bowl,
 katori, cup, tablespoon, teaspoon, ladle, roti, idli, dosa, slice, scoop, small, medium,
@@ -386,15 +433,67 @@ export const buildUserHintBlock = (userHint?: string) => {
     : "No user plate note was provided.";
 };
 
+const HEALTH_FOCUS_LABELS: Record<string, string> = {
+  diabetes: "diabetes or prediabetes",
+  blood_pressure: "high blood pressure",
+  cholesterol: "high cholesterol",
+  pcos: "PCOS",
+};
+
+const GOAL_LABELS: Record<string, string> = {
+  maintain: "maintain weight",
+  lose_gently: "lose weight gently",
+  gain_gently: "gain weight gently",
+};
+
+export type FoodPhotoUserProfile = {
+  goal?: string;
+  healthFocus?: string[];
+};
+
+/**
+ * Describes the user to the model so its commentary can be relevant.
+ *
+ * Only the goal and any selected focus areas are sent — never age, weight,
+ * height or calorie targets. The model writes words, and those extra details
+ * would invite it to do arithmetic we already do deterministically.
+ */
+export const buildUserProfileBlock = (profile?: FoodPhotoUserProfile): string => {
+  const focus = (profile?.healthFocus ?? [])
+    .map((entry) => HEALTH_FOCUS_LABELS[entry])
+    .filter((label): label is string => Boolean(label));
+  const goal = profile?.goal ? GOAL_LABELS[profile.goal] : undefined;
+
+  if (focus.length === 0 && !goal) {
+    return "No user goal or health focus was provided. Write advice for a general reader.";
+  }
+
+  const parts: string[] = [];
+  if (goal) parts.push(`Their goal is to ${goal}.`);
+  if (focus.length > 0) {
+    parts.push(
+      `They have told us they are watching: ${focus.join(", ")}. Let this shape which points you raise and how you word them.`,
+    );
+  }
+  return parts.join(" ");
+};
+
 export const buildFoodPhotoPrompt = (
   userHint?: string,
   promptTemplate = defaultFoodPhotoPromptTemplate,
+  userProfile?: FoodPhotoUserProfile,
 ) => {
   const userHintBlock = buildUserHintBlock(userHint);
+  const userProfileBlock = buildUserProfileBlock(userProfile);
   const template = promptTemplate.trim();
-  const rendered = template.includes("{{USER_HINT_BLOCK}}")
+
+  let rendered = template.includes("{{USER_HINT_BLOCK}}")
     ? template.split("{{USER_HINT_BLOCK}}").join(userHintBlock)
     : `${template}\n\n${userHintBlock}`;
+
+  // Older prompt versions have no profile placeholder; they simply get no
+  // profile context and keep behaving exactly as before.
+  rendered = rendered.split("{{USER_PROFILE_BLOCK}}").join(userProfileBlock);
 
   return rendered.trim();
 };

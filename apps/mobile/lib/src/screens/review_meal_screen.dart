@@ -32,6 +32,7 @@ class ReviewMealScreen extends StatefulWidget {
     this.plateScoreProfile,
     this.plateScorePolicy = PlateScorePolicy.fallback,
     this.onPersonaliseScore,
+    this.mealAdvice,
   });
 
   final List<MealItem> initialItems;
@@ -55,6 +56,10 @@ class ReviewMealScreen extends StatefulWidget {
 
   /// Opens the health target form from the "personalise this" prompt.
   final VoidCallback? onPersonaliseScore;
+
+  /// Commentary from the scan, shown in the breakdown sheet. Null for manually
+  /// built meals, which never went through the model.
+  final MealAdvice? mealAdvice;
 
   @override
   State<ReviewMealScreen> createState() => _ReviewMealScreenState();
@@ -134,6 +139,7 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                   onTap: () => PlateScoreSheet.show(
                     context,
                     score: plateScore,
+                    advice: widget.mealAdvice,
                     onPersonalise: widget.onPersonaliseScore == null
                         ? null
                         : () {
