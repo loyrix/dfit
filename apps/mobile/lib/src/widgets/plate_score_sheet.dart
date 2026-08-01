@@ -83,6 +83,21 @@ class PlateScoreSheet extends StatelessWidget {
                 ),
               ],
             ),
+            if (score.warnings.isNotEmpty) ...[
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              Text(
+                'WORTH A LOOK',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: colors.textSecondary,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final warning in score.warnings) ...[
+                _WarningRow(warning: warning),
+                const SizedBox(height: 6),
+              ],
+            ],
             const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
             Text(
               'WHAT WENT INTO THIS',
@@ -216,6 +231,44 @@ class _PersonalisePrompt extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A single qualitative note.
+///
+/// Deliberately wordy rather than numeric: the underlying nutrient is an
+/// estimate, so the text says what stood out without implying a measurement.
+class _WarningRow extends StatelessWidget {
+  const _WarningRow({required this.warning});
+
+  final PlateWarning warning;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Icon(
+            Icons.info_outline_rounded,
+            size: 15,
+            color: colors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            warning.personalised
+                ? '${warning.text} Flagged for your health focus.'
+                : warning.text,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
     );
   }
 }

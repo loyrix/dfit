@@ -5,6 +5,7 @@ import 'package:logmyplate_mobile/src/models/plate_score.dart';
 import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_chip.dart';
+import 'package:logmyplate_mobile/src/widgets/plate_score_sheet.dart';
 
 MealItem _item({
   required String name,
@@ -199,6 +200,66 @@ void main() {
       expect(plateScoreBandFor(72, policy), PlateScoreBand.good);
       expect(plateScoreBandFor(55, policy), PlateScoreBand.moderate);
       expect(plateScoreBandFor(20, policy), PlateScoreBand.heavy);
+    });
+  });
+
+  group('warnings in the score sheet', () {
+    Widget sheetWith(List<PlateWarning> warnings) => _wrap(
+      Scaffold(
+        body: PlateScoreSheet(
+          score: PlateScore(
+            score: 62,
+            band: PlateScoreBand.moderate,
+            tier: PlateScoreTier.personal,
+            axes: const [],
+            skipped: const [],
+            warnings: warnings,
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('hides the section when there is nothing to flag', (
+      tester,
+    ) async {
+      await tester.pumpWidget(sheetWith(const []));
+      expect(find.text('WORTH A LOOK'), findsNothing);
+    });
+
+    testWidgets('shows a warning without revealing the nutrient value', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        sheetWith(const [
+          PlateWarning(
+            code: 'high_sodium',
+            text: 'Sodium looks high for one meal.',
+            personalised: false,
+          ),
+        ]),
+      );
+
+      expect(find.text('WORTH A LOOK'), findsOneWidget);
+      expect(find.text('Sodium looks high for one meal.'), findsOneWidget);
+    });
+
+    testWidgets('notes when a health condition made it more sensitive', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        sheetWith(const [
+          PlateWarning(
+            code: 'high_sodium',
+            text: 'Sodium looks high for one meal.',
+            personalised: true,
+          ),
+        ]),
+      );
+
+      expect(
+        find.textContaining('Flagged for your health focus'),
+        findsOneWidget,
+      );
     });
   });
 

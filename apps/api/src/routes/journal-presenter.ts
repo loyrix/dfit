@@ -1,6 +1,7 @@
 import {
   calculatePlateScore,
   defaultPlateScorePolicy,
+  detectPlateWarnings,
   sumTotals,
   type PlateScorePolicy,
   type PlateScoreProfile,
@@ -50,14 +51,21 @@ export const toApiMeal = async (
 
   // Scored from per-item nutrition, never meal.totals: sumTotals coerces absent
   // micronutrients to 0, which would make every meal look fiber-free.
-  const plateScore = calculatePlateScore(
+  const nutrition = meal.items.map((item) => item.nutrition);
+  const baseScore = calculatePlateScore(
     {
-      items: meal.items.map((item) => item.nutrition),
+      items: nutrition,
       mealType: meal.mealType,
       profile: toPlateScoreProfile(scoring.healthTarget),
     },
     scoring.plateScorePolicy,
   );
+  const plateScore = baseScore
+    ? {
+        ...baseScore,
+        warnings: detectPlateWarnings(nutrition, scoring.healthTarget?.healthFocus ?? []),
+      }
+    : undefined;
 
   return {
     plateScore,

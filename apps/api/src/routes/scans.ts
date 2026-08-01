@@ -10,6 +10,7 @@ import {
   calculatePlateScore,
   confidenceAfterSignals,
   decideScanQuota,
+  detectPlateWarnings,
   detectPortionSignals,
   diffScanConfirmation,
   isAccuracyDefect,
@@ -314,18 +315,26 @@ const withFreshPlateScore = async (
       loadPlateScorePolicy(sql),
     ]);
 
-    const plateScore = calculatePlateScore(
+    const nutrition = items.map(
+      (item) => item.nutrition as AnalyzeScanResponseContract["items"][number]["nutrition"],
+    );
+    const baseScore = calculatePlateScore(
       {
-        items: items.map(
-          (item) => item.nutrition as AnalyzeScanResponseContract["items"][number]["nutrition"],
-        ),
+        items: nutrition,
         mealType: analysis.mealType as AnalyzeScanResponseContract["mealType"],
         profile: toPlateScoreProfile(healthTarget),
       },
       policy,
     );
+    if (!baseScore) return analysis;
 
-    return { ...analysis, plateScore };
+    return {
+      ...analysis,
+      plateScore: {
+        ...baseScore,
+        warnings: detectPlateWarnings(nutrition, healthTarget?.healthFocus ?? []),
+      },
+    };
   } catch (error) {
     log.error({ err: error, profileId }, "plate score for analysis failed");
     return analysis;

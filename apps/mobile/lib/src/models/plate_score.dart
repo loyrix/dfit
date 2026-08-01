@@ -201,6 +201,34 @@ class PlateScorePolicy {
   }
 }
 
+/// Qualitative note about a meal.
+///
+/// Never carries a nutrient value: fiber, sugar and sodium are estimates, so a
+/// number would imply precision we do not have.
+class PlateWarning {
+  const PlateWarning({
+    required this.code,
+    required this.text,
+    required this.personalised,
+  });
+
+  final String code;
+  final String text;
+
+  /// True when a selected health condition made this warning more sensitive.
+  final bool personalised;
+
+  static PlateWarning? fromJson(Map<String, dynamic> json) {
+    final text = json['text'] as String?;
+    if (text == null || text.isEmpty) return null;
+    return PlateWarning(
+      code: json['code'] as String? ?? 'unknown',
+      text: text,
+      personalised: json['personalised'] as bool? ?? false,
+    );
+  }
+}
+
 class PlateScoreAxisResult {
   const PlateScoreAxisResult({
     required this.axis,
@@ -230,6 +258,7 @@ class PlateScore {
     required this.tier,
     required this.axes,
     required this.skipped,
+    this.warnings = const [],
   });
 
   final int score;
@@ -237,6 +266,10 @@ class PlateScore {
   final PlateScoreTier tier;
   final List<PlateScoreAxisResult> axes;
   final List<PlateScoreAxis> skipped;
+
+  /// Empty when nothing stood out, or when no micronutrients were recorded for
+  /// the meal. Absent data produces silence, never reassurance.
+  final List<PlateWarning> warnings;
 
   /// Reads a score computed by the API. Returns null when absent, so an older
   /// API response simply renders no score rather than a fabricated zero.
@@ -268,6 +301,11 @@ class PlateScore {
           .whereType<String>()
           .map(PlateScoreAxisWire.fromWire)
           .whereType<PlateScoreAxis>()
+          .toList(),
+      warnings: ((json['warnings'] as List<dynamic>?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(PlateWarning.fromJson)
+          .whereType<PlateWarning>()
           .toList(),
     );
   }

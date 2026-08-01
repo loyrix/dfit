@@ -31,6 +31,20 @@ export const plateScoreAxisSchema = z.object({
   weight: z.number().min(0).max(100),
 });
 
+/**
+ * Qualitative note about a meal. Never carries a nutrient value: fiber, sugar
+ * and sodium are estimates, so stating a number would imply precision we do not
+ * have.
+ */
+export const plateWarningSchema = z.object({
+  code: z.enum(["high_sodium", "high_sugar", "low_fiber"]),
+  text: z.string().min(1),
+  /** True when a selected health condition made this warning more sensitive. */
+  personalised: z.boolean(),
+});
+
+export type PlateWarningContract = z.infer<typeof plateWarningSchema>;
+
 export const plateScoreSchema = z.object({
   score: z.number().int().min(0).max(100),
   band: plateScoreBandSchema,
@@ -42,6 +56,8 @@ export const plateScoreSchema = z.object({
    * this"; a `fiber` entry simply means the nutrient was never recorded.
    */
   skipped: z.array(plateScoreAxisNameSchema),
+  /** Empty when nothing stood out, or when no micronutrients were recorded. */
+  warnings: z.array(plateWarningSchema).default([]),
 });
 
 const rangeSchema = z.object({

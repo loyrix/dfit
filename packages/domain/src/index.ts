@@ -8,3 +8,4 @@ export * from "./scan-correction.js";
 export * from "./portion-sanity.js";
 export * from "./micronutrient-merge.js";
 export * from "./plate-score.js";
+export * from "./plate-warnings.js";
