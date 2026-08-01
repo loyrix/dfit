@@ -1,3 +1,5 @@
+import 'plate_score.dart';
+
 enum MealType { breakfast, lunch, snack, dinner }
 
 extension MealTypeLabel on MealType {
@@ -328,6 +330,7 @@ class MealLog {
     required this.items,
     this.image,
     this.syncState = MealSyncState.synced,
+    this.plateScore,
   });
 
   final String id;
@@ -337,6 +340,11 @@ class MealLog {
   final List<MealItem> items;
   final MealImage? image;
   final MealSyncState syncState;
+
+  /// Computed by the API. Null for meals saved before scoring shipped, or when
+  /// the meal has nothing scoreable, so the UI hides the chip rather than
+  /// showing a zero.
+  final PlateScore? plateScore;
 
   MacroTotals get totals {
     return items.fold<MacroTotals>(MacroTotals.zero, (total, item) {
@@ -356,6 +364,7 @@ class MealLog {
       image: json['image'] == null
           ? null
           : MealImage.fromJson(json['image'] as Map<String, dynamic>),
+      plateScore: PlateScore.fromJson(json['plateScore'] as Map<String, dynamic>?),
     );
   }
 
@@ -416,6 +425,10 @@ class JournalDayData {
   final int mealCount;
   final MacroTotals totals;
   final List<MealLog> meals;
+
+  /// Mean Plate Score across the day's scored meals, or null when none were
+  /// scored. Meals without a score are ignored rather than counted as zero.
+  int? get averagePlateScore => averagePlateScoreOf(meals);
 
   factory JournalDayData.fromJson(Map<String, dynamic> json) {
     return JournalDayData(
@@ -517,6 +530,12 @@ class JournalRangeData {
   final List<JournalDayData> days;
   final JournalRangeSummary summary;
   final MacroTotals? target;
+
+  /// Mean Plate Score across every scored meal in the window. This trend is the
+  /// point of the weekly view: a single meal score is a detail, a week average
+  /// is a reason to come back.
+  int? get averagePlateScore =>
+      averagePlateScoreOf(days.expand((day) => day.meals));
 
   factory JournalRangeData.fromJson(Map<String, dynamic> json) {
     return JournalRangeData(
@@ -1890,6 +1909,7 @@ class AppBootstrapData {
     this.healthTarget,
     required this.updatePolicy,
     required this.engagementPolicy,
+    required this.plateScorePolicy,
     required this.subscription,
     required this.quota,
     required this.rewardedAdProgress,
@@ -1903,6 +1923,11 @@ class AppBootstrapData {
   final HealthTarget? healthTarget;
   final AppUpdatePolicy updatePolicy;
   final EngagementPolicy engagementPolicy;
+
+  /// Tunable Plate Score constants. Served so the review screen can recompute a
+  /// score locally as the user edits, while the numbers stay adjustable from the
+  /// backend without an app release.
+  final PlateScorePolicy plateScorePolicy;
   final SubscriptionStatus subscription;
   final ScanQuota quota;
   final RewardedAdProgress rewardedAdProgress;
@@ -1922,6 +1947,10 @@ class AppBootstrapData {
       ),
       engagementPolicy: EngagementPolicy.fromJson(
         json['engagementPolicy'] as Map<String, dynamic>?,
+      ),
+      // Older API responses omit this; bundled defaults keep scoring identical.
+      plateScorePolicy: PlateScorePolicy.fromJson(
+        json['plateScorePolicy'] as Map<String, dynamic>?,
       ),
       subscription: SubscriptionStatus.fromJson(
         json['subscription'] as Map<String, dynamic>?,
@@ -2448,4 +2477,29 @@ List<MealItem> sampleDetectedItems() {
       ),
     ),
   ];
+}
+
+/// Mean Plate Score across meals that have one.
+///
+/// Meals without a score are skipped, not treated as zero: a meal logged before
+/// scoring shipped should not drag an average down.
+int? averagePlateScoreOf(Iterable<MealLog> meals) {
+  var sum = 0;
+  var count = 0;
+  for (final meal in meals) {
+    final score = meal.plateScore;
+    if (score == null) continue;
+    sum += score.score;
+    count += 1;
+  }
+  if (count == 0) return null;
+  return (sum / count).round();
+}
+
+/// Band for an already-averaged score, using the same cutoffs as a single meal.
+PlateScoreBand plateScoreBandFor(int score, PlateScorePolicy policy) {
+  if (score >= policy.excellentCutoff) return PlateScoreBand.excellent;
+  if (score >= policy.goodCutoff) return PlateScoreBand.good;
+  if (score >= policy.moderateCutoff) return PlateScoreBand.moderate;
+  return PlateScoreBand.heavy;
 }

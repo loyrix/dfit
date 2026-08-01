@@ -6,6 +6,8 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_spacing.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../models/plate_score.dart';
+import '../widgets/plate_score_chip.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -401,11 +403,21 @@ class _DayMealRow extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  '${totals.calories} kCal',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${totals.calories} kCal',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (meal.plateScore != null) ...[
+                      const SizedBox(height: 4),
+                      PlateScoreChip(score: meal.plateScore!),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -749,6 +761,7 @@ class _WeeklyJournalHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
     final summary = range.summary;
+    final weekScore = range.averagePlateScore;
     final activePct = summary.windowDays == 0
         ? 0.0
         : (summary.activeDays / summary.windowDays).clamp(0.0, 1.0);
@@ -790,6 +803,24 @@ class _WeeklyJournalHero extends StatelessWidget {
               ),
             ],
           ),
+          if (weekScore != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                PlateScoreDot(
+                  band: plateScoreBandFor(weekScore, PlateScorePolicy.fallback),
+                  size: 7,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Plate score $weekScore this week',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           _SegmentedProgress(value: activePct),
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
@@ -979,6 +1010,7 @@ class _JournalDayRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final hasMeals = day.mealCount > 0;
+    final dayScore = day.averagePlateScore;
     final date = _parseDate(day.date);
     final targetCalories = target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
@@ -1026,6 +1058,15 @@ class _JournalDayRow extends StatelessWidget {
                                     ],
                                   ),
                             ),
+                            if (dayScore != null) ...[
+                              const SizedBox(width: 8),
+                              PlateScoreDot(
+                                band: plateScoreBandFor(
+                                  dayScore,
+                                  PlateScorePolicy.fallback,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 6),

@@ -6,6 +6,7 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import 'glass/fake_glass_row.dart';
 import 'meal_delete_controls.dart';
+import 'plate_score_chip.dart';
 
 class MealCard extends StatelessWidget {
   const MealCard({
@@ -91,11 +92,21 @@ class MealCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  '${totals.calories} kCal',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${totals.calories} kCal',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (meal.plateScore != null) ...[
+                      const SizedBox(height: 4),
+                      PlateScoreChip(score: meal.plateScore!),
+                    ],
+                  ],
                 ),
               ],
             ),

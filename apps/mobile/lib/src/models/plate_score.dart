@@ -21,8 +21,6 @@ enum PlateScoreBand { excellent, good, moderate, heavy }
 
 enum PlateScoreTier { general, personal }
 
-enum PlateScoreGoal { maintain, loseGently, gainGently }
-
 extension PlateScoreAxisWire on PlateScoreAxis {
   String get wireName => switch (this) {
     PlateScoreAxis.calorieFit => 'calorie_fit',
@@ -56,20 +54,6 @@ extension PlateScoreTierWire on PlateScoreTier {
 
   static PlateScoreTier fromWire(String value) =>
       value == 'personal' ? PlateScoreTier.personal : PlateScoreTier.general;
-}
-
-extension PlateScoreGoalWire on PlateScoreGoal {
-  String get wireName => switch (this) {
-    PlateScoreGoal.maintain => 'maintain',
-    PlateScoreGoal.loseGently => 'lose_gently',
-    PlateScoreGoal.gainGently => 'gain_gently',
-  };
-
-  static PlateScoreGoal fromWire(String? value) => switch (value) {
-    'lose_gently' => PlateScoreGoal.loseGently,
-    'gain_gently' => PlateScoreGoal.gainGently,
-    _ => PlateScoreGoal.maintain,
-  };
 }
 
 class PlateScoreRange {
@@ -115,9 +99,9 @@ class PlateScorePolicy {
       MealType.snack: 0.7,
     },
     this.proteinDensityTarget = const {
-      PlateScoreGoal.maintain: 40,
-      PlateScoreGoal.loseGently: 50,
-      PlateScoreGoal.gainGently: 45,
+      HealthGoal.maintain: 40,
+      HealthGoal.loseGently: 50,
+      HealthGoal.gainGently: 45,
     },
     this.generalProteinDensityTarget = 40,
     this.fiberDensityTarget = 14,
@@ -133,7 +117,7 @@ class PlateScorePolicy {
   final Map<PlateScoreAxis, double> weights;
   final Map<MealType, double> mealShare;
   final Map<MealType, double> calorieTolerance;
-  final Map<PlateScoreGoal, double> proteinDensityTarget;
+  final Map<HealthGoal, double> proteinDensityTarget;
   final double generalProteinDensityTarget;
   final double fiberDensityTarget;
   final PlateScoreRange proteinPct;
@@ -153,8 +137,11 @@ class PlateScorePolicy {
     if (json == null) return fallback;
     const base = fallback;
 
-    double pick(Map<String, dynamic>? source, String key, double fallbackValue) =>
-        (source?[key] as num?)?.toDouble() ?? fallbackValue;
+    double pick(
+      Map<String, dynamic>? source,
+      String key,
+      double fallbackValue,
+    ) => (source?[key] as num?)?.toDouble() ?? fallbackValue;
 
     final weights = json['weights'] as Map<String, dynamic>?;
     final shares = json['mealShare'] as Map<String, dynamic>?;
@@ -177,15 +164,19 @@ class PlateScorePolicy {
           type: pick(tolerance, type.name, base.calorieTolerance[type]!),
       },
       proteinDensityTarget: {
-        for (final goal in PlateScoreGoal.values)
-          goal: pick(protein, goal.wireName, base.proteinDensityTarget[goal]!),
+        for (final goal in HealthGoal.values)
+          goal: pick(protein, goal.apiName, base.proteinDensityTarget[goal]!),
       },
       generalProteinDensityTarget: pick(
         json,
         'generalProteinDensityTarget',
         base.generalProteinDensityTarget,
       ),
-      fiberDensityTarget: pick(json, 'fiberDensityTarget', base.fiberDensityTarget),
+      fiberDensityTarget: pick(
+        json,
+        'fiberDensityTarget',
+        base.fiberDensityTarget,
+      ),
       proteinPct: PlateScoreRange.fromJson(
         bands?['proteinPct'] as Map<String, dynamic>?,
         base.proteinPct,
@@ -198,7 +189,11 @@ class PlateScorePolicy {
         bands?['fatPct'] as Map<String, dynamic>?,
         base.fatPct,
       ),
-      penaltyMultiplier: pick(bands, 'penaltyMultiplier', base.penaltyMultiplier),
+      penaltyMultiplier: pick(
+        bands,
+        'penaltyMultiplier',
+        base.penaltyMultiplier,
+      ),
       excellentCutoff: pick(cutoffs, 'excellent', base.excellentCutoff),
       goodCutoff: pick(cutoffs, 'good', base.goodCutoff),
       moderateCutoff: pick(cutoffs, 'moderate', base.moderateCutoff),
@@ -219,10 +214,13 @@ class PlateScoreAxisResult {
 }
 
 class PlateScoreProfile {
-  const PlateScoreProfile({required this.dailyCalorieTarget, required this.goal});
+  const PlateScoreProfile({
+    required this.dailyCalorieTarget,
+    required this.goal,
+  });
 
   final int dailyCalorieTarget;
-  final PlateScoreGoal goal;
+  final HealthGoal goal;
 }
 
 class PlateScore {
@@ -254,7 +252,9 @@ class PlateScore {
       axes: ((json['axes'] as List<dynamic>?) ?? const [])
           .whereType<Map<String, dynamic>>()
           .map((entry) {
-            final axis = PlateScoreAxisWire.fromWire(entry['axis'] as String? ?? '');
+            final axis = PlateScoreAxisWire.fromWire(
+              entry['axis'] as String? ?? '',
+            );
             if (axis == null) return null;
             return PlateScoreAxisResult(
               axis: axis,
@@ -379,7 +379,11 @@ PlateScore? calculatePlateScore({
     final expected = profile.dailyCalorieTarget * policy.mealShare[mealType]!;
     active.add((
       PlateScoreAxis.calorieFit,
-      _calorieFitScore(totals.calories, expected, policy.calorieTolerance[mealType]!),
+      _calorieFitScore(
+        totals.calories,
+        expected,
+        policy.calorieTolerance[mealType]!,
+      ),
     ));
   } else {
     skipped.add(PlateScoreAxis.calorieFit);
@@ -389,7 +393,10 @@ PlateScore? calculatePlateScore({
       ? policy.proteinDensityTarget[profile.goal]!
       : policy.generalProteinDensityTarget;
   final proteinPer1000 = (totals.proteinG / totals.calories) * 1000;
-  active.add((PlateScoreAxis.protein, _adequacyScore(proteinPer1000, proteinTarget)));
+  active.add((
+    PlateScoreAxis.protein,
+    _adequacyScore(proteinPer1000, proteinTarget),
+  ));
 
   active.add((
     PlateScoreAxis.macroBalance,

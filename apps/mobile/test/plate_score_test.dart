@@ -17,7 +17,9 @@ import 'package:logmyplate_mobile/src/models/plate_score.dart';
 ///   pnpm --filter @logmyplate/domain build
 ///   node packages/domain/fixtures/generate-plate-score-vectors.mjs
 void main() {
-  final fixture = File('../../packages/domain/fixtures/plate-score-vectors.json');
+  final fixture = File(
+    '../../packages/domain/fixtures/plate-score-vectors.json',
+  );
 
   MacroTotals macrosFrom(Map<String, dynamic> json) => MacroTotals(
     calories: (json['calories'] as num).round(),
@@ -49,7 +51,8 @@ void main() {
   if (!fixture.existsSync()) return;
 
   final vectors =
-      (jsonDecode(fixture.readAsStringSync()) as Map<String, dynamic>)['vectors']
+      (jsonDecode(fixture.readAsStringSync())
+              as Map<String, dynamic>)['vectors']
           as List<dynamic>;
 
   test('fixture is non-trivial', () {
@@ -72,8 +75,11 @@ void main() {
         profile: profileJson == null
             ? null
             : PlateScoreProfile(
-                dailyCalorieTarget: (profileJson['dailyCalorieTarget'] as num).round(),
-                goal: PlateScoreGoalWire.fromWire(profileJson['goal'] as String?),
+                dailyCalorieTarget: (profileJson['dailyCalorieTarget'] as num)
+                    .round(),
+                goal: HealthGoalApi.fromApi(
+                  profileJson['goal'] as String? ?? 'maintain',
+                ),
               ),
       );
 
@@ -83,16 +89,36 @@ void main() {
       }
 
       expect(result, isNotNull);
-      expect(result!.score, expected['score'] as int, reason: 'score for $name');
-      expect(result.band.wireName, expected['band'] as String, reason: 'band for $name');
-      expect(result.tier.wireName, expected['tier'] as String, reason: 'tier for $name');
+      expect(
+        result!.score,
+        expected['score'] as int,
+        reason: 'score for $name',
+      );
+      expect(
+        result.band.wireName,
+        expected['band'] as String,
+        reason: 'band for $name',
+      );
+      expect(
+        result.tier.wireName,
+        expected['tier'] as String,
+        reason: 'tier for $name',
+      );
 
-      final expectedSkipped = (expected['skipped'] as List<dynamic>).cast<String>();
-      expect(result.skipped.map((axis) => axis.wireName).toList(), expectedSkipped);
+      final expectedSkipped = (expected['skipped'] as List<dynamic>)
+          .cast<String>();
+      expect(
+        result.skipped.map((axis) => axis.wireName).toList(),
+        expectedSkipped,
+      );
 
       final expectedAxes = (expected['axes'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
-      expect(result.axes.length, expectedAxes.length, reason: 'axis count for $name');
+      expect(
+        result.axes.length,
+        expectedAxes.length,
+        reason: 'axis count for $name',
+      );
       for (var index = 0; index < expectedAxes.length; index += 1) {
         final actualAxis = result.axes[index];
         final expectedAxis = expectedAxes[index];

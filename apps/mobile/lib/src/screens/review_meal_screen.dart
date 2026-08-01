@@ -6,6 +6,7 @@ import '../theme/logmyplate_spacing.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
+import '../models/plate_score.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import '../widgets/glass/glass_backdrop.dart';
@@ -14,6 +15,8 @@ import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_wrapper.dart';
 import '../widgets/meal_item_editor_sheet.dart';
+import '../widgets/plate_score_chip.dart';
+import '../widgets/plate_score_sheet.dart';
 import '../widgets/premium_button.dart';
 
 class ReviewMealScreen extends StatefulWidget {
@@ -26,6 +29,9 @@ class ReviewMealScreen extends StatefulWidget {
     this.photo,
     this.onFoodSearch,
     this.isPremium = false,
+    this.plateScoreProfile,
+    this.plateScorePolicy = PlateScorePolicy.fallback,
+    this.onPersonaliseScore,
   });
 
   final List<MealItem> initialItems;
@@ -40,6 +46,15 @@ class ReviewMealScreen extends StatefulWidget {
   })
   onConfirm;
   final bool isPremium;
+
+  /// Scoring inputs for the signed-in user, or null for the general tier.
+  final PlateScoreProfile? plateScoreProfile;
+
+  /// Tunable constants from bootstrap; bundled defaults when absent.
+  final PlateScorePolicy plateScorePolicy;
+
+  /// Opens the health target form from the "personalise this" prompt.
+  final VoidCallback? onPersonaliseScore;
 
   @override
   State<ReviewMealScreen> createState() => _ReviewMealScreenState();
@@ -67,9 +82,20 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     );
   }
 
+  /// Recomputed on every build, so the score tracks portion edits immediately
+  /// rather than waiting for a round-trip. The API stays authoritative once the
+  /// meal is saved.
+  PlateScore? get _plateScore => calculatePlateScore(
+    items: _entries.map((entry) => entry.item.nutrition).toList(),
+    mealType: _mealType,
+    profile: widget.plateScoreProfile,
+    policy: widget.plateScorePolicy,
+  );
+
   @override
   Widget build(BuildContext context) {
     final totals = _totals;
+    final plateScore = _plateScore;
     final primaryText = _reviewPrimaryText(context);
     final secondaryText = _reviewSecondaryText(context);
     final borderColor = _reviewBorder(context);
@@ -101,6 +127,22 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                 totals: totals,
                 itemCount: _items.length,
               ),
+              if (plateScore != null) ...[
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                _PlateScoreCard(
+                  score: plateScore,
+                  onTap: () => PlateScoreSheet.show(
+                    context,
+                    score: plateScore,
+                    onPersonalise: widget.onPersonaliseScore == null
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            widget.onPersonaliseScore!();
+                          },
+                  ),
+                ),
+              ],
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               Text(
                 'Items to confirm',
@@ -577,4 +619,80 @@ Color _reviewMutedFill(BuildContext context) {
 
 Color _reviewAccentText(BuildContext context) {
   return context.logmyplate.accentText;
+}
+
+/// Live score for the meal being reviewed.
+///
+/// Computed locally so it updates the moment a portion changes. Tapping opens
+/// the breakdown in a bottom sheet rather than a route, to avoid pulling the
+/// user away from an unconfirmed meal.
+class _PlateScoreCard extends StatelessWidget {
+  const _PlateScoreCard({required this.score, required this.onTap});
+
+  final PlateScore score;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = PlateScoreBandStyle.of(score.band);
+    final secondaryText = _reviewSecondaryText(context);
+
+    return LiteGlassCard(
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
+      padding: EdgeInsets.zero,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.heroCardBorderRadius,
+          ),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+            child: Row(
+              children: [
+                Text(
+                  '${score.score}',
+                  key: const ValueKey('plate-score-value'),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: style.foreground,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        style.label,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: _reviewPrimaryText(context),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        score.canPersonalise
+                            ? 'General balance · tap to personalise'
+                            : 'For your goal · tap for details',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.labelSmall?.copyWith(color: secondaryText),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: secondaryText),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

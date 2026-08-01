@@ -582,6 +582,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                         builder: (_) => ReviewMealScreen(
                           isPremium:
                               _journalController.subscription?.active ?? false,
+                          plateScoreProfile:
+                              _journalController.plateScoreProfile,
+                          plateScorePolicy:
+                              _journalController.plateScorePolicy,
+                          onPersonaliseScore: _openHealthTargetEditor,
                           initialItems: analysis.items,
                           initialMealType: mealTypeForReview(
                             localTime: DateTime.now(),
@@ -619,6 +624,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       logmyplatePageRoute<void>(
         builder: (_) => ReviewMealScreen(
           isPremium: _journalController.subscription?.active ?? false,
+          plateScoreProfile: _journalController.plateScoreProfile,
+          plateScorePolicy: _journalController.plateScorePolicy,
+          onPersonaliseScore: _openHealthTargetEditor,
           initialItems: const [],
           initialMealType: mealTypeForLocalTime(DateTime.now()),
           onFoodSearch: null,

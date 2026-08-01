@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
+import '../models/plate_score.dart';
 import '../services/app_diagnostics.dart';
 import '../services/journal_cache_store.dart';
 import '../services/logmyplate_analytics.dart';
@@ -32,6 +33,7 @@ class JournalController extends ChangeNotifier {
   SubscriptionStatus? _subscription;
   RewardedAdProgress _rewardedAdProgress = RewardedAdProgress.initial();
   HealthTarget? _healthTarget;
+  PlateScorePolicy _plateScorePolicy = PlateScorePolicy.fallback;
   AppUpdatePolicy _updatePolicy = AppUpdatePolicy.current();
   EngagementPolicy _engagementPolicy = EngagementPolicy.disabled();
   JournalRangeData? _weeklyRange;
@@ -46,6 +48,23 @@ class JournalController extends ChangeNotifier {
   SubscriptionStatus? get subscription => _subscription;
   RewardedAdProgress get rewardedAdProgress => _rewardedAdProgress;
   HealthTarget? get healthTarget => _healthTarget;
+
+  /// Tunable scoring constants from bootstrap, so the review screen can compute
+  /// a score locally as the user edits. Falls back to bundled defaults when the
+  /// API does not send them.
+  PlateScorePolicy get plateScorePolicy => _plateScorePolicy;
+
+  /// The scoring inputs for the current user, or null when they have not set a
+  /// health target. Null selects the general tier rather than an invented
+  /// profile.
+  PlateScoreProfile? get plateScoreProfile {
+    final target = _healthTarget;
+    if (target == null || target.dailyCalorieTarget <= 0) return null;
+    return PlateScoreProfile(
+      dailyCalorieTarget: target.dailyCalorieTarget,
+      goal: target.goal,
+    );
+  }
   AppUpdatePolicy get updatePolicy => _updatePolicy;
   EngagementPolicy get engagementPolicy => _engagementPolicy;
   MacroTotals? get dailyTarget =>
@@ -403,6 +422,7 @@ class JournalController extends ChangeNotifier {
     _meals = bootstrap.today.meals;
     _totals = bootstrap.today.totals;
     _healthTarget = bootstrap.healthTarget;
+    _plateScorePolicy = bootstrap.plateScorePolicy;
     _updatePolicy = bootstrap.updatePolicy;
     _engagementPolicy = bootstrap.engagementPolicy;
     _weeklyRange = bootstrap.weeklyRange;
