@@ -48,7 +48,11 @@ const QUANTITY_EPSILON = 0.01;
 const GRAMS_EPSILON = 0.5;
 const CALORIES_EPSILON = 0.5;
 
-const normalizeName = (name: string): string => name.trim().toLowerCase().replace(/\s+/g, " ");
+/** Shared so item matching behaves identically everywhere we pair AI vs confirmed items. */
+export const normalizeItemName = (name: string): string =>
+  name.trim().toLowerCase().replace(/\s+/g, " ");
+
+const normalizeName = normalizeItemName;
 
 const nearlyEqual = (a: number, b: number, epsilon: number): boolean => Math.abs(a - b) <= epsilon;
 

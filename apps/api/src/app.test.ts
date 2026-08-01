@@ -879,6 +879,73 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("recovers micronutrients an older app build dropped, without touching macros", async () => {
+    const app = await testApp();
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "micro-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "micro-analyze" },
+      payload: {
+        hint: "dal rice roti sabzi",
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+    const analysis = analyzed.json();
+    const first = (analysis.items as AnalyzedTestItem[])[0];
+    expect(first).toBeDefined();
+
+    const analyzedNutrition = first?.nutrition as {
+      calories: number;
+      proteinG: number;
+      carbsG: number;
+      fatG: number;
+      fiberG?: number;
+    };
+    expect(analyzedNutrition.fiberG).toBeGreaterThan(0);
+
+    // Simulate an older build: send only the four macro fields it knows about.
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "micro-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        items: [
+          {
+            name: first?.name,
+            quantity: first?.quantity,
+            unit: first?.unit,
+            estimatedGrams: first?.estimatedGrams,
+            nutrition: {
+              calories: analyzedNutrition.calories,
+              proteinG: analyzedNutrition.proteinG,
+              carbsG: analyzedNutrition.carbsG,
+              fatG: analyzedNutrition.fatG,
+            },
+          },
+        ],
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+
+    const savedItem = confirmed.json().meal.items[0];
+    expect(savedItem.nutrition.fiberG).toBe(analyzedNutrition.fiberG);
+    // Macros must be exactly what the client sent — recovery only adds micros.
+    expect(savedItem.nutrition.calories).toBe(analyzedNutrition.calories);
+    expect(savedItem.nutrition.proteinG).toBe(analyzedNutrition.proteinG);
+    expect(savedItem.nutrition.carbsG).toBe(analyzedNutrition.carbsG);
+    expect(savedItem.nutrition.fatG).toBe(analyzedNutrition.fatG);
+    await app.close();
+  });
+
   it("records a correction when the user changes a portion before confirming", async () => {
     const repository = new InMemoryStore();
     const app = await testApp({ repository });

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
   analyzeScanRequestSchema,
   confirmScanRequestSchema,
@@ -12,6 +12,7 @@ import {
   detectPortionSignals,
   diffScanConfirmation,
   isAccuracyDefect,
+  mergeAnalysisMicronutrients,
   sumTotals,
   type ScanConfirmationDiff,
   type ScanItemSnapshot,
@@ -166,6 +167,77 @@ const diffConfirmationAgainstAnalysis = (
     learningItemsFromAnalysis(analysis).map(toScanItemSnapshot),
     confirmedItems.map(toScanItemSnapshot),
   );
+
+/**
+ * Re-attaches micronutrients the client dropped, using the analysis the API
+ * already stored for this scan.
+ *
+ * App builds before the 7-field `MacroTotals` change parse only
+ * calories/protein/carbs/fat, so fiber (and sugar/sodium when present) never
+ * makes it back on confirm and is persisted as null. Recovering it server-side
+ * means every installed app version contributes, with no release required.
+ *
+ * Deliberately conservative:
+ * - only fiberG, sugarG and sodiumMg are ever written, never a macro;
+ * - values the client did send always win;
+ * - a nutrient the AI did not return stays absent, never becomes 0;
+ * - any failure returns the original items, so a confirm can never break.
+ */
+const recoverMicronutrients = (
+  analysis: unknown,
+  items: ConfirmScanRequestContract["items"],
+  log: FastifyBaseLogger,
+): ConfirmScanRequestContract["items"] => {
+  try {
+    const source = learningItemsFromAnalysis(analysis).map((item) => ({
+      name: item.name,
+      grams: Number(item.estimatedGrams) || 0,
+      nutrition: {
+        fiberG: item.nutrition?.fiberG,
+        sugarG: item.nutrition?.sugarG,
+        sodiumMg: item.nutrition?.sodiumMg,
+      },
+    }));
+
+    const hasAnything = source.some(
+      ({ nutrition }) =>
+        nutrition.fiberG !== undefined ||
+        nutrition.sugarG !== undefined ||
+        nutrition.sodiumMg !== undefined,
+    );
+    if (!hasAnything) return items;
+
+    const merged = mergeAnalysisMicronutrients(
+      source,
+      items.map((item) => ({
+        name: item.name,
+        grams: item.estimatedGrams,
+        nutrition: {
+          fiberG: item.nutrition.fiberG,
+          sugarG: item.nutrition.sugarG,
+          sodiumMg: item.nutrition.sodiumMg,
+        },
+      })),
+    );
+
+    return items.map((item, index) => {
+      const recovered = merged[index]?.nutrition;
+      if (!recovered) return item;
+      return {
+        ...item,
+        nutrition: {
+          ...item.nutrition,
+          ...(recovered.fiberG === undefined ? {} : { fiberG: recovered.fiberG }),
+          ...(recovered.sugarG === undefined ? {} : { sugarG: recovered.sugarG }),
+          ...(recovered.sodiumMg === undefined ? {} : { sodiumMg: recovered.sodiumMg }),
+        },
+      };
+    });
+  } catch (error) {
+    log.error({ err: error }, "micronutrient recovery failed");
+    return items;
+  }
+};
 
 const correctionsFromDiff = (diff: ScanConfirmationDiff): ScanCorrectionRecord[] => [
   ...diff.added.map((after) => ({ kind: "item_added" as const, after })),
@@ -578,6 +650,13 @@ export const registerScanRoutes = async (
       parsed.data.items,
     );
 
+    // Order and length are preserved, so correctionDiff indexes stay aligned.
+    const itemsToPersist = recoverMicronutrients(
+      scan.analyzedResponse,
+      parsed.data.items,
+      request.log,
+    );
+
     let meal = await timer.measure("dbCreateMeal", () =>
       repository.createMeal({
         profileId: scan.profileId,
@@ -585,7 +664,7 @@ export const registerScanRoutes = async (
         title: parsed.data.title,
         source: "ai_scan",
         scanSessionId: scan.id,
-        items: parsed.data.items.map((item, index) => ({
+        items: itemsToPersist.map((item, index) => ({
           displayName: item.name,
           portion: {
             quantity: item.quantity,
