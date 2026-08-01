@@ -91,7 +91,7 @@ describe("VertexAiProvider", () => {
       .contents[0]?.parts[0]?.text;
     expect(prompt).toContain('User typed this plate note: "dal rice roti"');
     expect(prompt).toContain("Analyze ONLY food items that are actually visible");
-    expect(prompt).toContain("Prefer Solkadhi/kokum kadhi");
+    expect(prompt).toContain("Bulk and shared quantities are valid");
     expect(prompt).toContain('return mealName "No food detected" and items []');
   });
 

@@ -5,3 +5,4 @@ export * from "./rewarded-ads.js";
 export * from "./meal.js";
 export * from "./foods.js";
 export * from "./scan-correction.js";
+export * from "./portion-sanity.js";

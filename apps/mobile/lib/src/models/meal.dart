@@ -15,20 +15,41 @@ extension MealTypeLabel on MealType {
   }
 }
 
+/// Nutrition for a meal or item.
+///
+/// Fiber, sugar and sodium are nullable and deliberately never rendered: the
+/// model only returns them when it is reasonably confident, and a missing value
+/// means "unknown", never zero. Treating an absent nutrient as 0 would read as
+/// a false "low sodium" claim. They are carried through so the API can persist
+/// them for future health scoring, nothing more.
 class MacroTotals {
   const MacroTotals({
     required this.calories,
     required this.proteinG,
     required this.carbsG,
     required this.fatG,
+    this.fiberG,
+    this.sugarG,
+    this.sodiumMg,
   });
 
   final int calories;
   final double proteinG;
   final double carbsG;
   final double fatG;
+  final double? fiberG;
+  final double? sugarG;
+  final double? sodiumMg;
 
   static const zero = MacroTotals(calories: 0, proteinG: 0, carbsG: 0, fatG: 0);
+
+  /// Adds two unknown-tolerant values: unknown + unknown stays unknown, and
+  /// unknown + known yields the known part rather than treating unknown as 0.
+  static double? _addOptional(double? a, double? b) {
+    if (a == null) return b;
+    if (b == null) return a;
+    return a + b;
+  }
 
   MacroTotals operator +(MacroTotals other) {
     return MacroTotals(
@@ -36,6 +57,9 @@ class MacroTotals {
       proteinG: proteinG + other.proteinG,
       carbsG: carbsG + other.carbsG,
       fatG: fatG + other.fatG,
+      fiberG: _addOptional(fiberG, other.fiberG),
+      sugarG: _addOptional(sugarG, other.sugarG),
+      sodiumMg: _addOptional(sodiumMg, other.sodiumMg),
     );
   }
 
@@ -45,6 +69,10 @@ class MacroTotals {
       proteinG: (json['proteinG'] as num).toDouble(),
       carbsG: (json['carbsG'] as num).toDouble(),
       fatG: (json['fatG'] as num).toDouble(),
+      // Nullable reads keep older API payloads, which omit these, parsing fine.
+      fiberG: (json['fiberG'] as num?)?.toDouble(),
+      sugarG: (json['sugarG'] as num?)?.toDouble(),
+      sodiumMg: (json['sodiumMg'] as num?)?.toDouble(),
     );
   }
 
@@ -54,6 +82,11 @@ class MacroTotals {
       'proteinG': proteinG,
       'carbsG': carbsG,
       'fatG': fatG,
+      // Omitted rather than sent as null, so an unknown nutrient is never
+      // persisted as a real measurement.
+      if (fiberG != null) 'fiberG': fiberG,
+      if (sugarG != null) 'sugarG': sugarG,
+      if (sodiumMg != null) 'sodiumMg': sodiumMg,
     };
   }
 
@@ -63,6 +96,9 @@ class MacroTotals {
       proteinG: proteinG * factor,
       carbsG: carbsG * factor,
       fatG: fatG * factor,
+      fiberG: fiberG == null ? null : fiberG! * factor,
+      sugarG: sugarG == null ? null : sugarG! * factor,
+      sodiumMg: sodiumMg == null ? null : sodiumMg! * factor,
     );
   }
 }

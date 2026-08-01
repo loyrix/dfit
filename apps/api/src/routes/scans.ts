@@ -3,11 +3,15 @@ import type { FastifyInstance } from "fastify";
 import {
   analyzeScanRequestSchema,
   confirmScanRequestSchema,
+  type AnalyzeScanResponseContract,
   type ConfirmScanRequestContract,
 } from "@logmyplate/contracts";
 import {
+  confidenceAfterSignals,
   decideScanQuota,
+  detectPortionSignals,
   diffScanConfirmation,
+  isAccuracyDefect,
   sumTotals,
   type ScanConfirmationDiff,
   type ScanItemSnapshot,
@@ -172,6 +176,41 @@ const correctionsFromDiff = (diff: ScanConfirmationDiff): ScanCorrectionRecord[]
     after: { ...change.after, changedFields: change.fields },
   })),
 ];
+
+/**
+ * Runs the domain quality signals over an analysis.
+ *
+ * Values are never rewritten: a 3 kg pot of sabzi is a legitimate answer and
+ * shrinking it would corrupt the user's log. Only genuine defects (calories
+ * that disagree with their own macros) lower confidence, which the review
+ * screen already surfaces. Size-based signals are pure telemetry for the admin
+ * accuracy queue.
+ */
+const applyPortionSignals = (items: AnalyzeScanResponseContract["items"]) => {
+  const evaluated = items.map((item) => ({
+    item,
+    signals: detectPortionSignals({
+      estimatedGrams: item.estimatedGrams,
+      nutrition: item.nutrition,
+    }),
+  }));
+
+  return {
+    items: evaluated.map(({ item, signals }) =>
+      signals.some(isAccuracyDefect)
+        ? { ...item, confidence: confidenceAfterSignals(item.confidence, signals) }
+        : item,
+    ),
+    signalled: evaluated
+      .filter(({ signals }) => signals.length > 0)
+      .map(({ item, signals }) => ({
+        name: item.name,
+        estimatedGrams: item.estimatedGrams,
+        calories: item.nutrition.calories,
+        signals,
+      })),
+  };
+};
 
 const noFoodScanLimit = () => {
   const configured = Number(process.env.NO_FOOD_SCAN_DAILY_LIMIT ?? defaultNoFoodScanLimit);
@@ -400,6 +439,19 @@ export const registerScanRoutes = async (
         message: "Food analysis failed.",
         retryable: true,
       });
+    }
+
+    const portionReview = applyPortionSignals(analyzedResult.analysis.items);
+    if (portionReview.signalled.length > 0) {
+      analyzedResult.analysis.items = portionReview.items;
+      request.log.warn(
+        {
+          route: "/v1/scans/:id/analyze",
+          scanId: scan.id,
+          items: portionReview.signalled,
+        },
+        "scan portion signals",
+      );
     }
 
     const hasFoodItems = analyzedResult.analysis.items.length > 0;

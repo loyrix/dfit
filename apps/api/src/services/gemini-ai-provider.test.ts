@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AiProviderError } from "./ai-provider.js";
-import { GeminiAiProvider } from "./gemini-ai-provider.js";
+import { buildFoodPhotoPrompt, GeminiAiProvider } from "./gemini-ai-provider.js";
 
 const buildProvider = (fetchFn: typeof fetch) =>
   new GeminiAiProvider({
@@ -108,13 +108,37 @@ describe("GeminiAiProvider", () => {
     expect(prompt).toContain("Do NOT invent, hallucinate, or assume food items");
     expect(prompt).toContain('return mealName "No food detected" and items []');
     expect(prompt).toContain("Reject screenshots, people, pets, documents");
-    expect(prompt).toContain("Use regional plate context only");
-    expect(prompt).toContain("smooth pink liquid/side in a katori");
-    expect(prompt).toContain("Prefer Solkadhi/kokum kadhi");
-    expect(prompt).toContain("call it raita only when yogurt/curd");
+    expect(prompt).toContain("Use the user's locale and plate context only");
     expect(prompt).toContain("plate geometry");
     expect(prompt).toContain("Count visible pieces/items individually");
     expect(prompt).toContain("return only the required JSON schema");
+  });
+
+  it("keeps the default prompt cuisine-neutral so non-India regions are not skewed", async () => {
+    const prompt = buildFoodPhotoPrompt();
+
+    // India-specific guidance belongs to the food_photo_IN prompt only. The
+    // default backs the base key, which serves users whose region is unknown.
+    expect(prompt).not.toContain("Indian");
+    expect(prompt).not.toContain("Hinglish");
+    expect(prompt).not.toContain("Solkadhi");
+    expect(prompt).toContain("cuisine-neutral and globally aware");
+  });
+
+  it("tells the model to estimate real portions rather than shrink them", async () => {
+    const prompt = buildFoodPhotoPrompt();
+
+    expect(prompt).toContain("Never cap, clamp");
+    expect(prompt).toContain("Bulk and shared quantities are valid");
+    // A packet of biscuits must be loggable; v5 wrongly rejected packaging-only photos.
+    expect(prompt).toContain("Packaged and labelled food IS valid food");
+  });
+
+  it("asks for micronutrients only when confident, never as a guessed zero", async () => {
+    const prompt = buildFoodPhotoPrompt();
+
+    expect(prompt).toContain("Omit a field entirely rather than guessing or");
+    expect(prompt).toContain("(4 x proteinG) + (4 x carbsG) + (9 x fatG)");
   });
 
   it("fails closed when the Gemini API key is missing", async () => {
