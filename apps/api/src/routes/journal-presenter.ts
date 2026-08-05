@@ -69,6 +69,7 @@ export const toApiMeal = async (
 
   return {
     plateScore,
+    advice: meal.advice ?? undefined,
     id: meal.mealId,
     profileId,
     mealType: meal.mealType,

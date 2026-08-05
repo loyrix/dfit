@@ -331,6 +331,7 @@ class MealLog {
     this.image,
     this.syncState = MealSyncState.synced,
     this.plateScore,
+    this.advice,
   });
 
   final String id;
@@ -345,6 +346,10 @@ class MealLog {
   /// the meal has nothing scoreable, so the UI hides the chip rather than
   /// showing a zero.
   final PlateScore? plateScore;
+
+  /// Commentary captured at scan time. Null for manual meals and anything saved
+  /// before advice was persisted.
+  final MealAdvice? advice;
 
   MacroTotals get totals {
     return items.fold<MacroTotals>(MacroTotals.zero, (total, item) {

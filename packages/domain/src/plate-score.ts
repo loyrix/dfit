@@ -48,12 +48,30 @@ export type PlateScoreInput = {
   profile?: PlateScoreProfile;
 };
 
+/**
+ * Why an axis scored what it did.
+ *
+ * The number alone is not actionable: a portion bar at 0 tells a user nothing
+ * about whether they ate too much or too little, or what would change it. The
+ * code travels instead of the copy so the wording stays in the app, where it can
+ * be adjusted and translated, while the judgement stays here under test.
+ */
+export type PlateScoreAxisDetail =
+  | "on_track"
+  | "portion_large"
+  | "portion_small"
+  | "protein_low"
+  | "carb_heavy"
+  | "fat_heavy"
+  | "fiber_low";
+
 export type PlateScoreAxisResult = {
   axis: PlateScoreAxis;
   /** 0-100 for this axis alone. */
   score: number;
   /** Share of the final score this axis carried, after renormalisation. */
   weight: number;
+  detail: PlateScoreAxisDetail;
 };
 
 export type PlateScoreResult = {
@@ -217,6 +235,27 @@ const macroBalanceScore = (
   return clamp(100 - total * bands.penaltyMultiplier);
 };
 
+/** Names the macro furthest outside its band, so the copy can be specific. */
+const macroBalanceDetail = (
+  calories: number,
+  proteinG: number,
+  carbsG: number,
+  fatG: number,
+  bands: PlateScorePolicy["macroBands"],
+): PlateScoreAxisDetail => {
+  if (calories <= 0) return "on_track";
+
+  const carbsOver = ((carbsG * 4) / calories) * 100 - bands.carbsPct.max;
+  const fatOver = ((fatG * 9) / calories) * 100 - bands.fatPct.max;
+  const proteinUnder = bands.proteinPct.min - ((proteinG * 4) / calories) * 100;
+
+  const worst = Math.max(carbsOver, fatOver, proteinUnder);
+  if (worst <= 0) return "on_track";
+  if (worst === fatOver) return "fat_heavy";
+  if (worst === carbsOver) return "carb_heavy";
+  return "protein_low";
+};
+
 const bandFor = (score: number, cutoffs: PlateScorePolicy["bandCutoffs"]): PlateScoreBand => {
   if (score >= cutoffs.excellent) return "excellent";
   if (score >= cutoffs.good) return "good";
@@ -235,17 +274,27 @@ export const calculatePlateScore = (
   const totals = sumForScoring(input.items);
   if (totals.calories <= 0) return undefined;
 
-  const active: Array<{ axis: PlateScoreAxis; score: number }> = [];
+  const active: Array<{ axis: PlateScoreAxis; score: number; detail: PlateScoreAxisDetail }> = [];
   const skipped: PlateScoreAxis[] = [];
   const profile = input.profile;
 
   // Calorie fit — the only axis that needs personal data.
   if (profile && profile.dailyCalorieTarget > 0) {
     const expected = profile.dailyCalorieTarget * policy.mealShare[input.mealType];
-    active.push({
-      axis: "calorie_fit",
-      score: calorieFitScore(totals.calories, expected, policy.calorieTolerance[input.mealType]),
-    });
+    const score = calorieFitScore(
+      totals.calories,
+      expected,
+      policy.calorieTolerance[input.mealType],
+    );
+    // "Small" is never a penalty, so it is reported only to explain the bar,
+    // never to suggest the user should have eaten more.
+    const detail: PlateScoreAxisDetail =
+      totals.calories > expected
+        ? "portion_large"
+        : totals.calories < expected * 0.6
+          ? "portion_small"
+          : "on_track";
+    active.push({ axis: "calorie_fit", score, detail });
   } else {
     skipped.push("calorie_fit");
   }
@@ -256,11 +305,23 @@ export const calculatePlateScore = (
     ? policy.proteinDensityTarget[profile.goal]
     : policy.generalProteinDensityTarget;
   const proteinPer1000 = (totals.proteinG / totals.calories) * 1000;
-  active.push({ axis: "protein", score: adequacyScore(proteinPer1000, proteinTarget) });
+  const proteinScore = adequacyScore(proteinPer1000, proteinTarget);
+  active.push({
+    axis: "protein",
+    score: proteinScore,
+    detail: proteinScore >= 80 ? "on_track" : "protein_low",
+  });
 
   active.push({
     axis: "macro_balance",
     score: macroBalanceScore(
+      totals.calories,
+      totals.proteinG,
+      totals.carbsG,
+      totals.fatG,
+      policy.macroBands,
+    ),
+    detail: macroBalanceDetail(
       totals.calories,
       totals.proteinG,
       totals.carbsG,
@@ -272,7 +333,12 @@ export const calculatePlateScore = (
   // Fiber — skipped entirely when unknown, never scored as zero.
   if (totals.fiberG !== undefined) {
     const per1000 = (totals.fiberG / totals.calories) * 1000;
-    active.push({ axis: "fiber", score: adequacyScore(per1000, policy.fiberDensityTarget) });
+    const fiberScore = adequacyScore(per1000, policy.fiberDensityTarget);
+    active.push({
+      axis: "fiber",
+      score: fiberScore,
+      detail: fiberScore >= 80 ? "on_track" : "fiber_low",
+    });
   } else {
     skipped.push("fiber");
   }
@@ -284,6 +350,7 @@ export const calculatePlateScore = (
     axis: entry.axis,
     score: round(entry.score),
     weight: round((policy.weights[entry.axis] / weightSum) * 100),
+    detail: entry.detail,
   }));
 
   const score = Math.round(

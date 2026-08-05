@@ -16,6 +16,8 @@ import '../widgets/glass/glass_cards.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_chips.dart';
 import '../widgets/macro_profile_card.dart';
+import '../widgets/plate_score_card.dart';
+import '../widgets/plate_score_copy.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
 import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
@@ -27,10 +29,14 @@ class MealDetailScreen extends StatefulWidget {
     this.onUpdateMeal,
     this.onDeleteMeal,
     this.onAskNutritionist,
+    this.onSetHealthTarget,
     this.isPremium = false,
   });
 
   final MealLog meal;
+
+  /// Opens the health target form from the score card's personalise prompt.
+  final VoidCallback? onSetHealthTarget;
   final Future<MealLog> Function(MealLog meal, List<MealItem> items)?
   onUpdateMeal;
   final Future<void> Function(MealLog meal)? onDeleteMeal;
@@ -217,6 +223,19 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                       ],
                       const SizedBox(height: LogMyPlateSpacing.cardPadding),
                       _MealDetailSummaryCard(meal: _draftMeal),
+                      if (_draftMeal.plateScore != null) ...[
+                        const SizedBox(
+                          height: LogMyPlateSpacing.sectionSpacing,
+                        ),
+                        PlateScoreCard(
+                          score: _draftMeal.plateScore!,
+                          advice: _draftMeal.advice,
+                          mealLabel: PlateScoreMealLabel(
+                            _draftMeal.type.label.toLowerCase(),
+                          ),
+                          onPersonalise: widget.onSetHealthTarget,
+                        ),
+                      ],
                       const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                       MacroProfileCard(meal: _draftMeal),
                       if (!_isCapturing) ...[

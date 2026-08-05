@@ -96,6 +96,7 @@ type MealRow = {
   meal_type: MealSummary["mealType"];
   title: string;
   logged_at: Date | string;
+  advice?: unknown;
 };
 
 type MealItemRow = {
@@ -1986,7 +1987,7 @@ export class PostgresStore implements AppRepository {
 
     const meal = await this.sql.begin(async (tx) => {
       const [mealRow] = await tx<MealRow[]>`
-        insert into meals (profile_id, meal_type, title, logged_at, local_date, source, scan_session_id)
+        insert into meals (profile_id, meal_type, title, logged_at, local_date, source, scan_session_id, advice)
         values (
           ${input.profileId ?? profile.id},
           ${input.mealType},
@@ -1994,9 +1995,14 @@ export class PostgresStore implements AppRepository {
           ${loggedAt},
           ${localDay},
           ${input.source ?? "manual"},
-          ${input.scanSessionId ?? null}
+          ${input.scanSessionId ?? null},
+          ${
+            input.advice === undefined || input.advice === null
+              ? null
+              : this.sql.json(toJsonValue(input.advice))
+          }
         )
-        returning id::text, meal_type, title, logged_at
+        returning id::text, meal_type, title, logged_at, advice
       `;
 
       for (const item of input.items) {
@@ -2120,7 +2126,7 @@ export class PostgresStore implements AppRepository {
   async attachMealImage(mealId: string, input: AttachMealImageInput) {
     const profile = await this.getProfile();
     const [meal] = await this.sql<MealRow[]>`
-      select id::text, meal_type, title, logged_at
+      select id::text, meal_type, title, logged_at, advice
       from meals
       where id = ${mealId}
         and profile_id = ${profile.id}
@@ -2449,7 +2455,7 @@ export class PostgresStore implements AppRepository {
     const toDate = input.toDate ?? null;
     const limit = input.limit ?? 100;
     const rows = await this.sql<MealRow[]>`
-      select id::text, meal_type, title, logged_at
+      select id::text, meal_type, title, logged_at, advice
       from meals
       where profile_id = ${profile.id}
         and (${fromDate}::date is null or local_date >= ${fromDate})
@@ -2516,7 +2522,7 @@ export class PostgresStore implements AppRepository {
   async getMeal(mealId: string) {
     const profile = await this.getProfile();
     const [meal] = await this.sql<MealRow[]>`
-      select id::text, meal_type, title, logged_at
+      select id::text, meal_type, title, logged_at, advice
       from meals
       where id = ${mealId}
         and profile_id = ${profile.id}
@@ -4203,6 +4209,7 @@ export class PostgresStore implements AppRepository {
       title: row.title,
       loggedAt: new Date(row.logged_at).toISOString(),
       items,
+      advice: row.advice ?? undefined,
       image: image
         ? {
             imageId: image.id,

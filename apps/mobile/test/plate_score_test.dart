@@ -133,6 +133,11 @@ void main() {
           closeTo((expectedAxis['weight'] as num).toDouble(), 0.05),
           reason: '${actualAxis.axis.wireName} weight for $name',
         );
+        expect(
+          actualAxis.detail.wireName,
+          expectedAxis['detail'] as String,
+          reason: '${actualAxis.axis.wireName} detail for $name',
+        );
       }
     });
   }

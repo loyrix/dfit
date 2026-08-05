@@ -584,8 +584,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
                               _journalController.subscription?.active ?? false,
                           plateScoreProfile:
                               _journalController.plateScoreProfile,
-                          plateScorePolicy:
-                              _journalController.plateScorePolicy,
+                          plateScorePolicy: _journalController.plateScorePolicy,
                           onPersonaliseScore: _openHealthTargetEditor,
                           mealAdvice: analysis.advice,
                           initialItems: analysis.items,
@@ -847,6 +846,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
             onUpdateMeal: _updateMeal,
             onDeleteMeal: _deleteMeal,
             onAskNutritionist: (m) => _openNutritionistChat(focusMealId: m.id),
+            onSetHealthTarget: _openHealthTargetEditor,
           ),
         ),
       ),
@@ -1539,6 +1539,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           onUpdateMeal: _updateMeal,
           onDeleteMeal: _deleteMeal,
           onAskNutritionist: (m) => _openNutritionistChat(focusMealId: m.id),
+          onSetHealthTarget: _openHealthTargetEditor,
         ),
       ),
     );

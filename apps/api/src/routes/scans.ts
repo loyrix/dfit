@@ -767,6 +767,9 @@ export const registerScanRoutes = async (
         title: parsed.data.title,
         source: "ai_scan",
         scanSessionId: scan.id,
+        // Captured at scan time so meal detail can show the same guidance the
+        // user saw on the review screen, instead of it vanishing on confirm.
+        advice: (scan.analyzedResponse as { advice?: unknown } | undefined)?.advice,
         items: itemsToPersist.map((item, index) => ({
           displayName: item.name,
           portion: {

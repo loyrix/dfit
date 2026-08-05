@@ -5,6 +5,7 @@ import 'package:logmyplate_mobile/src/models/plate_score.dart';
 import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_chip.dart';
+import 'package:logmyplate_mobile/src/widgets/plate_score_copy.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_sheet.dart';
 
 MealItem _item({
@@ -53,7 +54,7 @@ void main() {
       );
 
       expect(find.byKey(const ValueKey('plate-score-value')), findsOneWidget);
-      expect(find.textContaining('General balance'), findsOneWidget);
+      expect(find.textContaining('personalise'), findsOneWidget);
     });
 
     testWidgets('labels the score for a user with a health target', (
@@ -72,8 +73,8 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('For your goal'), findsOneWidget);
-      expect(find.textContaining('General balance'), findsNothing);
+      expect(find.text('Tap to see why'), findsOneWidget);
+      expect(find.textContaining('personalise'), findsNothing);
     });
 
     testWidgets('recomputes immediately when an item is removed', (
@@ -124,7 +125,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('plate-score-value')));
       await tester.pumpAndSettle();
 
-      expect(find.text('WHAT WENT INTO THIS'), findsOneWidget);
+      expect(find.text('HOW THIS ADDS UP'), findsOneWidget);
       // The unconfirmed meal must still be behind the sheet.
       expect(find.text('Confirm meal'), findsOneWidget);
     });
@@ -144,7 +145,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('plate-score-value')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.textContaining('Add your height, weight and goal'));
+      await tester.tap(find.text(PlateScoreCopy.personaliseTitle));
       await tester.pumpAndSettle();
 
       expect(tapped, isTrue);
@@ -223,7 +224,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(sheetWith(const []));
-      expect(find.text('WORTH A LOOK'), findsNothing);
+      expect(find.text('WORTH KNOWING'), findsNothing);
     });
 
     testWidgets('shows a warning without revealing the nutrient value', (
@@ -239,7 +240,7 @@ void main() {
         ]),
       );
 
-      expect(find.text('WORTH A LOOK'), findsOneWidget);
+      expect(find.text('WORTH KNOWING'), findsOneWidget);
       expect(find.text('Sodium looks high for one meal.'), findsOneWidget);
     });
 
@@ -257,7 +258,7 @@ void main() {
       );
 
       expect(
-        find.textContaining('Flagged for your health focus'),
+        find.textContaining('Flagged because of your health focus'),
         findsOneWidget,
       );
     });
@@ -306,8 +307,8 @@ void main() {
     testWidgets('shows nothing extra when there is no advice', (tester) async {
       await tester.pumpWidget(sheetWith(null));
 
-      expect(find.text('WORKS WELL'), findsNothing);
-      expect(find.text('TRY INSTEAD'), findsNothing);
+      expect(find.text('WHAT WORKS HERE'), findsNothing);
+      expect(find.text('TRY THIS NEXT TIME'), findsNothing);
     });
 
     testWidgets('renders summary, positives and swaps', (tester) async {
@@ -337,6 +338,53 @@ void main() {
       );
 
       expect(find.textContaining('not medical advice'), findsOneWidget);
+    });
+  });
+
+  group('score copy is understandable', () {
+    testWidgets('anchors the number and names the verdict', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          ReviewMealScreen(
+            initialItems: [_item(name: 'Dal', calories: 350)],
+            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+          ),
+        ),
+      );
+
+      // "78" alone left people guessing the scale and whether it was good.
+      expect(find.text('/100'), findsOneWidget);
+      expect(
+        find.text(PlateScoreCopy.bandTitle(PlateScoreBand.good)),
+        findsWidgets,
+      );
+    });
+
+    test('never describes a poorly balanced meal as large', () {
+      // "Heavy" appeared on 55 real meals under 400 kcal.
+      for (final band in PlateScoreBand.values) {
+        expect(
+          PlateScoreCopy.bandTitle(band).toLowerCase(),
+          isNot(contains('heavy')),
+        );
+      }
+    });
+
+    test('every axis state explains which way to move', () {
+      const meal = PlateScoreMealLabel('lunch');
+      for (final detail in PlateScoreAxisDetail.values) {
+        final line = PlateScoreCopy.axisDetail(
+          PlateScoreAxisResult(
+            axis: PlateScoreAxis.calorieFit,
+            score: 0,
+            weight: 25,
+            detail: detail,
+          ),
+          meal,
+        );
+        expect(line, isNotEmpty);
+        expect(line, isNot(equals('0')));
+      }
     });
   });
 

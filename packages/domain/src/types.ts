@@ -62,6 +62,8 @@ export type MealSummary = {
   items: MealItemNutrition[];
   totals: MacroTotals;
   image?: MealImageSummary;
+  /** Model commentary captured at scan time. Absent for manual and older meals. */
+  advice?: unknown;
 };
 
 export type ScanCreditState = {

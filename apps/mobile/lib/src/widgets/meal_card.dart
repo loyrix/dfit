@@ -7,6 +7,8 @@ import '../theme/logmyplate_theme.dart';
 import 'glass/fake_glass_row.dart';
 import 'meal_delete_controls.dart';
 import 'plate_score_chip.dart';
+import 'plate_score_copy.dart';
+import 'plate_score_sheet.dart';
 
 class MealCard extends StatelessWidget {
   const MealCard({
@@ -104,7 +106,18 @@ class MealCard extends StatelessWidget {
                     ),
                     if (meal.plateScore != null) ...[
                       const SizedBox(height: 4),
-                      PlateScoreChip(score: meal.plateScore!),
+                      // Tappable in place: previously this looked interactive
+                      // but only opened the meal, which showed no score at all.
+                      PlateScoreChip(
+                        score: meal.plateScore!,
+                        onTap: () => PlateScoreSheet.show(
+                          context,
+                          score: meal.plateScore!,
+                          mealLabel: PlateScoreMealLabel(
+                            meal.type.label.toLowerCase(),
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),

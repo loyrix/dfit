@@ -30,17 +30,20 @@
           {
             "axis": "protein",
             "score": 100,
-            "weight": 40
+            "weight": 40,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 33.3
+            "weight": 33.3,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 100,
-            "weight": 26.7
+            "weight": 26.7,
+            "detail": "on_track"
           }
         ],
         "skipped": [
@@ -81,22 +84,26 @@
           {
             "axis": "calorie_fit",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 100,
-            "weight": 20
+            "weight": 20,
+            "detail": "on_track"
           }
         ],
         "skipped": []
@@ -135,22 +142,26 @@
           {
             "axis": "calorie_fit",
             "score": 49.6,
-            "weight": 25
+            "weight": 25,
+            "detail": "portion_large"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 100,
-            "weight": 20
+            "weight": 20,
+            "detail": "on_track"
           }
         ],
         "skipped": []
@@ -189,22 +200,26 @@
           {
             "axis": "calorie_fit",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 100,
-            "weight": 20
+            "weight": 20,
+            "detail": "on_track"
           }
         ],
         "skipped": []
@@ -237,12 +252,14 @@
           {
             "axis": "protein",
             "score": 100,
-            "weight": 54.5
+            "weight": 54.5,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 45.5
+            "weight": 45.5,
+            "detail": "on_track"
           }
         ],
         "skipped": [
@@ -282,17 +299,20 @@
           {
             "axis": "calorie_fit",
             "score": 100,
-            "weight": 31.3
+            "weight": 31.3,
+            "detail": "on_track"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 37.5
+            "weight": 37.5,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 31.3
+            "weight": 31.3,
+            "detail": "on_track"
           }
         ],
         "skipped": [
@@ -325,17 +345,20 @@
           {
             "axis": "calorie_fit",
             "score": 100,
-            "weight": 31.3
+            "weight": 31.3,
+            "detail": "on_track"
           },
           {
             "axis": "protein",
             "score": 66.4,
-            "weight": 37.5
+            "weight": 37.5,
+            "detail": "protein_low"
           },
           {
             "axis": "macro_balance",
             "score": 79.4,
-            "weight": 31.3
+            "weight": 31.3,
+            "detail": "carb_heavy"
           }
         ],
         "skipped": [
@@ -369,22 +392,26 @@
           {
             "axis": "calorie_fit",
             "score": 28.6,
-            "weight": 25
+            "weight": 25,
+            "detail": "portion_large"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 100,
-            "weight": 20
+            "weight": 20,
+            "detail": "on_track"
           }
         ],
         "skipped": []
@@ -416,22 +443,26 @@
           {
             "axis": "calorie_fit",
             "score": 0,
-            "weight": 25
+            "weight": 25,
+            "detail": "portion_large"
           },
           {
             "axis": "protein",
             "score": 62.5,
-            "weight": 30
+            "weight": 30,
+            "detail": "protein_low"
           },
           {
             "axis": "macro_balance",
             "score": 92.5,
-            "weight": 25
+            "weight": 25,
+            "detail": "protein_low"
           },
           {
             "axis": "fiber",
             "score": 44.6,
-            "weight": 20
+            "weight": 20,
+            "detail": "fiber_low"
           }
         ],
         "skipped": []
@@ -462,17 +493,20 @@
           {
             "axis": "calorie_fit",
             "score": 18.4,
-            "weight": 31.3
+            "weight": 31.3,
+            "detail": "portion_large"
           },
           {
             "axis": "protein",
             "score": 27.8,
-            "weight": 37.5
+            "weight": 37.5,
+            "detail": "protein_low"
           },
           {
             "axis": "macro_balance",
             "score": 69.2,
-            "weight": 31.3
+            "weight": 31.3,
+            "detail": "protein_low"
           }
         ],
         "skipped": [
@@ -506,22 +540,26 @@
           {
             "axis": "calorie_fit",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 95.2,
-            "weight": 20
+            "weight": 20,
+            "detail": "on_track"
           }
         ],
         "skipped": []
@@ -559,22 +597,26 @@
           {
             "axis": "calorie_fit",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "protein",
             "score": 100,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 71.4,
-            "weight": 20
+            "weight": 20,
+            "detail": "fiber_low"
           }
         ],
         "skipped": []
@@ -606,22 +648,26 @@
           {
             "axis": "calorie_fit",
             "score": 0,
-            "weight": 25
+            "weight": 25,
+            "detail": "portion_large"
           },
           {
             "axis": "protein",
             "score": 93.8,
-            "weight": 30
+            "weight": 30,
+            "detail": "on_track"
           },
           {
             "axis": "macro_balance",
             "score": 100,
-            "weight": 25
+            "weight": 25,
+            "detail": "on_track"
           },
           {
             "axis": "fiber",
             "score": 89.3,
-            "weight": 20
+            "weight": 20,
+            "detail": "on_track"
           }
         ],
         "skipped": []

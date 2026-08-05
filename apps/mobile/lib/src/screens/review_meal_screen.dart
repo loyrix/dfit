@@ -15,8 +15,8 @@ import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_wrapper.dart';
 import '../widgets/meal_item_editor_sheet.dart';
-import '../widgets/plate_score_chip.dart';
-import '../widgets/plate_score_sheet.dart';
+import '../widgets/plate_score_card.dart';
+import '../widgets/plate_score_copy.dart';
 import '../widgets/premium_button.dart';
 
 class ReviewMealScreen extends StatefulWidget {
@@ -134,19 +134,14 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
               ),
               if (plateScore != null) ...[
                 const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                _PlateScoreCard(
+                PlateScoreCard(
                   score: plateScore,
-                  onTap: () => PlateScoreSheet.show(
-                    context,
-                    score: plateScore,
-                    advice: widget.mealAdvice,
-                    onPersonalise: widget.onPersonaliseScore == null
-                        ? null
-                        : () {
-                            Navigator.of(context).pop();
-                            widget.onPersonaliseScore!();
-                          },
-                  ),
+                  advice: widget.mealAdvice,
+                  mealLabel: PlateScoreMealLabel(_mealType.label.toLowerCase()),
+                  // The meal type is still editable here, and a mis-labelled
+                  // meal is the most common reason a portion bar looks wrong.
+                  showMealTypeNote: true,
+                  onPersonalise: widget.onPersonaliseScore,
                 ),
               ],
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
@@ -625,80 +620,4 @@ Color _reviewMutedFill(BuildContext context) {
 
 Color _reviewAccentText(BuildContext context) {
   return context.logmyplate.accentText;
-}
-
-/// Live score for the meal being reviewed.
-///
-/// Computed locally so it updates the moment a portion changes. Tapping opens
-/// the breakdown in a bottom sheet rather than a route, to avoid pulling the
-/// user away from an unconfirmed meal.
-class _PlateScoreCard extends StatelessWidget {
-  const _PlateScoreCard({required this.score, required this.onTap});
-
-  final PlateScore score;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = PlateScoreBandStyle.of(score.band);
-    final secondaryText = _reviewSecondaryText(context);
-
-    return LiteGlassCard(
-      borderRadius: BorderRadius.circular(
-        LogMyPlateSpacing.heroCardBorderRadius,
-      ),
-      padding: EdgeInsets.zero,
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(
-            LogMyPlateSpacing.heroCardBorderRadius,
-          ),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
-            child: Row(
-              children: [
-                Text(
-                  '${score.score}',
-                  key: const ValueKey('plate-score-value'),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: style.foreground,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        style.label,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: _reviewPrimaryText(context),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        score.canPersonalise
-                            ? 'General balance · tap to personalise'
-                            : 'For your goal · tap for details',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.labelSmall?.copyWith(color: secondaryText),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right_rounded, color: secondaryText),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

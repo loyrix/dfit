@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { idSchema, isoDateTimeSchema, macroTotalsSchema, portionUnitSchema } from "./common.js";
-import { plateScoreSchema } from "./plate-score.js";
+import { mealAdviceSchema, plateScoreSchema } from "./plate-score.js";
 
 export const mealTypeSchema = z.enum(["breakfast", "lunch", "snack", "dinner"]);
 
@@ -34,6 +34,8 @@ export const mealSchema = z.object({
   image: mealImageSchema.optional(),
   /** Absent when the meal has nothing scoreable; never sent as a zero. */
   plateScore: plateScoreSchema.optional(),
+  /** Commentary captured at scan time. Absent for manual and older meals. */
+  advice: mealAdviceSchema.optional(),
 });
 
 export const createMealRequestSchema = z.object({

@@ -21,6 +21,40 @@ enum PlateScoreBand { excellent, good, moderate, heavy }
 
 enum PlateScoreTier { general, personal }
 
+/// Why an axis scored what it did, so the UI can say something actionable
+/// instead of showing a bare bar.
+enum PlateScoreAxisDetail {
+  onTrack,
+  portionLarge,
+  portionSmall,
+  proteinLow,
+  carbHeavy,
+  fatHeavy,
+  fiberLow,
+}
+
+extension PlateScoreAxisDetailWire on PlateScoreAxisDetail {
+  String get wireName => switch (this) {
+    PlateScoreAxisDetail.onTrack => 'on_track',
+    PlateScoreAxisDetail.portionLarge => 'portion_large',
+    PlateScoreAxisDetail.portionSmall => 'portion_small',
+    PlateScoreAxisDetail.proteinLow => 'protein_low',
+    PlateScoreAxisDetail.carbHeavy => 'carb_heavy',
+    PlateScoreAxisDetail.fatHeavy => 'fat_heavy',
+    PlateScoreAxisDetail.fiberLow => 'fiber_low',
+  };
+
+  static PlateScoreAxisDetail fromWire(String? value) => switch (value) {
+    'portion_large' => PlateScoreAxisDetail.portionLarge,
+    'portion_small' => PlateScoreAxisDetail.portionSmall,
+    'protein_low' => PlateScoreAxisDetail.proteinLow,
+    'carb_heavy' => PlateScoreAxisDetail.carbHeavy,
+    'fat_heavy' => PlateScoreAxisDetail.fatHeavy,
+    'fiber_low' => PlateScoreAxisDetail.fiberLow,
+    _ => PlateScoreAxisDetail.onTrack,
+  };
+}
+
 extension PlateScoreAxisWire on PlateScoreAxis {
   String get wireName => switch (this) {
     PlateScoreAxis.calorieFit => 'calorie_fit',
@@ -275,11 +309,13 @@ class PlateScoreAxisResult {
     required this.axis,
     required this.score,
     required this.weight,
+    this.detail = PlateScoreAxisDetail.onTrack,
   });
 
   final PlateScoreAxis axis;
   final double score;
   final double weight;
+  final PlateScoreAxisDetail detail;
 }
 
 class PlateScoreProfile {
@@ -334,6 +370,9 @@ class PlateScore {
               axis: axis,
               score: (entry['score'] as num?)?.toDouble() ?? 0,
               weight: (entry['weight'] as num?)?.toDouble() ?? 0,
+              detail: PlateScoreAxisDetailWire.fromWire(
+                entry['detail'] as String?,
+              ),
             );
           })
           .whereType<PlateScoreAxisResult>()
@@ -432,6 +471,32 @@ double _macroBalanceScore(
   return _clamp(100 - total * policy.penaltyMultiplier);
 }
 
+/// Names the macro furthest outside its band, so the copy can be specific.
+PlateScoreAxisDetail _macroBalanceDetail(
+  double calories,
+  double proteinG,
+  double carbsG,
+  double fatG,
+  PlateScorePolicy policy,
+) {
+  if (calories <= 0) return PlateScoreAxisDetail.onTrack;
+
+  final carbsOver = ((carbsG * 4) / calories) * 100 - policy.carbsPct.max;
+  final fatOver = ((fatG * 9) / calories) * 100 - policy.fatPct.max;
+  final proteinUnder =
+      policy.proteinPct.min - ((proteinG * 4) / calories) * 100;
+
+  final worst = [
+    carbsOver,
+    fatOver,
+    proteinUnder,
+  ].reduce((a, b) => a > b ? a : b);
+  if (worst <= 0) return PlateScoreAxisDetail.onTrack;
+  if (worst == fatOver) return PlateScoreAxisDetail.fatHeavy;
+  if (worst == carbsOver) return PlateScoreAxisDetail.carbHeavy;
+  return PlateScoreAxisDetail.proteinLow;
+}
+
 PlateScoreBand _bandFor(int score, PlateScorePolicy policy) {
   if (score >= policy.excellentCutoff) return PlateScoreBand.excellent;
   if (score >= policy.goodCutoff) return PlateScoreBand.good;
@@ -451,11 +516,17 @@ PlateScore? calculatePlateScore({
   final totals = _sumForScoring(items);
   if (totals.calories <= 0) return null;
 
-  final active = <(PlateScoreAxis, double)>[];
+  final active = <(PlateScoreAxis, double, PlateScoreAxisDetail)>[];
   final skipped = <PlateScoreAxis>[];
 
   if (profile != null && profile.dailyCalorieTarget > 0) {
     final expected = profile.dailyCalorieTarget * policy.mealShare[mealType]!;
+    // "Small" never costs points; it is reported only to explain the bar.
+    final detail = totals.calories > expected
+        ? PlateScoreAxisDetail.portionLarge
+        : totals.calories < expected * 0.6
+        ? PlateScoreAxisDetail.portionSmall
+        : PlateScoreAxisDetail.onTrack;
     active.add((
       PlateScoreAxis.calorieFit,
       _calorieFitScore(
@@ -463,6 +534,7 @@ PlateScore? calculatePlateScore({
         expected,
         policy.calorieTolerance[mealType]!,
       ),
+      detail,
     ));
   } else {
     skipped.add(PlateScoreAxis.calorieFit);
@@ -472,9 +544,13 @@ PlateScore? calculatePlateScore({
       ? policy.proteinDensityTarget[profile.goal]!
       : policy.generalProteinDensityTarget;
   final proteinPer1000 = (totals.proteinG / totals.calories) * 1000;
+  final proteinScore = _adequacyScore(proteinPer1000, proteinTarget);
   active.add((
     PlateScoreAxis.protein,
-    _adequacyScore(proteinPer1000, proteinTarget),
+    proteinScore,
+    proteinScore >= 80
+        ? PlateScoreAxisDetail.onTrack
+        : PlateScoreAxisDetail.proteinLow,
   ));
 
   active.add((
@@ -486,14 +562,25 @@ PlateScore? calculatePlateScore({
       totals.fatG,
       policy,
     ),
+    _macroBalanceDetail(
+      totals.calories,
+      totals.proteinG,
+      totals.carbsG,
+      totals.fatG,
+      policy,
+    ),
   ));
 
   final fiber = totals.fiberG;
   if (fiber != null) {
     final per1000 = (fiber / totals.calories) * 1000;
+    final fiberScore = _adequacyScore(per1000, policy.fiberDensityTarget);
     active.add((
       PlateScoreAxis.fiber,
-      _adequacyScore(per1000, policy.fiberDensityTarget),
+      fiberScore,
+      fiberScore >= 80
+          ? PlateScoreAxisDetail.onTrack
+          : PlateScoreAxisDetail.fiberLow,
     ));
   } else {
     skipped.add(PlateScoreAxis.fiber);
@@ -523,6 +610,7 @@ PlateScore? calculatePlateScore({
             axis: entry.$1,
             score: _round1(entry.$2),
             weight: _round1((policy.weights[entry.$1]! / weightSum) * 100),
+            detail: entry.$3,
           ),
         )
         .toList(),

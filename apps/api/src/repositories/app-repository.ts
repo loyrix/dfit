@@ -112,6 +112,8 @@ export type CreateMealInput = {
   loggedAt?: string;
   source?: "manual" | "ai_scan";
   scanSessionId?: string;
+  /** Model commentary captured at scan time, stored so meal detail can show it. */
+  advice?: unknown;
   items: Array<
     Omit<MealItemNutrition, "foodId"> & {
       foodId?: string;

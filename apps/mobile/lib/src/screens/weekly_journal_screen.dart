@@ -8,6 +8,8 @@ import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
 import '../models/plate_score.dart';
 import '../widgets/plate_score_chip.dart';
+import '../widgets/plate_score_copy.dart';
+import '../widgets/plate_score_sheet.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -415,7 +417,16 @@ class _DayMealRow extends StatelessWidget {
                     ),
                     if (meal.plateScore != null) ...[
                       const SizedBox(height: 4),
-                      PlateScoreChip(score: meal.plateScore!),
+                      PlateScoreChip(
+                        score: meal.plateScore!,
+                        onTap: () => PlateScoreSheet.show(
+                          context,
+                          score: meal.plateScore!,
+                          mealLabel: PlateScoreMealLabel(
+                            meal.type.label.toLowerCase(),
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -808,6 +819,7 @@ class _WeeklyJournalHero extends StatelessWidget {
             Row(
               children: [
                 PlateScoreDot(
+                  score: weekScore,
                   band: plateScoreBandFor(weekScore, PlateScorePolicy.fallback),
                   size: 7,
                 ),
@@ -1061,6 +1073,7 @@ class _JournalDayRow extends StatelessWidget {
                             if (dayScore != null) ...[
                               const SizedBox(width: 8),
                               PlateScoreDot(
+                                score: dayScore,
                                 band: plateScoreBandFor(
                                   dayScore,
                                   PlateScorePolicy.fallback,

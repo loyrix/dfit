@@ -24,12 +24,30 @@ export const plateScoreBandSchema = z.enum(["excellent", "good", "moderate", "he
  */
 export const plateScoreTierSchema = z.enum(["general", "personal"]);
 
+/**
+ * Why an axis scored what it did. The code travels rather than the copy, so the
+ * wording lives in the app where it can be adjusted and translated.
+ */
+export const plateScoreAxisDetailSchema = z.enum([
+  "on_track",
+  "portion_large",
+  "portion_small",
+  "protein_low",
+  "carb_heavy",
+  "fat_heavy",
+  "fiber_low",
+]);
+
 export const plateScoreAxisSchema = z.object({
   axis: plateScoreAxisNameSchema,
   score: z.number().min(0).max(100),
   /** Share of the final score this axis carried, after renormalisation. */
   weight: z.number().min(0).max(100),
+  /** Defaulted so an older API that omits it still parses. */
+  detail: plateScoreAxisDetailSchema.default("on_track"),
 });
+
+export type PlateScoreAxisDetailContract = z.infer<typeof plateScoreAxisDetailSchema>;
 
 /**
  * Qualitative note about a meal. Never carries a nutrient value: fiber, sugar
