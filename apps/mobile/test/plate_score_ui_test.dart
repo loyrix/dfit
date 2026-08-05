@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logmyplate_mobile/src/models/meal.dart';
 import 'package:logmyplate_mobile/src/models/plate_score.dart';
+import 'package:logmyplate_mobile/src/screens/meal_detail_screen.dart';
 import 'package:logmyplate_mobile/src/screens/review_meal_screen.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
+import 'package:logmyplate_mobile/src/widgets/plate_score_card.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_chip.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_copy.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_sheet.dart';
@@ -385,6 +387,63 @@ void main() {
         expect(line, isNotEmpty);
         expect(line, isNot(equals('0')));
       }
+    });
+  });
+
+  group('score survives the paths that dropped it', () {
+    PlateScore score() => const PlateScore(
+      score: 74,
+      band: PlateScoreBand.good,
+      tier: PlateScoreTier.personal,
+      axes: [],
+      skipped: [],
+    );
+
+    MealLog savedMeal() => MealLog(
+      id: 'meal-1',
+      type: MealType.snack,
+      title: 'Waffles with Berries',
+      loggedAt: DateTime(2026, 8, 5),
+      items: [_item(name: 'Waffle', calories: 468)],
+      plateScore: score(),
+      advice: const MealAdvice(summary: 'Mostly refined carbs.'),
+    );
+
+    test('MealLog round-trips the score and advice through the cache', () {
+      // The bootstrap cache serialises meals with toJson and reads them back
+      // with fromJson. Omitting these fields silently lost every score on a
+      // cold start.
+      final restored = MealLog.fromJson(savedMeal().toJson());
+
+      expect(restored.plateScore, isNotNull);
+      expect(restored.plateScore!.score, 74);
+      expect(restored.advice?.summary, 'Mostly refined carbs.');
+    });
+
+    testWidgets('meal detail renders the score card', (tester) async {
+      // The card was present but guarded on a value the screen rebuilt without,
+      // so the guard could never be true and it never rendered.
+      await tester.pumpWidget(_wrap(MealDetailScreen(meal: savedMeal())));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlateScoreCard), findsOneWidget);
+      expect(find.text('/100'), findsOneWidget);
+    });
+
+    testWidgets('meal detail shows no card when there is no score', (
+      tester,
+    ) async {
+      final unscored = MealLog(
+        id: 'meal-2',
+        type: MealType.snack,
+        title: 'Old meal',
+        loggedAt: DateTime(2026, 7, 1),
+        items: [_item(name: 'Waffle', calories: 468)],
+      );
+      await tester.pumpWidget(_wrap(MealDetailScreen(meal: unscored)));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlateScoreCard), findsNothing);
     });
   });
 

@@ -372,6 +372,7 @@ class MealLog {
       plateScore: PlateScore.fromJson(
         json['plateScore'] as Map<String, dynamic>?,
       ),
+      advice: MealAdvice.fromJson(json['advice'] as Map<String, dynamic>?),
     );
   }
 
@@ -384,6 +385,10 @@ class MealLog {
       'items': items.map((item) => item.toJson()).toList(),
       'totals': totals.toJson(),
       if (image != null) 'image': image!.toJson(),
+      // Cached bootstrap round-trips through here; omitting these lost every
+      // score and every piece of advice on a cold start.
+      if (plateScore != null) 'plateScore': plateScore!.toJson(),
+      if (advice != null) 'advice': advice!.toJson(),
     };
   }
 }

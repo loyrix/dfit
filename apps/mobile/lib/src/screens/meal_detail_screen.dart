@@ -63,6 +63,10 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     loggedAt: _meal.loggedAt,
     items: _draftItems,
     image: _meal.image,
+    // Carried across explicitly: rebuilding the meal without these silently
+    // dropped the score and advice, so the card could never render.
+    plateScore: _meal.plateScore,
+    advice: _meal.advice,
   );
 
   bool get _hasChanges {

@@ -286,6 +286,13 @@ class MealAdvice {
       watchOuts.isEmpty &&
       swaps.isEmpty;
 
+  Map<String, dynamic> toJson() => {
+    if (summary != null) 'summary': summary,
+    'positives': positives,
+    'watchOuts': watchOuts,
+    'swaps': swaps,
+  };
+
   static List<String> _strings(dynamic value) =>
       ((value as List<dynamic>?) ?? const [])
           .whereType<String>()
@@ -393,6 +400,34 @@ class PlateScore {
   /// True when the user could get a more tailored score by filling in their
   /// health target. Drives the "personalise this" prompt.
   bool get canPersonalise => skipped.contains(PlateScoreAxis.calorieFit);
+
+  /// Round-trips through the offline journal cache. Without this the cached
+  /// bootstrap loses every score on a cold start.
+  Map<String, dynamic> toJson() => {
+    'score': score,
+    'band': band.wireName,
+    'tier': tier.wireName,
+    'axes': axes
+        .map(
+          (axis) => {
+            'axis': axis.axis.wireName,
+            'score': axis.score,
+            'weight': axis.weight,
+            'detail': axis.detail.wireName,
+          },
+        )
+        .toList(),
+    'skipped': skipped.map((axis) => axis.wireName).toList(),
+    'warnings': warnings
+        .map(
+          (warning) => {
+            'code': warning.code,
+            'text': warning.text,
+            'personalised': warning.personalised,
+          },
+        )
+        .toList(),
+  };
 }
 
 double _clamp(double value) => value.clamp(0, 100).toDouble();
