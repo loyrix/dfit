@@ -1,5 +1,12 @@
+import {
+  calculateMacroTargets,
+  type CustomMacroSplit,
+  type MacroTargets,
+} from "@logmyplate/domain";
+
 export type HealthSex = "female" | "male" | "not_specified";
-export type ActivityLevel = "sedentary" | "light" | "moderate" | "active";
+/** `active` is the spec's "very active"; `extra_active` was added with Part A. */
+export type ActivityLevel = "sedentary" | "light" | "moderate" | "active" | "extra_active";
 export type HealthGoal = "maintain" | "lose_gently" | "gain_gently";
 export type BmiCategory = "underweight" | "healthy" | "overweight" | "obese";
 
@@ -10,58 +17,61 @@ export type HealthTargetInput = {
   sex: HealthSex;
   activityLevel: ActivityLevel;
   goal: HealthGoal;
+  /** Part A9. Replaces the computed macro centres when present. */
+  customMacroSplit?: CustomMacroSplit;
 };
+
+/**
+ * `mifflin_st_jeor_v1` used a flat calorie offset per goal (−300 / +250).
+ * `v2` uses Part A's multiplicative factors (×0.80 / ×1.10) and adds macro bands.
+ *
+ * Both values exist in the database on purpose: the tag records which formula
+ * produced a row, so the 70 pre-existing `v1` targets stay identifiable and are
+ * never silently recomputed. See the backward-compatibility rules in
+ * docs/meal-health-score-implementation-plan.md.
+ */
+export type HealthTargetFormula = "mifflin_st_jeor_v1" | "mifflin_st_jeor_v2";
 
 export type HealthTargetCalculation = HealthTargetInput & {
   bmi: number;
   bmiCategory: BmiCategory;
   bmrCalories: number;
   dailyCalorieTarget: number;
-  formula: "mifflin_st_jeor_v1";
+  formula: HealthTargetFormula;
 };
 
-const activityFactors: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-};
-
-const goalAdjustments: Record<HealthGoal, number> = {
-  maintain: 0,
-  lose_gently: -300,
-  gain_gently: 250,
-};
-
-const round = (value: number, decimals = 1): number => {
-  const factor = 10 ** decimals;
-  return Math.round((value + Number.EPSILON) * factor) / factor;
-};
-
+/**
+ * Computes a stored health target using Part A.
+ *
+ * Delegates the maths to `packages/domain` so the API, and later the app, agree
+ * on one definition. This function only adapts it to the stored row shape and
+ * applies the calorie floor, which is a product safety rail rather than part of
+ * the spec.
+ */
 export const calculateHealthTarget = (input: HealthTargetInput): HealthTargetCalculation => {
-  const heightM = input.heightCm / 100;
-  const bmi = round(input.weightKg / (heightM * heightM), 1);
-  const bmr = calculateBmr(input);
-  const maintenance = bmr * activityFactors[input.activityLevel];
+  const targets = calculateMacroTargets(input);
   const floor = calorieFloor(input.sex);
-  const dailyCalorieTarget = Math.max(floor, Math.round(maintenance + goalAdjustments[input.goal]));
 
   return {
     ...input,
-    bmi,
-    bmiCategory: bmiCategoryFor(bmi),
-    bmrCalories: Math.round(bmr),
-    dailyCalorieTarget,
-    formula: "mifflin_st_jeor_v1",
+    bmi: targets.bmi,
+    bmiCategory: bmiCategoryFor(targets.bmi),
+    bmrCalories: Math.round(targets.bmrCalories),
+    // The floor keeps a very small or very sedentary profile from producing a
+    // target nobody should eat to.
+    dailyCalorieTarget: Math.max(floor, targets.targetDailyCalories),
+    formula: "mifflin_st_jeor_v2",
   };
 };
 
-const calculateBmr = (input: HealthTargetInput): number => {
-  const base = 10 * input.weightKg + 6.25 * input.heightCm - 5 * input.ageYears;
-  if (input.sex === "male") return base + 5;
-  if (input.sex === "female") return base - 161;
-  return base - 78;
-};
+/**
+ * The full Part A output, including macro bands.
+ *
+ * Bands are derived on read rather than stored: the formula is expected to be
+ * tuned, and a stored band would go stale against it.
+ */
+export const macroTargetsFor = (input: HealthTargetInput): MacroTargets =>
+  calculateMacroTargets(input);
 
 const calorieFloor = (sex: HealthSex): number => {
   if (sex === "male") return 1500;

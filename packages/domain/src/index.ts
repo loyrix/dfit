@@ -9,3 +9,8 @@ export * from "./portion-sanity.js";
 export * from "./micronutrient-merge.js";
 export * from "./plate-score.js";
 export * from "./plate-warnings.js";
+export * from "./macro-targets.js";
+export * from "./meal-score.js";
+export * from "./daily-score.js";
+export * from "./weekly-score.js";
+export * from "./score-stars.js";

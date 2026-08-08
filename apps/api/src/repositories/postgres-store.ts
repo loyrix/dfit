@@ -232,6 +232,9 @@ type HealthTargetRow = {
   daily_calorie_target: number;
   formula: string;
   health_focus: string[] | null;
+  custom_carbs_pct: string | null;
+  custom_fat_pct: string | null;
+  custom_protein_pct: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -364,6 +367,16 @@ const healthTargetFromRow = (row: HealthTargetRow): ProfileHealthTarget => ({
   formula: row.formula,
   // Rows created before the column existed default to an empty array.
   healthFocus: (row.health_focus ?? []) as ProfileHealthTarget["healthFocus"],
+  // Only a complete split is meaningful; the DB constraint guarantees all three
+  // are set together, so checking one is enough.
+  customMacroSplit:
+    row.custom_carbs_pct === null
+      ? undefined
+      : {
+          carbsPct: Number(row.custom_carbs_pct),
+          fatPct: Number(row.custom_fat_pct),
+          proteinPct: Number(row.custom_protein_pct),
+        },
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -788,6 +801,9 @@ export class PostgresStore implements AppRepository {
         daily_calorie_target,
         formula,
         health_focus,
+        custom_carbs_pct,
+        custom_fat_pct,
+        custom_protein_pct,
         created_at::text,
         updated_at::text
       from profile_health_targets
@@ -822,7 +838,10 @@ export class PostgresStore implements AppRepository {
         bmr_calories,
         daily_calorie_target,
         formula,
-        health_focus
+        health_focus,
+        custom_carbs_pct,
+        custom_fat_pct,
+        custom_protein_pct
       )
       values (
         ${profile.id},
@@ -837,7 +856,10 @@ export class PostgresStore implements AppRepository {
         ${input.bmrCalories},
         ${input.dailyCalorieTarget},
         ${input.formula},
-        ${input.healthFocus}
+        ${input.healthFocus},
+        ${input.customMacroSplit?.carbsPct ?? null},
+        ${input.customMacroSplit?.fatPct ?? null},
+        ${input.customMacroSplit?.proteinPct ?? null}
       )
       on conflict (profile_id) do update
       set
@@ -853,6 +875,9 @@ export class PostgresStore implements AppRepository {
         daily_calorie_target = excluded.daily_calorie_target,
         formula = excluded.formula,
         health_focus = excluded.health_focus,
+        custom_carbs_pct = excluded.custom_carbs_pct,
+        custom_fat_pct = excluded.custom_fat_pct,
+        custom_protein_pct = excluded.custom_protein_pct,
         updated_at = now()
       returning
         profile_id::text,
@@ -868,6 +893,9 @@ export class PostgresStore implements AppRepository {
         daily_calorie_target,
         formula,
         health_focus,
+        custom_carbs_pct,
+        custom_fat_pct,
+        custom_protein_pct,
         created_at::text,
         updated_at::text
     `;

@@ -18,6 +18,20 @@ export const foodPhotoSchemaVersion = "scan_v1";
 
 const preparationSchema = z.enum(["home", "restaurant", "packaged", "unknown"]);
 
+/**
+ * How the food was cooked. Distinct from `preparation`, which describes where it
+ * came from rather than what was done to it, and which stays untouched.
+ */
+const cookingMethodSchema = z.enum([
+  "fried",
+  "sauced_creamy",
+  "baked",
+  "grilled",
+  "steamed",
+  "raw",
+  "unknown",
+]);
+
 const geminiItemSchema = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string()).default([]),
@@ -25,6 +39,9 @@ const geminiItemSchema = z.object({
   unit: portionUnitSchema,
   estimatedGrams: z.number().nonnegative(),
   preparation: preparationSchema.default("unknown"),
+  // Optional: prompts before v9 do not return it, and the modifier is simply
+  // skipped rather than defaulted to a guess.
+  cookingMethod: cookingMethodSchema.optional(),
   confidence: z.number().min(0).max(1),
   nutrition: z.object({
     calories: z.number().nonnegative(),
@@ -115,6 +132,10 @@ export const foodPhotoResponseSchema = {
           preparation: {
             type: "string",
             enum: preparationSchema.options,
+          },
+          cookingMethod: {
+            type: "string",
+            enum: cookingMethodSchema.options,
           },
           confidence: { type: "number" },
           nutrition: {
@@ -377,6 +398,9 @@ OUTPUT MAPPING:
 - Use quantity plus unit for the best visible household measure; use piece-like units when
   countable pieces are visible.
 - Keep names short and user-editable.
+- Use cookingMethod for how the food was cooked, not where it came from: one of fried,
+  sauced_creamy, baked, grilled, steamed, raw. Omit it entirely, or use "unknown", when
+  the technique is not visually clear. A wrong guess here is worse than no answer.
 - Work through the visual reasoning internally, but return only the required JSON schema.
 
 NUTRITION DERIVATION:

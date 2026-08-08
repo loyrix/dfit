@@ -333,6 +333,11 @@ export type ProfileHealthTarget = {
    * never the number.
    */
   healthFocus: HealthFocus[];
+  /**
+   * Part A9. Present only when the user set their own macro split, which then
+   * replaces the computed centres outright.
+   */
+  customMacroSplit?: { carbsPct: number; fatPct: number; proteinPct: number };
   createdAt: string;
   updatedAt: string;
 };

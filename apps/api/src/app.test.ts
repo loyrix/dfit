@@ -1826,6 +1826,130 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("accepts an old-shape health target request unchanged", async () => {
+    // The live App Store app posts the original four activity levels and no
+    // custom split. It must keep succeeding exactly as before.
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "legacy-target-shape",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "legacy-target@example.com", password: "secret1" },
+    });
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: { ...accountHeaders, "idempotency-key": "legacy-target-save" },
+      payload: {
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        sex: "male",
+        activityLevel: "light",
+        goal: "maintain",
+      },
+    });
+
+    expect(saved.statusCode).toBe(200);
+    // Maintenance is unchanged between the flat and multiplicative formulas
+    // (+0 vs x1.0), so this user's target is byte-identical to before.
+    expect(saved.json().healthTarget).toMatchObject({
+      dailyCalorieTarget: 2238,
+      formula: "mifflin_st_jeor_v2",
+    });
+    expect(saved.json().healthTarget.customMacroSplit).toBeUndefined();
+    await app.close();
+  });
+
+  it("accepts the new extra_active level and a custom macro split", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "custom-split-account",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "custom-split@example.com", password: "secret1" },
+    });
+    const accountHeaders = {
+      ...installHeaders,
+      authorization: `Bearer ${signup.json().accessToken}`,
+    };
+
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: { ...accountHeaders, "idempotency-key": "custom-split-save" },
+      payload: {
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        sex: "male",
+        activityLevel: "extra_active",
+        goal: "gain_gently",
+        customMacroSplit: { carbsPct: 50, fatPct: 20, proteinPct: 30 },
+      },
+    });
+
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().healthTarget).toMatchObject({
+      activityLevel: "extra_active",
+      customMacroSplit: { carbsPct: 50, fatPct: 20, proteinPct: 30 },
+    });
+    // BMR 1627.5 x 1.90 (extra active) x 1.10 (muscle gain) = 3401.475
+    expect(saved.json().healthTarget.dailyCalorieTarget).toBe(3401);
+    await app.close();
+  });
+
+  it("rejects a macro split that does not add up to 100", async () => {
+    const app = await testApp();
+    const installHeaders = {
+      "x-logmyplate-install-id": "bad-split-account",
+      "x-logmyplate-platform": "ios",
+    };
+    const signup = await app.inject({
+      method: "POST",
+      url: "/v1/auth/email/signup",
+      headers: installHeaders,
+      payload: { email: "bad-split@example.com", password: "secret1" },
+    });
+
+    const saved = await app.inject({
+      method: "PUT",
+      url: "/v1/profiles/me/health",
+      headers: {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+        "idempotency-key": "bad-split-save",
+      },
+      payload: {
+        heightCm: 170,
+        weightKg: 70,
+        ageYears: 28,
+        sex: "male",
+        activityLevel: "light",
+        goal: "maintain",
+        customMacroSplit: { carbsPct: 50, fatPct: 20, proteinPct: 10 },
+      },
+    });
+
+    // A partial or inconsistent split would score against a nonsense band.
+    expect(saved.statusCode).toBe(400);
+    expect(saved.json().error).toBe("invalid_health_target");
+    await app.close();
+  });
+
   it("requires an account before saving BMI based daily targets", async () => {
     const app = await testApp();
     const response = await app.inject({

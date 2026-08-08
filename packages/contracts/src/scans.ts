@@ -49,6 +49,14 @@ export const analyzedMealItemSchema = z.object({
   unit: portionUnitSchema,
   estimatedGrams: z.number().nonnegative(),
   preparation: z.enum(["home", "restaurant", "packaged", "unknown"]).default("unknown"),
+  /**
+   * How the food was cooked, feeding the Part B cooking modifier. Distinct from
+   * `preparation`, which describes provenance. Optional: prompts before v9 do
+   * not return it, and the modifier is skipped rather than guessed.
+   */
+  cookingMethod: z
+    .enum(["fried", "sauced_creamy", "baked", "grilled", "steamed", "raw", "unknown"])
+    .optional(),
   confidence: z.number().min(0).max(1),
   nutrition: macroTotalsSchema,
 });

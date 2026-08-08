@@ -124,10 +124,11 @@ export const registerProfileRoutes = async (
 
     try {
       // healthFocus is stored as given: it never feeds the calorie maths, only
-      // the wording of AI advice.
+      // the wording of AI advice. customMacroSplit does feed it, via Part A9.
       const healthTarget = await repository.upsertHealthTarget({
         ...calculateHealthTarget(parsed.data),
         healthFocus: parsed.data.healthFocus,
+        customMacroSplit: parsed.data.customMacroSplit,
       });
       return { healthTarget };
     } catch (error) {
