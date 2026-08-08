@@ -4259,19 +4259,59 @@ describe("LogMyPlate API", () => {
       await app.close();
     });
 
-    it("omits every rating for a user with no health target", async () => {
+    it("still rates a user who has set no health target", async () => {
       const app = await testApp();
       const headers = await setUpAccount(app, "rating-no-target");
       const confirmed = await logAMeal(app, headers, "rating-no-target");
 
-      // Parts B-D measure against bands derived from the user's own body. With
-      // no target there is nothing honest to measure against, and a default band
-      // would score them against a stranger.
-      expect(confirmed.meal.rating).toBeUndefined();
+      // The rating asks how healthy the food is, which does not depend on
+      // anyone's height. Requiring a profile would have left most users with a
+      // blank home screen for no reason.
+      expect(confirmed.meal.rating).toBeDefined();
 
       const today = await app.inject({ method: "GET", url: "/v1/journal/today", headers });
-      expect(today.json().rating).toBeUndefined();
-      expect(today.json().meals[0].rating).toBeUndefined();
+      expect(today.json().rating).toBeDefined();
+      expect(today.json().meals[0].rating).toBeDefined();
+      await app.close();
+    });
+
+    it("shows a lower rating to a user who selected a condition", async () => {
+      // The stored score stays universal; the condition changes only what this
+      // user is shown. Same food, same server, two different screens.
+      const plainApp = await testApp();
+      const plainHeaders = await setUpAccount(plainApp, "rating-plain", healthPayload);
+      const plain = await logAMeal(plainApp, plainHeaders, "rating-plain");
+
+      const diabeticApp = await testApp();
+      const diabeticHeaders = await setUpAccount(diabeticApp, "rating-diabetic", {
+        ...healthPayload,
+        healthFocus: ["diabetes"],
+      });
+      const diabetic = await logAMeal(diabeticApp, diabeticHeaders, "rating-diabetic");
+
+      expect(plain.meal.rating).toBeDefined();
+      expect(diabetic.meal.rating).toBeDefined();
+      // The mock meal carries sugar, so diabetes must not read higher than none.
+      expect(diabetic.meal.rating.stars).toBeLessThanOrEqual(plain.meal.rating.stars);
+
+      await plainApp.close();
+      await diabeticApp.close();
+    });
+
+    it("makes the day the average of its meals, so they cannot contradict", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-average", healthPayload);
+      await logAMeal(app, headers, "rating-average");
+
+      const today = await app.inject({ method: "GET", url: "/v1/journal/today", headers });
+      const body = today.json();
+      const mealStars = body.meals.map(
+        (meal: { rating?: { stars: number } }) => meal.rating?.stars,
+      );
+
+      // With one meal logged, the day must read exactly as that meal does.
+      expect(mealStars).toHaveLength(1);
+      expect(body.rating.stars).toBe(mealStars[0]);
       await app.close();
     });
 

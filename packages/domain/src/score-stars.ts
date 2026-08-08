@@ -58,37 +58,44 @@ export const scoreToStars = (
   return 5;
 };
 
-/** E2. Daily messages. The primary surface, so these carry the most weight. */
+/**
+ * Daily messages. The primary surface, so these carry the most weight.
+ *
+ * The wording tracks what is actually measured: how much nutrition the food
+ * carried per calorie. It deliberately no longer says "balanced", which
+ * described the old macro-matching model and read as nonsense next to a single
+ * orange.
+ */
 const DAILY_MESSAGES: Record<ScoreStars, string> = {
-  1: "Today was tough — try to add more protein and balance tomorrow.",
-  2: "A bit off balance today. Small tweaks tomorrow can help.",
-  3: "Decent day — a little more balance would take this further.",
-  4: "Solid day! You're close to your targets.",
-  5: "Great job — today was well balanced across the board.",
+  1: "A heavy day. Try adding something fresh tomorrow.",
+  2: "Light on nutrition today — a few whole foods would lift this.",
+  3: "A reasonable day overall.",
+  4: "Good day — mostly nourishing choices.",
+  5: "Excellent day — really nutritious choices throughout.",
 };
 
-/** E3. Weekly messages. */
+/** Weekly messages. */
 const WEEKLY_MESSAGES: Record<ScoreStars, string> = {
-  1: "This week was a rough stretch. Let's reset — small changes add up.",
-  2: "Below your usual balance this week. One better day at a time.",
-  3: "A fairly balanced week overall — keep building on it.",
-  4: "Strong week! You're consistently close to your targets.",
-  5: "Excellent week — great consistency across the days.",
+  1: "A heavy stretch. Let's reset — small changes add up.",
+  2: "Light on nutrition this week. One better day at a time.",
+  3: "A reasonable week overall — keep building on it.",
+  4: "Strong week — consistently nourishing choices.",
+  5: "Excellent week — genuinely nutritious eating throughout.",
 };
 
 /**
- * E4. Per-meal messages, deliberately lighter in touch.
+ * Per-meal messages, deliberately lighter in touch.
  *
  * A single meal should not feel as final as a day or a week. This is
  * supplementary detail for someone who tapped in, not the signal they are meant
  * to act on.
  */
 const MEAL_MESSAGES: Record<ScoreStars, string> = {
-  1: "Low in balance — mostly one macro dominating.",
-  2: "A bit skewed — could use more balance.",
-  3: "Reasonably balanced meal.",
-  4: "Nicely balanced meal.",
-  5: "Great balance across carbs, fat, and protein.",
+  1: "Heavy for what it gives back.",
+  2: "Light on nutrition for the calories.",
+  3: "A reasonable choice.",
+  4: "Good choice — plenty of nutrition here.",
+  5: "Excellent — a lot of nutrition for the calories.",
 };
 
 const MESSAGES: Record<ScoreLevel, Record<ScoreStars, string>> = {

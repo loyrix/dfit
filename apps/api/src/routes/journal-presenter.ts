@@ -13,8 +13,8 @@ import type {
 } from "../repositories/app-repository.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 import {
+  dailyQualityScore,
   dailyRating,
-  dailyScoreFor,
   mealRating,
   toMacroTargets,
   weeklyRating,
@@ -69,6 +69,7 @@ export const toRatingContext = (
 ): RatingContext => ({
   targets: toMacroTargets(healthTarget),
   policy,
+  healthFocus: healthTarget?.healthFocus ?? [],
 });
 
 export const toApiMeal = async (
@@ -220,10 +221,9 @@ export const buildTodayJournal = async (
   // Today is still in progress by definition, so the rating is always
   // provisional here. The app uses that to frame the card as live rather than
   // final: someone who has logged only breakfast is not having a one-star day.
-  const dayScore = dailyScoreFor(
+  const dayScore = dailyQualityScore(
     meals.map((meal) => meal.items),
     rating,
-    { provisional: true },
   );
 
   return {
@@ -231,7 +231,7 @@ export const buildTodayJournal = async (
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
     target: dailyCalorieTarget(resolvedTarget ?? undefined),
-    rating: dailyRating(dayScore, rating),
+    rating: dailyRating(dayScore, rating, { provisional: true }),
     meals: await Promise.all(
       meals.map((meal) =>
         toApiMeal(profile.id, meal, mealImageStorage, {
@@ -276,19 +276,18 @@ export const buildJournalRange = async (
   const days = await Promise.all(
     dates.map(async (date) => {
       const dayMeals = mealsByDate.get(date) ?? [];
-      // Only today is still in progress; a past day in the window is settled.
-      const dayScore = dailyScoreFor(
+      const dayScore = dailyQualityScore(
         dayMeals.map((meal) => meal.items),
         rating,
-        { provisional: date === today },
       );
       return {
         date,
         mealCount: dayMeals.length,
         totals: sumTotals(dayMeals.map((meal) => meal.totals)),
-        rating: dailyRating(dayScore, rating),
-        // Kept off the response; Part D needs the score, not the stars.
-        dailyScore: dayScore?.score,
+        // Only today is still in progress; a past day in the window is settled.
+        rating: dailyRating(dayScore, rating, { provisional: date === today }),
+        // Kept off the response; the weekly average needs the score, not stars.
+        dailyScore: dayScore,
         meals: await Promise.all(
           dayMeals.map((meal) =>
             toApiMeal(profile.id, meal, mealImageStorage, {

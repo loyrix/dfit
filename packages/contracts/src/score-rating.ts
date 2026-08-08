@@ -79,7 +79,71 @@ const cookingModifierSchema = z
  * partial row, or a row an operator has half-edited all fall back rather than
  * change behaviour.
  */
+const qualityTierSchema = z.object({
+  atLeast: z.number().min(0).max(100000),
+  points: z.number().min(-100).max(100),
+});
+
+/**
+ * Nutrient-quality tiers, the model behind every per-meal rating.
+ *
+ * Replaces macro-band matching, which asked the wrong question: it scored each
+ * meal against the user's whole-day macro split, so a mandarin orange scored
+ * zero for being 91% carbohydrate. These tiers ask how much nutrition a food
+ * carries per calorie instead, which is what people mean by "healthy".
+ */
+const foodQualitySchema = z
+  .object({
+    base: z.number().min(0).max(100).default(50),
+    energyDensity: z.array(qualityTierSchema).default([
+      { atLeast: 400, points: -20 },
+      { atLeast: 300, points: -14 },
+      { atLeast: 220, points: -6 },
+      { atLeast: 150, points: 2 },
+      { atLeast: 100, points: 10 },
+      { atLeast: 60, points: 16 },
+      { atLeast: 0, points: 22 },
+    ]),
+    fiberDensity: z.array(qualityTierSchema).default([
+      { atLeast: 3, points: 18 },
+      { atLeast: 2, points: 13 },
+      { atLeast: 1, points: 7 },
+      { atLeast: 0.5, points: 3 },
+      { atLeast: 0, points: 0 },
+    ]),
+    proteinDensity: z.array(qualityTierSchema).default([
+      { atLeast: 10, points: 18 },
+      { atLeast: 7, points: 13 },
+      { atLeast: 4, points: 7 },
+      { atLeast: 2, points: 3 },
+      { atLeast: 0, points: 0 },
+    ]),
+    sugarDensity: z.array(qualityTierSchema).default([
+      { atLeast: 20, points: -14 },
+      { atLeast: 12, points: -8 },
+      { atLeast: 6, points: -3 },
+      { atLeast: 0, points: 0 },
+    ]),
+    sodiumDensity: z.array(qualityTierSchema).default([
+      { atLeast: 600, points: -12 },
+      { atLeast: 350, points: -7 },
+      { atLeast: 200, points: -3 },
+      { atLeast: 0, points: 0 },
+    ]),
+    cooking: cookingModifierSchema,
+    emptyCalories: z
+      .object({
+        sugarShareOver: z.number().min(0).max(100).default(70),
+        fiberUnder: z.number().min(0).max(100).default(1),
+        points: z.number().min(-100).max(0).default(-22),
+      })
+      .default({}),
+  })
+  .default({});
+
 export const mealScorePolicySchema = z.object({
+  /** The model behind every per-meal rating. */
+  quality: foodQualitySchema,
   meal: z
     .object({
       falloff: z.number().min(1).max(100).default(15),
