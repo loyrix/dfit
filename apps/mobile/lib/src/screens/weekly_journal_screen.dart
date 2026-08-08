@@ -169,6 +169,10 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
     final selected = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: Colors.transparent,
+      // Without this the sheet is capped at half the screen and simply clips
+      // the overflow: a user with more than a handful of tracked weeks could
+      // not reach the oldest ones at all.
+      isScrollControlled: true,
       builder: (_) => _WeekPickerSheet(
         selectedWeekOffset: _weekOffset,
         weeks: _availableWeeks,
@@ -729,9 +733,14 @@ class _WeekPickerSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
 
+    // Leaves the sheet short for a handful of weeks and lets it grow to most of
+    // the screen for a long history, rather than always filling the display.
+    final maxHeight = MediaQuery.of(context).size.height * 0.72;
+
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+        constraints: BoxConstraints(maxHeight: maxHeight),
         child: GlassCard(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
           borderRadius: BorderRadius.circular(
@@ -746,23 +755,41 @@ class _WeekPickerSheet extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 10),
-              for (final week in weeks)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  title: Text(_weekOffsetLabel(week.weekOffset)),
-                  subtitle: Text(
-                    '${_compactDate(week.startDate)} - ${_compactDate(week.endDate)}'
-                    '  ·  ${week.activeDays} ${week.activeDays == 1 ? 'day' : 'days'} tracked',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.textSecondary,
-                    ),
+              // Flexible rather than Expanded so a short list still hugs its
+              // content instead of stretching to the full constraint.
+              Flexible(
+                // The glass card paints its own background, which would
+                // otherwise swallow each row's tap ripple: the rows looked
+                // inert when tapped. Transparent Material restores the ink
+                // without painting a second surface over the glass.
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ListView.builder(
+                    key: const ValueKey('week-picker-list'),
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: weeks.length,
+                    itemBuilder: (context, index) {
+                      final week = weeks[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(_weekOffsetLabel(week.weekOffset)),
+                        subtitle: Text(
+                          '${_compactDate(week.startDate)} - ${_compactDate(week.endDate)}'
+                          '  ·  ${week.activeDays} ${week.activeDays == 1 ? 'day' : 'days'} tracked',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.textSecondary),
+                        ),
+                        trailing: week.weekOffset == selectedWeekOffset
+                            ? Icon(Icons.check_rounded, color: colors.accent)
+                            : null,
+                        onTap: () => Navigator.of(context).pop(week.weekOffset),
+                      );
+                    },
                   ),
-                  trailing: week.weekOffset == selectedWeekOffset
-                      ? Icon(Icons.check_rounded, color: colors.accent)
-                      : null,
-                  onTap: () => Navigator.of(context).pop(week.weekOffset),
                 ),
+              ),
             ],
           ),
         ),

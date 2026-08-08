@@ -872,6 +872,62 @@ void main() {
     expect(openedMeal?.id, 'older-meal');
   });
 
+  testWidgets('week picker scrolls to the oldest week in a long history', (
+    tester,
+  ) async {
+    // A user with a couple of months of history overflowed the sheet, which
+    // simply clipped: the oldest weeks were unreachable with no scrollbar and
+    // no visual hint that anything had been cut off.
+    final weeks = List.generate(
+      12,
+      (index) => JournalWeekOption(
+        weekOffset: index,
+        startDate: '2026-05-06',
+        endDate: '2026-05-12',
+        activeDays: 1,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.light(),
+        home: WeeklyJournalScreen(
+          range: JournalRangeData(
+            startDate: '2026-05-06',
+            endDate: '2026-05-12',
+            days: const [],
+            summary: const JournalRangeSummary(
+              windowDays: 7,
+              activeDays: 1,
+              mealCount: 0,
+              totals: MacroTotals.zero,
+              trackedDayAverage: MacroTotals.zero,
+              calendarDayAverage: MacroTotals.zero,
+            ),
+          ),
+          onLoadWeek: (_) async => throw UnimplementedError(),
+          onLoadWeeks: () async => weeks,
+          onDeleteMeal: (_) async {},
+          onOpenMeal: (_) async => false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Week').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Choose week'), findsOneWidget);
+    final list = find.byKey(const ValueKey('week-picker-list'));
+    expect(list, findsOneWidget);
+
+    // The last entry starts out below the fold; scrolling must reach it.
+    expect(find.text('11 weeks ago'), findsNothing);
+    await tester.drag(list, const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(find.text('11 weeks ago'), findsOneWidget);
+  });
+
   testWidgets('weekly journal covers empty and syncing states in light mode', (
     tester,
   ) async {
