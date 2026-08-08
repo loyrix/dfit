@@ -33,6 +33,9 @@ class MealScoreRow extends StatelessWidget {
               stars: rating.stars,
               size: 18,
               semanticsPrefix: 'This meal',
+              // Still, on purpose. The meal rating is supporting detail reached
+              // by tapping in; animating it would compete with the day.
+              animate: false,
             ),
             const SizedBox(width: LogMyPlateSpacing.itemSpacing),
             Expanded(

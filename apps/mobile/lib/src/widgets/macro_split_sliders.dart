@@ -218,9 +218,8 @@ class _MacroSlider extends StatelessWidget {
               ),
               min: MacroSplitSliders._minPct,
               max: MacroSplitSliders._maxPct,
-              divisions:
-                  (MacroSplitSliders._maxPct - MacroSplitSliders._minPct)
-                      .round(),
+              divisions: (MacroSplitSliders._maxPct - MacroSplitSliders._minPct)
+                  .round(),
               label: '${value.round()}%',
               onChanged: enabled ? onChanged : null,
             ),

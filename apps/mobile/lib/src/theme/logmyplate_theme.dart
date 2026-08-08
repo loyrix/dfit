@@ -118,6 +118,7 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
     required this.primaryAction,
     required this.primaryActionText,
     required this.mutedFill,
+    required this.isDark,
   });
 
   final Color background;
@@ -135,6 +136,16 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
   final Color primaryActionText;
   final Color mutedFill;
 
+  /// Which variant this is.
+  ///
+  /// Carried on the extension rather than read from `Theme.of(context)
+  /// .brightness`, which is **not reliable here**: `MaterialApp(theme:
+  /// LogMyPlateTheme.dark())` still reports `Brightness.light`, because
+  /// MaterialApp resolves brightness from themeMode and the platform rather
+  /// than from the ThemeData it was handed. Anything branching on brightness
+  /// silently renders the light palette on a dark ground.
+  final bool isDark;
+
   static LogMyPlateThemeColors light() {
     return LogMyPlateThemeColors(
       background: LogMyPlateColors.bgCream,
@@ -151,6 +162,7 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
       primaryAction: LogMyPlateColors.textPrimaryLight,
       primaryActionText: Colors.white,
       mutedFill: LogMyPlateColors.textPrimaryLight.withValues(alpha: 0.06),
+      isDark: false,
     );
   }
 
@@ -170,6 +182,7 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
       primaryAction: LogMyPlateColors.accent,
       primaryActionText: LogMyPlateColors.accentDeep,
       mutedFill: Colors.white.withValues(alpha: 0.08),
+      isDark: true,
     );
   }
 
@@ -196,6 +209,7 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
     Color? primaryAction,
     Color? primaryActionText,
     Color? mutedFill,
+    bool? isDark,
   }) {
     return LogMyPlateThemeColors(
       background: background ?? this.background,
@@ -212,6 +226,7 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
       primaryAction: primaryAction ?? this.primaryAction,
       primaryActionText: primaryActionText ?? this.primaryActionText,
       mutedFill: mutedFill ?? this.mutedFill,
+      isDark: isDark ?? this.isDark,
     );
   }
 
@@ -241,6 +256,9 @@ class LogMyPlateThemeColors extends ThemeExtension<LogMyPlateThemeColors> {
         t,
       )!,
       mutedFill: Color.lerp(mutedFill, other.mutedFill, t)!,
+      // A boolean cannot be interpolated; snap at the midpoint so a crossfade
+      // never leaves the palette identifying as the variant it is leaving.
+      isDark: t < 0.5 ? isDark : other.isDark,
     );
   }
 }

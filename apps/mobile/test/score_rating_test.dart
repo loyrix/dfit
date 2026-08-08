@@ -6,6 +6,7 @@ import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/daily_score_card.dart';
 import 'package:logmyplate_mobile/src/widgets/macro_split_sliders.dart';
 import 'package:logmyplate_mobile/src/widgets/meal_score_row.dart';
+import 'package:logmyplate_mobile/src/widgets/score_visuals.dart';
 
 Widget _host(Widget child) {
   return MaterialApp(
@@ -255,7 +256,11 @@ void main() {
           MacroSplitSliders(
             enabled: false,
             split: const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25),
-            computed: const MacroSplit(carbsPct: 45, fatPct: 30, proteinPct: 25),
+            computed: const MacroSplit(
+              carbsPct: 45,
+              fatPct: 30,
+              proteinPct: 25,
+            ),
             onEnabledChanged: (_) {},
             onChanged: (_) {},
           ),
@@ -264,7 +269,10 @@ void main() {
 
       // Off by default, showing the computed baseline rather than a stale
       // manual split.
-      expect(find.text('Calculated from your goal and activity.'), findsOneWidget);
+      expect(
+        find.text('Calculated from your goal and activity.'),
+        findsOneWidget,
+      );
       final slider = tester.widget<Slider>(
         find.descendant(
           of: find.byKey(const ValueKey('macro-split-carbs')),
@@ -282,7 +290,11 @@ void main() {
           MacroSplitSliders(
             enabled: true,
             split: const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25),
-            computed: const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25),
+            computed: const MacroSplit(
+              carbsPct: 50,
+              fatPct: 25,
+              proteinPct: 25,
+            ),
             onEnabledChanged: (_) {},
             onChanged: (split) => reported = split,
           ),
@@ -304,6 +316,161 @@ void main() {
         closeTo(100, 0.05),
       );
       expect(reported!.carbsPct, lessThan(50));
+    });
+  });
+
+  group('score tone', () {
+    test('maps stars to a tone', () {
+      expect(scoreToneFor(1), ScoreTone.needsWork);
+      expect(scoreToneFor(2), ScoreTone.needsWork);
+      expect(scoreToneFor(3), ScoreTone.steady);
+      expect(scoreToneFor(4), ScoreTone.great);
+      expect(scoreToneFor(5), ScoreTone.great);
+    });
+
+    testWidgets('gives both themes their own palette', (tester) async {
+      // Each theme gets a distinct key so the Builder element is rebuilt rather
+      // than reused, which would silently capture the first theme twice.
+      Future<ScoreToneStyle> capture(ThemeData theme, String key) async {
+        late ScoreToneStyle captured;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Builder(
+              key: ValueKey(key),
+              builder: (context) {
+                captured = ScoreToneStyle.of(context, ScoreTone.great);
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+        // MaterialApp crossfades between themes; without settling, the first
+        // frame still reports the outgoing palette.
+        await tester.pumpAndSettle();
+        return captured;
+      }
+
+      final lightStyle = await capture(LogMyPlateTheme.light(), 'light');
+      final darkStyle = await capture(LogMyPlateTheme.dark(), 'dark');
+
+      // Gold tuned for cream turns muddy on ink, so the two must not be equal.
+      expect(darkStyle.starGradient, isNot(equals(lightStyle.starGradient)));
+      expect(darkStyle.emptyStar, isNot(equals(lightStyle.emptyStar)));
+    });
+
+    testWidgets('never paints a filled star with the dark "on accent" token', (
+      tester,
+    ) async {
+      // Regression: filled stars were drawn in accentOn (#3D2E07), a text-on-
+      // accent colour, which rendered them muddy brown in both themes.
+      for (final theme in [LogMyPlateTheme.light(), LogMyPlateTheme.dark()]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Builder(
+              builder: (context) {
+                final style = ScoreToneStyle.of(context, ScoreTone.great);
+                expect(
+                  style.starGradient,
+                  isNot(contains(const Color(0xFF3D2E07))),
+                );
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+    });
+
+    testWidgets('a weak rating is warm, not red', (tester) async {
+      // Most real days land at one or two stars. An alarm state would fire
+      // almost daily and the app would read as scolding.
+      const destructive = Color(0xFFD94B4B);
+      for (final theme in [LogMyPlateTheme.light(), LogMyPlateTheme.dark()]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Builder(
+              builder: (context) {
+                final style = ScoreToneStyle.of(context, ScoreTone.needsWork);
+                expect(style.starGradient, isNot(contains(destructive)));
+                expect(style.wash.a, lessThan(0.2));
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+    });
+  });
+
+  group('celebration', () {
+    testWidgets('bursts for a strong rating', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const DailyScoreCard(
+            rating: ScoreRating(
+              stars: 5,
+              message: 'Great job',
+              level: ScoreLevel.daily,
+            ),
+            mealsLogged: 3,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(CustomPaint), findsWidgets);
+      expect(find.byKey(const ValueKey('daily-score-badge')), findsOneWidget);
+      expect(find.text('Excellent'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('stays quiet for a weak rating', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const DailyScoreCard(
+            rating: ScoreRating(
+              stars: 2,
+              message: 'A bit off balance today.',
+              level: ScoreLevel.daily,
+            ),
+            mealsLogged: 2,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // No celebration and no badge: a weak day is met with warmth, not
+      // decoration and not an alarm.
+      expect(find.byKey(const ValueKey('daily-score-badge')), findsNothing);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('honours reduced motion', (tester) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: _host(
+            const DailyScoreCard(
+              rating: ScoreRating(
+                stars: 5,
+                message: 'Great job',
+                level: ScoreLevel.daily,
+              ),
+              mealsLogged: 3,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // The stars must still be there; only the motion is dropped.
+      expect(find.byKey(const ValueKey('daily-score-stars')), findsOneWidget);
+      await tester.pumpAndSettle();
     });
   });
 }
