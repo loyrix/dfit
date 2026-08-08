@@ -23,17 +23,27 @@ export const registerConfigRoutes = async (
   app: FastifyInstance,
   sql?: SqlClient,
 ): Promise<void> => {
-  app.get("/", async () => ({
+  /**
+   * Which commit is actually serving traffic.
+   *
+   * Vercel reports a skipped build as a successful deployment, so a push whose
+   * last commit touches only the app silently leaves the API on older code with
+   * nothing anywhere reporting a problem. That happened across four commits and
+   * cost an afternoon of debugging a feature that was never deployed.
+   *
+   * `commit` answers "is my change live?" in one curl, with no dashboard and no
+   * guessing. Undefined outside Vercel, where the question does not arise.
+   */
+  const buildInfo = () => ({
     ok: true,
     service: "logmyplate-api",
     version: "0.0.0",
-  }));
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7),
+  });
 
-  app.get("/health", async () => ({
-    ok: true,
-    service: "logmyplate-api",
-    version: "0.0.0",
-  }));
+  app.get("/", async () => buildInfo());
+
+  app.get("/health", async () => buildInfo());
 
   app.get("/v1/config", async () => {
     const imageStorage = isMealImageStorageConfigured();
