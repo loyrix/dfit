@@ -1,0 +1,2897 @@
+{
+  "vectors": [
+    {
+      "name": "female, mid-range BMI / sedentary / lose_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "sedentary",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 1656.3,
+        "targetDailyCalories": 1325,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 30,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / sedentary / maintain",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "sedentary",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 1656.3,
+        "targetDailyCalories": 1656,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 30,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / sedentary / gain_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "sedentary",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 1656.3,
+        "targetDailyCalories": 1822,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / light / lose_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "light",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 1897.8,
+        "targetDailyCalories": 1518,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 30,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / light / maintain",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "light",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 1897.8,
+        "targetDailyCalories": 1898,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 30,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / light / gain_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "light",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 1897.8,
+        "targetDailyCalories": 2088,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / moderate / lose_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "moderate",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2139.4,
+        "targetDailyCalories": 1712,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / moderate / maintain",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "moderate",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2139.4,
+        "targetDailyCalories": 2139,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / moderate / gain_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "moderate",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2139.4,
+        "targetDailyCalories": 2353,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / active / lose_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2380.9,
+        "targetDailyCalories": 1905,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / active / maintain",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2380.9,
+        "targetDailyCalories": 2381,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / active / gain_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2380.9,
+        "targetDailyCalories": 2619,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / extra_active / lose_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "extra_active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2622.5,
+        "targetDailyCalories": 2098,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / extra_active / maintain",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "extra_active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2622.5,
+        "targetDailyCalories": 2622,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, mid-range BMI / extra_active / gain_gently",
+      "input": {
+        "heightCm": 165,
+        "weightKg": 65,
+        "ageYears": 28,
+        "sex": "female",
+        "activityLevel": "extra_active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.9,
+        "bmrCalories": 1380.3,
+        "tdeeCalories": 2622.5,
+        "targetDailyCalories": 2885,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / sedentary / lose_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "sedentary",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 1978.5,
+        "targetDailyCalories": 1583,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 30,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / sedentary / maintain",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "sedentary",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 1978.5,
+        "targetDailyCalories": 1979,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 30,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / sedentary / gain_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "sedentary",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 1978.5,
+        "targetDailyCalories": 2176,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / light / lose_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "light",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2267,
+        "targetDailyCalories": 1814,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 30,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / light / maintain",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "light",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2267,
+        "targetDailyCalories": 2267,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 30,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / light / gain_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "light",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2267,
+        "targetDailyCalories": 2494,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / moderate / lose_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2555.6,
+        "targetDailyCalories": 2044,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / moderate / maintain",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2555.6,
+        "targetDailyCalories": 2556,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / moderate / gain_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2555.6,
+        "targetDailyCalories": 2811,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / active / lose_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2844.1,
+        "targetDailyCalories": 2275,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / active / maintain",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2844.1,
+        "targetDailyCalories": 2844,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / active / gain_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2844.1,
+        "targetDailyCalories": 3129,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / extra_active / lose_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "extra_active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 3132.6,
+        "targetDailyCalories": 2506,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / extra_active / maintain",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "extra_active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 3132.6,
+        "targetDailyCalories": 3133,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, mid-range BMI / extra_active / gain_gently",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "extra_active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 3132.6,
+        "targetDailyCalories": 3446,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / sedentary / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "sedentary",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 1787.4,
+        "targetDailyCalories": 1430,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 30,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / sedentary / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "sedentary",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 1787.4,
+        "targetDailyCalories": 1787,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 30,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / sedentary / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "sedentary",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 1787.4,
+        "targetDailyCalories": 1966,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / light / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "light",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2048.1,
+        "targetDailyCalories": 1638,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 30,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / light / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "light",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2048.1,
+        "targetDailyCalories": 2048,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 30,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / light / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "light",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2048.1,
+        "targetDailyCalories": 2253,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / moderate / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "moderate",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2308.7,
+        "targetDailyCalories": 1847,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / moderate / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "moderate",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2308.7,
+        "targetDailyCalories": 2309,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / moderate / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "moderate",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2308.7,
+        "targetDailyCalories": 2540,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / active / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2569.4,
+        "targetDailyCalories": 2056,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / active / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2569.4,
+        "targetDailyCalories": 2569,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / active / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2569.4,
+        "targetDailyCalories": 2826,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / extra_active / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "extra_active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2830,
+        "targetDailyCalories": 2264,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / extra_active / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "extra_active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2830,
+        "targetDailyCalories": 2830,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 25,
+          "proteinPct": 25
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 17,
+            "max": 33
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "unspecified sex / extra_active / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 68,
+        "ageYears": 35,
+        "sex": "not_specified",
+        "activityLevel": "extra_active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 23.5,
+        "bmrCalories": 1489.5,
+        "tdeeCalories": 2830,
+        "targetDailyCalories": 3113,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 25,
+            "max": 35
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / sedentary / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "sedentary",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2151,
+        "targetDailyCalories": 1721,
+        "centers": {
+          "carbsPct": 25,
+          "fatPct": 30,
+          "proteinPct": 45
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 20,
+            "max": 30
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 40,
+            "max": 50
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / sedentary / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "sedentary",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2151,
+        "targetDailyCalories": 2151,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 30,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 32,
+            "max": 48
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 38
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / sedentary / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "sedentary",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2151,
+        "targetDailyCalories": 2366,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / light / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "light",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2464.7,
+        "targetDailyCalories": 1972,
+        "centers": {
+          "carbsPct": 25,
+          "fatPct": 30,
+          "proteinPct": 45
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 20,
+            "max": 30
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 35
+          },
+          "proteinPct": {
+            "min": 40,
+            "max": 50
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / light / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "light",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2464.7,
+        "targetDailyCalories": 2465,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 30,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 32,
+            "max": 48
+          },
+          "fatPct": {
+            "min": 22,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 38
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / light / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "light",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2464.7,
+        "targetDailyCalories": 2711,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 25,
+          "proteinPct": 40
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 35,
+            "max": 45
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / moderate / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2778.4,
+        "targetDailyCalories": 2223,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 25,
+          "proteinPct": 45
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 40,
+            "max": 50
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / moderate / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2778.4,
+        "targetDailyCalories": 2778,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 38
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / moderate / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 2778.4,
+        "targetDailyCalories": 3056,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / active / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 3092.1,
+        "targetDailyCalories": 2474,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 25,
+          "proteinPct": 45
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 40,
+            "max": 50
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / active / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 3092.1,
+        "targetDailyCalories": 3092,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 38
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / active / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 3092.1,
+        "targetDailyCalories": 3401,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / extra_active / lose_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "extra_active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 3405.8,
+        "targetDailyCalories": 2725,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 25,
+          "proteinPct": 45
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 40,
+            "max": 50
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / extra_active / maintain",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "extra_active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 3405.8,
+        "targetDailyCalories": 3406,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 25,
+          "proteinPct": 30
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 37,
+            "max": 53
+          },
+          "fatPct": {
+            "min": 17,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 38
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "male, high BMI / extra_active / gain_gently",
+      "input": {
+        "heightCm": 170,
+        "weightKg": 95,
+        "ageYears": 45,
+        "sex": "male",
+        "activityLevel": "extra_active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 32.9,
+        "bmrCalories": 1792.5,
+        "tdeeCalories": 3405.8,
+        "targetDailyCalories": 3746,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 25,
+          "proteinPct": 35
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 30,
+            "max": 40
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / sedentary / lose_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "sedentary",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 1564.8,
+        "targetDailyCalories": 1252,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 33,
+          "proteinPct": 37
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 28,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 32,
+            "max": 42
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / sedentary / maintain",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "sedentary",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 1564.8,
+        "targetDailyCalories": 1565,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 33,
+          "proteinPct": 22
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 41
+          },
+          "proteinPct": {
+            "min": 14,
+            "max": 30
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / sedentary / gain_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "sedentary",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 1564.8,
+        "targetDailyCalories": 1721,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 28,
+          "proteinPct": 32
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 27,
+            "max": 37
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / light / lose_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "light",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 1793,
+        "targetDailyCalories": 1434,
+        "centers": {
+          "carbsPct": 35,
+          "fatPct": 33,
+          "proteinPct": 37
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 30,
+            "max": 40
+          },
+          "fatPct": {
+            "min": 28,
+            "max": 38
+          },
+          "proteinPct": {
+            "min": 32,
+            "max": 42
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / light / maintain",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "light",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 1793,
+        "targetDailyCalories": 1793,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 33,
+          "proteinPct": 22
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 42,
+            "max": 58
+          },
+          "fatPct": {
+            "min": 25,
+            "max": 41
+          },
+          "proteinPct": {
+            "min": 14,
+            "max": 30
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / light / gain_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "light",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 1793,
+        "targetDailyCalories": 1972,
+        "centers": {
+          "carbsPct": 45,
+          "fatPct": 28,
+          "proteinPct": 32
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 40,
+            "max": 50
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 27,
+            "max": 37
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / moderate / lose_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "moderate",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2021.2,
+        "targetDailyCalories": 1617,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 28,
+          "proteinPct": 37
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 32,
+            "max": 42
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / moderate / maintain",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "moderate",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2021.2,
+        "targetDailyCalories": 2021,
+        "centers": {
+          "carbsPct": 55,
+          "fatPct": 28,
+          "proteinPct": 22
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 47,
+            "max": 63
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 36
+          },
+          "proteinPct": {
+            "min": 14,
+            "max": 30
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / moderate / gain_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "moderate",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2021.2,
+        "targetDailyCalories": 2223,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 28,
+          "proteinPct": 27
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 45,
+            "max": 55
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 32
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / active / lose_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2249.4,
+        "targetDailyCalories": 1800,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 28,
+          "proteinPct": 37
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 32,
+            "max": 42
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / active / maintain",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2249.4,
+        "targetDailyCalories": 2249,
+        "centers": {
+          "carbsPct": 55,
+          "fatPct": 28,
+          "proteinPct": 22
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 47,
+            "max": 63
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 36
+          },
+          "proteinPct": {
+            "min": 14,
+            "max": 30
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / active / gain_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2249.4,
+        "targetDailyCalories": 2474,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 28,
+          "proteinPct": 27
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 45,
+            "max": 55
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 32
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / extra_active / lose_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "extra_active",
+        "goal": "lose_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2477.6,
+        "targetDailyCalories": 1982,
+        "centers": {
+          "carbsPct": 40,
+          "fatPct": 28,
+          "proteinPct": 37
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 35,
+            "max": 45
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 32,
+            "max": 42
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / extra_active / maintain",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "extra_active",
+        "goal": "maintain"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2477.6,
+        "targetDailyCalories": 2478,
+        "centers": {
+          "carbsPct": 55,
+          "fatPct": 28,
+          "proteinPct": 22
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 47,
+            "max": 63
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 36
+          },
+          "proteinPct": {
+            "min": 14,
+            "max": 30
+          }
+        },
+        "tolerance": 8,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "female, low BMI / extra_active / gain_gently",
+      "input": {
+        "heightCm": 172,
+        "weightKg": 50,
+        "ageYears": 22,
+        "sex": "female",
+        "activityLevel": "extra_active",
+        "goal": "gain_gently"
+      },
+      "expected": {
+        "bmi": 16.9,
+        "bmrCalories": 1304,
+        "tdeeCalories": 2477.6,
+        "targetDailyCalories": 2725,
+        "centers": {
+          "carbsPct": 50,
+          "fatPct": 28,
+          "proteinPct": 27
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 45,
+            "max": 55
+          },
+          "fatPct": {
+            "min": 23,
+            "max": 33
+          },
+          "proteinPct": {
+            "min": 22,
+            "max": 32
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": false
+      }
+    },
+    {
+      "name": "custom split overrides computed centres",
+      "input": {
+        "heightCm": 175,
+        "weightKg": 70,
+        "ageYears": 30,
+        "sex": "male",
+        "activityLevel": "moderate",
+        "goal": "maintain",
+        "customMacroSplit": {
+          "carbsPct": 30,
+          "fatPct": 25,
+          "proteinPct": 45
+        }
+      },
+      "expected": {
+        "bmi": 22.9,
+        "bmrCalories": 1648.8,
+        "tdeeCalories": 2555.6,
+        "targetDailyCalories": 2556,
+        "centers": {
+          "carbsPct": 30,
+          "fatPct": 25,
+          "proteinPct": 45
+        },
+        "bands": {
+          "carbsPct": {
+            "min": 25,
+            "max": 35
+          },
+          "fatPct": {
+            "min": 20,
+            "max": 30
+          },
+          "proteinPct": {
+            "min": 40,
+            "max": 50
+          }
+        },
+        "tolerance": 5,
+        "customSplitApplied": true
+      }
+    }
+  ]
+}

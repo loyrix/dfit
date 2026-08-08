@@ -1,4 +1,6 @@
+import 'macro_targets.dart';
 import 'plate_score.dart';
+import 'score_rating.dart';
 
 enum MealType { breakfast, lunch, snack, dinner }
 
@@ -332,6 +334,7 @@ class MealLog {
     this.syncState = MealSyncState.synced,
     this.plateScore,
     this.advice,
+    this.rating,
   });
 
   final String id;
@@ -350,6 +353,11 @@ class MealLog {
   /// Commentary captured at scan time. Null for manual meals and anything saved
   /// before advice was persisted.
   final MealAdvice? advice;
+
+  /// Part B as stars. Reachable only by opening the meal: a single plate is
+  /// supplementary detail, not the signal to act on. Null for users with no
+  /// health target, since there are no personal bands to measure against.
+  final ScoreRating? rating;
 
   MacroTotals get totals {
     return items.fold<MacroTotals>(MacroTotals.zero, (total, item) {
@@ -373,6 +381,7 @@ class MealLog {
         json['plateScore'] as Map<String, dynamic>?,
       ),
       advice: MealAdvice.fromJson(json['advice'] as Map<String, dynamic>?),
+      rating: ScoreRating.fromJson(json['rating'] as Map<String, dynamic>?),
     );
   }
 
@@ -389,6 +398,7 @@ class MealLog {
       // score and every piece of advice on a cold start.
       if (plateScore != null) 'plateScore': plateScore!.toJson(),
       if (advice != null) 'advice': advice!.toJson(),
+      if (rating != null) 'rating': rating!.toJson(),
     };
   }
 }
@@ -398,11 +408,16 @@ class TodayJournalData {
     required this.meals,
     required this.totals,
     this.target,
+    this.rating,
   });
 
   final List<MealLog> meals;
   final MacroTotals totals;
   final MacroTotals? target;
+
+  /// Part C — the primary rating. Null until something is logged, and until the
+  /// user has a health target to measure against.
+  final ScoreRating? rating;
 
   factory TodayJournalData.fromJson(Map<String, dynamic> json) {
     return TodayJournalData(
@@ -413,6 +428,7 @@ class TodayJournalData {
       meals: (json['meals'] as List<dynamic>)
           .map((meal) => MealLog.fromJson(meal as Map<String, dynamic>))
           .toList(),
+      rating: ScoreRating.fromJson(json['rating'] as Map<String, dynamic>?),
     );
   }
 
@@ -421,6 +437,9 @@ class TodayJournalData {
       'totals': totals.toJson(),
       'target': target?.toJson(),
       'meals': meals.map((meal) => meal.toJson()).toList(),
+      // Cached bootstrap round-trips through here; omitting this lost the card
+      // on every cold start.
+      if (rating != null) 'rating': rating!.toJson(),
     };
   }
 }
@@ -431,12 +450,16 @@ class JournalDayData {
     required this.mealCount,
     required this.totals,
     required this.meals,
+    this.rating,
   });
 
   final String date;
   final int mealCount;
   final MacroTotals totals;
   final List<MealLog> meals;
+
+  /// Part C for this day. Null on days with nothing logged.
+  final ScoreRating? rating;
 
   /// Mean Plate Score across the day's scored meals, or null when none were
   /// scored. Meals without a score are ignored rather than counted as zero.
@@ -450,6 +473,7 @@ class JournalDayData {
       meals: (json['meals'] as List<dynamic>)
           .map((meal) => MealLog.fromJson(meal as Map<String, dynamic>))
           .toList(),
+      rating: ScoreRating.fromJson(json['rating'] as Map<String, dynamic>?),
     );
   }
 
@@ -459,6 +483,7 @@ class JournalDayData {
       'mealCount': mealCount,
       'totals': totals.toJson(),
       'meals': meals.map((meal) => meal.toJson()).toList(),
+      if (rating != null) 'rating': rating!.toJson(),
     };
   }
 }
@@ -471,6 +496,7 @@ class JournalRangeSummary {
     required this.totals,
     required this.trackedDayAverage,
     required this.calendarDayAverage,
+    this.rating,
   });
 
   final int windowDays;
@@ -479,6 +505,10 @@ class JournalRangeSummary {
   final MacroTotals totals;
   final MacroTotals trackedDayAverage;
   final MacroTotals calendarDayAverage;
+
+  /// Part D. Averages the daily scores in the window, skipping untracked days
+  /// rather than scoring them zero. Null when no day in the window scored.
+  final ScoreRating? rating;
 
   factory JournalRangeSummary.fromJson(Map<String, dynamic> json) {
     final totals = MacroTotals.fromJson(json['totals'] as Map<String, dynamic>);
@@ -502,6 +532,7 @@ class JournalRangeSummary {
         totals: totals,
         divisor: windowDays,
       ),
+      rating: ScoreRating.fromJson(json['rating'] as Map<String, dynamic>?),
     );
   }
 
@@ -513,6 +544,7 @@ class JournalRangeSummary {
       'totals': totals.toJson(),
       'trackedDayAverage': trackedDayAverage.toJson(),
       'calendarDayAverage': calendarDayAverage.toJson(),
+      if (rating != null) 'rating': rating!.toJson(),
     };
   }
 
@@ -826,6 +858,7 @@ class HealthTargetInput {
     required this.activityLevel,
     required this.goal,
     this.healthFocus = const [],
+    this.customMacroSplit,
   });
 
   final double heightCm;
@@ -836,6 +869,10 @@ class HealthTargetInput {
   final HealthGoal goal;
   final List<HealthFocus> healthFocus;
 
+  /// Part A9. Replaces the computed macro centres when the user sets their own.
+  /// Omitted entirely when null, so the server keeps deriving them.
+  final MacroSplit? customMacroSplit;
+
   Map<String, dynamic> toJson() {
     return {
       'heightCm': heightCm,
@@ -845,6 +882,8 @@ class HealthTargetInput {
       'activityLevel': activityLevel.apiName,
       'goal': goal.apiName,
       'healthFocus': healthFocus.map((focus) => focus.apiName).toList(),
+      if (customMacroSplit != null)
+        'customMacroSplit': customMacroSplit!.toJson(),
     };
   }
 }
@@ -864,6 +903,7 @@ class HealthTarget {
     required this.dailyCalorieTarget,
     required this.formula,
     this.healthFocus = const [],
+    this.customMacroSplit,
   });
 
   final String profileId;
@@ -879,6 +919,9 @@ class HealthTarget {
   final int dailyCalorieTarget;
   final String formula;
   final List<HealthFocus> healthFocus;
+
+  /// Present only when the user set their own split.
+  final MacroSplit? customMacroSplit;
 
   String get friendlyBmiCategory {
     switch (bmiCategory) {
@@ -912,6 +955,9 @@ class HealthTarget {
       // Absent on older API responses; an empty list is the correct default.
       healthFocus: HealthFocusApi.listFromApi(
         json['healthFocus'] as List<dynamic>?,
+      ),
+      customMacroSplit: MacroSplit.fromJson(
+        json['customMacroSplit'] as Map<String, dynamic>?,
       ),
     );
   }

@@ -12,6 +12,8 @@ import '../services/logmyplate_api_client.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
+import '../models/macro_targets.dart';
+import '../widgets/macro_split_sliders.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -49,6 +51,8 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
   ActivityLevel _activityLevel = ActivityLevel.light;
   HealthGoal _goal = HealthGoal.maintain;
   Set<HealthFocus> _healthFocus = <HealthFocus>{};
+  bool _customSplitEnabled = false;
+  MacroSplit? _customSplit;
   bool _saving = false;
   String? _error;
   _HeightUnit _heightUnit = _HeightUnit.metric;
@@ -75,6 +79,8 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       _activityLevel = target.activityLevel;
       _goal = target.goal;
       _healthFocus = target.healthFocus.toSet();
+      _customSplit = target.customMacroSplit;
+      _customSplitEnabled = target.customMacroSplit != null;
     }
     _syncHeightText();
     _weightController.text = _formatMetric(_weightKg, decimalPlaces: 1);
@@ -220,6 +226,16 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
                 onSelected: _saving
                     ? null
                     : (value) => setState(() => _goal = value),
+              ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              MacroSplitSliders(
+                enabled: _customSplitEnabled && !_saving,
+                split: _customSplit ?? _computedSplit,
+                computed: _computedSplit,
+                onEnabledChanged: _saving ? (_) {} : _setCustomSplitEnabled,
+                onChanged: _saving
+                    ? (_) {}
+                    : (split) => setState(() => _customSplit = split),
               ),
               const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
               _HealthFocusGroup(
@@ -401,6 +417,7 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
           activityLevel: _activityLevel,
           goal: _goal,
           healthFocus: _healthFocus.toList(),
+          customMacroSplit: _customSplitEnabled ? _customSplit : null,
         ),
       );
       if (!mounted) return;
@@ -435,7 +452,41 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
         _sex != initial.sex ||
         _activityLevel != initial.activityLevel ||
         _goal != initial.goal ||
-        !setEquals(_healthFocus, initial.healthFocus.toSet());
+        !setEquals(_healthFocus, initial.healthFocus.toSet()) ||
+        _customSplitChanged(initial);
+  }
+
+  /// What goal and activity produce on their own, before any manual override.
+  ///
+  /// Recomputed on every build rather than cached: it has to follow the goal and
+  /// activity selectors live, and a stale baseline would show the user the wrong
+  /// thing to compare their override against.
+  MacroSplit get _computedSplit => calculateMacroTargets(
+    heightCm: _heightCm,
+    weightKg: _weightKg,
+    ageYears: _ageYears,
+    sex: _sex,
+    activityLevel: _activityLevel,
+    goal: _goal,
+  ).centers;
+
+  void _setCustomSplitEnabled(bool enabled) {
+    setState(() {
+      _customSplitEnabled = enabled;
+      // Seeded from the computed centres so the sliders open where the user
+      // already is, rather than jumping to an arbitrary starting split.
+      if (enabled) _customSplit ??= _computedSplit;
+    });
+  }
+
+  bool _customSplitChanged(HealthTarget initial) {
+    final saved = initial.customMacroSplit;
+    if (!_customSplitEnabled) {
+      // Turning the override off is itself a change worth saving: it hands the
+      // bands back to the calculation.
+      return saved != null;
+    }
+    return !(_customSplit?.sameAs(saved) ?? false);
   }
 
   void _toggleHealthFocus(HealthFocus focus) {
@@ -1589,7 +1640,7 @@ class _HealthPreview {
     final maintenance = bmr * _activityFactor(activityLevel);
     final target = math.max(
       _calorieFloor(sex),
-      (maintenance + _goalAdjustment(goal)).round(),
+      (maintenance * _goalFactor(goal)).round(),
     );
 
     return _HealthPreview(
@@ -1608,11 +1659,20 @@ class _HealthPreview {
     };
   }
 
-  static int _goalAdjustment(HealthGoal goal) {
+  /// Part A4. Multiplicative, not a flat calorie offset, so a deficit scales
+  /// with what the person actually needs rather than taking the same 300 kcal
+  /// off everyone.
+  ///
+  /// This previously applied the old flat -300/+250 while the server had already
+  /// moved to these factors, so the number shown while choosing a goal was not
+  /// the number that got saved. Kept in step with `calculateMacroTargets` in
+  /// packages/domain, and pinned by the shared fixture in
+  /// packages/domain/fixtures/macro-target-vectors.json.
+  static double _goalFactor(HealthGoal goal) {
     return switch (goal) {
-      HealthGoal.maintain => 0,
-      HealthGoal.loseGently => -300,
-      HealthGoal.gainGently => 250,
+      HealthGoal.maintain => 1.0,
+      HealthGoal.loseGently => 0.8,
+      HealthGoal.gainGently => 1.1,
     };
   }
 

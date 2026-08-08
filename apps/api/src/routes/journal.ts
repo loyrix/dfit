@@ -10,9 +10,11 @@ import {
   buildJournalWeeks,
   buildTodayJournal,
   toApiMeal,
+  toRatingContext,
 } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
 import { loadPlateScorePolicy } from "../services/plate-score-policy.js";
+import { loadMealScorePolicy } from "../services/meal-score-policy.js";
 import type { SqlClient } from "../db/client.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
 import type { CreateMealInput } from "../repositories/app-repository.js";
@@ -39,11 +41,19 @@ export const registerJournalRoutes = async (
   sql?: SqlClient,
 ): Promise<void> => {
   app.get("/v1/journal/today", async () => {
-    const [profile, plateScorePolicy] = await Promise.all([
+    const [profile, plateScorePolicy, mealScorePolicy] = await Promise.all([
       repository.getProfile(),
       loadPlateScorePolicy(sql),
+      loadMealScorePolicy(sql),
     ]);
-    return buildTodayJournal(repository, profile, mealImageStorage, undefined, plateScorePolicy);
+    return buildTodayJournal(
+      repository,
+      profile,
+      mealImageStorage,
+      undefined,
+      plateScorePolicy,
+      mealScorePolicy,
+    );
   });
 
   app.get("/v1/journal/range", async (request, reply) => {
@@ -55,9 +65,10 @@ export const registerJournalRoutes = async (
       });
     }
 
-    const [profile, plateScorePolicy] = await Promise.all([
+    const [profile, plateScorePolicy, mealScorePolicy] = await Promise.all([
       repository.getProfile(),
       loadPlateScorePolicy(sql),
+      loadMealScorePolicy(sql),
     ]);
     return buildJournalRange(
       repository,
@@ -67,6 +78,7 @@ export const registerJournalRoutes = async (
       parsed.data.weekOffset,
       undefined,
       plateScorePolicy,
+      mealScorePolicy,
     );
   });
 
@@ -110,13 +122,18 @@ export const registerJournalRoutes = async (
       }),
     );
 
-    const [profile, healthTarget, plateScorePolicy] = await Promise.all([
+    const [profile, healthTarget, plateScorePolicy, mealScorePolicy] = await Promise.all([
       timer.measure("profile", () => repository.getProfile()),
       timer.measure("healthTarget", () => repository.getHealthTarget()),
       timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+      timer.measure("mealScorePolicy", () => loadMealScorePolicy(sql)),
     ]);
     const response = await timer.measure("hydrateMeal", () =>
-      toApiMeal(profile.id, meal, mealImageStorage, { healthTarget, plateScorePolicy }),
+      toApiMeal(profile.id, meal, mealImageStorage, {
+        healthTarget,
+        plateScorePolicy,
+        rating: toRatingContext(healthTarget, mealScorePolicy),
+      }),
     );
     request.log.info(
       {
@@ -134,12 +151,17 @@ export const registerJournalRoutes = async (
     const params = request.params as { id: string };
     const meal = await repository.getMeal(params.id);
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
-    const [profile, healthTarget, plateScorePolicy] = await Promise.all([
+    const [profile, healthTarget, plateScorePolicy, mealScorePolicy] = await Promise.all([
       repository.getProfile(),
       repository.getHealthTarget(),
       loadPlateScorePolicy(sql),
+      loadMealScorePolicy(sql),
     ]);
-    return toApiMeal(profile.id, meal, mealImageStorage, { healthTarget, plateScorePolicy });
+    return toApiMeal(profile.id, meal, mealImageStorage, {
+      healthTarget,
+      plateScorePolicy,
+      rating: toRatingContext(healthTarget, mealScorePolicy),
+    });
   });
 
   app.patch("/v1/meals/:id", async (request, reply) => {
@@ -179,13 +201,18 @@ export const registerJournalRoutes = async (
     );
     if (!meal) return reply.status(404).send({ error: "meal_not_found" });
 
-    const [profile, healthTarget, plateScorePolicy] = await Promise.all([
+    const [profile, healthTarget, plateScorePolicy, mealScorePolicy] = await Promise.all([
       timer.measure("profile", () => repository.getProfile()),
       timer.measure("healthTarget", () => repository.getHealthTarget()),
       timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+      timer.measure("mealScorePolicy", () => loadMealScorePolicy(sql)),
     ]);
     const response = await timer.measure("hydrateMeal", () =>
-      toApiMeal(profile.id, meal, mealImageStorage, { healthTarget, plateScorePolicy }),
+      toApiMeal(profile.id, meal, mealImageStorage, {
+        healthTarget,
+        plateScorePolicy,
+        rating: toRatingContext(healthTarget, mealScorePolicy),
+      }),
     );
     request.log.info(
       {

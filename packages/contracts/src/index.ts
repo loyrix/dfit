@@ -4,6 +4,7 @@ export * from "./engagement.js";
 export * from "./foods.js";
 export * from "./meals.js";
 export * from "./plate-score.js";
+export * from "./score-rating.js";
 export * from "./profiles.js";
 export * from "./scans.js";
 export * from "./subscriptions.js";

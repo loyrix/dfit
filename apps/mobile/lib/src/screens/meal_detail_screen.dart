@@ -16,6 +16,7 @@ import '../widgets/glass/glass_cards.dart';
 import '../widgets/meal_item_editor_sheet.dart';
 import '../widgets/macro_chips.dart';
 import '../widgets/macro_profile_card.dart';
+import '../widgets/meal_score_row.dart';
 import '../widgets/plate_score_card.dart';
 import '../widgets/plate_score_copy.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -67,6 +68,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     // dropped the score and advice, so the card could never render.
     plateScore: _meal.plateScore,
     advice: _meal.advice,
+    rating: _meal.rating,
   );
 
   bool get _hasChanges {
@@ -227,6 +229,12 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                       ],
                       const SizedBox(height: LogMyPlateSpacing.cardPadding),
                       _MealDetailSummaryCard(meal: _draftMeal),
+                      if (_draftMeal.rating != null) ...[
+                        const SizedBox(
+                          height: LogMyPlateSpacing.sectionSpacing,
+                        ),
+                        MealScoreRow(rating: _draftMeal.rating!),
+                      ],
                       if (_draftMeal.plateScore != null) ...[
                         const SizedBox(
                           height: LogMyPlateSpacing.sectionSpacing,

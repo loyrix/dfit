@@ -5,6 +5,7 @@ import { currentRequestIdentity, type RequestIdentity } from "./request-context.
 import { InMemoryStore } from "./repositories/in-memory-store.js";
 import type { AdMobRewardedAdVerifier, AdMobRewardedSsvCallback } from "./services/admob-ssv.js";
 import type { AiProvider, AnalyzeMealImageInput } from "./services/ai-provider.js";
+import type { CreateMealInput } from "./repositories/app-repository.js";
 import {
   globalFoodPhotoPromptKey,
   indiaFoodPhotoPromptKey,
@@ -4120,6 +4121,275 @@ describe("LogMyPlate API", () => {
       });
       expect(mismatch.statusCode).toBe(403);
       expect(mismatch.json()).toMatchObject({ error: "subscription_profile_mismatch" });
+      await app.close();
+    });
+  });
+
+  describe("meal health score (Parts A-E)", () => {
+    const setUpAccount = async (
+      app: Awaited<ReturnType<typeof testApp>>,
+      slug: string,
+      health?: Record<string, unknown>,
+    ) => {
+      const installHeaders = {
+        "x-logmyplate-install-id": `${slug}-install`,
+        "x-logmyplate-platform": "ios",
+      };
+      const signup = await app.inject({
+        method: "POST",
+        url: "/v1/auth/email/signup",
+        headers: installHeaders,
+        payload: { email: `${slug}@example.com`, password: "secret1" },
+      });
+      expect(signup.statusCode).toBe(201);
+      const accountHeaders = {
+        ...installHeaders,
+        authorization: `Bearer ${signup.json().accessToken}`,
+      };
+
+      if (health) {
+        const saved = await app.inject({
+          method: "PUT",
+          url: "/v1/profiles/me/health",
+          headers: { ...accountHeaders, "idempotency-key": `${slug}-health` },
+          payload: health,
+        });
+        expect(saved.statusCode).toBe(200);
+      }
+      return accountHeaders;
+    };
+
+    const logAMeal = async (
+      app: Awaited<ReturnType<typeof testApp>>,
+      accountHeaders: Record<string, string>,
+      slug: string,
+    ) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...accountHeaders, "idempotency-key": `${slug}-prepare` },
+      });
+      const scanId = prepared.json().scanId as string;
+
+      const analyzed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/analyze`,
+        headers: { ...accountHeaders, "idempotency-key": `${slug}-analyze` },
+        payload: {
+          hint: "dal rice roti sabzi",
+          image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+        },
+      });
+      const analysis = analyzed.json();
+
+      const confirmed = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/confirm`,
+        headers: { ...accountHeaders, "idempotency-key": `${slug}-confirm` },
+        payload: {
+          mealType: analysis.mealType,
+          title: analysis.mealName,
+          items: analysis.items.map((item: AnalyzedTestItem) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          })),
+        },
+      });
+      expect(confirmed.statusCode).toBe(201);
+      return confirmed.json();
+    };
+
+    const healthPayload = {
+      heightCm: 175,
+      weightKg: 70,
+      ageYears: 30,
+      sex: "male",
+      activityLevel: "moderate",
+      goal: "maintain",
+    };
+
+    it("rates today as stars, never as a number", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-stars", healthPayload);
+      await logAMeal(app, headers, "rating-stars");
+
+      const today = await app.inject({
+        method: "GET",
+        url: "/v1/journal/today",
+        headers,
+      });
+      expect(today.statusCode).toBe(200);
+
+      const rating = today.json().rating;
+      expect(rating.stars).toBeGreaterThanOrEqual(1);
+      expect(rating.stars).toBeLessThanOrEqual(5);
+      expect(rating.level).toBe("daily");
+      expect(rating.message).toBeTruthy();
+      // The 0-100 score is internal. It must not be reachable from the wire.
+      expect(rating).not.toHaveProperty("score");
+      await app.close();
+    });
+
+    it("marks today provisional, because the day is still in progress", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-provisional", healthPayload);
+      await logAMeal(app, headers, "rating-provisional");
+
+      const today = await app.inject({ method: "GET", url: "/v1/journal/today", headers });
+      // Someone who has logged only breakfast is not having a one-star day; the
+      // app needs this flag to frame the card as live rather than final.
+      expect(today.json().rating.provisional).toBe(true);
+      await app.close();
+    });
+
+    it("shows a rating from the very first meal", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-first-meal", healthPayload);
+
+      const before = await app.inject({ method: "GET", url: "/v1/journal/today", headers });
+      // Nothing logged yet: an untracked day is not a bad day, so no rating.
+      expect(before.json().rating).toBeUndefined();
+
+      await logAMeal(app, headers, "rating-first-meal");
+      const after = await app.inject({ method: "GET", url: "/v1/journal/today", headers });
+      expect(after.json().rating).toBeDefined();
+      await app.close();
+    });
+
+    it("omits every rating for a user with no health target", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-no-target");
+      const confirmed = await logAMeal(app, headers, "rating-no-target");
+
+      // Parts B-D measure against bands derived from the user's own body. With
+      // no target there is nothing honest to measure against, and a default band
+      // would score them against a stranger.
+      expect(confirmed.meal.rating).toBeUndefined();
+
+      const today = await app.inject({ method: "GET", url: "/v1/journal/today", headers });
+      expect(today.json().rating).toBeUndefined();
+      expect(today.json().meals[0].rating).toBeUndefined();
+      await app.close();
+    });
+
+    it("keeps the per-meal rating available on the meal itself", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-meal", healthPayload);
+      const confirmed = await logAMeal(app, headers, "rating-meal");
+
+      expect(confirmed.meal.rating.level).toBe("meal");
+      expect(confirmed.meal.rating).not.toHaveProperty("score");
+
+      const meal = await app.inject({
+        method: "GET",
+        url: `/v1/meals/${confirmed.mealId}`,
+        headers,
+      });
+      expect(meal.json().rating.stars).toBe(confirmed.meal.rating.stars);
+      await app.close();
+    });
+
+    it("still sends plateScore alongside the new rating", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-comdat", healthPayload);
+      const confirmed = await logAMeal(app, headers, "rating-compat");
+
+      // Builds already in testers' hands read plateScore and know nothing about
+      // `rating`. Both travel until those builds are gone.
+      expect(confirmed.meal.plateScore).toBeDefined();
+      expect(confirmed.meal.rating).toBeDefined();
+      await app.close();
+    });
+
+    it("rates the week from daily scores, skipping untracked days", async () => {
+      const app = await testApp();
+      const headers = await setUpAccount(app, "rating-weekly", healthPayload);
+      await logAMeal(app, headers, "rating-weekly");
+
+      const range = await app.inject({
+        method: "GET",
+        url: "/v1/journal/range?days=7",
+        headers,
+      });
+      expect(range.statusCode).toBe(200);
+
+      const summary = range.json().summary;
+      expect(summary.rating.level).toBe("weekly");
+      expect(summary.rating).not.toHaveProperty("score");
+
+      const days = range.json().days;
+      const rated = days.filter((day: { rating?: unknown }) => day.rating);
+      // Six of the seven days have nothing logged. They are excluded from the
+      // week, not scored zero.
+      expect(rated).toHaveLength(1);
+      // The internal daily score must not leak out with the days either.
+      expect(days[0]).not.toHaveProperty("dailyScore");
+      await app.close();
+    });
+
+    /**
+     * Captures what the route actually hands to persistence.
+     *
+     * `cookingMethod` is deliberately absent from the meal contract, so asserting
+     * on an API response would pass whether or not anything was written. This
+     * watches the seam the wiring is responsible for; the storage itself is the
+     * migration's job and the matching is covered by the domain tests.
+     */
+    class CreateMealSpy extends InMemoryStore {
+      lastCreateMeal?: CreateMealInput;
+
+      override async createMeal(input: CreateMealInput) {
+        this.lastCreateMeal = input;
+        return super.createMeal(input);
+      }
+    }
+
+    it("persists the cooking method the client never sends back", async () => {
+      const repository = new CreateMealSpy();
+      const app = await testApp({ repository });
+      const headers = await setUpAccount(app, "rating-cooking", healthPayload);
+      await logAMeal(app, headers, "rating-cooking");
+
+      // confirmScanRequest carries name, portion and nutrition only, so without
+      // server-side recovery every one of these would be undefined and the Part
+      // B and Part C cooking modifiers would be inert on every stored meal.
+      const methods = repository.lastCreateMeal?.items.map((item) => item.cookingMethod);
+      expect(methods).toEqual(["sauced_creamy", "steamed", "baked", "fried"]);
+      await app.close();
+    });
+
+    it("leaves the cooking method unset for a meal logged by hand", async () => {
+      const repository = new CreateMealSpy();
+      const app = await testApp({ repository });
+      const headers = await setUpAccount(app, "rating-nocooking", healthPayload);
+
+      // A manual meal never had an analysis to recover from.
+      const created = await app.inject({
+        method: "POST",
+        url: "/v1/meals",
+        headers: { ...headers, "idempotency-key": "rating-nocooking-create" },
+        payload: {
+          mealType: "lunch",
+          title: "Manual plate",
+          items: [
+            {
+              displayName: "Rice",
+              quantity: 1,
+              unit: "bowl",
+              grams: 150,
+              nutrition: { calories: 210, proteinG: 4.2, carbsG: 45.1, fatG: 0.7 },
+            },
+          ],
+        },
+      });
+      expect(created.statusCode).toBe(201);
+
+      // Absent, not "unknown": the scorer skips the modifier rather than
+      // applying a neutral one it was never told about.
+      expect(repository.lastCreateMeal?.items[0].cookingMethod).toBeUndefined();
       await app.close();
     });
   });

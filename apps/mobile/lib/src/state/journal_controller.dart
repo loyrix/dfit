@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/captured_meal_photo.dart';
 import '../models/meal.dart';
+import '../models/score_rating.dart';
 import '../models/plate_score.dart';
 import '../services/app_diagnostics.dart';
 import '../services/journal_cache_store.dart';
@@ -37,6 +38,7 @@ class JournalController extends ChangeNotifier {
   AppUpdatePolicy _updatePolicy = AppUpdatePolicy.current();
   EngagementPolicy _engagementPolicy = EngagementPolicy.disabled();
   JournalRangeData? _weeklyRange;
+  ScoreRating? _dailyRating;
   StreakSummary _streakSummary = StreakSummary.disabled();
   DateTime? _lastLoadedAt;
 
@@ -70,6 +72,13 @@ class JournalController extends ChangeNotifier {
   MacroTotals? get dailyTarget =>
       _healthTarget?.dailyTargetTotals ?? _weeklyRange?.target;
   JournalRangeData? get weeklyRange => _weeklyRange;
+
+  /// Part C, computed server-side. Null for users with no health target, and
+  /// before the first meal of the day, so the card is absent rather than zeroed.
+  ScoreRating? get dailyRating => _dailyRating;
+
+  /// Part D, from the weekly window the bootstrap already loads.
+  ScoreRating? get weeklyRating => _weeklyRange?.summary.rating;
   StreakSummary get streakSummary => _streakSummary;
   DateTime? get lastLoadedAt => _lastLoadedAt;
   bool get initialLoading =>
@@ -87,6 +96,7 @@ class JournalController extends ChangeNotifier {
     _updatePolicy = AppUpdatePolicy.current();
     _engagementPolicy = EngagementPolicy.disabled();
     _weeklyRange = null;
+    _dailyRating = null;
     _streakSummary = StreakSummary.disabled();
     _lastLoadedAt = null;
     notifyListeners();
@@ -404,11 +414,24 @@ class JournalController extends ChangeNotifier {
   void _upsertLocalMeal(MealLog meal) {
     _meals = [meal, ..._meals.where((existing) => existing.id != meal.id)];
     _totals = _sumMealTotals(_meals);
+    _invalidateDailyRating();
   }
 
   void _removeLocalMeal(String mealId) {
     _meals = _meals.where((meal) => meal.id != mealId).toList();
     _totals = _sumMealTotals(_meals);
+    _invalidateDailyRating();
+  }
+
+  /// Drops the daily rating after a local change to the day's meals.
+  ///
+  /// The rating is computed server-side from the whole day, so the moment a
+  /// meal is added or deleted locally the one we hold describes a different set
+  /// of meals than the screen shows. Briefly hiding the card is honest; leaving
+  /// a four-star rating up after someone deletes their only balanced meal is
+  /// not. The refresh that follows every mutation puts it straight back.
+  void _invalidateDailyRating() {
+    _dailyRating = null;
   }
 
   MacroTotals _sumMealTotals(List<MealLog> meals) {
@@ -421,6 +444,7 @@ class JournalController extends ChangeNotifier {
   void _applyBootstrap(AppBootstrapData bootstrap) {
     _meals = bootstrap.today.meals;
     _totals = bootstrap.today.totals;
+    _dailyRating = bootstrap.today.rating;
     _healthTarget = bootstrap.healthTarget;
     _plateScorePolicy = bootstrap.plateScorePolicy;
     _updatePolicy = bootstrap.updatePolicy;

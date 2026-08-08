@@ -15,6 +15,7 @@ import {
   sumTotals,
   rewardedAdsPerScan,
   rewardedDailyScanLimit,
+  type CookingMethodValue,
   type FoodRecord,
   type LearnedFoodCandidate,
   type MealSummary,
@@ -106,6 +107,7 @@ type MealItemRow = {
   quantity: string;
   unit: string;
   grams: string;
+  cooking_method: CookingMethodValue | null;
   calories: string | null;
   protein_g: string | null;
   carbs_g: string | null;
@@ -2035,7 +2037,7 @@ export class PostgresStore implements AppRepository {
 
       for (const item of input.items) {
         const [itemRow] = await tx<{ id: string }[]>`
-          insert into meal_items (meal_id, food_id, display_name, quantity, unit, grams, user_edited)
+          insert into meal_items (meal_id, food_id, display_name, quantity, unit, grams, user_edited, cooking_method)
           values (
             ${mealRow.id},
             ${item.foodId ?? null},
@@ -2043,7 +2045,8 @@ export class PostgresStore implements AppRepository {
             ${item.portion.quantity},
             ${item.portion.unit},
             ${item.portion.grams},
-            ${item.userEdited ?? false}
+            ${item.userEdited ?? false},
+            ${item.cookingMethod ?? null}
           )
           returning id::text
         `;
@@ -4184,6 +4187,7 @@ export class PostgresStore implements AppRepository {
         meal_items.quantity,
         meal_items.unit,
         meal_items.grams,
+        meal_items.cooking_method,
         nutrition_results.calories,
         nutrition_results.protein_g,
         nutrition_results.carbs_g,
@@ -4214,6 +4218,9 @@ export class PostgresStore implements AppRepository {
         sugarG: item.sugar_g === null ? undefined : Number(item.sugar_g),
         sodiumMg: item.sodium_mg === null ? undefined : Number(item.sodium_mg),
       },
+      // Null for every meal logged before v9 was active. Left undefined so the
+      // scoring modifier is skipped rather than reading as a neutral technique.
+      cookingMethod: item.cooking_method ?? undefined,
     }));
 
     const [image] = await this.sql<MealImageRow[]>`

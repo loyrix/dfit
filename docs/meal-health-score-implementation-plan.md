@@ -66,16 +66,15 @@ score payload safe. The 1.0.2 test builds do read it and will be replaced by a n
 
 These are real and must be handled, not assumed away.
 
-| Blocker                     | State                                                                                                                   | Consequence                                                                                    |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Cooking method**          | Not captured. `preparation` is home/restaurant/packaged/unknown, which is _not_ fried/grilled/steamed/raw/baked/sauced. | B7 cooking modifier is inert until prompt v9.                                                  |
-| **Per-nutrient confidence** | Not returned. One item-level `confidence` only.                                                                         | B7 multiplies each modifier by its own confidence; without it the safety mechanism is missing. |
-| **Sugar coverage**          | **0 of 1,295** nutrition rows                                                                                           | Sugar penalty contributes nothing yet.                                                         |
-| **Fiber coverage**          | **1 of 1,295** rows                                                                                                     | Fiber bonus contributes nothing yet.                                                           |
+| Blocker                     | State                                                                                                                 | Consequence                                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Cooking method**          | **Closed (Phase 8).** Captured by prompt v9, recovered server-side at confirm, stored on `meal_items.cooking_method`. | Live once v9 is activated. Null on every older meal, which skips the modifier rather than guessing. |
+| **Per-nutrient confidence** | **Closed (Phase 3).** Not needed: the worked example applies one confidence per meal and reproduces exactly.          | No action. One item-level `confidence` is sufficient.                                               |
+| **Sugar coverage**          | **0 of 1,295** nutrition rows                                                                                         | Sugar penalty contributes nothing yet.                                                              |
+| **Fiber coverage**          | **1 of 1,295** rows                                                                                                   | Fiber bonus contributes nothing yet.                                                                |
 
 Fiber and sugar accumulate from every new scan following the micronutrient recovery work, so
-coverage improves without further action. Cooking method and per-nutrient confidence need a
-prompt change (Phase 6).
+coverage improves without further action.
 
 ---
 
@@ -91,8 +90,8 @@ prompt change (Phase 6).
 | 5   | **Part D** — weekly score         | Average of daily scores, consistency bonus, skip zero-meal days                                                       | ✅ Done        |
 | 6   | **Part E** — stars + messages     | `score_to_stars`, guidance copy per level, demote per-meal to tap-through                                             | ✅ Done        |
 | 7   | AI capture                        | Cooking method only — per-nutrient confidence proved unnecessary. Prompt v9, inactive until reviewed                  | ✅ Done        |
-| 8   | Wire scoring + UI surfaces        | Scoring into the API, Today daily card, weekly card, meal tap-through, target page sliders                            | 🟡 In progress |
-| 9   | Release                           | Full verification, backward-compat check, build `1.0.2+28`                                                            | ⬜ Not started |
+| 8   | Wire scoring + UI surfaces        | Scoring into the API, Today daily card, weekly card, meal tap-through, target page sliders                            | ✅ Done        |
+| 9   | Release                           | Full verification, backward-compat check, build `1.0.2+28`                                                            | 🟡 In progress |
 
 Status values: ⬜ Not started · 🟡 In progress · ✅ Done · ⛔ Blocked
 
@@ -198,15 +197,51 @@ to two `closeness()` values in its Meal 1 (see Phase 3).
 - Prompt v9 inserted **published but inactive**, dry-run against production inside a rolled-back
   transaction. `preparation` is left untouched; cooking method is a new field.
 
-### Phase 8 — UI surfaces
+### Phase 8 — Wire scoring + UI surfaces
 
-**Gate**
+**Gate — passed 2026-08-08**
 
-- Today shows the daily star card with an explicit in-progress framing.
-- Weekly shows the weekly star card.
-- Meal detail keeps the tap-through breakdown.
-- Target page gains macro sliders writing the Phase 2 custom split.
-- `flutter analyze` clean, widget tests cover each surface.
+- Today shows the daily star card with an explicit in-progress framing. ✅
+- Weekly shows the weekly star card. ✅
+- Meal detail keeps the tap-through breakdown. ✅
+- Target page gains macro sliders writing the Phase 2 custom split. ✅
+- `flutter analyze` clean, widget tests cover each surface. ✅
+
+**Verification:** 383 TS tests (7 contracts / 215 domain / 161 API), 174 Flutter
+tests, `flutter analyze` clean, 9/9 typecheck, Prettier clean.
+
+**What shipped**
+
+- `scoreRatingSchema` on `meal`, `todayJournal`, `journalDay` and the range
+  `summary`. All optional and additive; `plateScore` still travels alongside it
+  because the 1.0.2 test builds read it and know nothing about `rating`.
+- Ratings are computed **server-side only**. Nothing about the algorithm or its
+  constants reaches a client, so `meal_score_policy` is sufficient on its own to
+  retune the system without an app release.
+- `meal_score_policy` seeded in `app_runtime_config` with exactly the shipped
+  defaults, so applying the migration moves no score by a point.
+
+**Two defects found and fixed in this phase**
+
+1. **Cooking method was captured but never persisted.** Phase 7 added it to the
+   analyze response, but `confirmScanRequest` carries name, portion and
+   nutrition only, so it was discarded at the confirm boundary — the B7 and C5
+   modifiers would have been permanently inert on every stored meal. Fixed with
+   the same server-side recovery used for micronutrients, so every installed
+   build contributes with no release. New column `meal_items.cooking_method`,
+   nullable, no backfill.
+2. **The app's target preview still used the v1 flat calorie offsets**
+   (−300 / +250) after the server moved to Part A's multiplicative factors
+   (×0.80 / ×1.10). Someone choosing "lose gently" was shown a target roughly
+   200 kcal from the one being saved. Fixed, and both implementations are now
+   pinned to `packages/domain/fixtures/macro-target-vectors.json` so they cannot
+   drift again silently.
+
+**Known gap, deliberately not closed:** the app offers four activity levels;
+Part A and the API define five (`extra_active`). The API accepts all five and
+older payloads stay valid, so nothing is broken — the app simply cannot select
+the fifth. The conformance test skips those vectors explicitly rather than
+mapping them onto a level that means something else.
 
 ### Phase 9 — Release
 
@@ -220,9 +255,14 @@ to two `closeness()` values in its Meal 1 (see Phase 3).
 
 ## Open questions to revisit after test round 1
 
-1. **Star distribution.** On current production data the median meal scores 74, so most meals may
-   land on 4 stars and the rating could feel static. Measure the real spread once Parts B–D are
-   live and adjust thresholds if it flattens.
+1. **Star distribution — the rating is harsh, not static.** An earlier version of this note said
+   the median meal scores 74 and the rating might feel flat. That figure was the _old_ Plate
+   Score and is wrong for this system. Measured against the same 475 real meals, Part B gives a
+   **median of 38 with 60% of meals at 1–2 stars**, and on 228 days Part C has **75% of days
+   scoring zero on calorie adherence** because users log ~2 meals a day (48% log only one) at
+   ~996 kcal against a ~2,000 kcal target. Shipped as specified by decision on 2026-08-08. The
+   first levers to reach for are `stars.*` and `meal.falloff`, then `daily.blend`, all editable
+   in the `meal_score_policy` row without an app release.
 2. **Daily score early in the day.** Calorie adherence is 30% of the daily score, so a user who
    has logged only breakfast will read low all morning. Shipping as-is per the locked decision;
    revisit if testers find it discouraging.

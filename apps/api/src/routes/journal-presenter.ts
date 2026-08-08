@@ -12,6 +12,15 @@ import type {
   ProfileHealthTarget,
 } from "../repositories/app-repository.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
+import {
+  dailyRating,
+  dailyScoreFor,
+  mealRating,
+  toMacroTargets,
+  weeklyRating,
+  type RatingContext,
+} from "../services/meal-rating.js";
+import { defaultMealScorePolicyConfig, type MealScorePolicyContract } from "@logmyplate/contracts";
 
 type RouteMeal =
   Awaited<ReturnType<AppRepository["getMeal"]>> extends infer T ? NonNullable<T> : never;
@@ -39,7 +48,28 @@ export const toPlateScoreProfile = (
 export type MealScoringContext = {
   healthTarget: ProfileHealthTarget | null | undefined;
   plateScorePolicy: PlateScorePolicy;
+  /**
+   * Part B–E context. Optional so the many existing call sites keep compiling
+   * and simply omit the new star rating, rather than every one of them having to
+   * be updated in the same change.
+   */
+  rating?: RatingContext;
 };
+
+/**
+ * Resolves the Part A–E context once per request.
+ *
+ * Kept separate from `MealScoringContext` because the targets are derived from
+ * the health target rather than stored, and deriving them per meal would repeat
+ * the same arithmetic for every row in a week's journal.
+ */
+export const toRatingContext = (
+  healthTarget: ProfileHealthTarget | null | undefined,
+  policy: MealScorePolicyContract = defaultMealScorePolicyConfig(),
+): RatingContext => ({
+  targets: toMacroTargets(healthTarget),
+  policy,
+});
 
 export const toApiMeal = async (
   profileId: string,
@@ -69,6 +99,9 @@ export const toApiMeal = async (
 
   return {
     plateScore,
+    // Sits alongside plateScore, not in place of it: builds already in testers'
+    // hands read plateScore and know nothing about this field.
+    rating: scoring.rating ? mealRating(meal.items, scoring.rating) : undefined,
     advice: meal.advice ?? undefined,
     id: meal.mealId,
     profileId,
@@ -174,6 +207,7 @@ export const buildTodayJournal = async (
   mealImageStorage: MealImageStorage,
   healthTarget?: ProfileHealthTarget | null,
   plateScorePolicy: PlateScorePolicy = defaultPlateScorePolicy,
+  mealScorePolicy?: MealScorePolicyContract,
 ) => {
   const today = toDateString(new Date());
   const [meals, resolvedTarget] = await Promise.all([
@@ -181,16 +215,29 @@ export const buildTodayJournal = async (
     resolveHealthTarget(repository, profile.id, healthTarget),
   ]);
 
+  const rating = toRatingContext(resolvedTarget, mealScorePolicy);
+
+  // Today is still in progress by definition, so the rating is always
+  // provisional here. The app uses that to frame the card as live rather than
+  // final: someone who has logged only breakfast is not having a one-star day.
+  const dayScore = dailyScoreFor(
+    meals.map((meal) => meal.items),
+    rating,
+    { provisional: true },
+  );
+
   return {
     date: today,
     timezone: profile.timezone,
     totals: sumTotals(meals.map((meal) => meal.totals)),
     target: dailyCalorieTarget(resolvedTarget ?? undefined),
+    rating: dailyRating(dayScore, rating),
     meals: await Promise.all(
       meals.map((meal) =>
         toApiMeal(profile.id, meal, mealImageStorage, {
           healthTarget: resolvedTarget,
           plateScorePolicy,
+          rating,
         }),
       ),
     ),
@@ -205,6 +252,7 @@ export const buildJournalRange = async (
   weekOffset = 0,
   healthTarget?: ProfileHealthTarget | null,
   plateScorePolicy: PlateScorePolicy = defaultPlateScorePolicy,
+  mealScorePolicy?: MealScorePolicyContract,
 ) => {
   const endDate = addDays(new Date(), -(weekOffset * 7));
   const dates = dateWindow(daysCount, endDate);
@@ -222,18 +270,31 @@ export const buildJournalRange = async (
     mealsByDate.set(day, [...(mealsByDate.get(day) ?? []), meal]);
   }
 
+  const rating = toRatingContext(resolvedTarget, mealScorePolicy);
+  const today = toDateString(new Date());
+
   const days = await Promise.all(
     dates.map(async (date) => {
       const dayMeals = mealsByDate.get(date) ?? [];
+      // Only today is still in progress; a past day in the window is settled.
+      const dayScore = dailyScoreFor(
+        dayMeals.map((meal) => meal.items),
+        rating,
+        { provisional: date === today },
+      );
       return {
         date,
         mealCount: dayMeals.length,
         totals: sumTotals(dayMeals.map((meal) => meal.totals)),
+        rating: dailyRating(dayScore, rating),
+        // Kept off the response; Part D needs the score, not the stars.
+        dailyScore: dayScore?.score,
         meals: await Promise.all(
           dayMeals.map((meal) =>
             toApiMeal(profile.id, meal, mealImageStorage, {
               healthTarget: resolvedTarget,
               plateScorePolicy,
+              rating,
             }),
           ),
         ),
@@ -248,7 +309,7 @@ export const buildJournalRange = async (
     endDate: dates[dates.length - 1],
     timezone: profile.timezone,
     target: dailyCalorieTarget(resolvedTarget ?? undefined),
-    days,
+    days: days.map(({ dailyScore: _internal, ...day }) => day),
     summary: {
       windowDays: daysCount,
       activeDays,
@@ -256,6 +317,12 @@ export const buildJournalRange = async (
       totals,
       trackedDayAverage: dailyAverage(totals, activeDays || 1),
       calendarDayAverage: dailyAverage(totals, daysCount),
+      // Averages the daily scores, not the meal scores: no single plate and no
+      // single rough day defines the week.
+      rating: weeklyRating(
+        days.map((day) => day.dailyScore),
+        rating,
+      ),
     },
   };
 };

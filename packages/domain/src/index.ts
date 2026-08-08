@@ -7,6 +7,7 @@ export * from "./foods.js";
 export * from "./scan-correction.js";
 export * from "./portion-sanity.js";
 export * from "./micronutrient-merge.js";
+export * from "./cooking-method-recovery.js";
 export * from "./plate-score.js";
 export * from "./plate-warnings.js";
 export * from "./macro-targets.js";

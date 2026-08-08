@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { idSchema, isoDateTimeSchema, macroTotalsSchema, portionUnitSchema } from "./common.js";
 import { mealAdviceSchema, plateScoreSchema } from "./plate-score.js";
+import { scoreRatingSchema } from "./score-rating.js";
 
 export const mealTypeSchema = z.enum(["breakfast", "lunch", "snack", "dinner"]);
 
@@ -36,6 +37,15 @@ export const mealSchema = z.object({
   plateScore: plateScoreSchema.optional(),
   /** Commentary captured at scan time. Absent for manual and older meals. */
   advice: mealAdviceSchema.optional(),
+  /**
+   * Part B, as stars. Reachable only by opening the meal: a single plate is
+   * supplementary detail, not the signal the user is meant to act on.
+   *
+   * Sits alongside `plateScore` rather than replacing it. Builds already in
+   * testers' hands read `plateScore` and know nothing about this field, so both
+   * travel until those builds are gone.
+   */
+  rating: scoreRatingSchema.optional(),
 });
 
 export const createMealRequestSchema = z.object({
@@ -59,6 +69,11 @@ export const todayJournalResponseSchema = z.object({
   totals: macroTotalsSchema,
   target: macroTotalsSchema.optional(),
   meals: z.array(mealSchema),
+  /**
+   * Part C — the primary rating. Absent until something is logged, and until the
+   * user has a health target to measure against.
+   */
+  rating: scoreRatingSchema.optional(),
 });
 
 export const streakSummarySchema = z.object({
@@ -85,6 +100,8 @@ export const journalDaySchema = z.object({
   mealCount: z.number().int().nonnegative(),
   totals: macroTotalsSchema,
   meals: z.array(mealSchema),
+  /** Part C for this day. Absent on days with nothing logged. */
+  rating: scoreRatingSchema.optional(),
 });
 
 export const journalRangeResponseSchema = z.object({
@@ -100,6 +117,11 @@ export const journalRangeResponseSchema = z.object({
     totals: macroTotalsSchema,
     trackedDayAverage: macroTotalsSchema,
     calendarDayAverage: macroTotalsSchema,
+    /**
+     * Part D. Averages the daily scores in the window, skipping untracked days
+     * rather than scoring them zero. Absent when no day in the window scored.
+     */
+    rating: scoreRatingSchema.optional(),
   }),
 });
 

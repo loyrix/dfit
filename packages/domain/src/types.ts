@@ -36,11 +36,34 @@ export type FoodPortion = {
   grams: number;
 };
 
+/**
+ * How a food was cooked. Distinct from `preparation`
+ * (home/restaurant/packaged), which describes provenance rather than technique.
+ *
+ * Canonical here so the scoring modifiers, the recovery step and the stored meal
+ * shape cannot drift apart into three slightly different unions.
+ */
+export type CookingMethodValue =
+  | "fried"
+  | "sauced_creamy"
+  | "baked"
+  | "grilled"
+  | "steamed"
+  | "raw"
+  | "unknown";
+
 export type MealItemNutrition = {
   foodId?: string;
   displayName: string;
   portion: FoodPortion;
   nutrition: MacroTotals;
+  /**
+   * How the item was cooked, feeding the Part B and Part C cooking modifiers.
+   * Absent for every meal logged before prompt v9, and whenever the model was
+   * not confident enough to say — absent means unknown, and the modifier is
+   * skipped rather than guessed.
+   */
+  cookingMethod?: CookingMethodValue;
 };
 
 export type MealImageSummary = {

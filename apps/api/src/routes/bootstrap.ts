@@ -11,6 +11,7 @@ import { loadEngagementPolicy } from "../services/engagement-policy.js";
 import { buildStreakSummary } from "../services/streak-summary.js";
 import { buildJournalSummary, buildTodayJournal } from "./journal-presenter.js";
 import { loadPlateScorePolicy } from "../services/plate-score-policy.js";
+import { loadMealScorePolicy } from "../services/meal-score-policy.js";
 import { createRouteTimer } from "./route-timing.js";
 
 export const registerBootstrapRoutes = async (
@@ -25,9 +26,10 @@ export const registerBootstrapRoutes = async (
     const updatePolicyConfig = await timer.measure("updatePolicy", () =>
       loadAppUpdatePolicyConfig(sql),
     );
-    const [engagementPolicy, plateScorePolicy] = await Promise.all([
+    const [engagementPolicy, plateScorePolicy, mealScorePolicy] = await Promise.all([
       timer.measure("engagementPolicy", () => loadEngagementPolicy(sql)),
       timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+      timer.measure("mealScorePolicy", () => loadMealScorePolicy(sql)),
     ]);
     const [quota, subscription, rawRewardedAdProgress, healthTarget] = await Promise.all([
       timer.measure("quota", () => repository.getQuota()),
@@ -52,6 +54,7 @@ export const registerBootstrapRoutes = async (
           mealImageStorage,
           healthTarget ?? null,
           plateScorePolicy,
+          mealScorePolicy,
         ),
       ),
       timer.measure("weeklySummary", () =>

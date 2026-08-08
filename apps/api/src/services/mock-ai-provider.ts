@@ -12,6 +12,7 @@ const items: AnalyzeScanResponseContract["items"] = [
     unit: "katori",
     estimatedGrams: 180,
     preparation: "home",
+    cookingMethod: "sauced_creamy",
     confidence: 0.84,
     nutrition: {
       calories: 180,
@@ -30,6 +31,7 @@ const items: AnalyzeScanResponseContract["items"] = [
     unit: "bowl",
     estimatedGrams: 150,
     preparation: "home",
+    cookingMethod: "steamed",
     confidence: 0.78,
     nutrition: {
       calories: 210,
@@ -48,6 +50,7 @@ const items: AnalyzeScanResponseContract["items"] = [
     unit: "piece",
     estimatedGrams: 60,
     preparation: "home",
+    cookingMethod: "baked",
     confidence: 0.68,
     nutrition: {
       calories: 160,
@@ -66,6 +69,7 @@ const items: AnalyzeScanResponseContract["items"] = [
     unit: "katori",
     estimatedGrams: 120,
     preparation: "home",
+    cookingMethod: "fried",
     confidence: 0.73,
     nutrition: {
       calories: 118,

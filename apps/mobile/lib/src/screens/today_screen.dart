@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/logmyplate_spacing.dart';
 
 import '../models/meal.dart';
+import '../models/score_rating.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
@@ -10,6 +11,7 @@ import '../widgets/glass/glass_section_card.dart';
 import '../widgets/logmyplate_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
+import '../widgets/daily_score_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -28,6 +30,7 @@ class TodayScreen extends StatelessWidget {
     this.rewardedAdProgress,
     this.weeklyRange,
     this.streakSummary,
+    this.dailyRating,
     this.loading = false,
     this.initialLoading = false,
     this.weeklyJournalOpening = false,
@@ -56,6 +59,10 @@ class TodayScreen extends StatelessWidget {
   final RewardedAdProgress? rewardedAdProgress;
   final JournalRangeData? weeklyRange;
   final StreakSummary? streakSummary;
+
+  /// Part C. Null until the user has both a health target and a logged meal;
+  /// the card is simply absent rather than showing an empty or zero state.
+  final ScoreRating? dailyRating;
   final bool loading;
   final bool initialLoading;
   final bool weeklyJournalOpening;
@@ -147,6 +154,13 @@ class TodayScreen extends StatelessWidget {
                         GestureDetector(
                           onTap: onOpenStreak,
                           child: _CardStreakPanel(streak: streakSummary),
+                        ),
+                        const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      ],
+                      if (dailyRating != null) ...[
+                        DailyScoreCard(
+                          rating: dailyRating!,
+                          mealsLogged: meals.length,
                         ),
                         const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                       ],

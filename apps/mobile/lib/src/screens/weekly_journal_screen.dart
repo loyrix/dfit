@@ -13,6 +13,7 @@ import '../widgets/plate_score_sheet.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
+import '../widgets/daily_score_card.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/nutritionist_entry_button.dart';
@@ -107,6 +108,13 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
                 ),
               ],
               const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+              if (_range.summary.rating != null) ...[
+                WeeklyScoreCard(
+                  rating: _range.summary.rating!,
+                  trackedDays: _range.summary.activeDays,
+                ),
+                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+              ],
               _WeeklyJournalHero(range: _range),
               if (widget.onOpenNutritionist != null) ...[
                 const SizedBox(height: LogMyPlateSpacing.itemSpacing),

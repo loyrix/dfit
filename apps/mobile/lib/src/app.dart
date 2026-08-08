@@ -318,6 +318,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           rewardedAdProgress: _journalController.rewardedAdProgress,
           weeklyRange: _journalController.weeklyRange,
           streakSummary: _journalController.streakSummary,
+          dailyRating: _journalController.dailyRating,
           loading: _journalController.loading,
           initialLoading: _journalController.initialLoading,
           weeklyJournalOpening: _openingWeeklyJournal,

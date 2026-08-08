@@ -18,19 +18,10 @@
  */
 
 import type { MacroBand, MacroTargets } from "./macro-targets.js";
+import type { CookingMethodValue } from "./types.js";
 
-/**
- * B7 cooking method. Distinct from the existing `preparation` field
- * (home/restaurant/packaged), which describes provenance rather than technique.
- */
-export type CookingMethod =
-  | "fried"
-  | "sauced_creamy"
-  | "baked"
-  | "grilled"
-  | "steamed"
-  | "raw"
-  | "unknown";
+/** B7 cooking method. Canonical definition lives in `types.ts`. */
+export type CookingMethod = CookingMethodValue;
 
 export type MealScoreInput = {
   carbsG: number;

@@ -15,7 +15,9 @@ import {
   diffScanConfirmation,
   isAccuracyDefect,
   mergeAnalysisMicronutrients,
+  recoverCookingMethods,
   sumTotals,
+  type CookingMethodValue,
   type ScanConfirmationDiff,
   type ScanItemSnapshot,
 } from "@logmyplate/domain";
@@ -26,9 +28,10 @@ import { resolveFoodPhotoPromptKey } from "../services/food-photo-prompt-routing
 import { MockAiProvider } from "../services/mock-ai-provider.js";
 import type { MealImageStorage, StoredMealImage } from "../services/meal-image-storage.js";
 import type { ConfirmedScanFoodLearningItem } from "../repositories/app-repository.js";
-import { toApiMeal, toPlateScoreProfile } from "./journal-presenter.js";
+import { toApiMeal, toPlateScoreProfile, toRatingContext } from "./journal-presenter.js";
 import { createRouteTimer } from "./route-timing.js";
 import { loadPlateScorePolicy } from "../services/plate-score-policy.js";
+import { loadMealScorePolicy } from "../services/meal-score-policy.js";
 import type { SqlClient } from "../db/client.js";
 
 const isStoredImageMimeType = (value: string | undefined): value is StoredMealImage["mimeType"] =>
@@ -240,6 +243,48 @@ const recoverMicronutrients = (
   } catch (error) {
     log.error({ err: error }, "micronutrient recovery failed");
     return items;
+  }
+};
+
+/**
+ * Recovers each item's cooking method from the analysis the API already stored.
+ *
+ * No app build sends this back: `confirmScanRequest` carries name, portion and
+ * nutrition only. Without recovering it here the field would be captured at
+ * analysis and dropped at confirm, leaving the Part B and Part C cooking
+ * modifiers inert on every stored meal. Doing it server-side means every
+ * installed build contributes the moment prompt v9 is activated, with no release.
+ *
+ * Returns one entry per confirmed item, aligned by index. Undefined for an item
+ * with no match, an analysis from before v9, or a model that answered "unknown"
+ * — all three mean the same thing to the scorer, which is to skip the modifier.
+ *
+ * Any failure yields all-undefined, so a confirm can never break over this.
+ */
+const recoverCookingMethodsForConfirm = (
+  analysis: unknown,
+  items: ConfirmScanRequestContract["items"],
+  log: FastifyBaseLogger,
+): (CookingMethodValue | undefined)[] => {
+  try {
+    const analyzed = (
+      (analysis as { items?: unknown } | undefined)?.items as
+        | { name?: unknown; cookingMethod?: unknown }[]
+        | undefined
+    )?.map((item) => ({
+      name: typeof item?.name === "string" ? item.name : "",
+      cookingMethod: item?.cookingMethod as CookingMethodValue | undefined,
+    }));
+
+    if (!analyzed?.length) return items.map(() => undefined);
+
+    return recoverCookingMethods(
+      analyzed,
+      items.map((item) => item.name),
+    );
+  } catch (error) {
+    log.error({ err: error }, "cooking method recovery failed");
+    return items.map(() => undefined);
   }
 };
 
@@ -760,6 +805,12 @@ export const registerScanRoutes = async (
       request.log,
     );
 
+    const cookingMethods = recoverCookingMethodsForConfirm(
+      scan.analyzedResponse,
+      parsed.data.items,
+      request.log,
+    );
+
     let meal = await timer.measure("dbCreateMeal", () =>
       repository.createMeal({
         profileId: scan.profileId,
@@ -779,6 +830,7 @@ export const registerScanRoutes = async (
           },
           nutrition: item.nutrition,
           userEdited: correctionDiff.confirmedItemEdited[index] ?? false,
+          cookingMethod: cookingMethods[index],
         })),
       }),
     );
@@ -873,14 +925,16 @@ export const registerScanRoutes = async (
       repository.updateScan({ ...scan, status: "confirmed" }),
     );
 
-    const [confirmHealthTarget, confirmPolicy] = await Promise.all([
+    const [confirmHealthTarget, confirmPolicy, confirmMealScorePolicy] = await Promise.all([
       timer.measure("healthTarget", () => repository.getHealthTarget(scan.profileId)),
       timer.measure("plateScorePolicy", () => loadPlateScorePolicy(sql)),
+      timer.measure("mealScorePolicy", () => loadMealScorePolicy(sql)),
     ]);
     const responseMeal = await timer.measure("hydrateMeal", () =>
       toApiMeal(scan.profileId, meal, mealImageStorage, {
         healthTarget: confirmHealthTarget,
         plateScorePolicy: confirmPolicy,
+        rating: toRatingContext(confirmHealthTarget, confirmMealScorePolicy),
       }),
     );
 
