@@ -774,3 +774,50 @@ textarea {
     flex: 1 1 180px;
   }
 }
+
+/* Inline pending indicator for buttons that trigger multi-second work. */
+.spinner {
+  animation: spin 0.7s linear infinite;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-right-color: transparent;
+  display: inline-block;
+  height: 0.85em;
+  margin-right: 0.5em;
+  vertical-align: -0.1em;
+  width: 0.85em;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+/* PrivyDock keeps its own identity inside the console, so it is obvious at a
+   glance which product you are operating. Values are the site's own tokens. */
+[data-project="privydock"] {
+  --gold: #2f8169;
+  --gold-soft: #e4efeb;
+  --green: #2f8169;
+  --green-soft: rgba(47, 129, 105, 0.12);
+  --line: rgba(26, 31, 29, 0.12);
+}
+
+[data-project="privydock"] .brand-mark {
+  background: #f4f2ed;
+  box-shadow: 0 12px 28px rgba(47, 129, 105, 0.22);
+  object-fit: contain;
+  padding: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}

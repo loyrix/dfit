@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { privydockSource } from "../../sources/privydock";
 import { SourceError, safe } from "../../components/source-error";
 import {
   Badge,
@@ -22,7 +23,7 @@ export default async function WaitlistPage() {
 
   if (!waitlist.ok) {
     return (
-      <AdminShell>
+      <AdminShell project={privydockSource}>
         <PageHeader eyebrow="PrivyDock" title="Waitlist" />
         <SourceError source="Supabase" message={waitlist.error} />
       </AdminShell>
@@ -49,7 +50,7 @@ export default async function WaitlistPage() {
     : null;
 
   return (
-    <AdminShell>
+    <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Waitlist"

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 /**
  * Cloudflare GraphQL analytics for PrivyDock.
  *
@@ -368,3 +370,32 @@ function splitWindows(from: Date, to: Date, maxDays: number): [Date, Date][] {
   }
   return windows;
 }
+
+/**
+ * Cached read paths for the panels.
+ *
+ * Cloudflare's GraphQL endpoint is the slowest upstream and the only one with a
+ * rate limit worth respecting, and these numbers move once a day at most. A
+ * short window means hitting refresh does not re-query it. The capture job
+ * deliberately calls the uncached functions above, since it must read what is
+ * actually there.
+ */
+const CACHE_SECONDS = 60;
+
+export const cachedDailyTraffic = unstable_cache(
+  (from: string, to: string) => dailyTraffic(from, to),
+  ["privydock", "daily-traffic"],
+  { revalidate: CACHE_SECONDS },
+);
+
+export const cachedDownloadObjects = unstable_cache(
+  (fromIso: string, toIso: string) => downloadObjects(new Date(fromIso), new Date(toIso)),
+  ["privydock", "download-objects"],
+  { revalidate: CACHE_SECONDS },
+);
+
+export const cachedPathHits = unstable_cache(
+  (day: string) => pathHits(day),
+  ["privydock", "path-hits"],
+  { revalidate: CACHE_SECONDS },
+);

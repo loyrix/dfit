@@ -1,7 +1,7 @@
 import "server-only";
 
 import { dailyDownloads, dailyTraffic } from "./cloudflare";
-import { countRows, upsertSnapshots, type Snapshot } from "./supabase";
+import { countRows, latestSnapshot, upsertSnapshots, type Snapshot } from "./supabase";
 
 /**
  * Captures PrivyDock's daily metrics into permanent storage.
@@ -66,4 +66,54 @@ export async function runPrivydockSnapshot(days: number) {
   const rows = await collectPrivydockSnapshots(days);
   await upsertSnapshots(rows);
   return { project: "privydock", days, written: rows.length };
+}
+
+/** Longest window Cloudflare still retains. */
+const FULL_BACKFILL_DAYS = 90;
+/** Enough to repair a few missed days without re-reading a whole quarter. */
+const TOP_UP_DAYS = 5;
+/** Skip a capture if one already ran this recently. */
+const FRESH_FOR_MS = 6 * 60 * 60 * 1000;
+
+export type AutoCaptureResult =
+  | { status: "skipped"; reason: string }
+  | { status: "captured"; days: number; written: number }
+  | { status: "failed"; error: string };
+
+/**
+ * Capture triggered by opening the PrivyDock console rather than by a schedule.
+ *
+ * Called from `after()`, so it runs once the page has already been sent and
+ * never adds latency. The first run backfills everything Cloudflare still holds;
+ * later runs only top up recent days, and are skipped entirely if a capture
+ * already ran in the last few hours — opening the page five times in a morning
+ * should not mean five backfills.
+ */
+let lastCheckedAt = 0;
+
+export async function autoCapturePrivydock(): Promise<AutoCaptureResult> {
+  // Cheap guard first. Next prefetches routes on hover, so this can be reached
+  // several times per visit; without it every one of those would cost two
+  // Supabase reads. The database check below remains the cross-instance
+  // backstop for a cold serverless worker, where this counter starts at zero.
+  if (Date.now() - lastCheckedAt < FRESH_FOR_MS) {
+    return { status: "skipped", reason: "checked recently in this instance" };
+  }
+  lastCheckedAt = Date.now();
+
+  try {
+    const latest = await latestSnapshot("privydock");
+
+    if (latest && Date.now() - Date.parse(latest.capturedAt) < FRESH_FOR_MS) {
+      return { status: "skipped", reason: "captured within the last 6 hours" };
+    }
+
+    const days = latest ? TOP_UP_DAYS : FULL_BACKFILL_DAYS;
+    const result = await runPrivydockSnapshot(days);
+    return { status: "captured", days, written: result.written };
+  } catch (error) {
+    // Never let a capture failure surface as a broken console — the page has
+    // already been sent by the time this runs.
+    return { status: "failed", error: error instanceof Error ? error.message : "unknown" };
+  }
 }

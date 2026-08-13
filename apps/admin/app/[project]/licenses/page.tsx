@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { privydockSource } from "../../sources/privydock";
 import { SourceError, safe } from "../../components/source-error";
 import {
   Badge,
@@ -33,7 +34,7 @@ export default async function LicensesPage() {
 
   if (!licenses.ok) {
     return (
-      <AdminShell>
+      <AdminShell project={privydockSource}>
         <PageHeader eyebrow="PrivyDock" title="Licences" />
         <SourceError source="Supabase" message={licenses.error} />
       </AdminShell>
@@ -71,7 +72,7 @@ export default async function LicensesPage() {
   ).length;
 
   return (
-    <AdminShell>
+    <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Licences"

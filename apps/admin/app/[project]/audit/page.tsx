@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   EmptyState,
   PageHeader,
@@ -57,7 +58,7 @@ export default async function AuditPage({
   );
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Safety"
         title="Audit log"

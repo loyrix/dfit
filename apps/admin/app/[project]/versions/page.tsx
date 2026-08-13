@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import { Badge, PageHeader } from "../../components/ui";
 import { updateAppUpdatePolicyAction } from "../../lib/actions";
 import { adminGet, type AppUpdatePlatformPolicy, type AppUpdatePolicy } from "../../lib/api";
@@ -10,7 +11,7 @@ export default async function VersionsPage() {
   const { policy } = await adminGet<{ policy: AppUpdatePolicy }>("/admin/app-update-policy");
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Release safety"
         title="App version controls"

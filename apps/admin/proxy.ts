@@ -38,9 +38,6 @@ export function proxy(request: NextRequest) {
 
 function isPublicPath(pathname: string) {
   return (
-    // Route handlers authorise themselves — the cron scheduler calls them with
-    // a bearer secret and no session cookie, so a redirect here would break it.
-    pathname.startsWith("/api/") ||
     pathname === "/login" ||
     pathname === "/favicon.ico" ||
     pathname === "/icon.png" ||
@@ -49,7 +46,12 @@ function isPublicPath(pathname: string) {
 }
 
 export const config = {
-  // Everything except Next internals and static assets. Auth should run on all
-  // remaining routes rather than an allowlist, so new pages are covered by default.
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  // Everything except Next internals and files served from /public. Auth runs on
+  // all remaining routes rather than an allowlist, so new pages are covered by
+  // default. Static files must be excluded by extension: their first path
+  // segment is a filename, not a project, so the ownership check below would
+  // otherwise 404 them.
+  matcher: [
+    "/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|avif|woff2?|txt|xml|json|map)$).*)",
+  ],
 };

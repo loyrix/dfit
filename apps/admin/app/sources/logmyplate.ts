@@ -10,6 +10,7 @@ import type { ProjectSource } from "./types";
 export const logmyplateSource: ProjectSource = {
   id: "logmyplate",
   label: "LogMyPlate",
+  brand: { logo: "/icon.png", tagline: "Food logging" },
   nav: {
     primary: [
       { href: "/", label: "Overview" },

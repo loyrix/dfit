@@ -171,6 +171,30 @@ export async function upsertSnapshots(rows: Snapshot[], batchSize = 500) {
   return rows.length;
 }
 
+/**
+ * Freshness of the snapshot store.
+ *
+ * `capturedAt` and `throughDay` need separate queries: a backfill writes every
+ * row at the same instant, so ordering by `captured_at` returns an arbitrary day
+ * and would misreport how far the history actually reaches.
+ */
+export async function latestSnapshot(project: string) {
+  const [byCapture, byDay] = await Promise.all([
+    select<{ captured_at: string }>(
+      SNAPSHOT_TABLE,
+      `select=captured_at&project=eq.${project}&order=captured_at.desc`,
+      { limit: 1 },
+    ),
+    select<{ day: string }>(SNAPSHOT_TABLE, `select=day&project=eq.${project}&order=day.desc`, {
+      limit: 1,
+    }),
+  ]);
+
+  const capturedAt = byCapture.rows[0]?.captured_at;
+  if (!capturedAt) return undefined;
+  return { capturedAt, throughDay: byDay.rows[0]?.day ?? "" };
+}
+
 export function listSnapshots(project: string, metric: string, sinceDay: string) {
   return select<Snapshot>(
     SNAPSHOT_TABLE,

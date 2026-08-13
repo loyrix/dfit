@@ -1,7 +1,8 @@
 import { AdminShell } from "../../components/shell";
+import { privydockSource } from "../../sources/privydock";
 import { SourceError, safe } from "../../components/source-error";
 import { Metric, PageHeader, formatNumber } from "../../components/ui";
-import { downloadObjects } from "../../sources/privydock/cloudflare";
+import { cachedDownloadObjects } from "../../sources/privydock/cloudflare";
 
 export const dynamic = "force-dynamic";
 
@@ -9,11 +10,13 @@ const DAY = 24 * 60 * 60 * 1000;
 const MB = 1_000_000;
 
 export default async function DownloadsPage() {
-  const objects = await safe(() => downloadObjects(new Date(Date.now() - 90 * DAY), new Date()));
+  const objects = await safe(() =>
+    cachedDownloadObjects(new Date(Date.now() - 90 * DAY).toISOString(), new Date().toISOString()),
+  );
 
   if (!objects.ok) {
     return (
-      <AdminShell>
+      <AdminShell project={privydockSource}>
         <PageHeader eyebrow="PrivyDock" title="Downloads" />
         <SourceError source="Cloudflare R2" message={objects.error} />
       </AdminShell>
@@ -30,7 +33,7 @@ export default async function DownloadsPage() {
   const totalBytes = dmgs.reduce((sum, object) => sum + object.bytes, 0);
 
   return (
-    <AdminShell>
+    <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Downloads"

@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import { Badge, EmptyState, PageHeader, SectionTabs, formatDate } from "../../components/ui";
 import { createNoticeAction, updateFeatureFlagAction, updateNoticeAction } from "../../lib/actions";
 import { adminGet, type AppNotice, type FeatureFlag } from "../../lib/api";
@@ -30,7 +31,7 @@ export default async function FlagsPage({
     params.section === "notices" || params.section === "create-notice" ? params.section : "flags";
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Runtime"
         title="Feature flags and notices"

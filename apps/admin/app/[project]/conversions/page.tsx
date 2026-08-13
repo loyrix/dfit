@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   Badge,
   EmptyState,
@@ -74,7 +75,7 @@ export default async function ConversionsPage({
   );
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Growth"
         title="Conversion"

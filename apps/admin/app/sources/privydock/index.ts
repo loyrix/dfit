@@ -9,6 +9,7 @@ import type { ProjectSource } from "../types";
 export const privydockSource: ProjectSource = {
   id: "privydock",
   label: "PrivyDock",
+  brand: { logo: "/privydock-logo.png", tagline: "Mac privacy app" },
   nav: {
     primary: [
       { href: "/", label: "Overview" },

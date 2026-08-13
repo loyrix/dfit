@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   Badge,
   Metric,
@@ -40,7 +41,7 @@ export default async function CostPage({
   const runsPerScan = cost.overall.scans > 0 ? cost.overall.runs / cost.overall.scans : null;
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="AI operations"
         title="AI usage and scan health"

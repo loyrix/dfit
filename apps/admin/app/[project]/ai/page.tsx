@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   Badge,
   EmptyState,
@@ -51,7 +52,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
     params.section === "prompts" ? "prompts" : params.section === "chat" ? "chat" : "models";
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Vertex AI"
         title="AI controls"

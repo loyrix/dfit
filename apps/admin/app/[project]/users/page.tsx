@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   Badge,
   EmptyState,
@@ -80,7 +81,7 @@ export default async function UsersPage({
 
   if (selected?.user) {
     return (
-      <AdminShell>
+      <AdminShell project={logmyplateSource}>
         <PageHeader
           eyebrow="Support"
           title="User detail"
@@ -102,7 +103,7 @@ export default async function UsersPage({
   }
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Support"
         title="Users"

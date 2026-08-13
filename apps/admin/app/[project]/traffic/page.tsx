@@ -1,7 +1,8 @@
 import { AdminShell } from "../../components/shell";
+import { privydockSource } from "../../sources/privydock";
 import { SourceError, safe } from "../../components/source-error";
 import { Metric, PageHeader, formatNumber } from "../../components/ui";
-import { dailyTraffic, pathHits } from "../../sources/privydock/cloudflare";
+import { cachedDailyTraffic, cachedPathHits } from "../../sources/privydock/cloudflare";
 
 export const dynamic = "force-dynamic";
 
@@ -10,11 +11,11 @@ const isoDate = (offset: number) => new Date(Date.now() - offset * DAY).toISOStr
 
 export default async function TrafficPage() {
   const [traffic, paths] = await Promise.all([
-    safe(() => dailyTraffic(isoDate(30), isoDate(0))),
+    safe(() => cachedDailyTraffic(isoDate(30), isoDate(0))),
     // The adaptive dataset caps queries at one day and retains eight, so recent
     // days are fetched individually and merged.
     safe(async () => {
-      const days = await Promise.all([1, 2, 3].map((offset) => pathHits(isoDate(offset))));
+      const days = await Promise.all([1, 2, 3].map((offset) => cachedPathHits(isoDate(offset))));
       const merged = new Map<string, { host: string; path: string; count: number }>();
       for (const hit of days.flat()) {
         if (hit.status >= 400) continue;
@@ -42,7 +43,7 @@ export default async function TrafficPage() {
   const totalViews = totals ? totals.human + totals.bot + totals.unknown : 0;
 
   return (
-    <AdminShell>
+    <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Traffic"

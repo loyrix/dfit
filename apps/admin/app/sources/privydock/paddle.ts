@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+
 /**
  * Paddle transactions for PrivyDock revenue. Read-only; the console never
  * mutates billing state.
@@ -73,3 +75,10 @@ export function netRevenue(transactions: Transaction[]) {
       .reduce((sum, transaction) => sum + transaction.total, 0) / 100
   );
 }
+
+/** Cached for the panels; revenue changes on the order of days, not seconds. */
+export const cachedTransactions = unstable_cache(
+  (limit: number) => listTransactions(limit),
+  ["privydock", "transactions"],
+  { revalidate: 60 },
+);

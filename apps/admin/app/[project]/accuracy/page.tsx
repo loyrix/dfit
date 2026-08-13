@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   Badge,
   EmptyState,
@@ -37,7 +38,7 @@ export default async function ScanAccuracyPage({
   const editRateReliable = editTrackingLive && summary.correctedScans > 0;
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="AI Quality"
         title="Scan Accuracy"

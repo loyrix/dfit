@@ -35,10 +35,18 @@ export type ProjectNav = {
   defaultSections: Record<string, string>;
 };
 
+/** Visual identity a project carries into the console. */
+export type ProjectBrand = {
+  /** Path under /public. */
+  logo: string;
+  tagline: string;
+};
+
 export type ProjectSource = {
   /** URL segment and registry key, e.g. "logmyplate". */
   id: string;
   /** Display name for the switcher. */
   label: string;
+  brand?: ProjectBrand;
   nav: ProjectNav;
 };

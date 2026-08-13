@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { privydockSource } from "../../sources/privydock";
 import { SourceError, safe } from "../../components/source-error";
 import {
   Badge,
@@ -8,14 +9,14 @@ import {
   formatDate,
   formatNumber,
 } from "../../components/ui";
-import { listTransactions, netRevenue } from "../../sources/privydock/paddle";
+import { cachedTransactions, netRevenue } from "../../sources/privydock/paddle";
 import { listWebhookEvents } from "../../sources/privydock/supabase";
 
 export const dynamic = "force-dynamic";
 
 export default async function RevenuePage() {
   const [transactions, webhooks] = await Promise.all([
-    safe(() => listTransactions(100)),
+    safe(() => cachedTransactions(100)),
     safe(() => listWebhookEvents(20)),
   ]);
 
@@ -30,7 +31,7 @@ export default async function RevenuePage() {
   const lastWebhook = webhooks.ok ? webhooks.data.rows[0] : undefined;
 
   return (
-    <AdminShell>
+    <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Revenue"

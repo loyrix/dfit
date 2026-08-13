@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import {
   Badge,
   EmptyState,
@@ -78,7 +79,7 @@ export default async function ScansPage({
 
   if (detail?.scan) {
     return (
-      <AdminShell>
+      <AdminShell project={logmyplateSource}>
         <PageHeader
           eyebrow="Debugging"
           title="Scan detail"
@@ -100,7 +101,7 @@ export default async function ScansPage({
   }
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Debugging"
         title="Scan history"

@@ -1,4 +1,5 @@
 import { AdminShell } from "../../components/shell";
+import { logmyplateSource } from "../../sources/logmyplate";
 import { Badge, PageHeader, SectionTabs } from "../../components/ui";
 import {
   sendPushNotificationAction,
@@ -75,7 +76,7 @@ export default async function GrowthControlsPage({
   const section = normalizeGrowthSection(params.section);
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Growth"
         title="Growth Controls"

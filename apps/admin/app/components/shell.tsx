@@ -2,18 +2,31 @@ import { AdminNav } from "./nav";
 import { ProjectSwitcher } from "./project-switcher";
 import { logoutAction } from "../lib/actions";
 import { requireAdminSession } from "../lib/session";
+import type { ProjectSource } from "../sources/types";
 
-export async function AdminShell({ children }: { children: React.ReactNode }) {
+/**
+ * `project` is optional so pages that predate the registry keep working. When
+ * given, the shell wears that product's mark and palette — operating the wrong
+ * product by mistake should be visibly obvious, not a matter of reading the URL.
+ */
+export async function AdminShell({
+  children,
+  project,
+}: {
+  children: React.ReactNode;
+  project?: ProjectSource;
+}) {
   const session = await requireAdminSession();
+  const brand = project?.brand;
 
   return (
-    <div className="admin-shell">
+    <div className="admin-shell" data-project={project?.id}>
       <aside className="sidebar">
         <div className="flex items-center gap-3">
-          <img className="brand-mark" src="/icon.png" alt="" />
+          <img className="brand-mark" src={brand?.logo ?? "/icon.png"} alt="" />
           <div>
-            <div className="font-bold">Loyrix</div>
-            <div className="text-sm muted">Centralized backoffice</div>
+            <div className="font-bold">{project?.label ?? "Loyrix"}</div>
+            <div className="text-sm muted">{brand?.tagline ?? "Centralized backoffice"}</div>
           </div>
         </div>
 

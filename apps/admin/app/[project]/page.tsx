@@ -2,6 +2,8 @@ import Link from "next/link";
 import { AdminShell } from "../components/shell";
 import { Metric, PageHeader, formatDate, formatInr, formatNumber } from "../components/ui";
 import { adminGet, type AdminOverview, type AiCostData } from "../lib/api";
+import { logmyplateSource } from "../sources/logmyplate";
+import { privydockSource } from "../sources/privydock";
 import { PrivydockOverview } from "../sources/privydock/overview";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +19,7 @@ export default async function DashboardPage({
   // rather than each one owning a differently named landing page.
   if (project === "privydock") {
     return (
-      <AdminShell>
+      <AdminShell project={privydockSource}>
         <PrivydockOverview />
       </AdminShell>
     );
@@ -29,7 +31,7 @@ export default async function DashboardPage({
   ]);
 
   return (
-    <AdminShell>
+    <AdminShell project={logmyplateSource}>
       <PageHeader
         eyebrow="Operations"
         title="Backoffice command center"
