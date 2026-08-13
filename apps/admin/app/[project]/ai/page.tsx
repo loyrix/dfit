@@ -1,5 +1,12 @@
-import { AdminShell } from "../components/shell";
-import { Badge, EmptyState, Metric, PageHeader, SectionTabs, formatDate } from "../components/ui";
+import { AdminShell } from "../../components/shell";
+import {
+  Badge,
+  EmptyState,
+  Metric,
+  PageHeader,
+  SectionTabs,
+  formatDate,
+} from "../../components/ui";
 import {
   activatePromptAction,
   createPromptAction,
@@ -8,15 +15,15 @@ import {
   updateAiScanConfigAction,
   updateModelAction,
   updatePromptAction,
-} from "../lib/actions";
+} from "../../lib/actions";
 import {
   adminGet,
   type AiChatSettings,
   type AiModel,
   type AiPrompt,
   type AiScanConfig,
-} from "../lib/api";
-import { createMutationKey } from "../lib/idempotency";
+} from "../../lib/api";
+import { createMutationKey } from "../../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 

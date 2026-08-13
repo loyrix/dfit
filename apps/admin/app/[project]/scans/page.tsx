@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AdminShell } from "../components/shell";
+import { AdminShell } from "../../components/shell";
 import {
   Badge,
   EmptyState,
@@ -14,8 +14,8 @@ import {
   resolveTableState,
   shortId,
   type QueryParams,
-} from "../components/ui";
-import { adminGet, type AdminScan, type AdminScanCounts, type PageInfo } from "../lib/api";
+} from "../../components/ui";
+import { adminGet, type AdminScan, type AdminScanCounts, type PageInfo } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +40,13 @@ type ScansSearchParams = {
 };
 
 export default async function ScansPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<ScansSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const listParams = scanListParams(params);
   const apiQuery = toScanApiQuery(listParams);
@@ -81,7 +84,10 @@ export default async function ScansPage({
           title="Scan detail"
           description="Inspect the food photo, profile context, model metadata, timing, confidence, and parsed AI output for this scan."
           action={
-            <Link className="button button-secondary" href={hrefWithParams("/scans", listParams)}>
+            <Link
+              className="button button-secondary"
+              href={hrefWithParams(`/${project}/scans`, listParams)}
+            >
               Back to scans
             </Link>
           }
@@ -249,7 +255,7 @@ export default async function ScansPage({
                 <tr>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="createdAt"
@@ -260,7 +266,7 @@ export default async function ScansPage({
                   <th>User</th>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="platform"
@@ -270,7 +276,7 @@ export default async function ScansPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="model"
@@ -280,7 +286,7 @@ export default async function ScansPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="status"
@@ -290,7 +296,7 @@ export default async function ScansPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="latencyMs"
@@ -300,7 +306,7 @@ export default async function ScansPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="confidence"
@@ -310,7 +316,7 @@ export default async function ScansPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/scans"
+                      basePath={`/${project}/scans`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="updatedAt"
@@ -388,7 +394,7 @@ export default async function ScansPage({
                     <td className="table-actions">
                       <Link
                         className="badge"
-                        href={hrefWithParams("/scans", listParams, { scanId: scan.id })}
+                        href={hrefWithParams(`/${project}/scans`, listParams, { scanId: scan.id })}
                       >
                         Inspect
                       </Link>
@@ -404,7 +410,11 @@ export default async function ScansPage({
               />
             ) : null}
           </div>
-          <Pagination basePath="/scans" params={listParams} pageInfo={effectivePageInfo} />
+          <Pagination
+            basePath={`/${project}/scans`}
+            params={listParams}
+            pageInfo={effectivePageInfo}
+          />
         </div>
       </section>
     </AdminShell>

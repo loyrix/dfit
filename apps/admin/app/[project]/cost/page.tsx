@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { AdminShell } from "../components/shell";
-import { Badge, Metric, PageHeader, formatDate, formatInr, formatNumber } from "../components/ui";
-import { adminGet, type AiCostData } from "../lib/api";
+import { AdminShell } from "../../components/shell";
+import {
+  Badge,
+  Metric,
+  PageHeader,
+  formatDate,
+  formatInr,
+  formatNumber,
+} from "../../components/ui";
+import { adminGet, type AiCostData } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +18,13 @@ type CostSearchParams = {
 };
 
 export default async function CostPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<CostSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const days = clampDays(params.days);
   const platform = normalizePlatform(params.platform);
@@ -57,16 +67,22 @@ export default async function CostPage({
       />
 
       <section className="action-row mb-4">
-        <Link className="button" href="/scans?aiState=failed_ai&sort=createdAt&direction=desc">
+        <Link
+          className="button"
+          href={`/${project}/scans?aiState=failed_ai&sort=createdAt&direction=desc`}
+        >
           Review failed AI runs
         </Link>
-        <Link className="button button-secondary" href="/scans?sort=latencyMs&direction=desc">
+        <Link
+          className="button button-secondary"
+          href={`/${project}/scans?sort=latencyMs&direction=desc`}
+        >
           Inspect slow scans
         </Link>
-        <Link className="button button-secondary" href="/ai?section=models">
+        <Link className="button button-secondary" href={`/${project}/ai?section=models`}>
           Tune model and prompt
         </Link>
-        <Link className="button button-secondary" href="/audit?targetType=ai">
+        <Link className="button button-secondary" href={`/${project}/audit?targetType=ai`}>
           Audit AI changes
         </Link>
       </section>
@@ -144,7 +160,7 @@ export default async function CostPage({
                 {days} days · {formatInr(cost.usdToInr)} / USD conversion
               </p>
             </div>
-            <Link className="badge" href="/scans?sort=createdAt&direction=desc">
+            <Link className="badge" href={`/${project}/scans?sort=createdAt&direction=desc`}>
               Open scans
             </Link>
           </div>
@@ -359,19 +375,19 @@ export default async function CostPage({
             <OperatorNote
               title="Cost spike"
               body="If daily cost jumps, check model mix, recent prompts, and slow scans before changing defaults."
-              href="/audit?targetType=ai"
+              href={`/${project}/audit?targetType=ai`}
               action="Audit AI changes"
             />
             <OperatorNote
               title="Low confidence"
               body="Open scans sorted by confidence and inspect food-note quality, prompt version, and image metadata."
-              href="/scans?sort=confidence&direction=asc"
+              href={`/${project}/scans?sort=confidence&direction=asc`}
               action="Review confidence"
             />
             <OperatorNote
               title="High latency"
               body="Sort scans by latency and compare model configuration with recent provider runs."
-              href="/scans?sort=latencyMs&direction=desc"
+              href={`/${project}/scans?sort=latencyMs&direction=desc`}
               action="Review latency"
             />
           </div>

@@ -1,8 +1,8 @@
-import { AdminShell } from "../components/shell";
-import { Badge, EmptyState, PageHeader, SectionTabs, formatDate } from "../components/ui";
-import { createNoticeAction, updateFeatureFlagAction, updateNoticeAction } from "../lib/actions";
-import { adminGet, type AppNotice, type FeatureFlag } from "../lib/api";
-import { createMutationKey } from "../lib/idempotency";
+import { AdminShell } from "../../components/shell";
+import { Badge, EmptyState, PageHeader, SectionTabs, formatDate } from "../../components/ui";
+import { createNoticeAction, updateFeatureFlagAction, updateNoticeAction } from "../../lib/actions";
+import { adminGet, type AppNotice, type FeatureFlag } from "../../lib/api";
+import { createMutationKey } from "../../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AdminShell } from "../components/shell";
+import { AdminShell } from "../../components/shell";
 import {
   Badge,
   EmptyState,
@@ -14,8 +14,8 @@ import {
   resolveTableState,
   shortId,
   type QueryParams,
-} from "../components/ui";
-import { adminGet, type AdminAdsAnalytics, type AdminAdsAnalyticsUser } from "../lib/api";
+} from "../../components/ui";
+import { adminGet, type AdminAdsAnalytics, type AdminAdsAnalyticsUser } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +28,13 @@ type AdsSearchParams = {
 };
 
 export default async function AdsAnalyticsPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<AdsSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const listParams = adsListParams(params);
   const { totals, users } = await adminGet<AdminAdsAnalytics>("/admin/ads/analytics");
@@ -136,7 +139,7 @@ export default async function AdsAnalyticsPage({
               <tr>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="email"
@@ -147,7 +150,7 @@ export default async function AdsAnalyticsPage({
                 <th>Platform</th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="adsToday"
@@ -157,7 +160,7 @@ export default async function AdsAnalyticsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="ads7d"
@@ -167,7 +170,7 @@ export default async function AdsAnalyticsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="ads30d"
@@ -177,7 +180,7 @@ export default async function AdsAnalyticsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="adsTotal"
@@ -187,7 +190,7 @@ export default async function AdsAnalyticsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="lastAdAt"
@@ -197,7 +200,7 @@ export default async function AdsAnalyticsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="scansLeft"
@@ -207,7 +210,7 @@ export default async function AdsAnalyticsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/ads"
+                    basePath={`/${project}/ads`}
                     params={listParams}
                     pageInfo={pageInfo}
                     sort="grantedByUs"
@@ -273,7 +276,7 @@ export default async function AdsAnalyticsPage({
             />
           ) : null}
         </div>
-        <Pagination basePath="/ads" params={listParams} pageInfo={pageInfo} />
+        <Pagination basePath={`/${project}/ads`} params={listParams} pageInfo={pageInfo} />
       </section>
     </AdminShell>
   );

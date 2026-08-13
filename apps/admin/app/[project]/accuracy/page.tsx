@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { AdminShell } from "../components/shell";
-import { Badge, EmptyState, Metric, PageHeader, formatDate, formatNumber } from "../components/ui";
-import { adminGet, type AdminScanAccuracy } from "../lib/api";
+import { AdminShell } from "../../components/shell";
+import {
+  Badge,
+  EmptyState,
+  Metric,
+  PageHeader,
+  formatDate,
+  formatNumber,
+} from "../../components/ui";
+import { adminGet, type AdminScanAccuracy } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 

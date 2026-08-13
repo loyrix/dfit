@@ -3,74 +3,38 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
-const primaryItems = [
-  { href: "/", label: "Overview" },
-  { href: "/cost", label: "AI Usage" },
-  { href: "/conversions", label: "Conversion" },
-  { href: "/scans", label: "Scan Sessions" },
-  { href: "/accuracy", label: "Scan Accuracy" },
-  { href: "/ads", label: "Ads & Credits" },
-] as const;
+import { getProjectSource, projectIdFromPathname } from "../lib/registry";
 
-const navGroups = [
-  {
-    label: "Support",
-    items: [
-      { href: "/users", label: "Users" },
-      { href: "/audit", label: "Audit Log" },
-    ],
-  },
-  {
-    label: "AI Controls",
-    items: [
-      { href: "/ai?section=models", label: "Models" },
-      { href: "/ai?section=prompts", label: "Prompts" },
-      { href: "/ai?section=chat", label: "Chat" },
-    ],
-  },
-  {
-    label: "Growth",
-    items: [
-      { href: "/growth?section=analytics", label: "Analytics" },
-      { href: "/growth?section=review", label: "Review Prompt" },
-      { href: "/growth?section=ads", label: "Interstitial Ads" },
-      { href: "/growth?section=rewarded", label: "Rewarded Unlocks" },
-      { href: "/growth?section=notifications", label: "Push Reminders" },
-      { href: "/growth?section=streaks", label: "Streaks" },
-      { href: "/growth?section=push", label: "Manual Push" },
-    ],
-  },
-  {
-    label: "Runtime",
-    items: [
-      { href: "/flags?section=flags", label: "Feature Flags" },
-      { href: "/flags?section=notices", label: "In-app Notices" },
-      { href: "/flags?section=create-notice", label: "Create Notice" },
-      { href: "/versions", label: "App Versions" },
-    ],
-  },
-] as const;
-
-const defaultSections: Record<string, string> = {
-  "/ai": "models",
-  "/flags": "flags",
-  "/growth": "analytics",
-};
-
+/**
+ * Renders whatever nav the active project declares. Hrefs arrive project-relative
+ * and are prefixed here, so a source never encodes its own URL prefix.
+ *
+ * The active project is read from the pathname rather than passed down, so pages
+ * do not have to thread it through the shell. Nav manifests are pure data with no
+ * credentials in them, which is what makes resolving the registry here safe.
+ */
 export function AdminNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const projectId = projectIdFromPathname(pathname);
+  const source = projectId ? getProjectSource(projectId) : undefined;
+  if (!projectId || !source) return null;
+  const nav = source.nav;
+
+  const isActive = (href: string) =>
+    isActivePath(pathname, searchParams, href, projectId, nav.defaultSections);
+
   return (
     <nav className="admin-nav" aria-label="Admin navigation">
       <div className="nav-primary">
-        {primaryItems.map(({ href, label }) => {
-          const active = isActivePath(pathname, searchParams, href);
+        {nav.primary.map(({ href, label }) => {
+          const active = isActive(href);
           return (
             <Link
               aria-current={active ? "page" : undefined}
               className={`nav-link${active ? " nav-link-active" : ""}`}
-              href={href}
+              href={withProject(projectId, href)}
               key={href}
             >
               {label}
@@ -79,21 +43,21 @@ export function AdminNav() {
         })}
       </div>
 
-      {navGroups.map((group) => (
+      {nav.groups.map((group) => (
         <details
           className="nav-section nav-dropdown"
           key={group.label}
-          open={group.items.some(({ href }) => isActivePath(pathname, searchParams, href))}
+          open={group.items.some(({ href }) => isActive(href))}
         >
           <summary className="nav-section-label">{group.label}</summary>
           <div className="grid gap-1">
             {group.items.map(({ href, label }) => {
-              const active = isActivePath(pathname, searchParams, href);
+              const active = isActive(href);
               return (
                 <Link
                   aria-current={active ? "page" : undefined}
                   className={`nav-link nav-link-sub${active ? " nav-link-active" : ""}`}
-                  href={href}
+                  href={withProject(projectId, href)}
                   key={href}
                 >
                   {label}
@@ -107,13 +71,27 @@ export function AdminNav() {
   );
 }
 
-function isActivePath(pathname: string, searchParams: URLSearchParams, href: string) {
+function withProject(projectId: string, href: string) {
+  if (href === "/") return `/${projectId}`;
+  return `/${projectId}${href}`;
+}
+
+function isActivePath(
+  pathname: string,
+  searchParams: URLSearchParams,
+  href: string,
+  projectId: string,
+  defaultSections: Record<string, string>,
+) {
   const [pathAndQuery] = href.split("#");
   const [hrefPath, hrefQuery] = pathAndQuery.split("?");
+  const target = withProject(projectId, hrefPath);
+  const projectRoot = `/${projectId}`;
+
   if (hrefPath === "/") {
-    return pathname === "/";
+    return pathname === projectRoot;
   }
-  if (!(pathname === hrefPath || pathname.startsWith(`${hrefPath}/`))) {
+  if (!(pathname === target || pathname.startsWith(`${target}/`))) {
     return false;
   }
 

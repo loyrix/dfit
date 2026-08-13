@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AdminShell } from "../components/shell";
+import { AdminShell } from "../../components/shell";
 import {
   Badge,
   EmptyState,
@@ -15,13 +15,13 @@ import {
   resolveTableState,
   shortId,
   type QueryParams,
-} from "../components/ui";
+} from "../../components/ui";
 import {
   adminGet,
   type AdminConversionInstall,
   type AdminConversionSummary,
   type PageInfo,
-} from "../lib/api";
+} from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +36,13 @@ type ConversionsSearchParams = {
 };
 
 export default async function ConversionsPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<ConversionsSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const listParams = conversionListParams(params);
   const apiQuery = toApiQuery(listParams);
@@ -153,7 +156,7 @@ export default async function ConversionsPage({
                 <th>Install</th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="displayName"
@@ -163,7 +166,7 @@ export default async function ConversionsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="authMethod"
@@ -173,7 +176,7 @@ export default async function ConversionsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="platform"
@@ -184,7 +187,7 @@ export default async function ConversionsPage({
                 <th>Location</th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="scans"
@@ -194,7 +197,7 @@ export default async function ConversionsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="createdAt"
@@ -204,7 +207,7 @@ export default async function ConversionsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="updatedAt"
@@ -214,7 +217,7 @@ export default async function ConversionsPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/conversions"
+                    basePath={`/${project}/conversions`}
                     params={listParams}
                     pageInfo={effectivePageInfo}
                     sort="linkedAt"
@@ -315,7 +318,11 @@ export default async function ConversionsPage({
             />
           ) : null}
         </div>
-        <Pagination basePath="/conversions" params={listParams} pageInfo={effectivePageInfo} />
+        <Pagination
+          basePath={`/${project}/conversions`}
+          params={listParams}
+          pageInfo={effectivePageInfo}
+        />
       </section>
     </AdminShell>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AdminShell } from "../components/shell";
+import { AdminShell } from "../../components/shell";
 import {
   Badge,
   EmptyState,
@@ -15,10 +15,14 @@ import {
   resolveTableState,
   shortId,
   type QueryParams,
-} from "../components/ui";
-import { grantCreditsAction, reactivateUserAction, resetNoFoodLimitAction } from "../lib/actions";
-import { adminGet, type AdminUser, type PageInfo } from "../lib/api";
-import { createMutationKey } from "../lib/idempotency";
+} from "../../components/ui";
+import {
+  grantCreditsAction,
+  reactivateUserAction,
+  resetNoFoodLimitAction,
+} from "../../lib/actions";
+import { adminGet, type AdminUser, type PageInfo } from "../../lib/api";
+import { createMutationKey } from "../../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 
@@ -35,10 +39,13 @@ type UsersSearchParams = {
 };
 
 export default async function UsersPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<UsersSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const listParams = userListParams(params);
   const apiQuery = toApiQuery(listParams);
@@ -79,7 +86,10 @@ export default async function UsersPage({
           title="User detail"
           description="Inspect quota, lifecycle status, recent scans, support grants, and recovery actions for this profile."
           action={
-            <Link className="button button-secondary" href={hrefWithParams("/users", listParams)}>
+            <Link
+              className="button button-secondary"
+              href={hrefWithParams(`/${project}/users`, listParams)}
+            >
               Back to users
             </Link>
           }
@@ -168,7 +178,7 @@ export default async function UsersPage({
                 <tr>
                   <th>
                     <SortableHeader
-                      basePath="/users"
+                      basePath={`/${project}/users`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="displayName"
@@ -178,7 +188,7 @@ export default async function UsersPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/users"
+                      basePath={`/${project}/users`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="authMethod"
@@ -188,7 +198,7 @@ export default async function UsersPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/users"
+                      basePath={`/${project}/users`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="scans"
@@ -198,7 +208,7 @@ export default async function UsersPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/users"
+                      basePath={`/${project}/users`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="lastScanAt"
@@ -208,7 +218,7 @@ export default async function UsersPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/users"
+                      basePath={`/${project}/users`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="createdAt"
@@ -218,7 +228,7 @@ export default async function UsersPage({
                   </th>
                   <th>
                     <SortableHeader
-                      basePath="/users"
+                      basePath={`/${project}/users`}
                       params={listParams}
                       pageInfo={effectivePageInfo}
                       sort="updatedAt"
@@ -292,7 +302,9 @@ export default async function UsersPage({
                     <td className="table-actions">
                       <Link
                         className="badge"
-                        href={hrefWithParams("/users", listParams, { profileId: user.id })}
+                        href={hrefWithParams(`/${project}/users`, listParams, {
+                          profileId: user.id,
+                        })}
                       >
                         Open
                       </Link>
@@ -308,7 +320,11 @@ export default async function UsersPage({
               />
             ) : null}
           </div>
-          <Pagination basePath="/users" params={listParams} pageInfo={effectivePageInfo} />
+          <Pagination
+            basePath={`/${project}/users`}
+            params={listParams}
+            pageInfo={effectivePageInfo}
+          />
         </div>
       </section>
     </AdminShell>

@@ -1,8 +1,8 @@
-import { AdminShell } from "../components/shell";
-import { Badge, PageHeader } from "../components/ui";
-import { updateAppUpdatePolicyAction } from "../lib/actions";
-import { adminGet, type AppUpdatePlatformPolicy, type AppUpdatePolicy } from "../lib/api";
-import { createMutationKey } from "../lib/idempotency";
+import { AdminShell } from "../../components/shell";
+import { Badge, PageHeader } from "../../components/ui";
+import { updateAppUpdatePolicyAction } from "../../lib/actions";
+import { adminGet, type AppUpdatePlatformPolicy, type AppUpdatePolicy } from "../../lib/api";
+import { createMutationKey } from "../../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 

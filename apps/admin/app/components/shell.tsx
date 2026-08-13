@@ -1,4 +1,5 @@
 import { AdminNav } from "./nav";
+import { ProjectSwitcher } from "./project-switcher";
 import { logoutAction } from "../lib/actions";
 import { requireAdminSession } from "../lib/session";
 
@@ -15,6 +16,8 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
             <div className="text-sm muted">Centralized backoffice</div>
           </div>
         </div>
+
+        <ProjectSwitcher />
 
         <AdminNav />
 

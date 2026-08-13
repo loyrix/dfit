@@ -1,4 +1,4 @@
-import { AdminShell } from "../components/shell";
+import { AdminShell } from "../../components/shell";
 import {
   EmptyState,
   PageHeader,
@@ -9,8 +9,8 @@ import {
   hrefWithParams,
   resolveTableState,
   type QueryParams,
-} from "../components/ui";
-import { adminGet, type AuditEntry, type PageInfo } from "../lib/api";
+} from "../../components/ui";
+import { adminGet, type AuditEntry, type PageInfo } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +28,13 @@ type AuditSearchParams = {
 };
 
 export default async function AuditPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<AuditSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = auditParams((await searchParams) ?? {});
   const query = toApiQuery(params);
   const { entries, pageInfo } = await adminGet<{ entries: AuditEntry[]; pageInfo?: PageInfo }>(
@@ -128,7 +131,7 @@ export default async function AuditPage({
               <tr>
                 <th>
                   <SortableHeader
-                    basePath="/audit"
+                    basePath={`/${project}/audit`}
                     params={params}
                     pageInfo={effectivePageInfo}
                     sort="createdAt"
@@ -138,7 +141,7 @@ export default async function AuditPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/audit"
+                    basePath={`/${project}/audit`}
                     params={params}
                     pageInfo={effectivePageInfo}
                     sort="actor"
@@ -148,7 +151,7 @@ export default async function AuditPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/audit"
+                    basePath={`/${project}/audit`}
                     params={params}
                     pageInfo={effectivePageInfo}
                     sort="action"
@@ -158,7 +161,7 @@ export default async function AuditPage({
                 </th>
                 <th>
                   <SortableHeader
-                    basePath="/audit"
+                    basePath={`/${project}/audit`}
                     params={params}
                     pageInfo={effectivePageInfo}
                     sort="targetType"
@@ -179,7 +182,10 @@ export default async function AuditPage({
                     <div className="font-semibold">{entry.action}</div>
                     <a
                       className="muted text-xs"
-                      href={hrefWithParams("/audit", params, { action: entry.action, page: "1" })}
+                      href={hrefWithParams(`/${project}/audit`, params, {
+                        action: entry.action,
+                        page: "1",
+                      })}
                     >
                       Filter action
                     </a>
@@ -205,7 +211,7 @@ export default async function AuditPage({
             <EmptyState title="No audit entries matched" body="Try loosening the filters." />
           ) : null}
         </div>
-        <Pagination basePath="/audit" params={params} pageInfo={effectivePageInfo} />
+        <Pagination basePath={`/${project}/audit`} params={params} pageInfo={effectivePageInfo} />
       </section>
     </AdminShell>
   );

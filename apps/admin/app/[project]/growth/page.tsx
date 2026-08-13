@@ -1,5 +1,5 @@
-import { AdminShell } from "../components/shell";
-import { Badge, PageHeader, SectionTabs } from "../components/ui";
+import { AdminShell } from "../../components/shell";
+import { Badge, PageHeader, SectionTabs } from "../../components/ui";
 import {
   sendPushNotificationAction,
   updateEngagementAnalyticsAction,
@@ -9,14 +9,14 @@ import {
   updateRewardedAdsAction,
   updateReviewPromptAction,
   updateStreaksAction,
-} from "../lib/actions";
+} from "../../lib/actions";
 import {
   adminGet,
   type EngagementAnalyticsEvents,
   type EngagementNotificationScenario,
   type EngagementPolicy,
-} from "../lib/api";
-import { createMutationKey } from "../lib/idempotency";
+} from "../../lib/api";
+import { createMutationKey } from "../../lib/idempotency";
 
 export const dynamic = "force-dynamic";
 

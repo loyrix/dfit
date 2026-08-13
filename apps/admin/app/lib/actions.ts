@@ -1,15 +1,86 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { adminGet, adminSend, type EngagementPolicy } from "./api";
 import { readMutationKey } from "./idempotency";
+import {
+  defaultProjectId,
+  getProjectSource,
+  projectCookieName,
+  projectIdFromPathname,
+} from "./registry";
 import {
   clearAdminSession,
   createAdminSession,
   requireAdminSession,
   validateAdminCredentials,
 } from "./session";
+
+/**
+ * Which project the operator was looking at when they submitted a form.
+ *
+ * Actions receive FormData, not route params, so the project is recovered from
+ * the request context: Next sends `next-url` for action requests, and `referer`
+ * covers the no-JavaScript form post. If neither resolves — a stripped referrer,
+ * say — we fall back to the remembered project rather than guessing, so the
+ * operator lands where they left off.
+ *
+ * The mutation itself is never affected by this; only where the redirect lands.
+ * When a second project exists and this proves too loose, the explicit fix is a
+ * hidden project field per form.
+ */
+async function activeProjectId() {
+  const headerList = await headers();
+  const candidates = [headerList.get("next-url"), headerList.get("referer")];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const pathname = candidate.startsWith("/") ? candidate : safeUrlPathname(candidate);
+    const projectId = pathname ? projectIdFromPathname(pathname) : undefined;
+    if (projectId) return projectId;
+  }
+
+  const remembered = (await cookies()).get(projectCookieName)?.value;
+  return remembered && getProjectSource(remembered) ? remembered : defaultProjectId;
+}
+
+function safeUrlPathname(value: string) {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Revalidates a project-relative path for the active project. */
+async function revalidateProjectPath(path: string) {
+  revalidatePath(`/${await activeProjectId()}${path}`);
+}
+
+/** Redirects to a project-relative path within the active project. */
+async function redirectToProject(path: string): Promise<never> {
+  redirect(`/${await activeProjectId()}${path}`);
+}
+
+/** Remembers the chosen project and opens it. */
+export async function switchProjectAction(formData: FormData) {
+  await requireAdminSession();
+  const requested = stringValue(formData, "project");
+  const source = getProjectSource(requested);
+  if (!source) redirect("/");
+
+  (await cookies()).set(projectCookieName, source.id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  redirect(`/${source.id}`);
+}
 
 export async function loginAction(formData: FormData) {
   const username = stringValue(formData, "username");
@@ -40,8 +111,8 @@ export async function grantCreditsAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData) },
   );
-  revalidatePath("/users");
-  redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
+  await revalidateProjectPath("/users");
+  await redirectToProject(`/users?profileId=${encodeURIComponent(profileId)}`);
 }
 
 export async function reactivateUserAction(formData: FormData) {
@@ -54,8 +125,8 @@ export async function reactivateUserAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
-  revalidatePath("/users");
-  redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
+  await revalidateProjectPath("/users");
+  await redirectToProject(`/users?profileId=${encodeURIComponent(profileId)}`);
 }
 
 export async function resetNoFoodLimitAction(formData: FormData) {
@@ -68,8 +139,8 @@ export async function resetNoFoodLimitAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData) },
   );
-  revalidatePath("/users");
-  redirect(`/users?profileId=${encodeURIComponent(profileId)}`);
+  await revalidateProjectPath("/users");
+  await redirectToProject(`/users?profileId=${encodeURIComponent(profileId)}`);
 }
 
 export async function setDefaultModelAction(formData: FormData) {
@@ -82,8 +153,8 @@ export async function setDefaultModelAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=models");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=models");
 }
 
 export async function updateModelAction(formData: FormData) {
@@ -101,8 +172,8 @@ export async function updateModelAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=models");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=models");
 }
 
 export async function createPromptAction(formData: FormData) {
@@ -118,8 +189,8 @@ export async function createPromptAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData) },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=prompts");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=prompts");
 }
 
 export async function activatePromptAction(formData: FormData) {
@@ -132,8 +203,8 @@ export async function activatePromptAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=prompts");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=prompts");
 }
 
 export async function updatePromptAction(formData: FormData) {
@@ -148,8 +219,8 @@ export async function updatePromptAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=prompts");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=prompts");
 }
 
 export async function updateAiChatSettingsAction(formData: FormData) {
@@ -165,8 +236,8 @@ export async function updateAiChatSettingsAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=chat");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=chat");
 }
 
 export async function updateAiScanConfigAction(formData: FormData) {
@@ -179,8 +250,8 @@ export async function updateAiScanConfigAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
-  revalidatePath("/ai");
-  redirect("/ai?section=models");
+  await revalidateProjectPath("/ai");
+  await redirectToProject("/ai?section=models");
 }
 
 export async function updateFeatureFlagAction(formData: FormData) {
@@ -195,8 +266,8 @@ export async function updateFeatureFlagAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
-  revalidatePath("/flags");
-  redirect("/flags?section=flags");
+  await revalidateProjectPath("/flags");
+  await redirectToProject("/flags?section=flags");
 }
 
 export async function createNoticeAction(formData: FormData) {
@@ -214,8 +285,8 @@ export async function createNoticeAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData) },
   );
-  revalidatePath("/flags");
-  redirect("/flags?section=notices");
+  await revalidateProjectPath("/flags");
+  await redirectToProject("/flags?section=notices");
 }
 
 export async function updateNoticeAction(formData: FormData) {
@@ -229,8 +300,8 @@ export async function updateNoticeAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PATCH" },
   );
-  revalidatePath("/flags");
-  redirect("/flags?section=notices");
+  await revalidateProjectPath("/flags");
+  await redirectToProject("/flags?section=notices");
 }
 
 export async function updateAppUpdatePolicyAction(formData: FormData) {
@@ -245,8 +316,8 @@ export async function updateAppUpdatePolicyAction(formData: FormData) {
     },
     { idempotencyKey: readMutationKey(formData), method: "PUT" },
   );
-  revalidatePath("/versions");
-  redirect("/versions");
+  await revalidateProjectPath("/versions");
+  await redirectToProject("/versions");
 }
 
 export async function updateEngagementPolicyAction(formData: FormData) {
@@ -255,8 +326,8 @@ export async function updateEngagementPolicyAction(formData: FormData) {
     idempotencyKey: readMutationKey(formData),
     method: "PUT",
   });
-  revalidatePath("/growth");
-  redirect("/growth?section=analytics");
+  await revalidateProjectPath("/growth");
+  await redirectToProject("/growth?section=analytics");
 }
 
 export async function updateEngagementAnalyticsAction(formData: FormData) {
@@ -343,7 +414,7 @@ export async function sendPushNotificationAction(formData: FormData) {
   } catch (error) {
     pushError = error instanceof Error ? error.message : "Push notification send failed.";
   }
-  revalidatePath("/growth");
+  await revalidateProjectPath("/growth");
   if (pushError) {
     redirect(
       `/growth?section=push&push=error&message=${encodeURIComponent(pushError.slice(0, 220))}`,
@@ -569,8 +640,8 @@ const updateEngagementPolicySection = async <K extends keyof EngagementPolicy>(
     idempotencyKey: readMutationKey(formData),
     method: "PUT",
   });
-  revalidatePath("/growth");
-  redirect(`/growth?section=${redirectSection}`);
+  await revalidateProjectPath("/growth");
+  await redirectToProject(`/growth?section=${redirectSection}`);
 };
 
 const readNotificationScenario = (
