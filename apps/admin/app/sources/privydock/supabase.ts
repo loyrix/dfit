@@ -128,3 +128,53 @@ export async function countRows(table: string) {
   const { total } = await select(table, "select=*", { limit: 1 });
   return total;
 }
+
+export type Snapshot = {
+  project: string;
+  metric: string;
+  /** ISO date, YYYY-MM-DD. */
+  day: string;
+  value: number;
+};
+
+const SNAPSHOT_TABLE = "loyrix_metric_snapshots";
+
+/**
+ * Upserts on the (project, metric, day) primary key, so re-running a day
+ * overwrites rather than duplicating and a backfill can be repeated safely.
+ * Batched because a 90-day backfill is a few thousand rows.
+ */
+export async function upsertSnapshots(rows: Snapshot[], batchSize = 500) {
+  if (!rows.length) return 0;
+  const { url, key } = config();
+
+  for (let index = 0; index < rows.length; index += batchSize) {
+    const batch = rows.slice(index, index + batchSize);
+    const response = await fetch(`${url}/rest/v1/${SNAPSHOT_TABLE}`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+        prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(batch),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Supabase snapshot upsert ${response.status}: ${text.slice(0, 300)}`);
+    }
+  }
+
+  return rows.length;
+}
+
+export function listSnapshots(project: string, metric: string, sinceDay: string) {
+  return select<Snapshot>(
+    SNAPSHOT_TABLE,
+    `select=project,metric,day,value&project=eq.${project}&metric=eq.${metric}&day=gte.${sinceDay}&order=day.asc`,
+    { limit: 400 },
+  );
+}

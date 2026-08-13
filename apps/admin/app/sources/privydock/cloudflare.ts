@@ -229,6 +229,83 @@ export async function downloadObjects(
 /** Size of a PrivyDock DMG. Used to convert bytes into whole downloads. */
 const DMG_BYTES = 3_739_695;
 
+export type DailyDownloads = {
+  date: string;
+  dmgBytes: number;
+  dmgRequests: number;
+  dmgCompleted: number;
+  appcastRequests: number;
+};
+
+/** Per-day R2 activity, for snapshotting before the 90-day window rolls past. */
+export async function dailyDownloads(
+  from: Date,
+  to: Date,
+  bucket = "privydock-downloads",
+): Promise<DailyDownloads[]> {
+  const { account } = config();
+  const byDate = new Map<string, DailyDownloads>();
+
+  for (const [start, end] of splitWindows(from, to, 31)) {
+    const data = await graphql<{
+      viewer: {
+        accounts: {
+          r2OperationsAdaptiveGroups: {
+            dimensions: { date: string; objectName: string | null };
+            sum: { requests: number; responseBytes: number };
+          }[];
+        }[];
+      };
+    }>(
+      `
+        query ($account: String!, $from: Time!, $to: Time!, $bucket: String!) {
+          viewer {
+            accounts(filter: { accountTag: $account }) {
+              r2OperationsAdaptiveGroups(
+                limit: 10000
+                filter: { datetime_geq: $from, datetime_leq: $to, bucketName: $bucket }
+              ) {
+                dimensions {
+                  date
+                  objectName
+                }
+                sum {
+                  requests
+                  responseBytes
+                }
+              }
+            }
+          }
+        }
+      `,
+      { account, from: start.toISOString(), to: end.toISOString(), bucket },
+    );
+
+    for (const row of data.viewer.accounts[0]?.r2OperationsAdaptiveGroups ?? []) {
+      const date = row.dimensions.date;
+      const name = row.dimensions.objectName ?? "";
+      const entry = byDate.get(date) ?? {
+        date,
+        dmgBytes: 0,
+        dmgRequests: 0,
+        dmgCompleted: 0,
+        appcastRequests: 0,
+      };
+      if (name.endsWith(".dmg")) {
+        entry.dmgBytes += row.sum.responseBytes;
+        entry.dmgRequests += row.sum.requests;
+      } else if (name === "appcast.xml") {
+        entry.appcastRequests += row.sum.requests;
+      }
+      byDate.set(date, entry);
+    }
+  }
+
+  return [...byDate.values()]
+    .map((entry) => ({ ...entry, dmgCompleted: Math.round(entry.dmgBytes / DMG_BYTES) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /**
  * Top paths for a single day. The adaptive dataset caps queries at one day and
  * retains eight, so callers loop over recent days and aggregate.

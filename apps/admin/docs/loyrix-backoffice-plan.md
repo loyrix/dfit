@@ -15,15 +15,15 @@
 
 ## Progress
 
-| Phase                                 | Goal                   | Tasks       | Status                       |
-| ------------------------------------- | ---------------------- | ----------- | ---------------------------- |
-| [1](#phase-1--harden-in-place)        | Harden in place        | 9 / 9       | Done                         |
-| [2](#phase-2--registry-and-switcher)  | Registry and switcher  | 8 / 8       | Done                         |
-| [3](#phase-3--privydock-read-only)    | PrivyDock, read-only   | 11 / 15     | Screens live; snapshots left |
-| [4](#phase-4--close-the-tracking-gap) | Close the tracking gap | 0 / 14      | Not started                  |
-| [5](#phase-5--credential-isolation)   | Credential isolation   | 0 / 3       | Not started                  |
-| [6](#phase-6--authentication-rebuild) | Authentication rebuild | 0 / 12      | Deferred by decision         |
-|                                       | **Total**              | **28 / 61** |                              |
+| Phase                                 | Goal                   | Tasks       | Status                     |
+| ------------------------------------- | ---------------------- | ----------- | -------------------------- |
+| [1](#phase-1--harden-in-place)        | Harden in place        | 9 / 9       | Done                       |
+| [2](#phase-2--registry-and-switcher)  | Registry and switcher  | 8 / 8       | Done                       |
+| [3](#phase-3--privydock-read-only)    | PrivyDock, read-only   | 13 / 15     | Scheduling + backfill left |
+| [4](#phase-4--close-the-tracking-gap) | Close the tracking gap | 0 / 14      | Not started                |
+| [5](#phase-5--credential-isolation)   | Credential isolation   | 0 / 3       | Not started                |
+| [6](#phase-6--authentication-rebuild) | Authentication rebuild | 0 / 12      | Deferred by decision       |
+|                                       | **Total**              | **30 / 61** |                            |
 
 Update the counts and status as tasks land. Status values: `Not started` → `In progress` → `Blocked` → `Done`.
 
@@ -487,10 +487,14 @@ The switcher renders as a label while one project is registered, and becomes a s
 
 ### 3.2 Snapshots
 
-- [ ] Migration in the PrivyDock repo: `loyrix.metric_snapshots(project, metric, date, value)` — uses its existing `node-pg-migrate` setup and `DIRECT_URL`
-- [ ] `scripts/snapshot.ts` — pull yesterday's metrics per project, upsert
-- [ ] Scheduled nightly (Vercel Cron), idempotent on re-run
-- [ ] Backfill as far as retention still allows — **do this first, it is expiring**
+- [x] Migration in the PrivyDock repo: `public.loyrix_metric_snapshots(project, metric, day, value)` — applied 2026-08-13
+- [x] `sources/privydock/snapshots.ts` + `/api/cron/snapshot` — collect and upsert, idempotent on `(project, metric, day)`
+- [ ] **Scheduling deferred** — Vercel Cron is paid on this account. The endpoint takes a bearer secret so any external scheduler can drive it; a GitHub Actions `schedule:` workflow is the free option.
+- [ ] Backfill as far as retention still allows — **still expiring**
+
+**Table lives in `public` with a `loyrix_` prefix, not its own schema.** Supabase only exposes `public` through PostgREST, and the backoffice reads and writes over PostgREST rather than a direct Postgres connection. The prefix keeps it visibly separate from PrivyDock's product tables without adding a database driver dependency to the console.
+
+Point-in-time totals (licences, waitlist) cannot be reconstructed for past days, so those series begin the first time the job runs. Traffic and download series backfill to whatever Cloudflare still retains.
 
 ### 3.3 Screens
 
@@ -605,6 +609,7 @@ Decide **TOTP vs passkeys** before starting; enrollment is built on that choice 
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-08-12 | Initial plan. Decisions: per-project adapters, standalone repo, PrivyDock first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 2026-08-13 | Security review of `apps/admin` added (8 findings). Auth rebuild moved from Phase 5 to Phase 1. Console database section added.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-08-13 | **Snapshot capture built.** `loyrix_metric_snapshots` migrated into PrivyDock's Supabase, with a collector and a bearer-authorised endpoint that upserts on `(project, metric, day)` so any range can be re-run safely. Scheduling deferred — Vercel Cron is paid on this account — so the endpoint is manual until an external scheduler drives it.                                                                                                                                                                                                                    |
 | 2026-08-13 | **Phase 3 adapters and screens shipped.** PrivyDock reads Supabase, Cloudflare and Paddle directly — no app changes were needed to onboard it, which is the adapter thesis holding. Route ownership is enforced in `proxy.ts` since both projects share one `app/[project]/…` tree. Verified against live credentials: 4 licences, 4 waitlist rows, 20 DMG downloads over 30 days, 258 human page views over 7 days. Paddle returns 403 — the key lacks `transaction.read`, so the Revenue panel degrades on its own while every other panel renders. Snapshots remain. |
 | 2026-08-13 | **Metrics specification added.** Six PrivyDock screens defined panel by panel, each metric tagged Exact / Estimated / Sampled and marked with whether it needs Phase 4. Bot classification, storage/retention maths and the visitor-hash scheme documented. Phase 3 screens 5 → 6, Phase 4 tasks 9 → 14.                                                                                                                                                                                                                                                                |
 | 2026-08-13 | **Phase 2 implemented.** Routes moved under `/[project]/…`, registry and per-source nav manifests added, project switcher in the shell, `/` forwards to the remembered project, unknown ids 404. Nav is driven by per-project manifests rather than the planned capability enum, which would have flattened LogMyPlate's twelve pages into six generic slots. Server actions recover the project from request context instead of a hidden field in all 23 forms.                                                                                                        |

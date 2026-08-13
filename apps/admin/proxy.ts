@@ -38,6 +38,9 @@ export function proxy(request: NextRequest) {
 
 function isPublicPath(pathname: string) {
   return (
+    // Route handlers authorise themselves — the cron scheduler calls them with
+    // a bearer secret and no session cookie, so a redirect here would break it.
+    pathname.startsWith("/api/") ||
     pathname === "/login" ||
     pathname === "/favicon.ico" ||
     pathname === "/icon.png" ||
