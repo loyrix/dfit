@@ -2,6 +2,8 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { requireAdminSession } from "./session";
+
 export type ScanFunnelStage = {
   started: number;
   analyzed: number;
@@ -662,6 +664,12 @@ export async function adminSend<T>(
 }
 
 async function adminFetch<T>(path: string, init: RequestInit): Promise<T> {
+  // Authoritative authorization check, performed as close to the data source as
+  // possible. Pages render their shell after loading data, and a shared shell is
+  // not a reliable boundary under partial rendering, so gating here is what
+  // actually guarantees no admin data is fetched without a session.
+  await requireAdminSession();
+
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
     headers: {
