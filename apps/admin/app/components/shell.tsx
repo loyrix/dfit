@@ -11,8 +11,8 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3">
           <img className="brand-mark" src="/icon.png" alt="" />
           <div>
-            <div className="font-bold">LogMyPlate</div>
-            <div className="text-sm muted">Admin backoffice</div>
+            <div className="font-bold">Loyrix</div>
+            <div className="text-sm muted">Centralized backoffice</div>
           </div>
         </div>
 

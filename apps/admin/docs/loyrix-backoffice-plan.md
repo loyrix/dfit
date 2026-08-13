@@ -1,10 +1,14 @@
-# Switchboard — Multi-Project Backoffice Implementation Plan
+# Loyrix — Centralized Backoffice Implementation Plan
 
-> Grow `apps/admin` into a console that serves every project.
-> Working name: **Switchboard**. Change it freely.
+> **Loyrix** is the umbrella brand. Every app built under it — LogMyPlate, PrivyDock, and
+> whatever follows — is operated from one centralized backoffice rather than a separate
+> admin per product.
+>
+> This plan grows `apps/admin` into that console: a single sign-in, a project switcher, and
+> per-project adapters so each app plugs in however its stack allows.
 
 - **Drafted:** 2026-08-12
-- **Revised:** 2026-08-13 (security review folded in; auth moved to Phase 1; stays in the monorepo)
+- **Revised:** 2026-08-13 (Phase 1 shipped; renamed to Loyrix)
 - **Projects:** LogMyPlate (existing), PrivyDock (first new adapter)
 
 ---
@@ -164,11 +168,11 @@ type Table = { columns: string[]; rows: (string | number)[][]; total: number };
 **Snapshots are not cross-project infrastructure.** The rolling-retention problem is PrivyDock-specific — its numbers live in Cloudflare's 8- and 90-day windows. LogMyPlate's metrics come from its own API backed by its own Postgres, which already retains history and needs no snapshotting. So `metric_snapshots` is one table in PrivyDock's existing Supabase, written by the PrivyDock adapter, which already holds those credentials.
 
 ```
--- PrivyDock's Supabase, switchboard schema
-switchboard.metric_snapshots   project, metric, date, value   -- PK (project, metric, date)
+-- PrivyDock's Supabase, loyrix schema
+loyrix.metric_snapshots   project, metric, date, value   -- PK (project, metric, date)
 ```
 
-Namespace console-owned tables under a `switchboard` schema rather than `public`, following the precedent already set by `privydock_admin.schema_migrations`. It keeps them visibly distinct from product data and trivial to drop or relocate.
+Namespace console-owned tables under a `loyrix` schema rather than `public`, following the precedent already set by `privydock_admin.schema_migrations`. It keeps them visibly distinct from product data and trivial to drop or relocate.
 
 **The exception is identity (Phase 6).** Users and sessions are not project data, and sessions are checked on every request _before_ a project is selected — so there is no project context from which to pick a database. Putting them in one product's database makes that product a hard dependency for logging into every other one; duplicating them per project means N user tables and N password rotations.
 
@@ -217,8 +221,8 @@ Access notes: zone ID `c070396f2104b1986d1f082dab48c30e`, account `b73e4827cc9ac
 
 Cheap now, while there is one project. These are the only things tying the console to LogMyPlate.
 
-- [x] Rename the session cookie off `logmyplate_admin_session` → `switchboard_admin_session`
-- [x] Rename the package from `@logmyplate/admin` → `@switchboard/admin` (also updated in `.claude/settings.local.json`)
+- [x] Rename the session cookie off `logmyplate_admin_session` → `loyrix_admin_session`
+- [x] Rename the package from `@logmyplate/admin` → `@loyrix/admin` (also updated in `.claude/settings.local.json`)
 - [x] Product-neutral env names — **no change needed**, `ADMIN_*` carries no product name already
 - [ ] Confirm the Admin Vercel project keeps its own env, separate from the API project _(dashboard check — cannot be verified from the repo)_
 
@@ -308,7 +312,7 @@ Accepted costs: PrivyDock adapter work lands in LogMyPlate's git history, and ro
 
 ### 3.2 Snapshots
 
-- [ ] Migration in the PrivyDock repo: `switchboard.metric_snapshots(project, metric, date, value)` — uses its existing `node-pg-migrate` setup and `DIRECT_URL`
+- [ ] Migration in the PrivyDock repo: `loyrix.metric_snapshots(project, metric, date, value)` — uses its existing `node-pg-migrate` setup and `DIRECT_URL`
 - [ ] `scripts/snapshot.ts` — pull yesterday's metrics per project, upsert
 - [ ] Scheduled nightly (Vercel Cron), idempotent on re-run
 - [ ] Backfill as far as retention still allows — **do this first, it is expiring**
@@ -406,11 +410,12 @@ Decide **TOTP vs passkeys** before starting; enrollment is built on that choice 
 
 ## Changelog
 
-| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-08-12 | Initial plan. Decisions: per-project adapters, standalone repo, PrivyDock first.                                                                                                                                                                                                                                                                                                                                                           |
-| 2026-08-13 | Security review of `apps/admin` added (8 findings). Auth rebuild moved from Phase 5 to Phase 1. Switchboard database section added.                                                                                                                                                                                                                                                                                                        |
-| 2026-08-13 | **Phase 1 implemented** (8/9; the remaining item is a Vercel dashboard check). Two corrections vs the written plan: Next.js 16 renames middleware to `proxy.ts`, and the auth check went into `adminFetch` rather than being hoisted through 13 pages, per the framework's own guidance on data-source-adjacent checks. Findings 1, 2, 4 and 8 closed and verified against a running build.                                                |
-| 2026-08-13 | **Dropped the central console database.** Each project stores console data in its own DB, configured per project in `.env`. The retention problem is PrivyDock-specific — LogMyPlate's own API already retains history — so `metric_snapshots` is one table in PrivyDock's existing Supabase, namespaced under a `switchboard` schema. Identity tables remain the one thing that cannot be per-project; that decision defers with Phase 6. |
-| 2026-08-13 | **Auth rebuild deferred to a new final Phase 6.** The existing shared username/password gates both projects meanwhile. Phase 1 keeps only the enforcement fixes (findings 1, 2, 4, 8), which need no database. Database provisioning moves to Phase 3, where `metric_snapshots` needs it regardless. Old Phase 5 split: credential isolation stays at 5, attribution moves into 6.                                                         |
-| 2026-08-13 | **Reversed the standalone-repo decision.** The admin has zero workspace imports and its own Vercel project, so extraction stays cheap indefinitely and buys nothing today. Phase 1 loses its repo-bootstrap section (21 → 20 tasks) and gains naming neutralisation plus rules for keeping extraction cheap.                                                                                                                               |
+| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-12 | Initial plan. Decisions: per-project adapters, standalone repo, PrivyDock first.                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-08-13 | Security review of `apps/admin` added (8 findings). Auth rebuild moved from Phase 5 to Phase 1. Console database section added.                                                                                                                                                                                                                                                                                                       |
+| 2026-08-13 | **Named Loyrix.** The console is branded under the umbrella name that covers every app, replacing the working name "Switchboard". Package `@loyrix/admin`, cookie `loyrix_admin_session`, console-owned tables in a `loyrix` schema, and the UI now reads "Loyrix — Centralized backoffice". Doc renamed to `loyrix-backoffice-plan.md`.                                                                                              |
+| 2026-08-13 | **Phase 1 implemented** (8/9; the remaining item is a Vercel dashboard check). Two corrections vs the written plan: Next.js 16 renames middleware to `proxy.ts`, and the auth check went into `adminFetch` rather than being hoisted through 13 pages, per the framework's own guidance on data-source-adjacent checks. Findings 1, 2, 4 and 8 closed and verified against a running build.                                           |
+| 2026-08-13 | **Dropped the central console database.** Each project stores console data in its own DB, configured per project in `.env`. The retention problem is PrivyDock-specific — LogMyPlate's own API already retains history — so `metric_snapshots` is one table in PrivyDock's existing Supabase, namespaced under a `loyrix` schema. Identity tables remain the one thing that cannot be per-project; that decision defers with Phase 6. |
+| 2026-08-13 | **Auth rebuild deferred to a new final Phase 6.** The existing shared username/password gates both projects meanwhile. Phase 1 keeps only the enforcement fixes (findings 1, 2, 4, 8), which need no database. Database provisioning moves to Phase 3, where `metric_snapshots` needs it regardless. Old Phase 5 split: credential isolation stays at 5, attribution moves into 6.                                                    |
+| 2026-08-13 | **Reversed the standalone-repo decision.** The admin has zero workspace imports and its own Vercel project, so extraction stays cheap indefinitely and buys nothing today. Phase 1 loses its repo-bootstrap section (21 → 20 tasks) and gains naming neutralisation plus rules for keeping extraction cheap.                                                                                                                          |

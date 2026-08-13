@@ -4,7 +4,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export const adminCookieName = "switchboard_admin_session";
+export const adminCookieName = "loyrix_admin_session";
 const sessionTtlMs = 8 * 60 * 60 * 1000;
 
 type AdminSession = {

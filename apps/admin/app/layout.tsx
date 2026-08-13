@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LogMyPlate Admin",
-  description: "Operational admin for LogMyPlate.",
+  title: "Loyrix Backoffice",
+  description: "Centralized backoffice for Loyrix apps.",
   icons: {
     icon: "/icon.png",
     shortcut: "/favicon.ico",

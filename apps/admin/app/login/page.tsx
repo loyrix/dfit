@@ -18,8 +18,10 @@ export default async function LoginPage({
       <section className="panel w-full max-w-md">
         <img className="brand-mark mb-6" src="/icon.png" alt="" />
         <div className="eyebrow">Restricted</div>
-        <h1 className="title text-4xl">Admin login</h1>
-        <p className="muted mt-3">Use the operational credentials configured for LogMyPlate.</p>
+        <h1 className="title text-4xl">Loyrix Backoffice</h1>
+        <p className="muted mt-3">
+          Centralized backoffice for Loyrix apps. Use your operational credentials.
+        </p>
 
         {params?.error ? (
           <div className="error-callout mt-5">Invalid admin credentials.</div>
