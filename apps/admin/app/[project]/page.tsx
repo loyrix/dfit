@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdminShell } from "../components/shell";
 import { Metric, PageHeader, formatDate, formatInr, formatNumber } from "../components/ui";
 import { adminGet, type AdminOverview, type AiCostData } from "../lib/api";
+import { PrivydockOverview } from "../sources/privydock/overview";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,17 @@ export default async function DashboardPage({
   params: Promise<{ project: string }>;
 }) {
   const { project } = await projectParams;
+
+  // Every project shares this route, so the overview dispatches on the project
+  // rather than each one owning a differently named landing page.
+  if (project === "privydock") {
+    return (
+      <AdminShell>
+        <PrivydockOverview />
+      </AdminShell>
+    );
+  }
+
   const [overview, cost] = await Promise.all([
     adminGet<AdminOverview>("/admin/overview"),
     adminGet<AiCostData>("/admin/ai-cost/data?days=30"),

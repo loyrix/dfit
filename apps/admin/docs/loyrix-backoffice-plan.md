@@ -15,15 +15,15 @@
 
 ## Progress
 
-| Phase                                 | Goal                   | Tasks       | Status               |
-| ------------------------------------- | ---------------------- | ----------- | -------------------- |
-| [1](#phase-1--harden-in-place)        | Harden in place        | 9 / 9       | Done                 |
-| [2](#phase-2--registry-and-switcher)  | Registry and switcher  | 8 / 8       | Done                 |
-| [3](#phase-3--privydock-read-only)    | PrivyDock, read-only   | 0 / 15      | Not started          |
-| [4](#phase-4--close-the-tracking-gap) | Close the tracking gap | 0 / 14      | Not started          |
-| [5](#phase-5--credential-isolation)   | Credential isolation   | 0 / 3       | Not started          |
-| [6](#phase-6--authentication-rebuild) | Authentication rebuild | 0 / 12      | Deferred by decision |
-|                                       | **Total**              | **17 / 61** |                      |
+| Phase                                 | Goal                   | Tasks       | Status                       |
+| ------------------------------------- | ---------------------- | ----------- | ---------------------------- |
+| [1](#phase-1--harden-in-place)        | Harden in place        | 9 / 9       | Done                         |
+| [2](#phase-2--registry-and-switcher)  | Registry and switcher  | 8 / 8       | Done                         |
+| [3](#phase-3--privydock-read-only)    | PrivyDock, read-only   | 11 / 15     | Screens live; snapshots left |
+| [4](#phase-4--close-the-tracking-gap) | Close the tracking gap | 0 / 14      | Not started                  |
+| [5](#phase-5--credential-isolation)   | Credential isolation   | 0 / 3       | Not started                  |
+| [6](#phase-6--authentication-rebuild) | Authentication rebuild | 0 / 12      | Deferred by decision         |
+|                                       | **Total**              | **28 / 61** |                              |
 
 Update the counts and status as tasks land. Status values: `Not started` → `In progress` → `Blocked` → `Done`.
 
@@ -479,11 +479,11 @@ The switcher renders as a label while one project is registered, and becomes a s
 
 ### 3.1 Adapters
 
-- [ ] `sources/privydock/supabase.ts` — licenses, activations, waitlist (service-role, server-only)
-- [ ] `sources/privydock/cloudflare.ts` — zone analytics + R2, chunked for the 32-day and 1-day caps
-- [ ] `sources/privydock/paddle.ts` — transactions, revenue
-- [ ] `sources/privydock/index.ts` — composes the three, declares capabilities
-- [ ] Graceful degradation when one upstream is down — one dead source must not blank the page
+- [x] `sources/privydock/supabase.ts` — licenses, activations, waitlist (service-role, server-only)
+- [x] `sources/privydock/cloudflare.ts` — zone analytics + R2, chunked for the 32-day and 1-day caps
+- [x] `sources/privydock/paddle.ts` — transactions, revenue
+- [x] `sources/privydock/index.ts` — composes the three, declares capabilities
+- [x] Graceful degradation when one upstream is down — one dead source must not blank the page
 
 ### 3.2 Snapshots
 
@@ -496,12 +496,12 @@ The switcher renders as a label while one project is registered, and becomes a s
 
 Six screens, specified in detail under _PrivyDock metrics specification_. Panels marked **P4** there render an "estimated" state until Phase 4 supplies exact numbers.
 
-- [ ] Overview — eight cards plus the funnel strip
-- [ ] Traffic — visitors, views, human/bot split, countries, hostname split
-- [ ] Downloads — R2 fetches per file, region, update-check volume
-- [ ] Licences — searchable table, status split, activations, macOS and app-version spread
-- [ ] Waitlist — signups over time, source split, waitlist → customer join
-- [ ] Revenue — Paddle transactions, price points, webhook health
+- [x] Overview — eight cards plus the funnel strip
+- [x] Traffic — visitors, views, human/bot split, countries, hostname split
+- [x] Downloads — R2 fetches per file, region, update-check volume
+- [x] Licences — searchable table, status split, activations, macOS and app-version spread
+- [x] Waitlist — signups over time, source split, waitlist → customer join
+- [x] Revenue — Paddle transactions, price points, webhook health
 
 **Acceptance:** switch to PrivyDock and read traffic, downloads, licences, waitlist and revenue, with history that survives past Cloudflare's retention window. Estimated panels are visibly labelled as such.
 
@@ -601,14 +601,15 @@ Decide **TOTP vs passkeys** before starting; enrollment is built on that choice 
 
 ## Changelog
 
-| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-12 | Initial plan. Decisions: per-project adapters, standalone repo, PrivyDock first.                                                                                                                                                                                                                                                                                                                                                                                 |
-| 2026-08-13 | Security review of `apps/admin` added (8 findings). Auth rebuild moved from Phase 5 to Phase 1. Console database section added.                                                                                                                                                                                                                                                                                                                                  |
-| 2026-08-13 | **Metrics specification added.** Six PrivyDock screens defined panel by panel, each metric tagged Exact / Estimated / Sampled and marked with whether it needs Phase 4. Bot classification, storage/retention maths and the visitor-hash scheme documented. Phase 3 screens 5 → 6, Phase 4 tasks 9 → 14.                                                                                                                                                         |
-| 2026-08-13 | **Phase 2 implemented.** Routes moved under `/[project]/…`, registry and per-source nav manifests added, project switcher in the shell, `/` forwards to the remembered project, unknown ids 404. Nav is driven by per-project manifests rather than the planned capability enum, which would have flattened LogMyPlate's twelve pages into six generic slots. Server actions recover the project from request context instead of a hidden field in all 23 forms. |
-| 2026-08-13 | **Named Loyrix.** The console is branded under the umbrella name that covers every app, replacing the working name "Switchboard". Package `@loyrix/admin`, cookie `loyrix_admin_session`, console-owned tables in a `loyrix` schema, and the UI now reads "Loyrix — Centralized backoffice". Doc renamed to `loyrix-backoffice-plan.md`.                                                                                                                         |
-| 2026-08-13 | **Phase 1 implemented** (8/9; the remaining item is a Vercel dashboard check). Two corrections vs the written plan: Next.js 16 renames middleware to `proxy.ts`, and the auth check went into `adminFetch` rather than being hoisted through 13 pages, per the framework's own guidance on data-source-adjacent checks. Findings 1, 2, 4 and 8 closed and verified against a running build.                                                                      |
-| 2026-08-13 | **Dropped the central console database.** Each project stores console data in its own DB, configured per project in `.env`. The retention problem is PrivyDock-specific — LogMyPlate's own API already retains history — so `metric_snapshots` is one table in PrivyDock's existing Supabase, namespaced under a `loyrix` schema. Identity tables remain the one thing that cannot be per-project; that decision defers with Phase 6.                            |
-| 2026-08-13 | **Auth rebuild deferred to a new final Phase 6.** The existing shared username/password gates both projects meanwhile. Phase 1 keeps only the enforcement fixes (findings 1, 2, 4, 8), which need no database. Database provisioning moves to Phase 3, where `metric_snapshots` needs it regardless. Old Phase 5 split: credential isolation stays at 5, attribution moves into 6.                                                                               |
-| 2026-08-13 | **Reversed the standalone-repo decision.** The admin has zero workspace imports and its own Vercel project, so extraction stays cheap indefinitely and buys nothing today. Phase 1 loses its repo-bootstrap section (21 → 20 tasks) and gains naming neutralisation plus rules for keeping extraction cheap.                                                                                                                                                     |
+| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-12 | Initial plan. Decisions: per-project adapters, standalone repo, PrivyDock first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| 2026-08-13 | Security review of `apps/admin` added (8 findings). Auth rebuild moved from Phase 5 to Phase 1. Console database section added.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 2026-08-13 | **Phase 3 adapters and screens shipped.** PrivyDock reads Supabase, Cloudflare and Paddle directly — no app changes were needed to onboard it, which is the adapter thesis holding. Route ownership is enforced in `proxy.ts` since both projects share one `app/[project]/…` tree. Verified against live credentials: 4 licences, 4 waitlist rows, 20 DMG downloads over 30 days, 258 human page views over 7 days. Paddle returns 403 — the key lacks `transaction.read`, so the Revenue panel degrades on its own while every other panel renders. Snapshots remain. |
+| 2026-08-13 | **Metrics specification added.** Six PrivyDock screens defined panel by panel, each metric tagged Exact / Estimated / Sampled and marked with whether it needs Phase 4. Bot classification, storage/retention maths and the visitor-hash scheme documented. Phase 3 screens 5 → 6, Phase 4 tasks 9 → 14.                                                                                                                                                                                                                                                                |
+| 2026-08-13 | **Phase 2 implemented.** Routes moved under `/[project]/…`, registry and per-source nav manifests added, project switcher in the shell, `/` forwards to the remembered project, unknown ids 404. Nav is driven by per-project manifests rather than the planned capability enum, which would have flattened LogMyPlate's twelve pages into six generic slots. Server actions recover the project from request context instead of a hidden field in all 23 forms.                                                                                                        |
+| 2026-08-13 | **Named Loyrix.** The console is branded under the umbrella name that covers every app, replacing the working name "Switchboard". Package `@loyrix/admin`, cookie `loyrix_admin_session`, console-owned tables in a `loyrix` schema, and the UI now reads "Loyrix — Centralized backoffice". Doc renamed to `loyrix-backoffice-plan.md`.                                                                                                                                                                                                                                |
+| 2026-08-13 | **Phase 1 implemented** (8/9; the remaining item is a Vercel dashboard check). Two corrections vs the written plan: Next.js 16 renames middleware to `proxy.ts`, and the auth check went into `adminFetch` rather than being hoisted through 13 pages, per the framework's own guidance on data-source-adjacent checks. Findings 1, 2, 4 and 8 closed and verified against a running build.                                                                                                                                                                             |
+| 2026-08-13 | **Dropped the central console database.** Each project stores console data in its own DB, configured per project in `.env`. The retention problem is PrivyDock-specific — LogMyPlate's own API already retains history — so `metric_snapshots` is one table in PrivyDock's existing Supabase, namespaced under a `loyrix` schema. Identity tables remain the one thing that cannot be per-project; that decision defers with Phase 6.                                                                                                                                   |
+| 2026-08-13 | **Auth rebuild deferred to a new final Phase 6.** The existing shared username/password gates both projects meanwhile. Phase 1 keeps only the enforcement fixes (findings 1, 2, 4, 8), which need no database. Database provisioning moves to Phase 3, where `metric_snapshots` needs it regardless. Old Phase 5 split: credential isolation stays at 5, attribution moves into 6.                                                                                                                                                                                      |
+| 2026-08-13 | **Reversed the standalone-repo decision.** The admin has zero workspace imports and its own Vercel project, so extraction stays cheap indefinitely and buys nothing today. Phase 1 loses its repo-bootstrap section (21 → 20 tasks) and gains naming neutralisation plus rules for keeping extraction cheap.                                                                                                                                                                                                                                                            |

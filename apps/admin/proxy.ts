@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { projectOwnsPath } from "./app/lib/registry";
 import { adminCookieName, isValidSessionCookie } from "./app/lib/session";
 
 /**
@@ -20,11 +21,19 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isValidSessionCookie(request.cookies.get(adminCookieName)?.value)) {
-    return NextResponse.next();
+  if (!isValidSessionCookie(request.cookies.get(adminCookieName)?.value)) {
+    return NextResponse.redirect(new URL("/login", request.nextUrl));
   }
 
-  return NextResponse.redirect(new URL("/login", request.nextUrl));
+  // Routes live in one shared `app/[project]/…` tree, so a project must declare
+  // a route in its nav to serve it. Without this, `/privydock/users` would
+  // render LogMyPlate's page against LogMyPlate's data.
+  const [, projectId, ...rest] = request.nextUrl.pathname.split("/");
+  if (projectId && !projectOwnsPath(projectId, `/${rest.join("/")}`.replace(/\/$/, ""))) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
+  return NextResponse.next();
 }
 
 function isPublicPath(pathname: string) {
