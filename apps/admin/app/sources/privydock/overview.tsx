@@ -62,10 +62,11 @@ export async function PrivydockOverview() {
       <PageHeader
         eyebrow="PrivyDock"
         title="Overview"
-        description="Traffic, downloads and commerce across Cloudflare, Supabase and Paddle. Figures marked estimated come from sampled or inferred sources until first-party event tracking lands."
+        description="Cloudflare, Supabase and Paddle in one view. Each figure states how far it can be trusted."
+        action={<CaptureButton />}
       />
 
-      <section className="metric-grid">
+      <section className="grid metrics">
         <Metric
           label="Human page views · 7d"
           value={humanViews === null ? "—" : formatNumber(humanViews)}
@@ -108,25 +109,15 @@ export async function PrivydockOverview() {
         />
       </section>
 
-      <section className="panel mt-6">
-        <div className="section-head">
-          <div className="metric-label">Metric history</div>
-          <CaptureButton />
-        </div>
-        <p className="muted mt-2 text-sm">
-          {captured.ok && captured.data
-            ? `Last captured ${formatDate(captured.data.capturedAt)}, covering days through ${captured.data.throughDay}. Opening this page tops up anything missing.`
-            : captured.ok
-              ? "Nothing captured yet. The first capture runs in the background now and backfills everything Cloudflare still retains — reload in a minute."
-              : `Snapshot store unreachable — ${captured.error}`}
-        </p>
-        <p className="muted mt-1 text-sm">
-          Cloudflare discards path-level data after 8 days and everything else after 90, so only
-          captured days survive. Repeat visits within six hours are skipped.
-        </p>
-      </section>
+      <p className="muted mt-4 text-sm">
+        {captured.ok && captured.data
+          ? `History captured ${formatDate(captured.data.capturedAt)}, through ${captured.data.throughDay}. Cloudflare drops everything after 90 days, so only captured days survive.`
+          : captured.ok
+            ? "No history captured yet — the first capture is running now and backfills everything Cloudflare still holds. Reload in a minute."
+            : `Snapshot store unreachable — ${captured.error}`}
+      </p>
 
-      <section className="mt-6 grid gap-3">
+      <section className="grid mt-4">
         {!traffic.ok ? <SourceError source="Cloudflare traffic" message={traffic.error} /> : null}
         {!downloads.ok ? <SourceError source="Cloudflare R2" message={downloads.error} /> : null}
         {!licenses.ok ? <SourceError source="Supabase" message={licenses.error} /> : null}

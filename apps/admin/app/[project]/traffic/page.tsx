@@ -51,7 +51,7 @@ export default async function TrafficPage() {
       />
 
       {totals ? (
-        <section className="metric-grid">
+        <section className="grid metrics">
           <Metric
             label="Human page views · 30d"
             value={formatNumber(totals.human)}
@@ -84,7 +84,7 @@ export default async function TrafficPage() {
       {traffic.ok ? (
         <section className="panel mt-6">
           <div className="metric-label">Daily page views</div>
-          <div className="table-scroll mt-3">
+          <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>
@@ -118,7 +118,7 @@ export default async function TrafficPage() {
           they overstate real page views until first-party logging lands.
         </p>
         {paths.ok ? (
-          <div className="table-scroll mt-3">
+          <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>

@@ -39,7 +39,7 @@ export default async function RevenuePage() {
       />
 
       {transactions.ok ? (
-        <section className="metric-grid">
+        <section className="grid metrics">
           <Metric
             label="Net revenue"
             value={`$${netRevenue(rows).toFixed(2)}`}
@@ -64,7 +64,7 @@ export default async function RevenuePage() {
       <section className="panel mt-6">
         <div className="metric-label">Transactions</div>
         {rows.length ? (
-          <div className="table-scroll mt-3">
+          <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>
@@ -110,7 +110,7 @@ export default async function RevenuePage() {
               <p className="muted mt-2 text-sm">
                 Last event {lastWebhook.event_type} at {formatDate(lastWebhook.occurred_at)}
               </p>
-              <div className="table-scroll mt-3">
+              <div className="table-wrap mt-3">
                 <table className="table">
                   <thead>
                     <tr>

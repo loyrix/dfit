@@ -79,7 +79,7 @@ export default async function LicensesPage() {
         description="Support tooling first. Every figure here is exact — this is PrivyDock's own database, with no sampling anywhere."
       />
 
-      <section className="metric-grid">
+      <section className="grid metrics">
         <Metric label="Total" value={formatNumber(licenses.data.total)} />
         <Metric label="Active" value={formatNumber(byStatus.active ?? 0)} />
         <Metric
@@ -96,7 +96,7 @@ export default async function LicensesPage() {
       <section className="panel mt-6">
         <div className="metric-label">Licences</div>
         {rows.length ? (
-          <div className="table-scroll mt-3">
+          <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>
@@ -134,7 +134,7 @@ export default async function LicensesPage() {
         )}
       </section>
 
-      <section className="mt-6 grid gap-3 md:grid-cols-2">
+      <section className="grid two-col mt-4">
         <div className="panel">
           <div className="metric-label">macOS versions</div>
           {osVersions.size ? (

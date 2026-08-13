@@ -40,7 +40,7 @@ export default async function DownloadsPage() {
         description="R2 object activity over 90 days. Counts are 1:10 sampled, so treat ±10 as the resolution. Bytes are the honest signal — request counts include range and revalidation requests that never transfer a whole file."
       />
 
-      <section className="metric-grid">
+      <section className="grid metrics">
         <Metric
           label="DMG downloads · 90d"
           value={formatNumber(totalDownloads)}
@@ -65,7 +65,7 @@ export default async function DownloadsPage() {
 
       <section className="panel mt-6">
         <div className="metric-label">Per file</div>
-        <div className="table-scroll mt-3">
+        <div className="table-wrap mt-3">
           <table className="table">
             <thead>
               <tr>
@@ -96,7 +96,7 @@ export default async function DownloadsPage() {
             Vulnerability scanners looking for credentials in the public bucket. All return zero
             bytes — the bucket holds three objects and none of these exist.
           </p>
-          <div className="table-scroll mt-3">
+          <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>

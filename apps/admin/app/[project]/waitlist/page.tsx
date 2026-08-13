@@ -57,7 +57,7 @@ export default async function WaitlistPage() {
         description="Early-access signups, and how many of them went on to buy."
       />
 
-      <section className="metric-grid">
+      <section className="grid metrics">
         <Metric label="Total signups" value={formatNumber(waitlist.data.total)} />
         <Metric label="New · 30d" value={formatNumber(last30)} />
         <Metric
@@ -81,7 +81,7 @@ export default async function WaitlistPage() {
       <section className="panel mt-6">
         <div className="metric-label">Signups</div>
         {rows.length ? (
-          <div className="table-scroll mt-3">
+          <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>
