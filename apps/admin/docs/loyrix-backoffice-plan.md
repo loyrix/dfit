@@ -19,11 +19,11 @@
 | ------------------------------------- | ---------------------- | ----------- | -------------------- |
 | [1](#phase-1--harden-in-place)        | Harden in place        | 9 / 9       | Done                 |
 | [2](#phase-2--registry-and-switcher)  | Registry and switcher  | 8 / 8       | Done                 |
-| [3](#phase-3--privydock-read-only)    | PrivyDock, read-only   | 0 / 14      | Not started          |
-| [4](#phase-4--close-the-tracking-gap) | Close the tracking gap | 0 / 9       | Not started          |
+| [3](#phase-3--privydock-read-only)    | PrivyDock, read-only   | 0 / 15      | Not started          |
+| [4](#phase-4--close-the-tracking-gap) | Close the tracking gap | 0 / 14      | Not started          |
 | [5](#phase-5--credential-isolation)   | Credential isolation   | 0 / 3       | Not started          |
 | [6](#phase-6--authentication-rebuild) | Authentication rebuild | 0 / 12      | Deferred by decision |
-|                                       | **Total**              | **17 / 55** |                      |
+|                                       | **Total**              | **17 / 61** |                      |
 
 Update the counts and status as tasks land. Status values: `Not started` → `In progress` → `Blocked` → `Done`.
 
@@ -213,6 +213,150 @@ Access notes: zone ID `c070396f2104b1986d1f082dab48c30e`, account `b73e4827cc9ac
 
 ---
 
+## PrivyDock metrics specification
+
+Six screens. Every metric below is tagged with where it comes from and how much it can be trusted:
+
+- **Exact** — counted in a table we own, no sampling, no inference.
+- **Estimated** — derived or inferred; directionally right, not a hard number.
+- **Sampled** — Cloudflare applies 1:10 adaptive sampling; resolution is ±10.
+
+Metrics marked **P4** do not exist until Phase 4 ships the first-party event tables. Everything else is available in Phase 3 from systems that already hold the data.
+
+### Screen 1 — Overview
+
+The one screen to open first thing in the morning. Eight cards over a selectable range (24h / 7d / 30d / 90d), each with a delta against the preceding period.
+
+| Card             | Definition                                               | Source                          | Accuracy |
+| ---------------- | -------------------------------------------------------- | ------------------------------- | -------- |
+| Human visitors   | `count(distinct visitor_hash) where client_class = 2`    | `loyrix.page_views` **P4**      | Exact    |
+| Page views       | Row count, humans only                                   | `loyrix.page_views` **P4**      | Exact    |
+| Download clicks  | Row count on `/api/download`                             | `loyrix.download_events` **P4** | Exact    |
+| DMG downloads    | `responseBytes ÷ 3,739,695` per `.dmg` object            | Cloudflare R2                   | Sampled  |
+| Waitlist signups | Rows in period, and running total                        | Supabase `waitlist_signups`     | Exact    |
+| Licenses         | Active, and new in period                                | Supabase `licenses`             | Exact    |
+| Revenue          | Completed transactions, net of refunds                   | Paddle API                      | Exact    |
+| Active installs  | Distinct `license_id` seen in `last_validated_at` window | Supabase `license_activations`  | Exact    |
+
+Until Phase 4, the first three fall back to Cloudflare: page views from `pageViews`, visitors from daily-unique IPs × human share from `browserMap`, and clicks are simply unavailable. Cards render with an "estimated" marker rather than pretending to precision.
+
+Below the cards sits **the funnel**, which is the actual point of the console:
+
+```
+Site visits            ──▶  /download views  ──▶  Download clicks
+       │                          │                     │
+   P4 exact                   P4 exact              P4 exact
+                                                        ▼
+License activated  ◀──  Licence purchased  ◀──  DMG downloaded
+   Supabase exact         Paddle exact            R2 sampled
+```
+
+Each step shows absolute count and conversion rate from the previous step. The two rates that matter commercially: **/download view → click** (is the page persuasive?) and **download → purchase** (is the product persuasive?).
+
+### Screen 2 — Traffic
+
+| Panel                     | Definition                                   | Source                                              | Accuracy                |
+| ------------------------- | -------------------------------------------- | --------------------------------------------------- | ----------------------- |
+| Daily visitors and views  | Time series, humans only                     | `page_views` **P4**, Cloudflare before that         | Exact / Estimated       |
+| Human vs suspected vs bot | Stacked split by `client_class`              | `page_views` **P4**                                 | Exact                   |
+| Top pages                 | Views per path, ranked                       | `page_views` **P4**                                 | Exact                   |
+| Countries                 | Views by `country`                           | `page_views` **P4**, Cloudflare `countryMap` before | Exact / Exact           |
+| Referrers                 | Views by `referrer_host`                     | `page_views` **P4**                                 | Exact                   |
+| Hostname split            | `privydock.com` vs `downloads.privydock.com` | Cloudflare adaptive                                 | Exact, **8-day window** |
+| Blocked requests          | 403 count — scanner pressure                 | Cloudflare adaptive                                 | Exact, **8-day window** |
+
+Top pages is the panel that most needs Phase 4. Cloudflare's path-level dataset retains only 8 days, and its counts are inflated by Next.js `<Link>` prefetching — a single visitor fires requests at a dozen routes without seeing any of them. First-party logging counts renders, not prefetches, which is why the flat distributions disappear.
+
+### Screen 3 — Downloads
+
+| Panel                     | Definition                     | Source                                   | Accuracy        |
+| ------------------------- | ------------------------------ | ---------------------------------------- | --------------- |
+| Clicks per day            | Time series                    | `download_events` **P4**                 | Exact           |
+| Completed fetches per day | R2 bytes ÷ file size           | Cloudflare R2                            | Sampled         |
+| Completion rate           | Fetches ÷ clicks               | Both                                     | Estimated       |
+| Unique downloaders        | `count(distinct visitor_hash)` | `download_events` **P4**                 | Exact           |
+| Per file                  | `latest.dmg` vs pinned version | R2 `objectName` + `download_events.file` | Sampled / Exact |
+| Source page               | Which page drove the click     | `download_events.source_path` **P4**     | Exact           |
+| Region                    | APAC / ENAM / EEUR …           | R2 `eyeballRegion`                       | Sampled         |
+| Update checks             | `appcast.xml` requests per day | Cloudflare R2                            | Sampled         |
+
+Two things worth reading carefully on this screen. **Completion rate below 100% is normal** — people click and cancel — but a collapse means the download itself is broken. And **update checks are a proxy for the live installed base**: every running copy polls `appcast.xml` on a schedule, so the daily poll count tracks installs even for users who never buy a licence. It is the only visibility into free-beta usage.
+
+### Screen 4 — Licences
+
+Operational support tooling first, analytics second. This is the screen you open when a customer emails.
+
+| Panel                   | Definition                                                                                       | Source                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| Licence table           | Masked key, email, status, plan, created, activated, last validated. Searchable by email or key. | `licenses`                         |
+| Status split            | active / revoked / refunded                                                                      | `licenses`                         |
+| Activations per licence | Device count, with the device list                                                               | `license_activations`              |
+| macOS spread            | Distinct `os_version`, ranked                                                                    | `license_activations`              |
+| App version adoption    | Installs per `app_version` over time                                                             | `license_activations`              |
+| Dormant licences        | Purchased but never activated, or not validated in 30 days                                       | `licenses` + `license_activations` |
+
+All exact — this is your own database, no sampling anywhere.
+
+App version adoption answers "did the update actually reach people", which is the number that tells you whether a Sparkle release worked. Activations per licence is your licence-sharing signal: one key on eight machines is worth a look.
+
+### Screen 5 — Waitlist
+
+| Panel                     | Definition                                                              | Source             |
+| ------------------------- | ----------------------------------------------------------------------- | ------------------ |
+| Signups over time         | Daily and cumulative                                                    | `waitlist_signups` |
+| Total and new this period | Counts                                                                  | `waitlist_signups` |
+| Source split              | `source` column                                                         | `waitlist_signups` |
+| Signup table              | Email, first joined, last joined                                        | `waitlist_signups` |
+| **Waitlist → customer**   | Join `waitlist_signups.normalized_email` to `licenses.normalized_email` | both               |
+
+That last row is free and genuinely useful: both tables already carry `normalized_email`, so conversion from waiting list to paying customer is a single join. It tells you whether the list is worth marketing to.
+
+### Screen 6 — Revenue
+
+| Panel               | Definition                         | Source                  |
+| ------------------- | ---------------------------------- | ----------------------- |
+| Transactions        | Completed, refunded, disputed      | Paddle API              |
+| Revenue over time   | Net of refunds                     | Paddle API              |
+| By country          | Where sales come from              | Paddle API              |
+| Price points served | Cached display price per country   | `pricing_cache`         |
+| Webhook health      | Last event received, count by type | `paddle_webhook_events` |
+
+Webhook health is an ops panel rather than an analytics one. `paddle_webhook_events` is currently empty; once selling starts, a stale "last received" timestamp is the earliest warning that licence delivery has silently broken.
+
+### Bot classification
+
+Every first-party row carries two `smallint` columns — 4 bytes total.
+
+```
+client_class   0 = bot, 1 = suspected, 2 = human
+signals        bitmask of what the classifier saw
+```
+
+Signals, cheapest first: missing `Sec-Fetch-Mode`, missing `Accept-Language`, bot-shaped user agent, absent or non-`Mozilla` user agent. `cf-bot-score` would be better but is Enterprise-only.
+
+The classifier only handles what Cloudflare lets through — its managed rules already 403 roughly half of all inbound requests before they reach the origin. Page views are logged from the client, so clients that do not run JavaScript never create a row at all; the classifier mainly exists for `/api/download`, which must be server-side to issue the redirect.
+
+`signals` is retained rather than collapsed to a boolean so a surprising number can be audited later instead of re-guessed. A determined scraper sending complete browser headers will still classify as human — this catches the lazy majority, which is the correct trade for analytics.
+
+### Storage and retention
+
+| Table                    | Rows/year at current traffic | Size       |
+| ------------------------ | ---------------------------- | ---------- |
+| `loyrix.page_views`      | ~79k                         | ~6 MB      |
+| `loyrix.download_events` | ~160                         | negligible |
+
+Raw events are kept **90 days**, rolled nightly into `loyrix.metric_snapshots`, then deleted. The raw tables stay bounded at roughly 20k rows forever while history accumulates in aggregates that never expire — the same job that solves Cloudflare's rolling-retention problem.
+
+Never log the 404 handler. The scanner swarm probing `/wp-admin/install.php` and friends is what would actually make these tables heavy.
+
+### Visitor identity
+
+`visitor_hash` is `HMAC(ip + user_agent, salt_of_the_day)`, truncated to 16 bytes. The salt rotates every 24 hours and old salts are discarded, so daily unique counts are accurate while cross-day correlation is cryptographically impossible. No cookie is set and no raw IP is ever stored.
+
+This still needs the privacy policy amended: it currently states analytics "does not store IP addresses, does not use cookies". The no-cookie claim survives unchanged; the IP sentence has to become an accurate description of daily-rotating hashing.
+
+---
+
 ## Phase 1 — Harden in place
 
 **Goal:** the admin runs behind two-factor login with all 8 security findings closed. No new features, no move.
@@ -224,7 +368,7 @@ Cheap now, while there is one project. These are the only things tying the conso
 - [x] Rename the session cookie off `logmyplate_admin_session` → `loyrix_admin_session`
 - [x] Rename the package from `@logmyplate/admin` → `@loyrix/admin` (also updated in `.claude/settings.local.json`)
 - [x] Product-neutral env names — **no change needed**, `ADMIN_*` carries no product name already
-- [ ] Confirm the Admin Vercel project keeps its own env, separate from the API project _(dashboard check — cannot be verified from the repo)_
+- [x] Confirm the Admin Vercel project keeps its own env, separate from the API project — confirmed 2026-08-13: `logmyplate-admin` carries project-scoped `ADMIN_*` vars including `ADMIN_SESSION_SECRET`
 
 ### 1.2 Enforcement fixes
 
@@ -350,13 +494,16 @@ The switcher renders as a label while one project is registered, and becomes a s
 
 ### 3.3 Screens
 
-- [ ] Overview cards
-- [ ] Traffic (page views, uniques, human/bot split)
-- [ ] Downloads (per file, from R2 + snapshots)
-- [ ] Licenses and activations table
-- [ ] Waitlist table
+Six screens, specified in detail under _PrivyDock metrics specification_. Panels marked **P4** there render an "estimated" state until Phase 4 supplies exact numbers.
 
-**Acceptance:** switch to PrivyDock and read traffic, downloads, licenses and waitlist on one screen, with history that survives past Cloudflare's retention window.
+- [ ] Overview — eight cards plus the funnel strip
+- [ ] Traffic — visitors, views, human/bot split, countries, hostname split
+- [ ] Downloads — R2 fetches per file, region, update-check volume
+- [ ] Licences — searchable table, status split, activations, macOS and app-version spread
+- [ ] Waitlist — signups over time, source split, waitlist → customer join
+- [ ] Revenue — Paddle transactions, price points, webhook health
+
+**Acceptance:** switch to PrivyDock and read traffic, downloads, licences, waitlist and revenue, with history that survives past Cloudflare's retention window. Estimated panels are visibly labelled as such.
 
 ---
 
@@ -366,15 +513,28 @@ The switcher renders as a label while one project is registered, and becomes a s
 
 Until this lands there is a hole exactly where the money is: TelemetryDeck knows clicks, Cloudflare knows file fetches, and the two cannot be joined.
 
-- [ ] Migration in PrivyDock: `download_events` (timestamp, hashed IP, UA, referrer, file, source page)
-- [ ] `app/api/download/route.ts` — log a row, then 302 to R2
+#### 4.1 Instrumentation in the PrivyDock repo
+
+- [ ] Migration: `loyrix.page_views` and `loyrix.download_events` (see the metrics specification for columns)
+- [ ] `lib/visitor.ts` — daily-rotating salt, `HMAC(ip + user_agent)` truncated to 16 bytes, salt discarded on rotation
+- [ ] `lib/classify.ts` — the `client_class` / `signals` bot classifier
+- [ ] `app/api/download/route.ts` — classify, log a row, then 302 to R2
+- [ ] `app/api/pv/route.ts` — client-side page-view beacon; never log the 404 handler
 - [ ] Replace direct DMG links on `/download` with the route
-- [ ] Route the ~11 untracked `/download` CTAs through `TelemetryLink` (SEO pages, about, checkout success, footer)
-- [ ] Add page-view signals to the SEO use-case pages
-- [ ] Cloudflare Cache Rule so `appcast.xml` is edge-cached and Sparkle polling stops hitting R2
-- [ ] Backoffice: downloads panel reads `download_events` instead of R2 estimates
-- [ ] Funnel view — visit → click → download in one query
-- [ ] Privacy policy updated to describe what `download_events` stores
+- [ ] Route the ~11 untracked `/download` CTAs through the tracked link (SEO pages, about, checkout success, footer)
+- [ ] Nightly rollup into `loyrix.metric_snapshots`, then delete raw rows past 90 days
+- [ ] Privacy policy amended: daily-rotating hashed IP, still no cookies, still no raw IP retained
+
+#### 4.2 Backoffice
+
+- [ ] Downloads panel reads `download_events` instead of R2 estimates
+- [ ] Traffic panels read `page_views`; drop the "estimated" markers
+- [ ] Funnel strip — visit → `/download` view → click → download → licence in one query
+- [ ] Human / suspected / bot toggle across traffic and download panels
+
+#### 4.3 Cloudflare
+
+- [ ] Cache Rule so `appcast.xml` is edge-cached and Sparkle polling stops hitting R2
 
 **Acceptance:** visit → click → download is one query, with real unique counts, no sampling, and no bot contamination.
 
@@ -445,6 +605,7 @@ Decide **TOTP vs passkeys** before starting; enrollment is built on that choice 
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2026-08-12 | Initial plan. Decisions: per-project adapters, standalone repo, PrivyDock first.                                                                                                                                                                                                                                                                                                                                                                                 |
 | 2026-08-13 | Security review of `apps/admin` added (8 findings). Auth rebuild moved from Phase 5 to Phase 1. Console database section added.                                                                                                                                                                                                                                                                                                                                  |
+| 2026-08-13 | **Metrics specification added.** Six PrivyDock screens defined panel by panel, each metric tagged Exact / Estimated / Sampled and marked with whether it needs Phase 4. Bot classification, storage/retention maths and the visitor-hash scheme documented. Phase 3 screens 5 → 6, Phase 4 tasks 9 → 14.                                                                                                                                                         |
 | 2026-08-13 | **Phase 2 implemented.** Routes moved under `/[project]/…`, registry and per-source nav manifests added, project switcher in the shell, `/` forwards to the remembered project, unknown ids 404. Nav is driven by per-project manifests rather than the planned capability enum, which would have flattened LogMyPlate's twelve pages into six generic slots. Server actions recover the project from request context instead of a hidden field in all 23 forms. |
 | 2026-08-13 | **Named Loyrix.** The console is branded under the umbrella name that covers every app, replacing the working name "Switchboard". Package `@loyrix/admin`, cookie `loyrix_admin_session`, console-owned tables in a `loyrix` schema, and the UI now reads "Loyrix — Centralized backoffice". Doc renamed to `loyrix-backoffice-plan.md`.                                                                                                                         |
 | 2026-08-13 | **Phase 1 implemented** (8/9; the remaining item is a Vercel dashboard check). Two corrections vs the written plan: Next.js 16 renames middleware to `proxy.ts`, and the auth check went into `adminFetch` rather than being hoisted through 13 pages, per the framework's own guidance on data-source-adjacent checks. Findings 1, 2, 4 and 8 closed and verified against a running build.                                                                      |
