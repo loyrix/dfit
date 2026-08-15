@@ -105,7 +105,7 @@ export default async function AdsAnalyticsPage({
         />
       </section>
 
-      <form className="toolbar toolbar-two mt-4" action="/ads">
+      <form className="toolbar toolbar-two mt-4" action={`/${project}/ads`}>
         <input name="page" type="hidden" value="1" />
         <label>
           <span className="metric-label">Search</span>
@@ -262,7 +262,7 @@ export default async function AdsAnalyticsPage({
                     <div className="muted text-xs">{granted30dBreakdown(user)}</div>
                   </td>
                   <td className="table-actions">
-                    <Link className="badge" href={`/users?profileId=${user.profileId}`}>
+                    <Link className="badge" href={`/${project}/users?profileId=${user.profileId}`}>
                       Open user
                     </Link>
                   </td>

@@ -47,7 +47,7 @@ export default async function CostPage({
         title="AI usage and scan health"
         description="Cost, latency, confidence, model mix, and recent AI runs in one place, with shortcuts to the operational queues."
         action={
-          <form className="inline-controls" action="/cost">
+          <form className="inline-controls" action={`/${project}/cost`}>
             <select className="select" name="days" defaultValue={String(days)}>
               <option value="7">Last 7 days</option>
               <option value="30">Last 30 days</option>
@@ -224,7 +224,7 @@ export default async function CostPage({
                     <td className="table-actions">
                       <Link
                         className="badge"
-                        href={`/scans?model=${encodeURIComponent(model.model)}`}
+                        href={`/${project}/scans?model=${encodeURIComponent(model.model)}`}
                       >
                         Runs
                       </Link>
@@ -356,7 +356,7 @@ export default async function CostPage({
                     <td className="table-actions">
                       <Link
                         className="badge"
-                        href={`/scans?model=${encodeURIComponent(run.model)}&aiState=${
+                        href={`/${project}/scans?model=${encodeURIComponent(run.model)}&aiState=${
                           run.success ? "successful_ai" : "failed_ai"
                         }`}
                       >

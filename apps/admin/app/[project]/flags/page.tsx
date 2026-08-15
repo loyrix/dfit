@@ -16,10 +16,13 @@ type FlagsSearchParams = {
 };
 
 export default async function FlagsPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<FlagsSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const [{ flags }, { notices }] = await Promise.all([
     adminGet<{ flags: FeatureFlag[] }>("/admin/feature-flags"),
@@ -41,19 +44,19 @@ export default async function FlagsPage({
       <SectionTabs
         items={[
           {
-            href: "/flags?section=flags",
+            href: `/${project}/flags?section=flags`,
             label: "Feature flags",
             detail: "Toggle runtime behavior",
             active: section === "flags",
           },
           {
-            href: "/flags?section=notices",
+            href: `/${project}/flags?section=notices`,
             label: "In-app notices",
             detail: "Review and pause published messages",
             active: section === "notices",
           },
           {
-            href: "/flags?section=create-notice",
+            href: `/${project}/flags?section=create-notice`,
             label: "Create notice",
             detail: "Publish a new message",
             active: section === "create-notice",
@@ -67,7 +70,7 @@ export default async function FlagsPage({
             <h2 className="text-xl font-bold">Feature flags</h2>
             <span className="muted text-sm">{filteredFlags.length} shown</span>
           </div>
-          <form className="toolbar toolbar-two" action="/flags">
+          <form className="toolbar toolbar-two" action={`/${project}/flags`}>
             <input name="section" type="hidden" value="flags" />
             <label>
               <span className="metric-label">Search flags</span>
@@ -229,7 +232,7 @@ export default async function FlagsPage({
             <h2 className="text-xl font-bold">Notices</h2>
             <span className="muted text-sm">{filteredNotices.length} shown</span>
           </div>
-          <form className="toolbar toolbar-four" action="/flags">
+          <form className="toolbar toolbar-four" action={`/${project}/flags`}>
             <input name="section" type="hidden" value="notices" />
             <label>
               <span className="metric-label">Search notices</span>

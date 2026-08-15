@@ -110,7 +110,7 @@ export default async function ScansPage({
 
       {counts ? <ScanVolumeCard counts={counts.counts} /> : null}
 
-      <form className="toolbar toolbar-four" action="/scans">
+      <form className="toolbar toolbar-four" action={`/${project}/scans`}>
         <input name="page" type="hidden" value="1" />
         <label>
           <span className="metric-label">Search</span>
@@ -173,7 +173,7 @@ export default async function ScansPage({
         </button>
       </form>
 
-      <form className="toolbar toolbar-four" action="/scans">
+      <form className="toolbar toolbar-four" action={`/${project}/scans`}>
         <input name="page" type="hidden" value="1" />
         {hiddenFilters(listParams, [
           "model",
@@ -348,7 +348,7 @@ export default async function ScansPage({
                       {scan.profileId ? (
                         <Link
                           className="font-semibold truncate-cell"
-                          href={`/users?profileId=${scan.profileId}`}
+                          href={`/${project}/users?profileId=${scan.profileId}`}
                           title={scan.profileDisplayName ?? scan.profileEmail ?? scan.profileId}
                         >
                           {scanUserLabel(scan)}

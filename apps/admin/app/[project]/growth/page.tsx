@@ -67,10 +67,13 @@ type GrowthSection =
   | "push";
 
 export default async function GrowthControlsPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<GrowthControlsSearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const { policy } = await adminGet<{ policy: EngagementPolicy }>("/admin/engagement-policy");
   const section = normalizeGrowthSection(params.section);
@@ -104,49 +107,49 @@ export default async function GrowthControlsPage({
       <SectionTabs
         items={[
           {
-            href: "/growth?section=analytics",
+            href: `/${project}/growth?section=analytics`,
             label: "Analytics",
             detail: "Firebase measurement gates",
             active: section === "analytics",
           },
           {
-            href: "/growth?section=review",
+            href: `/${project}/growth?section=review`,
             label: "Review prompt",
             detail: "Store review eligibility",
             active: section === "review",
           },
           {
-            href: "/growth?section=ads",
+            href: `/${project}/growth?section=ads`,
             label: "Interstitial ads",
             detail: "Ad caps and unit ids",
             active: section === "ads",
           },
           {
-            href: "/growth?section=rewarded",
+            href: `/${project}/growth?section=rewarded`,
             label: "Rewarded unlocks",
             detail: "Free scan earning limit",
             active: section === "rewarded",
           },
           {
-            href: "/growth?section=admob",
+            href: `/${project}/growth?section=admob`,
             label: "AdMob",
             detail: "Test device IDs",
             active: section === "admob",
           },
           {
-            href: "/growth?section=notifications",
+            href: `/${project}/growth?section=notifications`,
             label: "Push reminders",
             detail: "Meal reminder scenarios",
             active: section === "notifications",
           },
           {
-            href: "/growth?section=streaks",
+            href: `/${project}/growth?section=streaks`,
             label: "Streaks",
             detail: "Milestones and rewards",
             active: section === "streaks",
           },
           {
-            href: "/growth?section=push",
+            href: `/${project}/growth?section=push`,
             label: "Manual push",
             detail: "Send a targeted push notification",
             active: section === "push",

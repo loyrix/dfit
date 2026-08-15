@@ -322,7 +322,7 @@ export default async function DashboardPage({
         <div className="panel">
           <h2 className="text-xl font-bold">Needs attention</h2>
           <div className="mt-4 grid gap-3">
-            {attentionItems(overview, cost).map((item) => (
+            {attentionItems(project, overview, cost).map((item) => (
               <div className="panel-light rounded-lg p-3" key={item.title}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -428,7 +428,7 @@ function funnelStages(funnel: AdminOverview["scanFunnel"]) {
   ];
 }
 
-function attentionItems(overview: AdminOverview, cost: AiCostData) {
+function attentionItems(project: string, overview: AdminOverview, cost: AiCostData) {
   const failedToday = overview.scanFunnel?.today.failed ?? 0;
   const istToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(
     new Date(),
@@ -448,21 +448,21 @@ function attentionItems(overview: AdminOverview, cost: AiCostData) {
       detail: "Model or pipeline failures since midnight IST.",
       value: formatNumber(failedToday),
       ok: failedToday === 0,
-      href: "/scans?status=failed&sort=createdAt&direction=desc",
+      href: `/${project}/scans?status=failed&sort=createdAt&direction=desc`,
     },
     {
       title: "AI cost today",
       detail: `Prior 7-day daily average ${formatInr(priorAverage)}.`,
       value: formatInr(todayCost),
       ok: priorAverage === 0 || todayCost <= priorAverage * 1.5,
-      href: "/cost",
+      href: `/${project}/cost`,
     },
     {
       title: "AI success rate (30d)",
       detail: `${formatNumber(cost.overall.failedRuns)} failed of ${formatNumber(cost.overall.runs)} runs.`,
       value: successRate === null ? "None" : `${Math.round(successRate * 100)}%`,
       ok: successRate === null || successRate >= 0.95,
-      href: "/scans?aiState=failed_ai&sort=createdAt&direction=desc",
+      href: `/${project}/scans?aiState=failed_ai&sort=createdAt&direction=desc`,
     },
   ];
 }

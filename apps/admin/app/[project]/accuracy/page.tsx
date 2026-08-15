@@ -25,10 +25,13 @@ type AccuracySearchParams = {
 const EDIT_TRACKING_START = "2026-08-01";
 
 export default async function ScanAccuracyPage({
+  params: projectParams,
   searchParams,
 }: {
+  params: Promise<{ project: string }>;
   searchParams?: Promise<AccuracySearchParams>;
 }) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const windowDays = normalizeWindow(params.windowDays);
   const data = await adminGet<AdminScanAccuracy>(`/admin/scan-accuracy?windowDays=${windowDays}`);
@@ -45,7 +48,7 @@ export default async function ScanAccuracyPage({
         description="How often users correct the AI before confirming, plus the portion estimates that are almost certainly wrong. Use this to tell whether a prompt change actually helped."
       />
 
-      <form className="toolbar mt-4" action="/accuracy">
+      <form className="toolbar mt-4" action={`/${project}/accuracy`}>
         <label>
           <span className="metric-label">Window</span>
           <select className="select" name="windowDays" defaultValue={String(windowDays)}>
@@ -151,7 +154,7 @@ export default async function ScanAccuracyPage({
                     <td>{formatDate(item.loggedAt)}</td>
                     <td>
                       {item.scanId ? (
-                        <Link className="badge" href={`/scans?scanId=${item.scanId}`}>
+                        <Link className="badge" href={`/${project}/scans?scanId=${item.scanId}`}>
                           Inspect
                         </Link>
                       ) : (
@@ -234,7 +237,10 @@ export default async function ScanAccuracyPage({
                     <td>{formatDate(correction.createdAt)}</td>
                     <td>
                       {correction.scanId ? (
-                        <Link className="badge" href={`/scans?scanId=${correction.scanId}`}>
+                        <Link
+                          className="badge"
+                          href={`/${project}/scans?scanId=${correction.scanId}`}
+                        >
                           Inspect
                         </Link>
                       ) : (

@@ -36,7 +36,14 @@ type AiSearchParams = {
   promptStatus?: string;
 };
 
-export default async function AiPage({ searchParams }: { searchParams?: Promise<AiSearchParams> }) {
+export default async function AiPage({
+  params: projectParams,
+  searchParams,
+}: {
+  params: Promise<{ project: string }>;
+  searchParams?: Promise<AiSearchParams>;
+}) {
+  const { project } = await projectParams;
   const params = (await searchParams) ?? {};
   const [{ models }, { prompts }, { settings }, { config: scanConfig }] = await Promise.all([
     adminGet<{ models: AiModel[] }>("/admin/ai/models"),
@@ -80,19 +87,19 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
       <SectionTabs
         items={[
           {
-            href: "/ai?section=models",
+            href: `/${project}/ai?section=models`,
             label: "Models",
             detail: "Default, fallback, generation, pricing",
             active: section === "models",
           },
           {
-            href: "/ai?section=prompts",
+            href: `/${project}/ai?section=prompts`,
             label: "Prompts",
             detail: "Active preview, drafts, activation",
             active: section === "prompts",
           },
           {
-            href: "/ai?section=chat",
+            href: `/${project}/ai?section=chat`,
             label: "Chat",
             detail: "Max turns, welcome prompt",
             active: section === "chat",
@@ -106,7 +113,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
             <h2 className="text-xl font-bold">Vertex model configs</h2>
             <span className="muted text-sm">{filteredModels.length} shown</span>
           </div>
-          <form className="toolbar toolbar-two" action="/ai">
+          <form className="toolbar toolbar-two" action={`/${project}/ai`}>
             <input name="section" type="hidden" value="models" />
             <label>
               <span className="metric-label">Search models</span>
@@ -433,7 +440,7 @@ export default async function AiPage({ searchParams }: { searchParams?: Promise<
               <h2 className="text-xl font-bold">Prompt versions</h2>
               <span className="muted text-sm">{filteredPrompts.length} shown</span>
             </div>
-            <form className="toolbar toolbar-two" action="/ai">
+            <form className="toolbar toolbar-two" action={`/${project}/ai`}>
               <input name="section" type="hidden" value="prompts" />
               <label>
                 <span className="metric-label">Search prompts</span>

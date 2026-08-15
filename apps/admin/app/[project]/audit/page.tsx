@@ -65,7 +65,7 @@ export default async function AuditPage({
         description="Every support grant and runtime configuration mutation is recorded with actor, target, reason, and before/after state."
       />
 
-      <form className="toolbar toolbar-four" action="/audit">
+      <form className="toolbar toolbar-four" action={`/${project}/audit`}>
         <input name="page" type="hidden" value="1" />
         <label>
           <span className="metric-label">Search</span>
@@ -101,7 +101,7 @@ export default async function AuditPage({
         </button>
       </form>
 
-      <form className="toolbar toolbar-two" action="/audit">
+      <form className="toolbar toolbar-two" action={`/${project}/audit`}>
         {Object.entries(params)
           .filter(([key, value]) => value && !["from", "to", "page"].includes(key))
           .map(([key, value]) => (

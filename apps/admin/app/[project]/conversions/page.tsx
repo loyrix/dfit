@@ -105,7 +105,7 @@ export default async function ConversionsPage({
         />
       </section>
 
-      <form className="toolbar toolbar-two mt-4" action="/conversions">
+      <form className="toolbar toolbar-two mt-4" action={`/${project}/conversions`}>
         <input name="page" type="hidden" value="1" />
         <label>
           <span className="metric-label">Search</span>
@@ -301,7 +301,10 @@ export default async function ConversionsPage({
                   <td>{install.linkedAt ? formatDate(install.linkedAt) : "Not linked"}</td>
                   <td className="table-actions">
                     {install.profileId ? (
-                      <Link className="badge" href={`/users?profileId=${install.profileId}`}>
+                      <Link
+                        className="badge"
+                        href={`/${project}/users?profileId=${install.profileId}`}
+                      >
                         Open user
                       </Link>
                     ) : (

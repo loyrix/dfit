@@ -96,7 +96,7 @@ export default async function UsersPage({
           }
         />
         <section className="focused-page">
-          <UserDetail user={selected.user} />
+          <UserDetail project={project} user={selected.user} />
         </section>
       </AdminShell>
     );
@@ -110,7 +110,7 @@ export default async function UsersPage({
         description="Search accounts, inspect quota, review scan history, reactivate profiles, and compensate failed experiences with audited scan credits."
       />
 
-      <form className="toolbar toolbar-four" action="/users">
+      <form className="toolbar toolbar-four" action={`/${project}/users`}>
         <input name="page" type="hidden" value="1" />
         <label>
           <span className="metric-label">Search</span>
@@ -332,7 +332,7 @@ export default async function UsersPage({
   );
 }
 
-function UserDetail({ user }: { user: AdminUser }) {
+function UserDetail({ project, user }: { project: string; user: AdminUser }) {
   return (
     <>
       <div className="grid metrics">
@@ -540,7 +540,7 @@ function UserDetail({ user }: { user: AdminUser }) {
         <div className="section-head">
           <h2 className="text-xl font-bold">Recent scans</h2>
           {!user.deletedAt ? (
-            <Link className="badge" href={`/scans?profileId=${user.id}`}>
+            <Link className="badge" href={`/${project}/scans?profileId=${user.id}`}>
               View all
             </Link>
           ) : null}
@@ -559,7 +559,7 @@ function UserDetail({ user }: { user: AdminUser }) {
               {(user.recentScans ?? []).map((scan) => (
                 <tr key={scan.id}>
                   <td>
-                    <Link className="font-semibold" href={`/scans?scanId=${scan.id}`}>
+                    <Link className="font-semibold" href={`/${project}/scans?scanId=${scan.id}`}>
                       {scan.meal?.title ?? scan.status}
                     </Link>
                     <div className="muted text-xs" title={scan.id}>
