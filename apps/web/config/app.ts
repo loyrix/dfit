@@ -25,7 +25,10 @@ export const APP_CONFIG = {
   playStoreUrl: "https://play.google.com/store/apps/details?id=com.logmyplate.app",
 
   // ── Domains ────────────────────────────────────────────────────────────────
-  websiteUrl: "https://logmyplate.com",
+  // Must match the domain Vercel actually serves. www is primary here and the
+  // apex 307-redirects to it, so canonicals, og:urls, the sitemap and all JSON-LD
+  // have to say www — otherwise every URL we hand Google is one that redirects.
+  websiteUrl: "https://www.logmyplate.com",
   apiDomain: "api.logmyplate.com",
   supportEmail: "support@logmyplate.com",
   deleteAccountDeepLink: "logmyplate://delete-account",
