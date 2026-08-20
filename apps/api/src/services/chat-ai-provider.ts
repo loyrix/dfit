@@ -7,6 +7,13 @@ export type ChatGenerateInput = {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   maxOutputTokens: number;
   temperature: number;
+  /**
+   * Gemini 2.5 thinking budget, in tokens. Thinking is billed against
+   * `maxOutputTokens`, so leaving this unset (dynamic thinking) lets a single
+   * hard question spend the entire budget on reasoning and return no visible
+   * answer at all. Chat therefore caps it: -1 dynamic, 0 off, positive = cap.
+   */
+  thinkingBudget?: number;
 };
 
 export type ChatGenerateResult = {
@@ -14,6 +21,12 @@ export type ChatGenerateResult = {
   inputTokens?: number;
   outputTokens?: number;
   latencyMs: number;
+  /**
+   * Raw provider finish reason (e.g. "STOP", "MAX_TOKENS", "SAFETY"). Logged by
+   * the route so a truncated or empty generation is visible in the logs instead
+   * of silently becoming a fallback message.
+   */
+  finishReason?: string;
 };
 
 export interface ChatAiProvider {

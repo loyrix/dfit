@@ -99,9 +99,11 @@ export const CHAT_ABUSE_CLOSING_MESSAGE =
   "I'm here to help with your nutrition and food logs in a respectful conversation, so I'm ending this session here. You're welcome to start a new chat whenever you'd like to talk about your meals.";
 
 // Fallbacks for when the model returns an empty response (e.g. it emitted only
-// the [END_SESSION] tag, which is stripped server-side).
+// the [END_SESSION] tag, which is stripped server-side). The session stays open
+// in that case, so the wording must invite a retry rather than read like a
+// goodbye.
 export const EMPTY_CHAT_REPLY_FALLBACK =
-  "Thanks for chatting! Feel free to start a new session whenever you have more questions about your meals.";
+  "Sorry, I couldn't put that answer together just now. Could you send that again, or ask it a slightly different way?";
 
 export const EMPTY_CHAT_WELCOME_FALLBACK =
   "Hello! I'm your AI Nutritionist. Ask me anything about your meals and nutrition for the last few days.";

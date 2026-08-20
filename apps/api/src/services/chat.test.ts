@@ -13,11 +13,25 @@ import type { ChatAiProvider, ChatGenerateInput, ChatGenerateResult } from "./ch
 import type { NutritionistContext } from "./nutritionist-context.js";
 
 // Returns a fixed string for every call — used to simulate degenerate model
-// output such as a response consisting solely of the [END_SESSION] tag.
+// output such as a response consisting solely of the [END_SESSION] tag, or an
+// empty string (the model spent its whole output budget on thinking).
 class FixedReplyAiProvider implements ChatAiProvider {
-  constructor(private readonly reply: string) {}
-  async generateChatResponse(_input: ChatGenerateInput): Promise<ChatGenerateResult> {
-    return { content: this.reply, inputTokens: 1, outputTokens: 1, latencyMs: 0 };
+  readonly calls: ChatGenerateInput[] = [];
+
+  constructor(
+    private readonly reply: string,
+    private readonly finishReason?: string,
+  ) {}
+
+  async generateChatResponse(input: ChatGenerateInput): Promise<ChatGenerateResult> {
+    this.calls.push(input);
+    return {
+      content: this.reply,
+      inputTokens: 1,
+      outputTokens: 1,
+      latencyMs: 0,
+      finishReason: this.finishReason,
+    };
   }
 }
 
@@ -534,5 +548,78 @@ describe("Chat moderation routes", () => {
     });
     expect(followUp.statusCode).toBe(400);
     expect(JSON.parse(followUp.body).error).toBe("turn_limit_reached");
+  });
+});
+
+describe("Chat thinking budget and empty replies", () => {
+  it("passes a capped thinking budget to the provider on every generation", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+
+    const provider = new FixedReplyAiProvider("Your protein looks steady this week.");
+    const app = await buildApp({ repository, chatAiProvider: provider });
+
+    const session = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+    const sessionId = JSON.parse(session.body).sessionId;
+
+    await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How do I plan my meals for weight loss?" },
+    });
+
+    // Both the welcome generation and the message turn must be capped.
+    expect(provider.calls.length).toBe(2);
+    for (const call of provider.calls) {
+      expect(call.thinkingBudget).toBeGreaterThanOrEqual(0);
+      // Thinking is billed against maxOutputTokens, so the cap has to leave
+      // room for the answer itself.
+      expect(call.thinkingBudget).toBeLessThan(call.maxOutputTokens);
+    }
+  });
+
+  it("keeps the session open when the model returns no text at all", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+
+    // Mirrors a MAX_TOKENS truncation where thinking consumed the whole budget.
+    const app = await buildApp({
+      repository,
+      chatAiProvider: new FixedReplyAiProvider("", "MAX_TOKENS"),
+    });
+
+    const session = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+    const sessionId = JSON.parse(session.body).sessionId;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How do I plan my meals for weight loss?" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.reply.content.length).toBeGreaterThan(0);
+    // A dud generation must not burn the session: the user can retry.
+    expect(body.usage.turnNumber).toBe(1);
+    expect(body.usage.turnNumber).toBeLessThan(body.usage.maxTurns);
+
+    const followUp = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "Try again please" },
+    });
+    expect(followUp.statusCode).toBe(200);
   });
 });

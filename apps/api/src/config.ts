@@ -86,6 +86,7 @@ export type ApiConfig = {
     maxSessionsPerDay: number;
     sessionTtlMs: number;
     temperature: number;
+    thinkingBudget: number;
   };
 };
 
@@ -176,11 +177,19 @@ export const buildApiConfig = (env: ConfigEnv = process.env): ApiConfig => {
       mealImagesBucket: env.STORAGE_BUCKET_MEAL_IMAGES ?? "meal-images",
     },
     chat: {
-      maxOutputTokens: Number(env.CHAT_MAX_OUTPUT_TOKENS ?? 1024),
+      // Thinking tokens are billed against maxOutputTokens, so these two are
+      // tuned as a pair: the budget must leave ample room for the answer after
+      // the model has finished reasoning. A 150-word reply is ~250 tokens, so
+      // 3072 total with thinking capped at 512 is comfortable headroom.
+      maxOutputTokens: Number(env.CHAT_MAX_OUTPUT_TOKENS ?? 3_072),
       maxTurnsPerSession: Number(env.CHAT_MAX_TURNS_PER_SESSION ?? 15),
       maxSessionsPerDay: Number(env.CHAT_MAX_SESSIONS_PER_DAY ?? 5),
       sessionTtlMs: Number(env.CHAT_SESSION_TTL_MS ?? 1_800_000),
       temperature: Number(env.CHAT_TEMPERATURE ?? 0.7),
+      // Keep some reasoning for answer quality, but capped: -1 (dynamic) let a
+      // single turn burn the whole output budget on thoughts and return an
+      // empty reply. 0 disables thinking entirely.
+      thinkingBudget: Number(env.CHAT_THINKING_BUDGET ?? 512),
     },
   };
 

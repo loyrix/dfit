@@ -123,7 +123,21 @@ export const registerChatRoutes = async (
         ],
         maxOutputTokens: chatConfig.maxOutputTokens,
         temperature: chatConfig.temperature,
+        thinkingBudget: chatConfig.thinkingBudget,
       });
+      if (!result.content.trim()) {
+        request.log.warn(
+          {
+            route: "POST /v1/chat/nutritionist/session",
+            finishReason: result.finishReason,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            maxOutputTokens: chatConfig.maxOutputTokens,
+            thinkingBudget: chatConfig.thinkingBudget,
+          },
+          "nutritionist welcome generation returned no text; using fallback",
+        );
+      }
       return ensureNonEmptyChatContent(result.content, EMPTY_CHAT_WELCOME_FALLBACK);
     });
 
@@ -238,6 +252,7 @@ export const registerChatRoutes = async (
           messages: activeSession.messages,
           maxOutputTokens: chatConfig.maxOutputTokens,
           temperature: chatConfig.temperature,
+          thinkingBudget: chatConfig.thinkingBudget,
         }),
       );
 
@@ -246,8 +261,25 @@ export const registerChatRoutes = async (
         shouldEndSession = true;
         finalAiContent = finalAiContent.replace(/\[END_SESSION\]/g, "").trim();
       }
-      // Guard against an empty reply (e.g. the model returned only the
-      // [END_SESSION] tag) which would otherwise fail contract validation.
+      // Guard against an empty reply (the model returned only the [END_SESSION]
+      // tag, or spent its whole output budget on thinking and produced no text)
+      // which would otherwise fail contract validation. This is a degraded turn,
+      // not a normal one, so it is logged loudly rather than silently swallowed.
+      if (!finalAiContent.trim()) {
+        request.log.warn(
+          {
+            route: "POST /v1/chat/nutritionist/message",
+            sessionId: activeSession.dbSessionId,
+            turnNumber,
+            finishReason: aiResult.finishReason,
+            inputTokens: aiResult.inputTokens,
+            outputTokens: aiResult.outputTokens,
+            maxOutputTokens: chatConfig.maxOutputTokens,
+            thinkingBudget: chatConfig.thinkingBudget,
+          },
+          "nutritionist reply was empty; using fallback",
+        );
+      }
       finalAiContent = ensureNonEmptyChatContent(finalAiContent);
     }
 
@@ -303,6 +335,7 @@ export const registerChatRoutes = async (
         latencyMs: aiResult?.latencyMs,
         inputTokens: aiResult?.inputTokens,
         outputTokens: aiResult?.outputTokens,
+        finishReason: aiResult?.finishReason,
         endedForAbuse: isAbusive,
       },
       "nutritionist message processed",

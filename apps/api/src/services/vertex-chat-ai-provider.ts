@@ -73,6 +73,11 @@ export class VertexChatAiProvider implements ChatAiProvider {
             : undefined,
           maxOutputTokens: input.maxOutputTokens,
           temperature: input.temperature,
+          // Thinking is billed against maxOutputTokens; leaving it unset lets a
+          // hard question spend the whole budget on thoughts and return nothing.
+          ...(input.thinkingBudget === undefined
+            ? {}
+            : { thinkingConfig: { thinkingBudget: input.thinkingBudget } }),
           abortSignal: abortController.signal,
         },
       });
@@ -85,6 +90,7 @@ export class VertexChatAiProvider implements ChatAiProvider {
         inputTokens: usage?.promptTokenCount ?? undefined,
         outputTokens: usage?.candidatesTokenCount ?? undefined,
         latencyMs: Date.now() - start,
+        finishReason: response.candidates?.[0]?.finishReason ?? undefined,
       };
     } catch (error) {
       if (error instanceof ChatAiProviderError) throw error;

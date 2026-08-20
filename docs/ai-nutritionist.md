@@ -98,6 +98,7 @@ chat: {
   maxSessionsPerDay: number;
   sessionTtlMs: number;
   temperature: number;
+  thinkingBudget: number;
 }
 ```
 
@@ -105,11 +106,12 @@ chat: {
 
 ```typescript
 chat: {
-  maxOutputTokens: Number(env.CHAT_MAX_OUTPUT_TOKENS ?? 1024),
+  maxOutputTokens: Number(env.CHAT_MAX_OUTPUT_TOKENS ?? 3_072),
   maxTurnsPerSession: Number(env.CHAT_MAX_TURNS_PER_SESSION ?? 15),
   maxSessionsPerDay: Number(env.CHAT_MAX_SESSIONS_PER_DAY ?? 5),
   sessionTtlMs: Number(env.CHAT_SESSION_TTL_MS ?? 1_800_000),
   temperature: Number(env.CHAT_TEMPERATURE ?? 0.7),
+  thinkingBudget: Number(env.CHAT_THINKING_BUDGET ?? 512),
 },
 ```
 
@@ -1206,7 +1208,8 @@ pnpm mobile:analyze
 > [!CAUTION]
 > **Cost controls — enforce these server-side:**
 >
-> - `maxOutputTokens: 1024` (configurable via env)
+> - `maxOutputTokens: 3072` (configurable via env)
+> - `thinkingBudget: 512` (configurable via `CHAT_THINKING_BUDGET`; thinking tokens are billed against `maxOutputTokens`, so an uncapped budget can consume the entire allowance and return an empty reply)
 > - `maxTurnsPerSession: 15` (configurable)
 > - `maxSessionsPerDay: 5` (configurable)
 > - `sessionTtlMs: 1_800_000` (30 min TTL)

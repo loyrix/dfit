@@ -23,6 +23,7 @@ type GeminiGenerateContentResponse = {
   usageMetadata?: {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
     totalTokenCount?: number;
   };
   error?: {
@@ -64,6 +65,11 @@ export class GeminiChatAiProvider implements ChatAiProvider {
       generationConfig: {
         maxOutputTokens: input.maxOutputTokens,
         temperature: input.temperature,
+        // Thinking is billed against maxOutputTokens; leaving it unset lets a
+        // hard question spend the whole budget on thoughts and return nothing.
+        ...(input.thinkingBudget === undefined
+          ? {}
+          : { thinkingConfig: { thinkingBudget: input.thinkingBudget } }),
       },
     };
 
@@ -111,7 +117,10 @@ export class GeminiChatAiProvider implements ChatAiProvider {
         );
       }
 
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const candidate = data.candidates?.[0];
+      // Join every text part rather than reading parts[0] alone: a candidate can
+      // legitimately be split across multiple parts.
+      const text = (candidate?.content?.parts ?? []).map((part) => part.text ?? "").join("");
       const usage = data.usageMetadata;
 
       return {
@@ -119,6 +128,7 @@ export class GeminiChatAiProvider implements ChatAiProvider {
         inputTokens: usage?.promptTokenCount ?? undefined,
         outputTokens: usage?.candidatesTokenCount ?? undefined,
         latencyMs: Date.now() - start,
+        finishReason: candidate?.finishReason,
       };
     } catch (error) {
       if (error instanceof ChatAiProviderError) throw error;
