@@ -4261,11 +4261,16 @@ export class PostgresStore implements AppRepository {
   }
 
   async countChatSessionsToday(profileId: string): Promise<number> {
+    // `current_date` is the database server's day, not the user's. Someone in
+    // Asia/Kolkata would see their daily allowance reset at 05:30 local time.
+    // Counting against the profile's own timezone matches how scans already
+    // stamp local_date.
+    const profile = await this.getProfile();
     const rows = await this.sql<{ count: number | string }[]>`
       select count(*)::integer as count
       from chat_sessions
       where profile_id = ${profileId}
-        and session_date = current_date
+        and session_date = ${localDateForTimezone(profile.timezone)}::date
     `;
     return Number(rows[0]?.count ?? 0);
   }
@@ -4275,15 +4280,83 @@ export class PostgresStore implements AppRepository {
     maxTurns: number;
     contextSnapshot: unknown;
   }): Promise<{ id: string; sessionDate: string; createdAt: string }> {
+    // Stamped in the user's timezone so it lines up with countChatSessionsToday.
+    const profile = await this.getProfile();
     const [row] = await this.sql<[{ id: string; session_date: string; created_at: string }?]>`
-      insert into chat_sessions (profile_id, max_turns, context_snapshot)
-      values (${input.profileId}, ${input.maxTurns}, ${JSON.stringify(input.contextSnapshot)})
+      insert into chat_sessions (profile_id, max_turns, context_snapshot, session_date)
+      values (
+        ${input.profileId},
+        ${input.maxTurns},
+        ${JSON.stringify(input.contextSnapshot)},
+        ${localDateForTimezone(profile.timezone)}::date
+      )
       returning id, session_date::text, created_at::text
     `;
     return {
       id: row!.id,
       sessionDate: row!.session_date,
       createdAt: row!.created_at,
+    };
+  }
+
+  async getResumableChatSession(input: { sessionId: string; profileId: string }): Promise<
+    | {
+        id: string;
+        turnCount: number;
+        maxTurns: number;
+        contextSnapshot: unknown;
+        createdAt: string;
+        closedAt?: string;
+        messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+      }
+    | undefined
+  > {
+    // The profile_id predicate is the access check: without it any caller
+    // holding a session UUID could post into someone else's conversation.
+    const [session] = await this.sql<
+      [
+        {
+          id: string;
+          turn_count: number;
+          max_turns: number;
+          context_snapshot: unknown;
+          created_at: string;
+          closed_at: string | null;
+        }?,
+      ]
+    >`
+      select
+        id,
+        turn_count,
+        max_turns,
+        context_snapshot,
+        created_at::text as created_at,
+        closed_at::text as closed_at
+      from chat_sessions
+      where id = ${input.sessionId}
+        and profile_id = ${input.profileId}
+        and deleted_at is null
+    `;
+    if (!session) return undefined;
+
+    const messages = await this.sql<Array<{ role: string; content: string }>>`
+      select role, content
+      from chat_messages
+      where session_id = ${session.id}
+      order by turn_number, created_at
+    `;
+
+    return {
+      id: session.id,
+      turnCount: session.turn_count,
+      maxTurns: session.max_turns,
+      contextSnapshot: session.context_snapshot,
+      createdAt: session.created_at,
+      closedAt: session.closed_at ?? undefined,
+      messages: messages.map((message) => ({
+        role: message.role as "system" | "user" | "assistant",
+        content: message.content,
+      })),
     };
   }
 

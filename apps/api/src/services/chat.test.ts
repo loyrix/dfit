@@ -745,3 +745,192 @@ describe("Chat turn rollback on provider failure", () => {
     expect(body.usage.maxTurns).toBe(15);
   });
 });
+
+describe("Chat session resume across instances", () => {
+  // A second buildApp over the same repository is a second serverless instance:
+  // fresh in-memory session store, same persistence underneath.
+  const twoInstances = async (repository: InMemoryStore) => ({
+    first: await buildApp({ repository, chatAiProvider: new MockChatAiProvider() }),
+    second: await buildApp({ repository, chatAiProvider: new MockChatAiProvider() }),
+  });
+
+  const openSession = async (app: Awaited<ReturnType<typeof buildApp>>, headers = testHeaders) => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers,
+      payload: {},
+    });
+    return JSON.parse(created.body).sessionId as string;
+  };
+
+  it("continues a session on an instance that never held it in memory", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const { first, second } = await twoInstances(repository);
+
+    const sessionId = await openSession(first);
+
+    const reply = await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein today?" },
+    });
+
+    expect(reply.statusCode).toBe(200);
+    const body = JSON.parse(reply.body);
+    expect(body.reply.content.length).toBeGreaterThan(0);
+    expect(body.usage.turnNumber).toBe(1);
+  });
+
+  it("resumes at the right turn instead of restarting the count", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const { first, second } = await twoInstances(repository);
+
+    const sessionId = await openSession(first);
+    await first.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "First question" },
+    });
+
+    const onSecond = await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "Second question" },
+    });
+
+    expect(onSecond.statusCode).toBe(200);
+    expect(JSON.parse(onSecond.body).usage.turnNumber).toBe(2);
+  });
+
+  it("carries the earlier transcript into the resumed conversation", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const provider = new FixedReplyAiProvider("Noted.");
+    const first = await buildApp({ repository, chatAiProvider: new MockChatAiProvider() });
+    const second = await buildApp({ repository, chatAiProvider: provider });
+
+    const sessionId = await openSession(first);
+    await first.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "I had poha for breakfast" },
+    });
+
+    await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "Was that enough protein?" },
+    });
+
+    const sent = provider.calls[0].messages;
+    expect(sent[0].role).toBe("system");
+    expect(sent.some((m) => m.content === "I had poha for breakfast")).toBe(true);
+    expect(sent.some((m) => m.content === "Was that enough protein?")).toBe(true);
+    // Exactly one system prompt — the rebuilt one, not a stored duplicate.
+    expect(sent.filter((m) => m.role === "system")).toHaveLength(1);
+  });
+
+  it("refuses to resume a session belonging to another profile", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const { first, second } = await twoInstances(repository);
+
+    const sessionId = await openSession(first);
+
+    const owner = await repository.getProfile();
+
+    // The session resumes for its owner, so a 404 for anyone else cannot be
+    // explained away by the session simply being unreadable.
+    const asOwner = await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "Mine" },
+    });
+    expect(asOwner.statusCode).toBe(200);
+    expect(
+      await repository.getResumableChatSession({ sessionId, profileId: owner.id }),
+    ).toBeDefined();
+
+    // The profile_id predicate is the access check: a different profile must
+    // not be able to read the session at all.
+    expect(
+      await repository.getResumableChatSession({
+        sessionId,
+        profileId: "00000000-0000-0000-0000-000000000000",
+      }),
+    ).toBeUndefined();
+
+    const otherUser = { ...testHeaders, "x-logmyplate-install-id": "some-other-device" };
+    const reply = await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: otherUser,
+      payload: { sessionId, message: "Show me their meals" },
+    });
+
+    expect(reply.statusCode).toBe(404);
+    expect(JSON.parse(reply.body).error).toBe("session_not_found");
+  });
+
+  it("refuses to resume a deleted session", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const { first, second } = await twoInstances(repository);
+
+    const sessionId = await openSession(first);
+    const profile = await repository.getProfile();
+    await repository.deleteChatSessions(profile.id, [sessionId]);
+
+    const reply = await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "Still there?" },
+    });
+
+    expect(reply.statusCode).toBe(404);
+    expect(JSON.parse(reply.body).error).toBe("session_not_found");
+  });
+
+  it("reports a closed session as finished rather than missing", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const { first, second } = await twoInstances(repository);
+
+    const sessionId = await openSession(first);
+    await repository.closeChatSession(sessionId, 15);
+
+    const reply = await second.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "One more thing" },
+    });
+
+    expect(reply.statusCode).toBe(400);
+    expect(JSON.parse(reply.body).error).toBe("turn_limit_reached");
+  });
+
+  it("returns the database session id so the session can be found again", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const app = await buildApp({ repository, chatAiProvider: new MockChatAiProvider() });
+
+    const sessionId = await openSession(app);
+    const stored = await repository.getResumableChatSession({
+      sessionId,
+      profileId: (await repository.getProfile()).id,
+    });
+
+    expect(stored?.id).toBe(sessionId);
+  });
+});

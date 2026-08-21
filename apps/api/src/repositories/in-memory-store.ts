@@ -1304,7 +1304,8 @@ export class InMemoryStore implements AppRepository {
   }
 
   async countChatSessionsToday(profileId: string): Promise<number> {
-    const today = localDateForTimezone("UTC");
+    const profile = await this.getProfile();
+    const today = localDateForTimezone(profile.timezone);
     let count = 0;
     for (const session of this.chatSessions.values()) {
       if (session.profileId === profileId && session.sessionDate === today) {
@@ -1321,7 +1322,8 @@ export class InMemoryStore implements AppRepository {
   }): Promise<{ id: string; sessionDate: string; createdAt: string }> {
     const id = randomUUID();
     const now = new Date().toISOString();
-    const sessionDate = localDateForTimezone("UTC");
+    const profile = await this.getProfile();
+    const sessionDate = localDateForTimezone(profile.timezone);
     this.chatSessions.set(id, {
       id,
       profileId: input.profileId,
@@ -1341,6 +1343,37 @@ export class InMemoryStore implements AppRepository {
       session.turnCount = turnCount;
       session.closedAt = new Date().toISOString();
     }
+  }
+
+  async getResumableChatSession(input: { sessionId: string; profileId: string }): Promise<
+    | {
+        id: string;
+        turnCount: number;
+        maxTurns: number;
+        contextSnapshot: unknown;
+        createdAt: string;
+        closedAt?: string;
+        messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+      }
+    | undefined
+  > {
+    const session = this.chatSessions.get(input.sessionId);
+    if (!session) return undefined;
+    if (session.profileId !== input.profileId) return undefined;
+    if (session.deletedAt) return undefined;
+
+    return {
+      id: session.id,
+      turnCount: session.turnCount,
+      maxTurns: session.maxTurns,
+      contextSnapshot: session.contextSnapshot,
+      createdAt: session.createdAt,
+      closedAt: session.closedAt,
+      messages: session.messages
+        .slice()
+        .sort((a, b) => a.turnNumber - b.turnNumber)
+        .map((message) => ({ role: message.role, content: message.content })),
+    };
   }
 
   async setChatSessionTitle(sessionId: string, title: string): Promise<void> {

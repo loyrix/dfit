@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import {
   createChatSessionResponseSchema,
@@ -12,8 +11,14 @@ import type { AppRepository } from "../repositories/app-repository.js";
 import { ChatAiProviderError, type ChatAiProvider } from "../services/chat-ai-provider.js";
 import { MockChatAiProvider } from "../services/mock-chat-ai-provider.js";
 import type { ApiConfig } from "../config.js";
-import { NutritionistSessionStore } from "../services/nutritionist-session-store.js";
-import { assembleNutritionistContext } from "../services/nutritionist-context.js";
+import {
+  NutritionistSessionStore,
+  type ActiveChatSession,
+} from "../services/nutritionist-session-store.js";
+import {
+  assembleNutritionistContext,
+  type NutritionistContext,
+} from "../services/nutritionist-context.js";
 import { buildNutritionistSystemPrompt } from "../services/nutritionist-system-prompt.js";
 import {
   generateSuggestedPrompts,
@@ -149,7 +154,10 @@ export const registerChatRoutes = async (
       }),
     );
 
-    const sessionId = randomUUID();
+    // The database row id doubles as the public session id: it is the only
+    // handle that survives the in-memory store, so a request landing on a
+    // different serverless instance can still find the session.
+    const sessionId = sessionDb.id;
 
     sessionStore.set({
       sessionId,
@@ -202,17 +210,114 @@ export const registerChatRoutes = async (
     });
   });
 
+  /**
+   * Rebuilds an in-memory session from Postgres.
+   *
+   * The store is a per-instance cache, so on serverless a session is routinely
+   * absent from the instance handling a follow-up message. Everything needed to
+   * continue is already persisted — the context snapshot taken at session
+   * creation plus the message transcript — so a miss is recoverable rather than
+   * fatal.
+   *
+   * Returns a reason instead of throwing so the caller can answer 404 for a
+   * session that cannot be resumed and 400 for one that is simply finished.
+   */
+  const resumeSession = async (
+    sessionId: string,
+    profileId: string,
+  ): Promise<
+    | { ok: true; session: ActiveChatSession }
+    | { ok: false; reason: "not_found" | "closed" | "expired" }
+  > => {
+    const stored = await repository.getResumableChatSession({ sessionId, profileId });
+    if (!stored) return { ok: false, reason: "not_found" };
+    if (stored.closedAt) return { ok: false, reason: "closed" };
+
+    const createdAtMs = Date.parse(stored.createdAt);
+    if (Number.isFinite(createdAtMs) && Date.now() >= createdAtMs + chatConfig.sessionTtlMs) {
+      return { ok: false, reason: "expired" };
+    }
+
+    const context = stored.contextSnapshot as NutritionistContext;
+    // A snapshot written by an older build (or an empty default) would produce a
+    // prompt with no user data behind it. Refusing to resume is better than
+    // answering from a hollow context.
+    if (!context?.today || !context.weekSummary) return { ok: false, reason: "not_found" };
+
+    const [basePrompt, websiteContent] = await Promise.all([
+      repository.getAiPrompt("nutritionist_prompt"),
+      repository.getAiPrompt("website_reference_content"),
+    ]);
+
+    const session: ActiveChatSession = {
+      sessionId,
+      profileId,
+      dbSessionId: stored.id,
+      context,
+      messages: [
+        {
+          role: "system",
+          content: buildNutritionistSystemPrompt(context, basePrompt, websiteContent),
+        },
+        ...stored.messages.filter((message) => message.role !== "system"),
+      ],
+      turnCount: stored.turnCount,
+      // Deliberately the value stored with the session, not the current admin
+      // setting: lowering the limit must not cut off conversations already
+      // under way.
+      maxTurns: stored.maxTurns,
+      createdAt: createdAtMs,
+      expiresAt: createdAtMs + chatConfig.sessionTtlMs,
+    };
+
+    sessionStore.set(session);
+    return { ok: true, session };
+  };
+
   app.post("/v1/chat/nutritionist/message", async (request, reply) => {
     const timer = createRouteTimer();
 
     const body = sendChatMessageRequestSchema.parse(request.body);
-    const activeSession = sessionStore.get(body.sessionId);
+    const profile = await timer.measure("profile", () => repository.getProfile());
 
-    if (!activeSession) {
+    let activeSession = sessionStore.get(body.sessionId);
+
+    if (activeSession && activeSession.profileId !== profile.id) {
+      // A cached session belonging to somebody else must never be writable,
+      // even though the id was guessed or replayed rather than stolen.
       return reply.status(404).send({
         error: "session_not_found",
         message: "Chat session not found or expired. Start a new one.",
       });
+    }
+
+    if (!activeSession) {
+      const resumed = await timer.measure("resumeSession", () =>
+        resumeSession(body.sessionId, profile.id),
+      );
+
+      if (!resumed.ok) {
+        if (resumed.reason === "closed") {
+          return reply.status(400).send({
+            error: "turn_limit_reached",
+            message: "This session is complete. Start a new chat.",
+          });
+        }
+        return reply.status(404).send({
+          error: "session_not_found",
+          message: "Chat session not found or expired. Start a new one.",
+        });
+      }
+
+      request.log.info(
+        {
+          route: "POST /v1/chat/nutritionist/message",
+          sessionId: resumed.session.dbSessionId,
+          turnCount: resumed.session.turnCount,
+        },
+        "nutritionist session resumed from database",
+      );
+      activeSession = resumed.session;
     }
 
     if (activeSession.turnCount >= activeSession.maxTurns) {

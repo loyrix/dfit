@@ -424,6 +424,24 @@ export interface AppRepository {
     maxTurns: number;
     contextSnapshot: unknown;
   }): Promise<{ id: string; sessionDate: string; createdAt: string }>;
+  /**
+   * Loads a session so an API instance that never held it in memory can resume
+   * it. Returns undefined when the session does not exist, belongs to another
+   * profile, or has been soft-deleted; a closed session is returned with
+   * `closedAt` set so the caller can tell "finished" apart from "not found".
+   */
+  getResumableChatSession(input: { sessionId: string; profileId: string }): Promise<
+    | {
+        id: string;
+        turnCount: number;
+        maxTurns: number;
+        contextSnapshot: unknown;
+        createdAt: string;
+        closedAt?: string;
+        messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+      }
+    | undefined
+  >;
   closeChatSession(sessionId: string, turnCount: number): Promise<void>;
   setChatSessionTitle(sessionId: string, title: string): Promise<void>;
   appendChatMessage(input: {
