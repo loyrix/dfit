@@ -38,6 +38,22 @@ class NutritionistController extends ChangeNotifier {
   int _maxTurns = 15;
   int get maxTurns => _maxTurns;
 
+  int _sessionsUsedToday = 0;
+  int get sessionsUsedToday => _sessionsUsedToday;
+
+  int _maxSessionsPerDay = 0;
+  int get maxSessionsPerDay => _maxSessionsPerDay;
+
+  /// Whether leaving now means the user has no sessions left today.
+  ///
+  /// A session is spent the moment it is opened, so exiting does not refund it
+  /// — the exit sheet says so rather than implying they can just come back.
+  bool get sessionsExhausted =>
+      _maxSessionsPerDay > 0 && _sessionsUsedToday >= _maxSessionsPerDay;
+
+  int get sessionsRemainingToday =>
+      _maxSessionsPerDay <= 0 ? 0 : (_maxSessionsPerDay - _sessionsUsedToday).clamp(0, 999);
+
   bool get sessionComplete => !_readOnly && _turnNumber >= _maxTurns;
 
   String? _error;
@@ -93,6 +109,8 @@ class NutritionistController extends ChangeNotifier {
       _suggestedFollowUps = chatSession.suggestedPrompts;
       _turnNumber = 0;
       _maxTurns = chatSession.maxTurns;
+      _sessionsUsedToday = chatSession.sessionsUsedToday;
+      _maxSessionsPerDay = chatSession.maxSessionsPerDay;
     } on LogMyPlateApiException catch (e) {
       if (e.errorCode == 'free_allowance_exhausted') {
         _premiumRequired = true;
@@ -131,6 +149,8 @@ class NutritionistController extends ChangeNotifier {
       _suggestedFollowUps = reply.suggestedFollowUps;
       _turnNumber = reply.turnNumber;
       _maxTurns = reply.maxTurns;
+      _sessionsUsedToday = reply.sessionsUsedToday;
+      _maxSessionsPerDay = reply.maxSessionsPerDay;
     } on LogMyPlateApiException catch (e) {
       _error = _parseError(e);
     } catch (e) {

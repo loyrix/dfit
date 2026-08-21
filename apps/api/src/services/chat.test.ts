@@ -4,6 +4,7 @@ import { InMemoryStore } from "../repositories/in-memory-store.js";
 import { MockChatAiProvider } from "./mock-chat-ai-provider.js";
 import { NutritionistSessionStore } from "./nutritionist-session-store.js";
 import { generateSuggestedPrompts } from "./nutritionist-suggested-prompts.js";
+import { buildNutritionistWelcome } from "./nutritionist-welcome.js";
 import {
   detectChatAbuse,
   ensureNonEmptyChatContent,
@@ -578,8 +579,9 @@ describe("Chat thinking budget and empty replies", () => {
       payload: { sessionId, message: "How do I plan my meals for weight loss?" },
     });
 
-    // Both the welcome generation and the message turn must be capped.
-    expect(provider.calls.length).toBe(2);
+    // Only the message turn reaches the provider — the welcome is built from
+    // context, so opening a session costs no tokens at all.
+    expect(provider.calls.length).toBe(1);
     for (const call of provider.calls) {
       expect(call.thinkingBudget).toBeGreaterThanOrEqual(0);
       // Thinking is billed against maxOutputTokens, so the cap has to leave
@@ -629,8 +631,9 @@ describe("Chat thinking budget and empty replies", () => {
   });
 });
 
-// Succeeds for the welcome generation, then fails the next N message turns
-// before recovering — models a transient provider outage mid-session.
+// Fails the first N calls before recovering — models a transient provider
+// outage mid-session. Only message turns reach a provider; the welcome is
+// built from context without one.
 class FlakyAiProvider implements ChatAiProvider {
   readonly calls: ChatGenerateInput[] = [];
   private failuresLeft: number;
@@ -641,8 +644,7 @@ class FlakyAiProvider implements ChatAiProvider {
 
   async generateChatResponse(input: ChatGenerateInput): Promise<ChatGenerateResult> {
     this.calls.push(input);
-    // The first call is the welcome; only message turns are failed.
-    if (this.calls.length > 1 && this.failuresLeft > 0) {
+    if (this.failuresLeft > 0) {
       this.failuresLeft -= 1;
       throw new ChatAiProviderError("chat_ai_provider_error", "upstream is busy", 502, true);
     }
@@ -709,9 +711,9 @@ describe("Chat turn rollback on provider failure", () => {
       payload: { sessionId, message: "How's my protein today?" },
     });
 
-    // calls[0] is the welcome, [1] the failed turn, [2] the retry. The retry
-    // must carry the question once, not twice.
-    const retryMessages = provider.calls[2].messages;
+    // calls[0] is the failed turn and [1] the retry. The retry must carry the
+    // question once, not twice.
+    const retryMessages = provider.calls[1].messages;
     const userMessages = retryMessages.filter((m) => m.role === "user");
     expect(userMessages).toHaveLength(1);
     expect(userMessages[0].content).toBe("How's my protein today?");
@@ -932,5 +934,98 @@ describe("Chat session resume across instances", () => {
     });
 
     expect(stored?.id).toBe(sessionId);
+  });
+});
+
+describe("Deterministic welcome message", () => {
+  it("costs no AI call at all when a session is opened", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const provider = new FixedReplyAiProvider("should not be called");
+    const app = await buildApp({ repository, chatAiProvider: provider });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+      payload: {},
+    });
+
+    expect(created.statusCode).toBe(200);
+    expect(JSON.parse(created.body).welcomeMessage.content.length).toBeGreaterThan(0);
+    // The whole point: opening a session no longer spends tokens.
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it("summarises the day when meals are logged", () => {
+    const welcome = buildNutritionistWelcome(
+      baseContext({
+        profile: { goal: "lose_gently" },
+        today: {
+          date: "2026-08-20",
+          mealsLogged: 2,
+          totals: { calories: 900, proteinG: 48, carbsG: 90, fatG: 30 },
+          remaining: { calories: 700, proteinG: 40, carbsG: 60, fatG: 20 },
+          meals: [],
+        },
+      }),
+    );
+
+    expect(welcome).toContain("lose weight gently");
+    expect(welcome).toContain("2 meals");
+    expect(welcome).toContain("900 calories");
+    expect(welcome).toContain("700 calories");
+  });
+
+  it("falls back to the week when nothing is logged today", () => {
+    const welcome = buildNutritionistWelcome(
+      baseContext({
+        weekSummary: {
+          activeDays: 4,
+          mealCount: 9,
+          trackedDayAverage: { calories: 1650, proteinG: 70, carbsG: 180, fatG: 55 },
+          dailyBreakdown: [],
+        },
+      }),
+    );
+
+    expect(welcome).toContain("Nothing logged today");
+    expect(welcome).toContain("4 days");
+    expect(welcome).toContain("1650 calories");
+  });
+
+  it("says so honestly when there is no data to comment on", () => {
+    const welcome = buildNutritionistWelcome(baseContext());
+
+    expect(welcome).toContain("not logged any meals yet");
+    // No invented numbers when there is nothing behind them.
+    expect(welcome).not.toMatch(/\d+ calories/);
+  });
+
+  it("mentions a streak only once it is worth mentioning", () => {
+    const withStreak = buildNutritionistWelcome(
+      baseContext({ streak: { currentDays: 5, longestDays: 9 } }),
+    );
+    const withoutStreak = buildNutritionistWelcome(
+      baseContext({ streak: { currentDays: 1, longestDays: 9 } }),
+    );
+
+    expect(withStreak).toContain("5-day logging streak");
+    expect(withoutStreak).not.toContain("streak");
+  });
+
+  it("stays plain text, matching the formatting the prompt demands", () => {
+    const welcome = buildNutritionistWelcome(
+      baseContext({
+        today: {
+          date: "2026-08-20",
+          mealsLogged: 1,
+          totals: { calories: 500, proteinG: 20, carbsG: 60, fatG: 15 },
+          meals: [],
+        },
+      }),
+    );
+
+    expect(welcome).not.toMatch(/[*_#`]/);
   });
 });

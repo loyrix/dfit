@@ -18,6 +18,11 @@ import type {
 export type AiChatSettings = {
   key: string;
   maxTurnsPerSession: number;
+  /**
+   * @deprecated The session greeting is built deterministically from the
+   * user's context (see `buildNutritionistWelcome`), so nothing reads this any
+   * more. Retained so saved values survive and the admin form keeps working.
+   */
   welcomeMessagePrompt: string;
   freeMaxSessionsPerDay: number;
   premiumMaxSessionsPerDay: number;

@@ -77,8 +77,31 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
     }
   }
 
+  /// Explains what leaving actually costs.
+  ///
+  /// A session is spent when it is opened, not when it ends, so "start a new
+  /// session anytime" was untrue for anyone on a limited allowance — a free
+  /// user gets one a day. The sheet now says how many are left, and says
+  /// plainly when none are.
+  String _exitWarning() {
+    final ctrl = widget.controller;
+    if (ctrl.readOnly) {
+      return 'You are viewing a saved conversation. Leaving does not use a session.';
+    }
+    if (ctrl.maxSessionsPerDay <= 0) {
+      return 'Your conversation will be saved and you can reopen it from history.';
+    }
+    if (ctrl.sessionsExhausted) {
+      return 'This session is already counted against today\'s limit, and you have no sessions left today. Your conversation is saved and you can still read it from history.';
+    }
+    final left = ctrl.sessionsRemainingToday;
+    final sessionWord = left == 1 ? 'session' : 'sessions';
+    return 'This session is already counted against today\'s limit. You have $left more $sessionWord today, and this conversation stays in your history.';
+  }
+
   Future<void> _confirmExit() async {
     final colors = context.logmyplate;
+    final warning = _exitWarning();
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -129,7 +152,7 @@ class _NutritionistChatScreenState extends State<NutritionistChatScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Your conversation will be saved. You can start a new session anytime.',
+                            warning,
                             style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                               color: colors.textSecondary,
                               height: 1.35,

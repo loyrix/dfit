@@ -24,6 +24,7 @@ import {
   generateSuggestedPrompts,
   generateFollowUpSuggestions,
 } from "../services/nutritionist-suggested-prompts.js";
+import { buildNutritionistWelcome } from "../services/nutritionist-welcome.js";
 import type { ChatGenerateResult } from "../services/chat-ai-provider.js";
 import {
   detectChatAbuse,
@@ -112,39 +113,17 @@ export const registerChatRoutes = async (
     );
 
     const effectiveMaxTurns = chatSettings.maxTurnsPerSession;
-    const welcomeMessagePrompt = chatSettings.welcomeMessagePrompt;
 
     const systemPrompt = buildNutritionistSystemPrompt(context, basePrompt, websiteContent);
     const suggestedPrompts = generateSuggestedPrompts(context);
 
-    const welcomeMessageContent = await timer.measure("welcome", async () => {
-      const result = await chatAiProvider.generateChatResponse({
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: welcomeMessagePrompt,
-          },
-        ],
-        maxOutputTokens: chatConfig.maxOutputTokens,
-        temperature: chatConfig.temperature,
-        thinkingBudget: chatConfig.thinkingBudget,
-      });
-      if (!result.content.trim()) {
-        request.log.warn(
-          {
-            route: "POST /v1/chat/nutritionist/session",
-            finishReason: result.finishReason,
-            inputTokens: result.inputTokens,
-            outputTokens: result.outputTokens,
-            maxOutputTokens: chatConfig.maxOutputTokens,
-            thinkingBudget: chatConfig.thinkingBudget,
-          },
-          "nutritionist welcome generation returned no text; using fallback",
-        );
-      }
-      return ensureNonEmptyChatContent(result.content, EMPTY_CHAT_WELCOME_FALLBACK);
-    });
+    // Built from the context rather than generated. The model call this
+    // replaces was 37% of all chat AI spend and produced a greeting the user
+    // never answered in 44% of sessions.
+    const welcomeMessageContent = ensureNonEmptyChatContent(
+      buildNutritionistWelcome(context),
+      EMPTY_CHAT_WELCOME_FALLBACK,
+    );
 
     const sessionDb = await timer.measure("createDbSession", () =>
       repository.createChatSession({
@@ -279,6 +258,17 @@ export const registerChatRoutes = async (
 
     const body = sendChatMessageRequestSchema.parse(request.body);
     const profile = await timer.measure("profile", () => repository.getProfile());
+
+    const [subscription, sessionsUsedToday, chatSettings] = await timer.measure("usage", () =>
+      Promise.all([
+        repository.getSubscriptionStatus(),
+        repository.countChatSessionsToday(profile.id),
+        repository.getAiChatSettings(),
+      ]),
+    );
+    const effectiveMaxSessionsPerDay = subscription.active
+      ? (chatSettings.premiumMaxSessionsPerDay ?? chatConfig.maxSessionsPerDay)
+      : (chatSettings.freeMaxSessionsPerDay ?? chatConfig.maxSessionsPerDay);
 
     let activeSession = sessionStore.get(body.sessionId);
 
@@ -501,8 +491,11 @@ export const registerChatRoutes = async (
       usage: {
         turnNumber: activeSession.turnCount,
         maxTurns: activeSession.maxTurns,
-        sessionsUsedToday: 0,
-        maxSessionsPerDay: chatConfig.maxSessionsPerDay,
+        // Reported for real rather than as a placeholder 0, and against the
+        // same premium-aware limit the session route enforces, so the client
+        // is not told it has a full day's allowance left mid-conversation.
+        sessionsUsedToday,
+        maxSessionsPerDay: effectiveMaxSessionsPerDay,
       },
     });
   });

@@ -364,9 +364,11 @@ export default async function AiPage({
             </label>
             <label>
               <span className="metric-label">
-                Welcome message prompt
+                Welcome message prompt <span className="muted text-xs">(no longer used)</span>
                 <span className="muted text-xs ml-2">
-                  Instruction given to the AI for generating the session greeting.
+                  The session greeting is now built from the user&apos;s own logged data instead of
+                  being generated, so opening a chat costs no AI tokens. This field is kept so
+                  existing saved values are not lost, but editing it has no effect.
                 </span>
               </span>
               <textarea
