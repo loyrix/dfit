@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AiProviderError } from "./ai-provider.js";
 import { VertexAiProvider } from "./vertex-ai-provider.js";
 
 describe("VertexAiProvider", () => {
@@ -240,5 +241,103 @@ describe("VertexAiProvider", () => {
         issues: expect.any(Array),
       },
     });
+  });
+
+  const failingProvider = (generateContent: () => Promise<never>) =>
+    new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      promptVersion: "food_photo_IN:gemini_food_photo_v9_india",
+      sleepFn: async () => {},
+      client: { models: { generateContent } },
+    });
+
+  const analyze = (provider: VertexAiProvider) =>
+    provider.analyzeMealImage({
+      scanId: "scan-1",
+      image: { mimeType: "image/jpeg", base64: "aGVsbG8=", byteSize: 5 },
+    });
+
+  it("attaches the model and prompt version to a failure so the run can be recorded", async () => {
+    const provider = failingProvider(async () => {
+      throw Object.assign(new Error("upstream exploded"), { status: 500 });
+    });
+
+    const error = await analyze(provider).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AiProviderError);
+    const run = (error as AiProviderError).run;
+    // Without this the scan route has nothing to write, and ai_provider_runs
+    // keeps reporting a 100% success rate by construction.
+    expect(run).toBeDefined();
+    expect(run?.provider).toBe("vertex-ai");
+    expect(run?.model).toBe("gemini-2.5-flash");
+    expect(run?.promptVersion).toBe("food_photo_IN:gemini_food_photo_v9_india");
+    expect(run?.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("attaches run metadata to an empty-response failure too", async () => {
+    const provider = failingProvider(async () => ({ text: "" }) as never);
+
+    const error = await analyze(provider).catch((caught: unknown) => caught);
+
+    expect((error as AiProviderError).code).toBe("ai_provider_empty_response");
+    expect((error as AiProviderError).run?.model).toBe("gemini-2.5-flash");
+  });
+
+  it("attaches run metadata when the model returns off-schema JSON", async () => {
+    const provider = failingProvider(async () => ({ text: '{"nope":true}' }) as never);
+
+    const error = await analyze(provider).catch((caught: unknown) => caught);
+
+    expect((error as AiProviderError).code).toBe("ai_provider_invalid_response");
+    expect((error as AiProviderError).run?.promptVersion).toBe(
+      "food_photo_IN:gemini_food_photo_v9_india",
+    );
+  });
+
+  it("prices a successful run from its reported token usage", async () => {
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      client: {
+        models: {
+          generateContent: async () =>
+            ({
+              text: JSON.stringify({
+                mealType: "lunch",
+                mealName: "Dal",
+                detectedLanguage: "en-IN",
+                items: [
+                  {
+                    name: "Dal",
+                    aliases: [],
+                    quantity: 1,
+                    unit: "katori",
+                    estimatedGrams: 180,
+                    preparation: "home",
+                    confidence: 0.9,
+                    nutrition: { calories: 180, proteinG: 10, carbsG: 25, fatG: 5 },
+                  },
+                ],
+              }),
+              usageMetadata: { promptTokenCount: 3_782, candidatesTokenCount: 345 },
+            }) as never,
+        },
+      },
+    });
+
+    const result = await analyze(provider);
+
+    expect(result.providerRun.success).toBe(true);
+    expect(result.providerRun.estimatedCostUsd).toBeCloseTo(0.002, 4);
   });
 });

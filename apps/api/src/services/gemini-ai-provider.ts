@@ -6,11 +6,13 @@ import {
 } from "@logmyplate/contracts";
 import { sumTotals } from "@logmyplate/domain";
 import { z } from "zod";
+import { estimateGeminiCostUsd } from "./ai-pricing.js";
 import {
   AiProviderError,
   type AiProvider,
   type AnalyzeMealImageInput,
   type AnalyzeMealImageResult,
+  type FailedRunMetadata,
 } from "./ai-provider.js";
 
 export const foodPhotoPromptVersion = "gemini_food_photo_v5";
@@ -266,23 +268,48 @@ export class GeminiAiProvider implements AiProvider {
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: raw.usageMetadata?.promptTokenCount,
           outputTokenEstimate: raw.usageMetadata?.candidatesTokenCount,
+          estimatedCostUsd: estimateGeminiCostUsd({
+            model: this.options.model,
+            inputTokens: raw.usageMetadata?.promptTokenCount,
+            outputTokens: raw.usageMetadata?.candidatesTokenCount,
+          }),
           rawResponse: raw,
+          success: true,
         },
       };
     } catch (error) {
-      if (error instanceof AiProviderError) throw error;
+      const run: FailedRunMetadata = {
+        provider: "gemini",
+        model: this.options.model,
+        promptVersion: foodPhotoPromptVersion,
+        schemaVersion: foodPhotoSchemaVersion,
+        latencyMs: Date.now() - startedAt,
+      };
+      if (error instanceof AiProviderError) {
+        if (error.run) throw error;
+        throw new AiProviderError(error.code, error.message, error.statusCode, error.retryable, {
+          cause: error.cause,
+          details: error.details,
+          run,
+        });
+      }
       if (error instanceof z.ZodError) {
         throw new AiProviderError(
           "ai_provider_invalid_response",
           "Gemini returned food analysis that did not match the LogMyPlate schema.",
           502,
           true,
+          { run },
         );
       }
       if (error instanceof Error && error.name === "AbortError") {
-        throw new AiProviderError("ai_provider_timeout", "Gemini analysis timed out.", 504, true);
+        throw new AiProviderError("ai_provider_timeout", "Gemini analysis timed out.", 504, true, {
+          run,
+        });
       }
-      throw new AiProviderError("ai_provider_failed", "Gemini analysis failed.", 502, true);
+      throw new AiProviderError("ai_provider_failed", "Gemini analysis failed.", 502, true, {
+        run,
+      });
     } finally {
       clearTimeout(timeout);
     }

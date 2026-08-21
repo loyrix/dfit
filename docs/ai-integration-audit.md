@@ -1,8 +1,20 @@
 # AI Integration Audit — 2026-08-20
 
-> **Status update (21 Aug 2026).** F1, F2, F3, F8, T1 and the chat quota
-> timezone bug are fixed and on `main`. Each finding below is marked. The
-> remaining items are unaddressed and still accurate.
+> **Status update (21 Aug 2026).** F1–F5, F8, T1 and the chat quota timezone
+> bug are fixed and on `main`. Each finding below is marked.
+>
+> **Two corrections to this audit**, found while implementing the fixes:
+>
+> - **F5 as originally written was wrong.** It claimed there was no cost
+>   visibility. The `/admin/ai-cost` dashboard does compute cost, at query time,
+>   from a rate table in `admin.ts` — it reported $0.3145 for the last 30 days.
+>   The real problem was narrower and is described below. The follow-on claim
+>   that this blindness is why the prompt grew unnoticed was overstated: the
+>   dashboard would have shown tokens and cost rising.
+> - **F4 was understated.** It is not just that failures go unrecorded — the
+>   dashboard renders a "Failed runs" metric computed as
+>   `count(*) filter (where not success)` over a column hardcoded to `true`, so
+>   it displayed `0` as a number that could never be anything else.
 
 Review of every AI code path in the repo: what runs on a model, where the gaps
 are, and where tokens are spent without buying anything.
@@ -98,7 +110,7 @@ with 1s/2s/4s backoff on 5xx, 408, and 429. Both chat providers make exactly one
 attempt. Same infrastructure, same transient failures, opposite resilience —
 and chat is the path where a failure costs the user a scarce daily session.
 
-### F4 · Medium (OPEN) — `ai_provider_runs.success` is hardcoded `true`
+### F4 · ~~Medium~~ FIXED — `ai_provider_runs.success` is hardcoded `true`
 
 `postgres-store.ts:2836` writes the literal `true`. The failure path
 (`scans.ts:611-620`) calls `updateScan` with `status: "failed"` and no
@@ -108,13 +120,17 @@ and chat is the path where a failure costs the user a scarce daily session.
 `error_code` has never been written. There is no AI failure-rate metric anywhere
 — failures exist only in request logs.
 
-### F5 · Medium (OPEN) — `estimated_cost_usd` is never computed
+### F5 · ~~Medium~~ FIXED (and partly wrong as written) — `estimated_cost_usd` is never computed
 
-NULL on all 814 rows. Nothing in the codebase derives cost from token counts;
-there is no pricing table. The column and the
-`incrementPlatformDailyMetrics({ estimatedCostUsd })` call both exist and both
-always receive nothing. Zero cost visibility per model or prompt version — which
-is why the prompt could grow 34% (see T2) without anyone noticing.
+> **Correction.** "Zero cost visibility" was wrong. `/admin/ai-cost` derives
+> cost at query time from a hardcoded rate `case` in `admin.ts`, coalesced with
+> the stored value, and reports real numbers ($0.3145 over 30 days).
+
+What was actually true: the column was NULL on all 814 rows, so every run's cost
+was recomputed later against whatever the rate table said at read time, with no
+record of what it cost when it ran. A model missing from that `case` silently
+priced at $0, and the rate table was duplicated inline in the dashboard query
+where it could drift from anything else that priced a run.
 
 ### F6 · High (OPEN) — The Gemini scan path ignores every admin-published prompt
 

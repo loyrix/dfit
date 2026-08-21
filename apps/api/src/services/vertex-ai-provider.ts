@@ -5,7 +5,9 @@ import {
   type AiProvider,
   type AnalyzeMealImageInput,
   type AnalyzeMealImageResult,
+  type FailedRunMetadata,
 } from "./ai-provider.js";
+import { estimateGeminiCostUsd } from "./ai-pricing.js";
 import {
   buildFoodPhotoPrompt,
   foodPhotoPromptVersion,
@@ -136,6 +138,7 @@ export class VertexAiProvider implements AiProvider {
           "Vertex AI returned an empty analysis.",
           502,
           true,
+          { run: this.failedRun(startedAt) },
         );
       }
 
@@ -152,6 +155,7 @@ export class VertexAiProvider implements AiProvider {
             true,
             {
               cause: error,
+              run: this.failedRun(startedAt),
               details: {
                 rawTextPreview: previewText(text),
                 issues: error instanceof z.ZodError ? error.issues : undefined,
@@ -172,11 +176,19 @@ export class VertexAiProvider implements AiProvider {
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: response.usageMetadata?.promptTokenCount,
           outputTokenEstimate: response.usageMetadata?.candidatesTokenCount,
+          // Priced at write time so the run keeps what it actually cost, rather
+          // than being re-derived later against whatever the rate table says then.
+          estimatedCostUsd: estimateGeminiCostUsd({
+            model: this.options.model,
+            inputTokens: response.usageMetadata?.promptTokenCount,
+            outputTokens: response.usageMetadata?.candidatesTokenCount,
+          }),
           rawResponse: response,
+          success: true,
         },
       };
     } catch (error) {
-      if (error instanceof AiProviderError) throw error;
+      if (error instanceof AiProviderError) throw this.withRunMetadata(error, startedAt);
       if (error instanceof z.ZodError || error instanceof SyntaxError) {
         throw new AiProviderError(
           "ai_provider_invalid_response",
@@ -195,11 +207,32 @@ export class VertexAiProvider implements AiProvider {
         );
       }
       const upstreamError = toVertexUpstreamProviderError(error);
-      if (upstreamError) throw upstreamError;
+      if (upstreamError) throw this.withRunMetadata(upstreamError, startedAt);
       throw new AiProviderError("ai_provider_failed", "Vertex AI analysis failed.", 502, true, {
         cause: error,
+        run: this.failedRun(startedAt),
       });
     }
+  }
+
+  /** Which model and prompt a failed call used, so the route can record it. */
+  private failedRun(startedAt: number): FailedRunMetadata {
+    return {
+      provider: "vertex-ai",
+      model: this.options.model,
+      promptVersion: this.options.promptVersion ?? foodPhotoPromptVersion,
+      schemaVersion: foodPhotoSchemaVersion,
+      latencyMs: Date.now() - startedAt,
+    };
+  }
+
+  private withRunMetadata(error: AiProviderError, startedAt: number): AiProviderError {
+    if (error.run) return error;
+    return new AiProviderError(error.code, error.message, error.statusCode, error.retryable, {
+      cause: error.cause,
+      details: error.details,
+      run: this.failedRun(startedAt),
+    });
   }
 
   private async generateWithRetries(

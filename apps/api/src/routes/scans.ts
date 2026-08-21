@@ -612,10 +612,21 @@ export const registerScanRoutes = async (
       );
     } catch (error) {
       await markAnalyzingPromise;
+      // Record the failed run. Without this no ai_provider_runs row is written
+      // at all on failure, so the cost dashboard's "failed runs" metric is zero
+      // by construction rather than by measurement.
+      const failedRun = error instanceof AiProviderError ? error.run : undefined;
       await timer.measure("scanMarkFailed", () =>
         repository.updateScan({
           ...scanWithRequestContext,
           status: "failed",
+          aiProviderRun: failedRun
+            ? {
+                ...failedRun,
+                success: false,
+                errorCode: error instanceof AiProviderError ? error.code : "ai_provider_failed",
+              }
+            : undefined,
         }),
       );
 

@@ -2778,6 +2778,62 @@ export class PostgresStore implements AppRepository {
         where id = ${scan.id}
       `;
 
+      // A failed run carries no analysis, so it never reaches the prediction
+      // block below — which is exactly why failures were never recorded at all.
+      // Write it on its own.
+      const failedRun = scan.aiProviderRun?.success === false ? scan.aiProviderRun : undefined;
+      if (failedRun) {
+        await tx`
+          insert into ai_provider_runs (
+            scan_session_id,
+            install_id,
+            platform,
+            app_version,
+            app_build,
+            local_date,
+            provider,
+            model,
+            prompt_version,
+            schema_version,
+            input_token_estimate,
+            output_token_estimate,
+            estimated_cost_usd,
+            latency_ms,
+            success,
+            error_code
+          )
+          values (
+            ${scan.id},
+            ${scan.installId ?? existing.install_id},
+            ${scanPlatform ?? null},
+            ${scanAppVersion ?? null},
+            ${scanAppBuild ?? null},
+            (now() at time zone 'Asia/Kolkata')::date,
+            ${failedRun.provider},
+            ${failedRun.model},
+            ${failedRun.promptVersion},
+            ${failedRun.schemaVersion},
+            ${failedRun.inputTokenEstimate ?? null},
+            ${failedRun.outputTokenEstimate ?? null},
+            ${failedRun.estimatedCostUsd ?? null},
+            ${failedRun.latencyMs ?? null},
+            false,
+            ${failedRun.errorCode ?? null}
+          )
+        `;
+
+        await this.incrementPlatformDailyMetrics(tx, {
+          platform: scanPlatform,
+          appVersion: scanAppVersion,
+          appBuild: scanAppBuild,
+          aiRuns: 1,
+          aiSuccess: 0,
+          inputTokens: failedRun.inputTokenEstimate ?? 0,
+          outputTokens: failedRun.outputTokenEstimate ?? 0,
+          estimatedCostUsd: failedRun.estimatedCostUsd ?? 0,
+        });
+      }
+
       let shouldPersistPrediction = false;
       if (scan.analyzedResponse && scan.aiProviderRun) {
         shouldPersistPrediction = true;
@@ -2815,7 +2871,8 @@ export class PostgresStore implements AppRepository {
                 output_token_estimate,
                 estimated_cost_usd,
                 latency_ms,
-                success
+                success,
+                error_code
               )
               values (
                 ${scan.id},
@@ -2832,7 +2889,8 @@ export class PostgresStore implements AppRepository {
                 ${providerRun.outputTokenEstimate ?? null},
                 ${providerRun.estimatedCostUsd ?? null},
                 ${providerRun.latencyMs ?? null},
-                true
+                ${providerRun.success ?? true},
+                ${providerRun.errorCode ?? null}
               )
               returning id::text
             `
@@ -2844,7 +2902,9 @@ export class PostgresStore implements AppRepository {
             appVersion: scanAppVersion,
             appBuild: scanAppBuild,
             aiRuns: 1,
-            aiSuccess: 1,
+            // Was hardcoded 1, which made the daily rollup agree with the
+            // always-true success column rather than with reality.
+            aiSuccess: providerRun.success === false ? 0 : 1,
             inputTokens: providerRun.inputTokenEstimate ?? 0,
             outputTokens: providerRun.outputTokenEstimate ?? 0,
             estimatedCostUsd: providerRun.estimatedCostUsd ?? 0,

@@ -36,6 +36,14 @@ export type AiProviderRunMetadata = {
   outputTokenEstimate?: number;
   estimatedCostUsd?: number;
   rawResponse?: unknown;
+  /**
+   * Whether the call actually succeeded. Defaults to true when omitted so
+   * existing success paths are unchanged; the failure path sets it false so
+   * ai_provider_runs stops recording every run as a success.
+   */
+  success?: boolean;
+  /** Provider error code, recorded only for failed runs. */
+  errorCode?: string;
 };
 
 export type AnalyzeMealImageResult = {
@@ -47,12 +55,29 @@ export interface AiProvider {
   analyzeMealImage(input: AnalyzeMealImageInput): Promise<AnalyzeMealImageResult>;
 }
 
+export type FailedRunMetadata = {
+  provider: AiProviderRunMetadata["provider"];
+  model: string;
+  promptVersion: string;
+  schemaVersion: string;
+  latencyMs?: number;
+  inputTokenEstimate?: number;
+  outputTokenEstimate?: number;
+};
+
 type AiProviderErrorOptions = ErrorOptions & {
   details?: Record<string, unknown>;
+  /**
+   * Which model and prompt the failed call used, so the route can record the
+   * run instead of losing it. Without this a failure leaves no row at all and
+   * the dashboard reports a 100% success rate by construction.
+   */
+  run?: FailedRunMetadata;
 };
 
 export class AiProviderError extends Error {
   public readonly details?: Record<string, unknown>;
+  public readonly run?: FailedRunMetadata;
 
   constructor(
     public readonly code: string,
@@ -64,6 +89,7 @@ export class AiProviderError extends Error {
     super(message, options);
     this.name = "AiProviderError";
     this.details = options?.details;
+    this.run = options?.run;
   }
 }
 

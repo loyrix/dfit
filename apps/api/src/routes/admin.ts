@@ -6,6 +6,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import type { SqlClient } from "../db/client.js";
 import type { MealImageStorage } from "../services/meal-image-storage.js";
+import { GEMINI_TOKEN_PRICING_USD_PER_MILLION } from "../services/ai-pricing.js";
 import {
   AI_SCAN_CONFIG_KEY,
   aiScanConfigSchema,
@@ -4656,23 +4657,24 @@ const loadAiCostData = async (
   };
 };
 
-const inputRateSql = (sql: SqlClient) => sql`
-  case
-    when model = 'gemini-2.5-flash-lite' then 0.10
-    when model = 'gemini-2.5-flash' then 0.30
-    when model = 'gemini-2.5-pro' then 1.25
-    else 0
-  end
-`;
+/**
+ * Per-million token rates for runs that predate storing estimated_cost_usd.
+ *
+ * Built from the same table the providers price runs with, so the stored cost
+ * and this fallback can never quote different numbers for the same model. An
+ * unpriced model yields 0 here, which understates rather than invents.
+ */
+const rateCase = (sql: SqlClient, side: "input" | "output") => {
+  const entries = Object.entries(GEMINI_TOKEN_PRICING_USD_PER_MILLION);
+  return entries.reduce(
+    (acc, [model, pricing]) => sql`${acc} when model = ${model} then ${pricing[side]}`,
+    sql`case`,
+  );
+};
 
-const outputRateSql = (sql: SqlClient) => sql`
-  case
-    when model = 'gemini-2.5-flash-lite' then 0.40
-    when model = 'gemini-2.5-flash' then 2.50
-    when model = 'gemini-2.5-pro' then 10.00
-    else 0
-  end
-`;
+const inputRateSql = (sql: SqlClient) => sql`${rateCase(sql, "input")} else 0 end`;
+
+const outputRateSql = (sql: SqlClient) => sql`${rateCase(sql, "output")} else 0 end`;
 
 const mapOverall = (
   row: OverallRow | undefined,
