@@ -366,6 +366,31 @@ export type AiChatSettings = {
   updatedAt: string;
 };
 
+export type AiChatUsage = {
+  totals: {
+    usersOpened: number;
+    usersEngaged: number;
+    totalSessions: number;
+    engagedSessions: number;
+    abandonedSessions: number;
+    totalUserMessages: number;
+    sessions7d: number;
+    users7d: number;
+  };
+  users: Array<{
+    profileId: string;
+    email: string | null;
+    authMethod: string | null;
+    sessions: number;
+    engagedSessions: number;
+    userMessages: number;
+    assistantMessages: number;
+    activeDays: number;
+    firstUsedAt: string;
+    lastUsedAt: string;
+  }>;
+};
+
 export type AiScanConfig = {
   thinkingBudget: number;
 };

@@ -364,6 +364,12 @@ export const registerAdminRoutes = async (
     return { settings };
   });
 
+  app.get("/admin/ai/chat-usage", { preHandler: requireAdmin }, async (request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    const query = adminChatUsageQuerySchema.parse(request.query ?? {});
+    return loadAdminChatUsage(sql, query);
+  });
+
   app.get("/admin/ai/scan-config", { preHandler: requireAdmin }, async (_request, reply) => {
     if (!sql) return reply.status(503).send({ error: "database_unavailable" });
     return { config: (await loadAiScanConfig(sql)) ?? defaultAiScanConfig() };
@@ -523,6 +529,10 @@ const adminPaginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
   direction: directionSchema,
+});
+
+const adminChatUsageQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).default(100),
 });
 
 const adminUserSearchQuerySchema = adminPaginationQuerySchema.extend({
@@ -1371,6 +1381,106 @@ type AdminAdsAnalyticsUserRow = {
   granted_by_ads_30d: number;
   granted_promo_30d: number;
   granted_admin_30d: number;
+};
+
+type AdminChatUsageRow = {
+  profile_id: string;
+  email: string | null;
+  auth_method: string | null;
+  sessions: number;
+  engaged_sessions: number;
+  user_messages: number;
+  assistant_messages: number;
+  active_days: number;
+  first_used_at: string;
+  last_used_at: string;
+};
+
+type AdminChatUsageTotalsRow = {
+  users_opened: number;
+  users_engaged: number;
+  total_sessions: number;
+  engaged_sessions: number;
+  total_user_messages: number;
+  sessions_7d: number;
+  users_7d: number;
+};
+
+/**
+ * Who has used the AI nutritionist, and how much.
+ *
+ * Soft-deleted sessions are counted: deleting a conversation tidies the user's
+ * history, it does not undo the fact that they opened a session, and the daily
+ * quota already counts them the same way.
+ */
+const loadAdminChatUsage = async (
+  sql: SqlClient,
+  query: z.infer<typeof adminChatUsageQuerySchema>,
+) => {
+  const [totals] = await sql<AdminChatUsageTotalsRow[]>`
+    select
+      count(distinct profile_id)::int as users_opened,
+      count(distinct profile_id) filter (where turn_count > 0)::int as users_engaged,
+      count(*)::int as total_sessions,
+      count(*) filter (where turn_count > 0)::int as engaged_sessions,
+      count(*) filter (where created_at > now() - interval '7 days')::int as sessions_7d,
+      count(distinct profile_id) filter (
+        where created_at > now() - interval '7 days'
+      )::int as users_7d,
+      -- Counted from the messages themselves rather than chat_sessions.turn_count:
+      -- the two disagree (123 vs 129 at time of writing) because turn_count is
+      -- overwritten when a session is closed. The per-user rows below count
+      -- messages, and a total that does not equal the sum of its rows is a bug.
+      (select count(*) from chat_messages where role = 'user')::int as total_user_messages
+    from chat_sessions
+  `;
+
+  // count(distinct sessions.id) rather than count(*): the message join
+  // multiplies session rows by their message count.
+  const users = await sql<AdminChatUsageRow[]>`
+    select
+      sessions.profile_id::text as profile_id,
+      profiles.email,
+      profiles.auth_method::text as auth_method,
+      count(distinct sessions.id)::int as sessions,
+      count(distinct sessions.id) filter (where sessions.turn_count > 0)::int as engaged_sessions,
+      count(messages.id) filter (where messages.role = 'user')::int as user_messages,
+      count(messages.id) filter (where messages.role = 'assistant')::int as assistant_messages,
+      count(distinct sessions.session_date)::int as active_days,
+      min(sessions.created_at)::text as first_used_at,
+      max(sessions.created_at)::text as last_used_at
+    from chat_sessions sessions
+    join profiles on profiles.id = sessions.profile_id
+    left join chat_messages messages on messages.session_id = sessions.id
+    group by sessions.profile_id, profiles.email, profiles.auth_method
+    order by max(sessions.created_at) desc
+    limit ${query.limit}
+  `;
+
+  return {
+    totals: {
+      usersOpened: totals?.users_opened ?? 0,
+      usersEngaged: totals?.users_engaged ?? 0,
+      totalSessions: totals?.total_sessions ?? 0,
+      engagedSessions: totals?.engaged_sessions ?? 0,
+      abandonedSessions: (totals?.total_sessions ?? 0) - (totals?.engaged_sessions ?? 0),
+      totalUserMessages: totals?.total_user_messages ?? 0,
+      sessions7d: totals?.sessions_7d ?? 0,
+      users7d: totals?.users_7d ?? 0,
+    },
+    users: users.map((row) => ({
+      profileId: row.profile_id,
+      email: row.email,
+      authMethod: row.auth_method,
+      sessions: row.sessions,
+      engagedSessions: row.engaged_sessions,
+      userMessages: row.user_messages,
+      assistantMessages: row.assistant_messages,
+      activeDays: row.active_days,
+      firstUsedAt: row.first_used_at,
+      lastUsedAt: row.last_used_at,
+    })),
+  };
 };
 
 const loadAdminAdsAnalytics = async (sql: SqlClient) => {

@@ -288,6 +288,31 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("requires admin authorization for the chat usage report", async () => {
+    const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
+    const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;
+    process.env.ADMIN_DASHBOARD_USERNAME = "test-admin";
+    process.env.ADMIN_DASHBOARD_PASSWORD = "test-admin-password";
+
+    const app = await testApp();
+    // The report lists real users and their email addresses, so an
+    // unauthenticated caller must never reach it.
+    const blocked = await app.inject({ method: "GET", url: "/admin/ai/chat-usage" });
+    expect(blocked.statusCode).toBe(401);
+
+    if (previousUsername === undefined) {
+      delete process.env.ADMIN_DASHBOARD_USERNAME;
+    } else {
+      process.env.ADMIN_DASHBOARD_USERNAME = previousUsername;
+    }
+    if (previousPassword === undefined) {
+      delete process.env.ADMIN_DASHBOARD_PASSWORD;
+    } else {
+      process.env.ADMIN_DASHBOARD_PASSWORD = previousPassword;
+    }
+    await app.close();
+  });
+
   it("requires admin authorization for the AI cost dashboard", async () => {
     const previousUsername = process.env.ADMIN_DASHBOARD_USERNAME;
     const previousPassword = process.env.ADMIN_DASHBOARD_PASSWORD;

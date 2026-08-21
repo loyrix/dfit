@@ -20,6 +20,7 @@ import {
 import {
   adminGet,
   type AiChatSettings,
+  type AiChatUsage,
   type AiModel,
   type AiPrompt,
   type AiScanConfig,
@@ -45,18 +46,26 @@ export default async function AiPage({
 }) {
   const { project } = await projectParams;
   const params = (await searchParams) ?? {};
-  const [{ models }, { prompts }, { settings }, { config: scanConfig }] = await Promise.all([
-    adminGet<{ models: AiModel[] }>("/admin/ai/models"),
-    adminGet<{ prompts: AiPrompt[] }>("/admin/ai/prompts"),
-    adminGet<{ settings: AiChatSettings }>("/admin/ai/chat-settings"),
-    adminGet<{ config: AiScanConfig }>("/admin/ai/scan-config"),
-  ]);
+  const [{ models }, { prompts }, { settings }, { config: scanConfig }, chatUsage] =
+    await Promise.all([
+      adminGet<{ models: AiModel[] }>("/admin/ai/models"),
+      adminGet<{ prompts: AiPrompt[] }>("/admin/ai/prompts"),
+      adminGet<{ settings: AiChatSettings }>("/admin/ai/chat-settings"),
+      adminGet<{ config: AiScanConfig }>("/admin/ai/scan-config"),
+      adminGet<AiChatUsage>("/admin/ai/chat-usage?limit=200"),
+    ]);
   const activeModel = models.find((model) => model.isDefault);
   const activePrompts = prompts.filter((prompt) => prompt.isActive);
   const filteredModels = filterModels(models, params);
   const filteredPrompts = filterPrompts(prompts, params);
   const section =
-    params.section === "prompts" ? "prompts" : params.section === "chat" ? "chat" : "models";
+    params.section === "prompts"
+      ? "prompts"
+      : params.section === "chat"
+        ? "chat"
+        : params.section === "chat-usage"
+          ? "chat-usage"
+          : "models";
 
   return (
     <AdminShell project={logmyplateSource}>
@@ -101,11 +110,102 @@ export default async function AiPage({
           {
             href: `/${project}/ai?section=chat`,
             label: "Chat",
-            detail: "Max turns, welcome prompt",
+            detail: "Max turns, session limits",
             active: section === "chat",
+          },
+          {
+            href: `/${project}/ai?section=chat-usage`,
+            label: "Chat usage",
+            detail: "Who opened chat, message counts",
+            active: section === "chat-usage",
           },
         ]}
       />
+
+      {section === "chat-usage" ? (
+        <>
+          <section className="grid metrics">
+            <Metric
+              label="Users who opened chat"
+              value={chatUsage.totals.usersOpened}
+              sub={`${chatUsage.totals.usersEngaged} sent at least one message`}
+            />
+            <Metric
+              label="Sessions"
+              value={chatUsage.totals.totalSessions}
+              sub={`${chatUsage.totals.abandonedSessions} closed without a message`}
+            />
+            <Metric
+              label="Messages sent"
+              value={chatUsage.totals.totalUserMessages}
+              sub="User messages, excluding the greeting"
+            />
+            <Metric
+              label="Last 7 days"
+              value={chatUsage.totals.sessions7d}
+              sub={`${chatUsage.totals.users7d} ${
+                chatUsage.totals.users7d === 1 ? "user" : "users"
+              }`}
+            />
+          </section>
+
+          <section className="panel">
+            <div className="section-head">
+              <h2 className="text-xl font-bold">AI chat usage by user</h2>
+              <span className="muted text-sm">{chatUsage.users.length} shown</span>
+            </div>
+            <p className="muted text-sm">
+              Every profile that has opened the AI nutritionist, most recent first. Sessions are
+              counted when opened, so a session with no messages is one a user opened and left.
+              Deleted conversations still count as usage.
+            </p>
+            {chatUsage.users.length === 0 ? (
+              <EmptyState title="No one has opened AI chat yet." />
+            ) : (
+              <div className="table-wrap">
+                <table className="table table-compact">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Sessions</th>
+                      <th>Messages</th>
+                      <th>Active days</th>
+                      <th>First used</th>
+                      <th>Last used</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chatUsage.users.map((user) => (
+                      <tr key={user.profileId}>
+                        <td>
+                          <div className="font-semibold break-cell">
+                            {user.email ?? "No email on profile"}
+                          </div>
+                          <div className="muted text-xs break-cell">{user.profileId}</div>
+                          {user.authMethod ? (
+                            <div className="muted text-xs">{user.authMethod}</div>
+                          ) : null}
+                        </td>
+                        <td>
+                          <div>{user.sessions}</div>
+                          <div className="muted text-xs">{user.engagedSessions} used</div>
+                        </td>
+                        <td>
+                          <div>{user.userMessages}</div>
+                          <div className="muted text-xs">{user.assistantMessages} AI replies</div>
+                        </td>
+                        <td>{user.activeDays}</td>
+                        <td className="muted text-xs">{formatDate(user.firstUsedAt)}</td>
+                        <td className="muted text-xs">{formatDate(user.lastUsedAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      ) : null}
 
       {section === "models" ? (
         <section className="panel">
