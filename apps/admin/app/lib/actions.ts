@@ -416,11 +416,11 @@ export async function sendPushNotificationAction(formData: FormData) {
   }
   await revalidateProjectPath("/growth");
   if (pushError) {
-    redirect(
+    await redirectToProject(
       `/growth?section=push&push=error&message=${encodeURIComponent(pushError.slice(0, 220))}`,
     );
   }
-  redirect(
+  await redirectToProject(
     `/growth?section=push&push=sent${
       pushMessage ? `&message=${encodeURIComponent(pushMessage)}` : ""
     }`,
