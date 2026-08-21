@@ -4,6 +4,7 @@ import {
   type ChatGenerateInput,
   type ChatGenerateResult,
 } from "./chat-ai-provider.js";
+import { withChatRetries } from "./chat-retry.js";
 
 type GeminiChatProviderOptions = {
   apiKey?: string;
@@ -11,6 +12,7 @@ type GeminiChatProviderOptions = {
   endpoint: string;
   timeoutMs: number;
   fetchFn?: typeof fetch;
+  sleepFn?: (ms: number) => Promise<void>;
 };
 
 type GeminiGenerateContentResponse = {
@@ -41,7 +43,8 @@ export class GeminiChatAiProvider implements ChatAiProvider {
   }
 
   async generateChatResponse(input: ChatGenerateInput): Promise<ChatGenerateResult> {
-    if (!this.options.apiKey) {
+    const apiKey = this.options.apiKey;
+    if (!apiKey) {
       throw new ChatAiProviderError(
         "chat_ai_provider_not_configured",
         "GEMINI_API_KEY is required when AI_PROVIDER=gemini.",
@@ -82,15 +85,52 @@ export class GeminiChatAiProvider implements ChatAiProvider {
 
     const url = `${this.options.endpoint}/models/${this.options.model}:generateContent`;
 
+    try {
+      const data = await withChatRetries(
+        (remainingMs) => this.postOnce(url, apiKey, requestBody, remainingMs),
+        { totalBudgetMs: this.options.timeoutMs, sleepFn: this.options.sleepFn },
+      );
+
+      const candidate = data.candidates?.[0];
+      // Join every text part rather than reading parts[0] alone: a candidate can
+      // legitimately be split across multiple parts.
+      const text = (candidate?.content?.parts ?? []).map((part) => part.text ?? "").join("");
+      const usage = data.usageMetadata;
+
+      return {
+        content: text,
+        inputTokens: usage?.promptTokenCount ?? undefined,
+        outputTokens: usage?.candidatesTokenCount ?? undefined,
+        latencyMs: Date.now() - start,
+        finishReason: candidate?.finishReason,
+      };
+    } catch (error) {
+      if (error instanceof ChatAiProviderError) throw error;
+      throw new ChatAiProviderError(
+        "chat_ai_provider_error",
+        error instanceof Error ? error.message : "Gemini chat request failed",
+        502,
+        true,
+      );
+    }
+  }
+
+  /** One HTTP attempt, aborted at `remainingMs` so the retry budget holds. */
+  private async postOnce(
+    url: string,
+    apiKey: string,
+    requestBody: Record<string, unknown>,
+    remainingMs: number,
+  ): Promise<GeminiGenerateContentResponse> {
     const abortController = new AbortController();
-    const timeout = setTimeout(() => abortController.abort(), this.options.timeoutMs);
+    const timeout = setTimeout(() => abortController.abort(), remainingMs);
 
     try {
       const response = await this.fetchFn(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": this.options.apiKey,
+          "x-goog-api-key": apiKey,
         },
         body: JSON.stringify(requestBody),
         signal: abortController.signal,
@@ -117,27 +157,7 @@ export class GeminiChatAiProvider implements ChatAiProvider {
         );
       }
 
-      const candidate = data.candidates?.[0];
-      // Join every text part rather than reading parts[0] alone: a candidate can
-      // legitimately be split across multiple parts.
-      const text = (candidate?.content?.parts ?? []).map((part) => part.text ?? "").join("");
-      const usage = data.usageMetadata;
-
-      return {
-        content: text,
-        inputTokens: usage?.promptTokenCount ?? undefined,
-        outputTokens: usage?.candidatesTokenCount ?? undefined,
-        latencyMs: Date.now() - start,
-        finishReason: candidate?.finishReason,
-      };
-    } catch (error) {
-      if (error instanceof ChatAiProviderError) throw error;
-      throw new ChatAiProviderError(
-        "chat_ai_provider_error",
-        error instanceof Error ? error.message : "Gemini chat request failed",
-        502,
-        true,
-      );
+      return data;
     } finally {
       clearTimeout(timeout);
     }

@@ -5,6 +5,7 @@ import {
   type ChatGenerateInput,
   type ChatGenerateResult,
 } from "./chat-ai-provider.js";
+import { withChatRetries } from "./chat-retry.js";
 
 export type VertexChatAiProviderOptions = {
   project: string;
@@ -13,6 +14,7 @@ export type VertexChatAiProviderOptions = {
   credentialsJson?: string;
   credentialsJsonBase64?: string;
   timeoutMs: number;
+  sleepFn?: (ms: number) => Promise<void>;
 };
 
 export class VertexChatAiProvider implements ChatAiProvider {
@@ -60,27 +62,12 @@ export class VertexChatAiProvider implements ChatAiProvider {
         parts: [{ text: m.content }],
       }));
 
-    const abortController = new AbortController();
-    const timeout = setTimeout(() => abortController.abort(), this.options.timeoutMs);
-
     try {
-      const response = await this.client.models.generateContent({
-        model,
-        contents: chatMessages,
-        config: {
-          systemInstruction: systemInstruction
-            ? { role: "system" as const, parts: [{ text: systemInstruction }] }
-            : undefined,
-          maxOutputTokens: input.maxOutputTokens,
-          temperature: input.temperature,
-          // Thinking is billed against maxOutputTokens; leaving it unset lets a
-          // hard question spend the whole budget on thoughts and return nothing.
-          ...(input.thinkingBudget === undefined
-            ? {}
-            : { thinkingConfig: { thinkingBudget: input.thinkingBudget } }),
-          abortSignal: abortController.signal,
-        },
-      });
+      const response = await withChatRetries(
+        (remainingMs) =>
+          this.generateOnce(model, chatMessages, systemInstruction, input, remainingMs),
+        { totalBudgetMs: this.options.timeoutMs, sleepFn: this.options.sleepFn },
+      );
 
       const text = response.text ?? "";
       const usage = response.usageMetadata;
@@ -100,6 +87,48 @@ export class VertexChatAiProvider implements ChatAiProvider {
         502,
         true,
       );
+    }
+  }
+
+  /** One attempt, aborted at `remainingMs` so the retry budget is never exceeded. */
+  private async generateOnce(
+    model: string,
+    chatMessages: Array<{ role: "user" | "model"; parts: Array<{ text: string }> }>,
+    systemInstruction: string | undefined,
+    input: ChatGenerateInput,
+    remainingMs: number,
+  ) {
+    const client = this.client;
+    if (!client) {
+      throw new ChatAiProviderError(
+        "chat_ai_provider_not_configured",
+        "Vertex AI credentials are not configured.",
+        503,
+        false,
+      );
+    }
+
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), remainingMs);
+
+    try {
+      return await client.models.generateContent({
+        model,
+        contents: chatMessages,
+        config: {
+          systemInstruction: systemInstruction
+            ? { role: "system" as const, parts: [{ text: systemInstruction }] }
+            : undefined,
+          maxOutputTokens: input.maxOutputTokens,
+          temperature: input.temperature,
+          // Thinking is billed against maxOutputTokens; leaving it unset lets a
+          // hard question spend the whole budget on thoughts and return nothing.
+          ...(input.thinkingBudget === undefined
+            ? {}
+            : { thinkingConfig: { thinkingBudget: input.thinkingBudget } }),
+          abortSignal: abortController.signal,
+        },
+      });
     } finally {
       clearTimeout(timeout);
     }

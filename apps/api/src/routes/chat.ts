@@ -9,7 +9,7 @@ import {
   deleteChatSessionsRequestSchema,
 } from "@logmyplate/contracts";
 import type { AppRepository } from "../repositories/app-repository.js";
-import type { ChatAiProvider } from "../services/chat-ai-provider.js";
+import { ChatAiProviderError, type ChatAiProvider } from "../services/chat-ai-provider.js";
 import { MockChatAiProvider } from "../services/mock-chat-ai-provider.js";
 import type { ApiConfig } from "../config.js";
 import { NutritionistSessionStore } from "../services/nutritionist-session-store.js";
@@ -224,8 +224,29 @@ export const registerChatRoutes = async (
 
     const turnNumber = activeSession.turnCount + 1;
 
-    activeSession.messages.push({ role: "user", content: body.message });
+    // Held by reference so a failed turn can remove exactly this message rather
+    // than popping whatever happens to be last (see the rollback below).
+    const userMessage = { role: "user" as const, content: body.message };
+    activeSession.messages.push(userMessage);
     activeSession.turnCount = turnNumber;
+
+    /**
+     * Undoes the optimistic state above when a turn never produces a reply.
+     *
+     * The message and the turn are recorded before the model is called so the
+     * provider sees the full conversation. If the call then fails, the user got
+     * nothing — charging them a turn would be wrong, and leaving their message
+     * in history means a retry sends it to the model twice.
+     */
+    const rollbackTurn = () => {
+      const index = activeSession.messages.lastIndexOf(userMessage);
+      if (index !== -1) activeSession.messages.splice(index, 1);
+      // Guarded so a concurrent turn that already advanced the count is not
+      // clobbered by this rollback.
+      if (activeSession.turnCount === turnNumber) {
+        activeSession.turnCount = turnNumber - 1;
+      }
+    };
 
     // Profanity / abuse is caught deterministically before we spend an AI call:
     // the session is hard-ended with a firm, polite closing message.
@@ -247,14 +268,37 @@ export const registerChatRoutes = async (
         "nutritionist session ended due to user abuse",
       );
     } else {
-      aiResult = await timer.measure("aiResponse", () =>
-        chatAiProvider.generateChatResponse({
-          messages: activeSession.messages,
-          maxOutputTokens: chatConfig.maxOutputTokens,
-          temperature: chatConfig.temperature,
-          thinkingBudget: chatConfig.thinkingBudget,
-        }),
-      );
+      try {
+        aiResult = await timer.measure("aiResponse", () =>
+          chatAiProvider.generateChatResponse({
+            messages: activeSession.messages,
+            maxOutputTokens: chatConfig.maxOutputTokens,
+            temperature: chatConfig.temperature,
+            thinkingBudget: chatConfig.thinkingBudget,
+          }),
+        );
+      } catch (error) {
+        rollbackTurn();
+
+        const providerError = error instanceof ChatAiProviderError ? error : undefined;
+        request.log.error(
+          {
+            err: error,
+            route: "POST /v1/chat/nutritionist/message",
+            sessionId: activeSession.dbSessionId,
+            turnNumber,
+            providerCode: providerError?.code,
+            retryable: providerError?.retryable ?? true,
+          },
+          "nutritionist reply failed; turn rolled back",
+        );
+
+        return reply.status(providerError?.statusCode ?? 502).send({
+          error: providerError?.code ?? "chat_ai_provider_error",
+          message: "The nutritionist could not reply just now. Please try again.",
+          retryable: providerError?.retryable ?? true,
+        });
+      }
 
       finalAiContent = aiResult.content;
       if (finalAiContent.includes("[END_SESSION]")) {

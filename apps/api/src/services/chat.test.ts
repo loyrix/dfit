@@ -9,7 +9,12 @@ import {
   ensureNonEmptyChatContent,
   CHAT_ABUSE_CLOSING_MESSAGE,
 } from "./nutritionist-moderation.js";
-import type { ChatAiProvider, ChatGenerateInput, ChatGenerateResult } from "./chat-ai-provider.js";
+import {
+  ChatAiProviderError,
+  type ChatAiProvider,
+  type ChatGenerateInput,
+  type ChatGenerateResult,
+} from "./chat-ai-provider.js";
 import type { NutritionistContext } from "./nutritionist-context.js";
 
 // Returns a fixed string for every call — used to simulate degenerate model
@@ -621,5 +626,122 @@ describe("Chat thinking budget and empty replies", () => {
       payload: { sessionId, message: "Try again please" },
     });
     expect(followUp.statusCode).toBe(200);
+  });
+});
+
+// Succeeds for the welcome generation, then fails the next N message turns
+// before recovering — models a transient provider outage mid-session.
+class FlakyAiProvider implements ChatAiProvider {
+  readonly calls: ChatGenerateInput[] = [];
+  private failuresLeft: number;
+
+  constructor(failures: number) {
+    this.failuresLeft = failures;
+  }
+
+  async generateChatResponse(input: ChatGenerateInput): Promise<ChatGenerateResult> {
+    this.calls.push(input);
+    // The first call is the welcome; only message turns are failed.
+    if (this.calls.length > 1 && this.failuresLeft > 0) {
+      this.failuresLeft -= 1;
+      throw new ChatAiProviderError("chat_ai_provider_error", "upstream is busy", 502, true);
+    }
+    return { content: "Your protein is on track today.", latencyMs: 0 };
+  }
+}
+
+describe("Chat turn rollback on provider failure", () => {
+  const startSession = async (app: Awaited<ReturnType<typeof buildApp>>) => {
+    const session = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/session",
+      headers: testHeaders,
+    });
+    return JSON.parse(session.body).sessionId as string;
+  };
+
+  it("does not charge the user a turn when the provider fails", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const provider = new FlakyAiProvider(1);
+    const app = await buildApp({ repository, chatAiProvider: provider });
+    const sessionId = await startSession(app);
+
+    const failed = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein today?" },
+    });
+
+    expect(failed.statusCode).toBe(502);
+    expect(JSON.parse(failed.body).retryable).toBe(true);
+
+    // The retry must land on turn 1 again — the failed attempt cost nothing.
+    const retried = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein today?" },
+    });
+
+    expect(retried.statusCode).toBe(200);
+    expect(JSON.parse(retried.body).usage.turnNumber).toBe(1);
+  });
+
+  it("does not leave the failed message in the conversation history", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const provider = new FlakyAiProvider(1);
+    const app = await buildApp({ repository, chatAiProvider: provider });
+    const sessionId = await startSession(app);
+
+    await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein today?" },
+    });
+    await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "How's my protein today?" },
+    });
+
+    // calls[0] is the welcome, [1] the failed turn, [2] the retry. The retry
+    // must carry the question once, not twice.
+    const retryMessages = provider.calls[2].messages;
+    const userMessages = retryMessages.filter((m) => m.role === "user");
+    expect(userMessages).toHaveLength(1);
+    expect(userMessages[0].content).toBe("How's my protein today?");
+  });
+
+  it("leaves the session usable for its full turn budget after a failure", async () => {
+    const repository = new InMemoryStore();
+    await premium(repository);
+    const app = await buildApp({ repository, chatAiProvider: new FlakyAiProvider(2) });
+    const sessionId = await startSession(app);
+
+    for (let i = 0; i < 2; i += 1) {
+      const failed = await app.inject({
+        method: "POST",
+        url: "/v1/chat/nutritionist/message",
+        headers: testHeaders,
+        payload: { sessionId, message: "Try me" },
+      });
+      expect(failed.statusCode).toBe(502);
+    }
+
+    const ok = await app.inject({
+      method: "POST",
+      url: "/v1/chat/nutritionist/message",
+      headers: testHeaders,
+      payload: { sessionId, message: "Try me" },
+    });
+    const body = JSON.parse(ok.body);
+    expect(ok.statusCode).toBe(200);
+    expect(body.usage.turnNumber).toBe(1);
+    expect(body.usage.maxTurns).toBe(15);
   });
 });
