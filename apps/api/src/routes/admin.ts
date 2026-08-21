@@ -4666,15 +4666,19 @@ const loadAiCostData = async (
  */
 const rateCase = (sql: SqlClient, side: "input" | "output") => {
   const entries = Object.entries(GEMINI_TOKEN_PRICING_USD_PER_MILLION);
+  // Every branch is cast to numeric, including the else. Without the casts the
+  // rates arrive as untyped bind parameters and Postgres resolves the CASE
+  // result type from the integer `else 0`, so a rate of 0.1 fails with
+  // "invalid input syntax for type integer".
   return entries.reduce(
-    (acc, [model, pricing]) => sql`${acc} when model = ${model} then ${pricing[side]}`,
+    (acc, [model, pricing]) => sql`${acc} when model = ${model} then ${pricing[side]}::numeric`,
     sql`case`,
   );
 };
 
-const inputRateSql = (sql: SqlClient) => sql`${rateCase(sql, "input")} else 0 end`;
+const inputRateSql = (sql: SqlClient) => sql`${rateCase(sql, "input")} else 0::numeric end`;
 
-const outputRateSql = (sql: SqlClient) => sql`${rateCase(sql, "output")} else 0 end`;
+const outputRateSql = (sql: SqlClient) => sql`${rateCase(sql, "output")} else 0::numeric end`;
 
 const mapOverall = (
   row: OverallRow | undefined,
