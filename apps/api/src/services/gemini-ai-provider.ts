@@ -97,6 +97,8 @@ type GeminiGenerateContentResponse = {
   usageMetadata?: {
     promptTokenCount?: number;
     candidatesTokenCount?: number;
+    /** Thinking tokens. Billed at the output rate, reported separately. */
+    thoughtsTokenCount?: number;
     totalTokenCount?: number;
   };
   error?: {
@@ -104,6 +106,31 @@ type GeminiGenerateContentResponse = {
     message?: string;
     status?: string;
   };
+};
+
+/**
+ * Gemini bills thinking tokens at the output rate but reports them in
+ * `thoughtsTokenCount`, separately from `candidatesTokenCount`. Sum both so
+ * a run records what it actually cost. Returns undefined when no usage was
+ * reported, keeping "no data" distinct from a genuine zero.
+ */
+const billedOutputTokens = (usage?: GeminiGenerateContentResponse["usageMetadata"]) => {
+  const candidates = usage?.candidatesTokenCount;
+  const thoughts = usage?.thoughtsTokenCount;
+  if (candidates === undefined && thoughts === undefined) return undefined;
+  return (candidates ?? 0) + (thoughts ?? 0);
+};
+
+/**
+ * Advice caps mirrored from the prompt. Keeping them in the schema lets the
+ * prompt drop the prose that repeated them on every single scan.
+ */
+const adviceMaxChars = 120;
+const adviceMaxItems = 2;
+const adviceList = {
+  type: "array",
+  maxItems: adviceMaxItems,
+  items: { type: "string", maxLength: adviceMaxChars },
 };
 
 export const foodPhotoResponseSchema = {
@@ -139,7 +166,7 @@ export const foodPhotoResponseSchema = {
             type: "string",
             enum: cookingMethodSchema.options,
           },
-          confidence: { type: "number" },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
           nutrition: {
             type: "object",
             properties: {
@@ -169,10 +196,10 @@ export const foodPhotoResponseSchema = {
     advice: {
       type: "object",
       properties: {
-        summary: { type: "string" },
-        positives: { type: "array", items: { type: "string" } },
-        watchOuts: { type: "array", items: { type: "string" } },
-        swaps: { type: "array", items: { type: "string" } },
+        summary: { type: "string", maxLength: adviceMaxChars },
+        positives: adviceList,
+        watchOuts: adviceList,
+        swaps: adviceList,
       },
     },
   },
@@ -267,11 +294,11 @@ export class GeminiAiProvider implements AiProvider {
           schemaVersion: foodPhotoSchemaVersion,
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: raw.usageMetadata?.promptTokenCount,
-          outputTokenEstimate: raw.usageMetadata?.candidatesTokenCount,
+          outputTokenEstimate: billedOutputTokens(raw.usageMetadata),
           estimatedCostUsd: estimateGeminiCostUsd({
             model: this.options.model,
             inputTokens: raw.usageMetadata?.promptTokenCount,
-            outputTokens: raw.usageMetadata?.candidatesTokenCount,
+            outputTokens: billedOutputTokens(raw.usageMetadata),
           }),
           rawResponse: raw,
           success: true,

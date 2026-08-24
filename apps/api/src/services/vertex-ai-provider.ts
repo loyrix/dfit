@@ -175,13 +175,13 @@ export class VertexAiProvider implements AiProvider {
           schemaVersion: foodPhotoSchemaVersion,
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: response.usageMetadata?.promptTokenCount,
-          outputTokenEstimate: response.usageMetadata?.candidatesTokenCount,
+          outputTokenEstimate: billedOutputTokens(response.usageMetadata),
           // Priced at write time so the run keeps what it actually cost, rather
           // than being re-derived later against whatever the rate table says then.
           estimatedCostUsd: estimateGeminiCostUsd({
             model: this.options.model,
             inputTokens: response.usageMetadata?.promptTokenCount,
-            outputTokens: response.usageMetadata?.candidatesTokenCount,
+            outputTokens: billedOutputTokens(response.usageMetadata),
           }),
           rawResponse: response,
           success: true,
@@ -362,6 +362,21 @@ const toVertexUpstreamProviderError = (error: unknown) => {
       },
     },
   );
+};
+
+/**
+ * Gemini bills thinking tokens at the output rate but reports them in
+ * `thoughtsTokenCount`, separately from `candidatesTokenCount`. Counting
+ * candidates alone therefore under-reports both the tokens and the derived
+ * price for any run where the thinking budget is above 0. Returns undefined
+ * when the response carried no usage at all, so "no data" stays
+ * distinguishable from a genuine zero.
+ */
+const billedOutputTokens = (usage?: GenerateContentResponse["usageMetadata"]) => {
+  const candidates = usage?.candidatesTokenCount;
+  const thoughts = usage?.thoughtsTokenCount;
+  if (candidates === undefined && thoughts === undefined) return undefined;
+  return (candidates ?? 0) + (thoughts ?? 0);
 };
 
 const thinkingConfigForModel = (model: string, thinkingBudget?: number) =>

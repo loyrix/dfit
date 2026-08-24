@@ -340,4 +340,95 @@ describe("VertexAiProvider", () => {
     expect(result.providerRun.success).toBe(true);
     expect(result.providerRun.estimatedCostUsd).toBeCloseTo(0.002, 4);
   });
+  it("counts thinking tokens as billed output", async () => {
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      thinkingBudget: 512,
+      client: {
+        models: {
+          generateContent: async () => ({
+            text: JSON.stringify({
+              mealType: "lunch",
+              mealName: "Dal",
+              detectedLanguage: "en-IN",
+              items: [
+                {
+                  name: "Dal",
+                  aliases: [],
+                  quantity: 1,
+                  unit: "katori",
+                  estimatedGrams: 180,
+                  preparation: "home",
+                  confidence: 0.86,
+                  nutrition: { calories: 180, proteinG: 10, carbsG: 25, fatG: 5 },
+                },
+              ],
+            }),
+            // Vertex reports thinking separately; it is billed at the output rate.
+            usageMetadata: {
+              promptTokenCount: 1_000,
+              candidatesTokenCount: 200,
+              thoughtsTokenCount: 800,
+            },
+          }),
+        },
+      },
+    });
+
+    const result = await provider.analyzeMealImage({
+      scanId: "scan-thinking",
+      image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+    });
+
+    expect(result.providerRun.outputTokenEstimate).toBe(1_000);
+    // 1000 in @ $0.30/M + 1000 billed out @ $2.50/M
+    expect(result.providerRun.estimatedCostUsd).toBeCloseTo(0.0028, 6);
+  });
+
+  it("leaves output tokens undefined when the response reports no usage", async () => {
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      client: {
+        models: {
+          generateContent: async () => ({
+            text: JSON.stringify({
+              mealType: "lunch",
+              mealName: "Dal",
+              detectedLanguage: "en-IN",
+              items: [
+                {
+                  name: "Dal",
+                  aliases: [],
+                  quantity: 1,
+                  unit: "katori",
+                  estimatedGrams: 180,
+                  preparation: "home",
+                  confidence: 0.86,
+                  nutrition: { calories: 180, proteinG: 10, carbsG: 25, fatG: 5 },
+                },
+              ],
+            }),
+            usageMetadata: {},
+          }),
+        },
+      },
+    });
+
+    const result = await provider.analyzeMealImage({
+      scanId: "scan-no-usage",
+      image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+    });
+
+    expect(result.providerRun.outputTokenEstimate).toBeUndefined();
+  });
 });
