@@ -210,7 +210,7 @@ export function GuideArticle({ slug }: { slug: string }) {
             >
               Add a short note, review the calorie and macro estimate, then save it to your journal.
             </p>
-            <DownloadBadges size="sm" className="mt-5" />
+            <DownloadBadges size="sm" className="mt-5" placement="guide_sidebar" />
             <p className="mt-4 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
               AI estimates are approximate and are not medical advice.
             </p>

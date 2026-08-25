@@ -272,6 +272,27 @@ export default function PrivacyPage() {
             advertising. These providers are allowed to process data only as needed to perform
             services for LogMyPlate.
           </p>
+          <p>
+            This website uses Google Analytics to understand how visitors find and use the site. It
+            sets cookies in your browser holding a randomly generated identifier, and records pages
+            viewed, approximate location derived from a truncated IP address, and which download
+            link you selected. When you reach this site through a marketing link, the campaign
+            details in that link are passed to the app store alongside your download so we can tell
+            which channels bring people to LogMyPlate. This measures traffic in aggregate; we do not
+            use it to identify you, and it is not linked to your meal journal.
+          </p>
+          <p>
+            You can opt out using the{" "}
+            <a
+              href="https://tools.google.com/dlpage/gaoptout"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google Analytics opt-out browser add-on
+            </a>
+            , by blocking cookies in your browser, or by enabling a Do Not Track or tracking
+            protection feature. Blocking analytics does not affect any part of the website or app.
+          </p>
         </Section>
 
         <Section title="9. Data retention">

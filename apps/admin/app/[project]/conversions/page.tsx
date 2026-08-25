@@ -19,6 +19,7 @@ import {
 } from "../../components/ui";
 import {
   adminGet,
+  type AdminAcquisition,
   type AdminConversionInstall,
   type AdminConversionSummary,
   type PageInfo,
@@ -52,6 +53,16 @@ export default async function ConversionsPage({
     installs: AdminConversionInstall[];
     pageInfo?: PageInfo;
   }>(`/admin/conversions?${apiQuery}`);
+
+  // Acquisition is a separate, unfiltered 30-day rollup — it answers "where did
+  // these people come from", which the filtered install table below does not.
+  const acquisition = await adminGet<AdminAcquisition>("/admin/acquisition");
+  const attributionCoverage =
+    acquisition.coverage.totalInstalls > 0
+      ? Math.round(
+          (acquisition.coverage.attributedInstalls / acquisition.coverage.totalInstalls) * 100,
+        )
+      : 0;
 
   const { rows: visibleInstalls, pageInfo: effectivePageInfo } = resolveTableState(
     installs,
@@ -103,6 +114,66 @@ export default async function ConversionsPage({
           value={formatNumber(effectivePageInfo.total)}
           sub="after filters"
         />
+      </section>
+
+      <section className="panel mt-4">
+        <div className="section-head">
+          <h2 className="text-xl font-bold">Acquisition · last 30 days</h2>
+        </div>
+        <p className="muted">
+          Where installs came from, read from the Play install referrer. Devices that installed
+          before attribution shipped, and all iOS installs, have no source the app can read and are
+          listed as <code>(unattributed)</code> — that is missing data, not organic. iOS campaign
+          performance lives in App Store Connect instead.{" "}
+          <strong>
+            {formatNumber(acquisition.coverage.attributedInstalls)} of{" "}
+            {formatNumber(acquisition.coverage.totalInstalls)} installs ({attributionCoverage}%)
+          </strong>{" "}
+          carry a source.
+        </p>
+
+        {acquisition.channels.length === 0 ? (
+          <EmptyState title="No installs in the last 30 days" />
+        ) : (
+          <div className="table-wrap">
+            <table className="table table-compact">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Medium</th>
+                  <th>Campaign</th>
+                  <th style={{ textAlign: "right" }}>Installs</th>
+                  <th style={{ textAlign: "right" }}>Registered</th>
+                </tr>
+              </thead>
+              <tbody>
+                {acquisition.channels.map((channel) => (
+                  <tr key={`${channel.source}:${channel.medium ?? ""}:${channel.campaign ?? ""}`}>
+                    <td>
+                      {channel.source === "(unattributed)" ? (
+                        <Badge tone="gray">Unattributed</Badge>
+                      ) : (
+                        channel.source
+                      )}
+                    </td>
+                    <td>{channel.medium ?? "—"}</td>
+                    <td>{channel.campaign ?? "—"}</td>
+                    <td style={{ textAlign: "right" }}>{formatNumber(channel.installs)}</td>
+                    <td style={{ textAlign: "right" }}>
+                      {formatNumber(channel.registered)}
+                      {channel.installs > 0 && (
+                        <span className="muted">
+                          {" "}
+                          ({Math.round((channel.registered / channel.installs) * 100)}%)
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <form className="toolbar toolbar-two mt-4" action={`/${project}/conversions`}>

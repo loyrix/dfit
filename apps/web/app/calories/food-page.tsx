@@ -445,7 +445,7 @@ export function FoodArticle({ slug }: { slug: string }) {
             <p className="mt-3 text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
               Every food. Actually good at Indian.
             </p>
-            <DownloadBadges size="sm" className="mt-5" />
+            <DownloadBadges size="sm" className="mt-5" placement="food_page_sidebar" />
           </div>
         </aside>
       </div>

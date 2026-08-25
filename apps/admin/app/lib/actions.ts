@@ -505,6 +505,11 @@ const analyticsEventKeys = [
   "accountGateShown",
   "accountLinked",
   "healthTargetSaved",
+  "paywallViewed",
+  "purchaseStarted",
+  "purchaseCompleted",
+  "purchaseFailed",
+  "purchaseRestored",
 ] as const;
 
 const readEngagementPolicy = (formData: FormData) => ({

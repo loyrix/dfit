@@ -1,12 +1,26 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
 import { APP_CONFIG } from "@/config/app";
+import { trackEvent } from "@/lib/analytics";
+import { buildStoreUrl, resolveVisitSource, type StoreTarget } from "@/lib/attribution";
 
 interface DownloadBadgesProps {
   size?: "sm" | "md" | "lg";
   className?: string;
+  /**
+   * Where on the site this pair of badges sits. Rides along to the store as
+   * `utm_content` and into GA4 on the click event, so we can see which surfaces
+   * actually produce installs rather than just which pages get traffic.
+   */
+  placement?: string;
 }
 
-export function DownloadBadges({ size = "md", className = "" }: DownloadBadgesProps) {
+export function DownloadBadges({
+  size = "md",
+  className = "",
+  placement = "page",
+}: DownloadBadgesProps) {
   const heights: Record<string, string> = {
     sm: "h-10",
     md: "h-12",
@@ -14,14 +28,42 @@ export function DownloadBadges({ size = "md", className = "" }: DownloadBadgesPr
   };
   const h = heights[size];
 
+  // Server-render the plain store URLs — crawlers and no-JS visitors get clean
+  // links — then upgrade them with the visit's campaign once we're in the
+  // browser and can actually read where this person came from.
+  const [hrefs, setHrefs] = useState<Record<StoreTarget, string>>({
+    ios: APP_CONFIG.appStoreUrl,
+    android: APP_CONFIG.playStoreUrl,
+  });
+
+  useEffect(() => {
+    const visit = resolveVisitSource();
+    setHrefs({
+      ios: buildStoreUrl("ios", placement, visit),
+      android: buildStoreUrl("android", placement, visit),
+    });
+  }, [placement]);
+
+  const handleClick = (store: StoreTarget) => {
+    const visit = resolveVisitSource();
+    trackEvent("download_click", {
+      store,
+      placement,
+      traffic_source: visit.source,
+      traffic_medium: visit.medium,
+      traffic_campaign: visit.campaign,
+    });
+  };
+
   return (
     <div className={`flex flex-wrap items-center gap-3 ${className}`}>
       {/* App Store */}
       <a
-        href={APP_CONFIG.appStoreUrl}
+        href={hrefs.ios}
         target="_blank"
         rel="noopener noreferrer"
         id="badge-app-store"
+        onClick={() => handleClick("ios")}
         aria-label={`Download ${APP_CONFIG.appName} on the App Store`}
         className={`inline-flex items-center ${h} px-4 rounded-xl font-semibold text-[13px] transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 gap-2.5 select-none`}
         style={{
@@ -43,10 +85,11 @@ export function DownloadBadges({ size = "md", className = "" }: DownloadBadgesPr
 
       {/* Google Play */}
       <a
-        href={APP_CONFIG.playStoreUrl}
+        href={hrefs.android}
         target="_blank"
         rel="noopener noreferrer"
         id="badge-google-play"
+        onClick={() => handleClick("android")}
         aria-label={`Get ${APP_CONFIG.appName} on Google Play`}
         className={`inline-flex items-center ${h} px-4 rounded-xl font-semibold text-[13px] transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 gap-2.5 select-none`}
         style={{

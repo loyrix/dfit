@@ -19,6 +19,7 @@ import type {
   AttachMealImageInput,
   CreateMealInput,
   IdempotencyRecord,
+  InstallAttributionInput,
   ListMealsInput,
   MealDeletionPlan,
   OAuthAccountInput,
@@ -184,6 +185,7 @@ export class InMemoryStore implements AppRepository {
   private readonly rewardedAdServerVerifications = new Map<string, RewardedAdServerVerification>();
   private readonly rewardedAdTransactions = new Set<string>();
   private readonly pushTokens = new Map<string, PushTokenRegistrationResult>();
+  private readonly installAttribution = new Map<string, InstallAttributionInput>();
   private readonly chatSessions = new Map<
     string,
     {
@@ -765,6 +767,32 @@ export class InMemoryStore implements AppRepository {
       ...(await this.getRewardedAdProgress(dailyScanLimit)),
       quota: { ...quota },
     };
+  }
+
+  async recordInstallAttribution(input: InstallAttributionInput): Promise<boolean> {
+    const installId = currentRequestIdentity().installId;
+    if (!installId) {
+      throw new AuthError(
+        "install_required",
+        "Device install identity is required to record install attribution.",
+        400,
+      );
+    }
+
+    const incoming = Object.values(input).some((value) => value !== null);
+    if (!incoming) return false;
+
+    // First touch wins, matching the Postgres store: an install's source is
+    // decided once and never rewritten by a later organic launch.
+    const existing = this.installAttribution.get(installId);
+    this.installAttribution.set(installId, {
+      source: existing?.source ?? input.source,
+      medium: existing?.medium ?? input.medium,
+      campaign: existing?.campaign ?? input.campaign,
+      referrerRaw: existing?.referrerRaw ?? input.referrerRaw,
+      analyticsInstanceId: input.analyticsInstanceId ?? existing?.analyticsInstanceId ?? null,
+    });
+    return true;
   }
 
   async registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult> {

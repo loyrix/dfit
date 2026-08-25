@@ -1130,6 +1130,11 @@ class EngagementAnalyticsEvents {
     this.accountGateShown = true,
     this.accountLinked = true,
     this.healthTargetSaved = true,
+    this.paywallViewed = true,
+    this.purchaseStarted = true,
+    this.purchaseCompleted = true,
+    this.purchaseFailed = true,
+    this.purchaseRestored = true,
   });
 
   final bool appOpen;
@@ -1148,6 +1153,11 @@ class EngagementAnalyticsEvents {
   final bool accountGateShown;
   final bool accountLinked;
   final bool healthTargetSaved;
+  final bool paywallViewed;
+  final bool purchaseStarted;
+  final bool purchaseCompleted;
+  final bool purchaseFailed;
+  final bool purchaseRestored;
 
   factory EngagementAnalyticsEvents.fromJson(Map<String, dynamic>? json) {
     return EngagementAnalyticsEvents(
@@ -1173,6 +1183,11 @@ class EngagementAnalyticsEvents {
       accountGateShown: _boolValue(json?['accountGateShown'], fallback: true),
       accountLinked: _boolValue(json?['accountLinked'], fallback: true),
       healthTargetSaved: _boolValue(json?['healthTargetSaved'], fallback: true),
+      paywallViewed: _boolValue(json?['paywallViewed'], fallback: true),
+      purchaseStarted: _boolValue(json?['purchaseStarted'], fallback: true),
+      purchaseCompleted: _boolValue(json?['purchaseCompleted'], fallback: true),
+      purchaseFailed: _boolValue(json?['purchaseFailed'], fallback: true),
+      purchaseRestored: _boolValue(json?['purchaseRestored'], fallback: true),
     );
   }
 
@@ -1194,6 +1209,11 @@ class EngagementAnalyticsEvents {
       'account_gate_shown' => accountGateShown,
       'account_linked' => accountLinked,
       'health_target_saved' => healthTargetSaved,
+      'paywall_viewed' => paywallViewed,
+      'purchase_started' => purchaseStarted,
+      'purchase_completed' => purchaseCompleted,
+      'purchase_failed' => purchaseFailed,
+      'purchase_restored' => purchaseRestored,
       _ => false,
     };
   }
@@ -1216,6 +1236,11 @@ class EngagementAnalyticsEvents {
       'accountGateShown': accountGateShown,
       'accountLinked': accountLinked,
       'healthTargetSaved': healthTargetSaved,
+      'paywallViewed': paywallViewed,
+      'purchaseStarted': purchaseStarted,
+      'purchaseCompleted': purchaseCompleted,
+      'purchaseFailed': purchaseFailed,
+      'purchaseRestored': purchaseRestored,
     };
   }
 }

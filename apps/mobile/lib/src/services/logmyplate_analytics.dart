@@ -18,6 +18,18 @@ abstract class LogMyPlateAnalytics {
     Map<String, Object?> parameters = const {},
     bool oncePerSession = false,
   });
+
+  /// Ties events to a stable profile id so a funnel can be followed across
+  /// sessions and reinstalls. Pass null on sign-out.
+  Future<void> setUserId(String? userId);
+
+  /// Sets a user-scoped dimension (premium, auth method, install source...).
+  /// These are what make an aggregate funnel splittable by cohort.
+  Future<void> setUserProperty(String name, String? value);
+
+  /// The Firebase Analytics app instance id — the join key between GA4 and our
+  /// own `devices` rows. Null when analytics never initialised.
+  Future<String?> appInstanceId();
 }
 
 class NoopLogMyPlateAnalytics implements LogMyPlateAnalytics {
@@ -35,6 +47,15 @@ class NoopLogMyPlateAnalytics implements LogMyPlateAnalytics {
     Map<String, Object?> parameters = const {},
     bool oncePerSession = false,
   }) async {}
+
+  @override
+  Future<void> setUserId(String? userId) async {}
+
+  @override
+  Future<void> setUserProperty(String name, String? value) async {}
+
+  @override
+  Future<String?> appInstanceId() async => null;
 }
 
 class LogMyPlateFirebaseAnalytics implements LogMyPlateAnalytics {
@@ -152,6 +173,56 @@ class LogMyPlateFirebaseAnalytics implements LogMyPlateAnalytics {
         .replaceAll(RegExp('_+'), '_');
     if (normalized.isEmpty) return '';
     return normalized.length <= 40 ? normalized : normalized.substring(0, 40);
+  }
+
+  @override
+  Future<void> setUserId(String? userId) async {
+    if (!_canReport) return;
+    try {
+      await _analytics!.setUserId(id: userId);
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'analytics.set_user_id',
+        error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  @override
+  Future<void> setUserProperty(String name, String? value) async {
+    if (!_canReport) return;
+    final key = _sanitizeKey(name);
+    if (key.isEmpty) return;
+
+    // A null value clears the property, so it is passed through rather than
+    // being dropped by the sanitiser the way an empty event parameter would be.
+    final sanitized = value == null ? null : _sanitizeValue(value)?.toString();
+    try {
+      await _analytics!.setUserProperty(name: key, value: sanitized);
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'analytics.set_user_property',
+        error,
+        stackTrace: stackTrace,
+        context: {'property': key},
+      );
+    }
+  }
+
+  @override
+  Future<String?> appInstanceId() async {
+    if (!_initialized || _analytics == null) return null;
+    try {
+      return await _analytics!.appInstanceId;
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'analytics.app_instance_id',
+        error,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
   }
 
   Object? _sanitizeValue(Object? value) {

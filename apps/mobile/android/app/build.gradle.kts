@@ -7,6 +7,12 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Processes google-services.json into the `google_app_id` / `google_api_key`
+    // string resources. The native measurement SDK reads those at process start,
+    // before any Dart runs, so without this plugin Firebase Analytics disables
+    // itself on Android no matter what `Firebase.initializeApp` does later.
+    // iOS has no equivalent gap: it reads GoogleService-Info.plist directly.
+    id("com.google.gms.google-services")
 }
 
 val logmyplateAndroidApplicationId = "com.logmyplate.app"

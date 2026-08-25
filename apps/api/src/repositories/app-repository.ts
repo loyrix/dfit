@@ -306,6 +306,14 @@ export type PushTokenRegistrationResult = {
   registeredAt: string;
 };
 
+export type InstallAttributionInput = {
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  referrerRaw: string | null;
+  analyticsInstanceId: string | null;
+};
+
 export type ListMealsInput = {
   fromDate?: string;
   toDate?: string;
@@ -391,6 +399,14 @@ export interface AppRepository {
     dailyScanLimit?: number,
   ): Promise<RewardedAdCreditResult>;
   registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult>;
+  /**
+   * Records where this install came from. First touch wins: once a device has a
+   * source it is never overwritten, so a later organic app open cannot erase the
+   * campaign that actually produced the install.
+   *
+   * Resolves to false when there was nothing new to store.
+   */
+  recordInstallAttribution(input: InstallAttributionInput): Promise<boolean>;
   createMeal(input: CreateMealInput): Promise<MealSummary>;
   attachMealImage(mealId: string, input: AttachMealImageInput): Promise<MealSummary | undefined>;
   learnFoodsFromConfirmedScan(input: LearnFoodsFromConfirmedScanInput): Promise<void>;

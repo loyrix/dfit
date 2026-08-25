@@ -5,6 +5,7 @@ import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { OfferRibbon } from "@/components/offer-ribbon";
 import { LaunchOfferModal } from "@/components/launch-offer-modal";
+import { Analytics } from "@/components/analytics";
 import { APP_CONFIG, isLaunchOfferActive } from "@/config/app";
 
 export const metadata: Metadata = {
@@ -118,6 +119,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Footer />
           {offerActive && <LaunchOfferModal />}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );

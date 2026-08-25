@@ -48,6 +48,11 @@ const analyticsEventLabels: Record<keyof EngagementAnalyticsEvents, string> = {
   accountGateShown: "Account gate shown",
   accountLinked: "Account linked",
   healthTargetSaved: "Health target saved",
+  paywallViewed: "Paywall viewed",
+  purchaseStarted: "Purchase started",
+  purchaseCompleted: "Purchase completed",
+  purchaseFailed: "Purchase failed",
+  purchaseRestored: "Purchase restored",
 };
 
 type GrowthControlsSearchParams = {

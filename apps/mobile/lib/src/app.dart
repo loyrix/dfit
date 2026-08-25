@@ -35,6 +35,7 @@ import 'screens/welcome_screen.dart';
 import 'services/app_build_info.dart';
 import 'services/app_diagnostics.dart';
 import 'services/app_links.dart';
+import 'services/install_attribution.dart';
 import 'services/app_review_service.dart';
 import 'services/interstitial_ad_store.dart';
 import 'services/logmyplate_analytics.dart';
@@ -102,6 +103,11 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       widget._authController ?? AuthController();
   late final LogMyPlateAnalytics _analytics =
       widget._analytics ?? LogMyPlateFirebaseAnalytics();
+  late final InstallAttributionReporter _attributionReporter =
+      InstallAttributionReporter(
+        apiClient: _journalController.apiClient,
+        analytics: _analytics,
+      );
   late final JournalController _journalController =
       widget._journalController ?? JournalController(analytics: _analytics);
   late final RewardedAdGateway _rewardedAds =
@@ -218,8 +224,40 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         oncePerSession: true,
       ),
     );
+    // Both are fire-and-forget: neither the attribution report nor the cohort
+    // properties are worth delaying first paint for, and both tolerate failure.
+    unawaited(_attributionReporter.reportIfNeeded());
+    unawaited(_syncAnalyticsIdentity());
     _handleAccessStateChanged();
     if (mounted) setState(() => _appInitialized = true);
+  }
+
+  /// Attaches the profile id and the cohort dimensions to this analytics user.
+  ///
+  /// Without these every event is anonymous aggregate, so a funnel cannot be
+  /// split by premium, auth method, or platform — which is most of what makes
+  /// the numbers actionable.
+  Future<void> _syncAnalyticsIdentity() async {
+    final session = _authController.session;
+    final subscription = _journalController.subscription;
+
+    // Signed-out users deliberately get no user id rather than a device id: the
+    // install is already joinable through the app instance id we report with
+    // attribution, and reusing a device id here would misreport one person on
+    // two devices as two users.
+    await _analytics.setUserId(session?.profileId);
+    await _analytics.setUserProperty(
+      'auth_method',
+      session == null ? 'anonymous' : session.provider.name,
+    );
+    await _analytics.setUserProperty(
+      'is_premium',
+      subscription == null ? null : (subscription.hasPremiumAccess ? 'true' : 'false'),
+    );
+    await _analytics.setUserProperty(
+      'app_platform',
+      defaultTargetPlatform == TargetPlatform.android ? 'android' : 'ios',
+    );
   }
 
   void _initializeDeepLinks() {
@@ -951,6 +989,20 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     final context = _navigatorKey.currentContext;
     if (context == null || !context.mounted) return false;
 
+    unawaited(
+      _analytics.logEvent(
+        'paywall_viewed',
+        parameters: {
+          // A paywall shown with no plans is a store/offering failure, not a
+          // user declining to buy. Splitting them keeps the conversion rate
+          // honest instead of blaming demand for a loading bug.
+          'has_plans': offering.hasPlans,
+          'plan_count': offering.plans.length,
+          'offering_id': offering.identifier,
+        },
+      ),
+    );
+
     final activated = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -1008,11 +1060,52 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     PremiumPlan plan, {
     required String appUserId,
   }) async {
-    final activeInRevenueCat = await _subscriptions.purchasePlan(plan);
+    final planParameters = {
+      'plan_kind': plan.kind.name,
+      'product_id': plan.productId,
+      'cadence': plan.cadence,
+    };
+    unawaited(_analytics.logEvent('purchase_started', parameters: planParameters));
+
+    final bool activeInRevenueCat;
+    try {
+      activeInRevenueCat = await _subscriptions.purchasePlan(plan);
+    } catch (error) {
+      // A cancellation is a distinct outcome from a store failure, and the
+      // paywall relies on this exception propagating, so it is logged and
+      // rethrown rather than swallowed.
+      unawaited(
+        _analytics.logEvent(
+          'purchase_failed',
+          parameters: {
+            ...planParameters,
+            'reason': error is RevenueCatPurchaseCancelledException
+                ? 'cancelled'
+                : 'store_error',
+          },
+        ),
+      );
+      rethrow;
+    }
+
     final subscription = await _journalController.syncRevenueCatSubscription(
       appUserId: appUserId,
     );
-    return activeInRevenueCat && subscription.active;
+    final activated = activeInRevenueCat && subscription.active;
+
+    unawaited(
+      _analytics.logEvent(
+        activated ? 'purchase_completed' : 'purchase_failed',
+        parameters: {
+          ...planParameters,
+          // The store can confirm a purchase before our backend has caught up.
+          // That is a sync lag, not a lost sale, and must not be counted as one.
+          if (!activated)
+            'reason': activeInRevenueCat ? 'entitlement_not_synced' : 'not_active',
+        },
+      ),
+    );
+    return activated;
   }
 
   Future<bool> _restorePremiumPurchase({required String appUserId}) async {
@@ -1022,7 +1115,17 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     final subscription = await _journalController.syncRevenueCatSubscription(
       appUserId: appUserId,
     );
-    return restoredInRevenueCat && subscription.active;
+    final restored = restoredInRevenueCat && subscription.active;
+
+    // Restores are not new revenue, so they are reported under their own event
+    // rather than folded into purchase_completed where they would inflate it.
+    unawaited(
+      _analytics.logEvent(
+        'purchase_restored',
+        parameters: {'restored': restored},
+      ),
+    );
+    return restored;
   }
 
   Future<void> _manageSubscription() async {

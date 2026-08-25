@@ -238,6 +238,11 @@ export const registerAdminRoutes = async (
     return loadAdminAdsAnalytics(sql);
   });
 
+  app.get("/admin/acquisition", { preHandler: requireAdmin }, async (_request, reply) => {
+    if (!sql) return reply.status(503).send({ error: "database_unavailable" });
+    return loadAdminAcquisition(sql);
+  });
+
   app.post(
     "/admin/users/:profileId/grants",
     { preHandler: requireAdmin },
@@ -1481,6 +1486,60 @@ const loadAdminChatUsage = async (
       firstUsedAt: row.first_used_at,
       lastUsedAt: row.last_used_at,
     })),
+  };
+};
+
+type AdminAcquisitionRow = {
+  source: string;
+  medium: string | null;
+  campaign: string | null;
+  installs: number;
+  registered: number;
+};
+
+type AdminAcquisitionCoverageRow = {
+  total_installs: number;
+  attributed_installs: number;
+};
+
+/**
+ * Install counts by acquisition channel over the last 30 days.
+ *
+ * Devices that predate attribution capture have a null `install_source` and are
+ * reported as their own "(unattributed)" row rather than being dropped or folded
+ * into organic. `coverage` says what share of the window we can actually speak
+ * for, so a channel breakdown is never mistaken for the whole picture.
+ */
+const loadAdminAcquisition = async (sql: SqlClient) => {
+  const rows = await sql<AdminAcquisitionRow[]>`
+    select
+      coalesce(devices.install_source, '(unattributed)') as source,
+      devices.install_medium as medium,
+      devices.install_campaign as campaign,
+      count(*)::int as installs,
+      count(*) filter (where profiles.auth_method <> 'anonymous')::int as registered
+    from devices
+    left join profiles on profiles.id = devices.profile_id
+    where devices.first_seen_at > now() - interval '30 days'
+    group by 1, 2, 3
+    order by installs desc, source asc
+    limit 50
+  `;
+
+  const [coverage] = await sql<AdminAcquisitionCoverageRow[]>`
+    select
+      count(*)::int as total_installs,
+      count(*) filter (where devices.install_source is not null)::int as attributed_installs
+    from devices
+    where devices.first_seen_at > now() - interval '30 days'
+  `;
+
+  return {
+    channels: rows,
+    coverage: {
+      totalInstalls: coverage?.total_installs ?? 0,
+      attributedInstalls: coverage?.attributed_installs ?? 0,
+    },
   };
 };
 

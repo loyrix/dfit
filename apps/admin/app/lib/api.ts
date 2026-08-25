@@ -461,6 +461,19 @@ export type EngagementNotificationScenario = {
   onlyIfTargetNotReached: boolean;
 };
 
+export type AdminAcquisitionChannel = {
+  source: string;
+  medium: string | null;
+  campaign: string | null;
+  installs: number;
+  registered: number;
+};
+
+export type AdminAcquisition = {
+  channels: AdminAcquisitionChannel[];
+  coverage: { totalInstalls: number; attributedInstalls: number };
+};
+
 export type EngagementAnalyticsEvents = {
   appOpen: boolean;
   bootstrapLoaded: boolean;
@@ -478,6 +491,11 @@ export type EngagementAnalyticsEvents = {
   accountGateShown: boolean;
   accountLinked: boolean;
   healthTargetSaved: boolean;
+  paywallViewed: boolean;
+  purchaseStarted: boolean;
+  purchaseCompleted: boolean;
+  purchaseFailed: boolean;
+  purchaseRestored: boolean;
 };
 
 export type EngagementPolicy = {

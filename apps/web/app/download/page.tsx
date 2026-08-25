@@ -47,7 +47,7 @@ export default function DownloadPage() {
           </p>
         </div>
 
-        <DownloadBadges size="lg" />
+        <DownloadBadges size="lg" placement="download_page" />
 
         <div
           className="w-full rounded-2xl p-8 text-left flex flex-col gap-3"

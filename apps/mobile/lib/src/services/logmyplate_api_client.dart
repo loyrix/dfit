@@ -58,6 +58,30 @@ class LogMyPlateApiClient {
     );
   }
 
+  /// Reports where this install came from. Best effort by design: the server
+  /// treats "nothing to report" as success, and a failure here must never
+  /// affect a launch, so callers fire and forget.
+  Future<void> recordInstallAttribution({
+    String? source,
+    String? medium,
+    String? campaign,
+    String? referrerRaw,
+    String? analyticsInstanceId,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/devices/attribution'),
+      headers: await _headers(contentTypeJson: true),
+      body: jsonEncode(<String, dynamic>{
+        'source': source,
+        'medium': medium,
+        'campaign': campaign,
+        'referrerRaw': referrerRaw,
+        'analyticsInstanceId': analyticsInstanceId,
+      }),
+    );
+    _throwIfBad(response);
+  }
+
   Future<void> registerPushToken({
     required String token,
     required String provider,

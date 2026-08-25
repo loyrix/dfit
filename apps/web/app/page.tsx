@@ -186,7 +186,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <DownloadBadges size="lg" />
+            <DownloadBadges size="lg" placement="home_hero" />
 
             <div
               className="flex flex-wrap gap-3 text-[13px]"
@@ -586,7 +586,7 @@ export default function HomePage() {
           </div>
 
           <div className="mt-10 flex flex-col items-start gap-4">
-            <DownloadBadges size="lg" />
+            <DownloadBadges size="lg" placement="home_pricing" />
             <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
               No card needed to start. Subscription prices and renewal terms are shown at store
               checkout.
@@ -621,7 +621,7 @@ export default function HomePage() {
             Add a note, review the estimate, and keep your journal moving with a calorie tracker
             designed around real meals.
           </p>
-          <DownloadBadges size="lg" />
+          <DownloadBadges size="lg" placement="home_footer_cta" />
           <Link
             href="/privacy"
             className="text-[12px] underline underline-offset-4 opacity-60 transition-opacity hover:opacity-100"

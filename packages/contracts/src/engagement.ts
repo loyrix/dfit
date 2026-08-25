@@ -24,6 +24,14 @@ const analyticsEventKeySchema = z.object({
   accountGateShown: z.boolean().default(true),
   accountLinked: z.boolean().default(true),
   healthTargetSaved: z.boolean().default(true),
+  // Revenue funnel. Default on, and absent from stored policies written
+  // before these existed — zod fills them in on parse, so an existing
+  // config row stays valid and the new events arrive switched on.
+  paywallViewed: z.boolean().default(true),
+  purchaseStarted: z.boolean().default(true),
+  purchaseCompleted: z.boolean().default(true),
+  purchaseFailed: z.boolean().default(true),
+  purchaseRestored: z.boolean().default(true),
 });
 
 export const engagementAnalyticsPolicySchema = z.object({

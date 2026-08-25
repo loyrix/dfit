@@ -219,6 +219,8 @@ class _RecordingAnalytics implements LogMyPlateAnalytics {
   bool initialized = false;
   final policies = <EngagementAnalyticsPolicy>[];
   final events = <_AnalyticsEvent>[];
+  final userProperties = <String, String?>{};
+  String? userId;
 
   @override
   Future<void> initialize() async {
@@ -238,4 +240,17 @@ class _RecordingAnalytics implements LogMyPlateAnalytics {
   }) async {
     events.add(_AnalyticsEvent(name, parameters));
   }
+
+  @override
+  Future<void> setUserId(String? userId) async {
+    this.userId = userId;
+  }
+
+  @override
+  Future<void> setUserProperty(String name, String? value) async {
+    userProperties[name] = value;
+  }
+
+  @override
+  Future<String?> appInstanceId() async => null;
 }

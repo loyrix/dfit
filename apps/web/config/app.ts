@@ -23,6 +23,17 @@ export const APP_CONFIG = {
   androidPackage: "com.logmyplate.app",
   appStoreUrl: "https://apps.apple.com/app/id6770872606",
   playStoreUrl: "https://play.google.com/store/apps/details?id=com.logmyplate.app",
+  // App Store Connect provider token for Apple campaign links (`?pt=…&ct=…`),
+  // from App Analytics -> Acquisition -> Campaigns -> Generate a Campaign Link.
+  // Constant across every campaign and app on the account. Set to null to make
+  // iOS badges fall back to the plain store URL rather than emit a link that
+  // looks tracked but silently is not.
+  appleProviderToken: "128857039" as string | null,
+  // Apple generates campaign links against this path form, so campaign URLs are
+  // built from it rather than from `appStoreUrl` above. Both resolve to the same
+  // listing, but matching what App Store Connect issues removes a whole class of
+  // "attribution shows nothing and we cannot tell why" debugging.
+  appStoreCampaignBaseUrl: "https://apps.apple.com/app/apple-store/id6770872606",
 
   // ── Domains ────────────────────────────────────────────────────────────────
   // Must match the domain Vercel actually serves. www is primary here and the
@@ -38,6 +49,18 @@ export const APP_CONFIG = {
   // offer popup are shown only on/before this date, then auto-hide.
   // Launch offer runs through this date (inclusive).
   offerEndDate: "2026-07-31",
+
+  // ── Analytics ──────────────────────────────────────────────────────────────
+  // GA4 measurement ID for the "Logmyplate-web" stream. This sits in the same
+  // property (logmyplate-0425 / 539979285) as the iOS and Android app streams,
+  // which is what lets a website visit and an app install line up in one funnel.
+  // Public by design — it ships in the client bundle either way — so it lives
+  // here alongside the other public ids rather than in a build-time env var.
+  // `NEXT_PUBLIC_GA_MEASUREMENT_ID` overrides it if a deploy ever needs to.
+  gaMeasurementId: "G-T7FLRZ1FXJ",
+  // Analytics only loads on this host, so localhost and Vercel preview builds
+  // never pollute the property with traffic that is not real users.
+  analyticsHost: "logmyplate.com",
 
   // ── AdMob ──────────────────────────────────────────────────────────────────
   admobPublisherId: "pub-6936425975956435",

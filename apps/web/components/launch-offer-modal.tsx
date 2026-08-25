@@ -94,7 +94,7 @@ export function LaunchOfferModal() {
             className="h-auto w-full"
           />
           <div className="flex flex-col items-center gap-3 p-5">
-            <DownloadBadges size="md" />
+            <DownloadBadges size="md" placement="offer_modal" />
             <button
               type="button"
               onClick={dismiss}

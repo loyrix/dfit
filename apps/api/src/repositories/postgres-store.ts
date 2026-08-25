@@ -32,6 +32,7 @@ import type {
   AttachMealImageInput,
   CreateMealInput,
   IdempotencyRecord,
+  InstallAttributionInput,
   ListMealsInput,
   LearnFoodsFromConfirmedScanInput,
   RecordScanCorrectionsInput,
@@ -1921,6 +1922,53 @@ export class PostgresStore implements AppRepository {
         quota: quotaFromRow(quotaRow),
       };
     });
+  }
+
+  async recordInstallAttribution(input: InstallAttributionInput): Promise<boolean> {
+    const identity = currentRequestIdentity();
+    const installId = identity.installId;
+    if (!installId) {
+      throw new AccountAuthError(
+        "install_required",
+        "Device install identity is required to record install attribution.",
+        400,
+      );
+    }
+
+    // Nothing worth a write. Clients call this on every cold start, so this is
+    // the common path for organic installs.
+    if (
+      input.source === null &&
+      input.medium === null &&
+      input.campaign === null &&
+      input.referrerRaw === null &&
+      input.analyticsInstanceId === null
+    ) {
+      return false;
+    }
+
+    // `coalesce(devices.x, excluded.x)` is deliberately the other way round from
+    // the app_version upserts above: attribution is a first-touch fact, so an
+    // existing value wins over the incoming one. The analytics instance id is
+    // the exception — it is a current-state pointer and can legitimately change
+    // when a user clears app data, so the newest non-null value wins there.
+    const [row] = await this.sql<{ captured: boolean }[]>`
+      update devices
+      set
+        install_source = coalesce(devices.install_source, ${input.source}),
+        install_medium = coalesce(devices.install_medium, ${input.medium}),
+        install_campaign = coalesce(devices.install_campaign, ${input.campaign}),
+        install_referrer_raw = coalesce(devices.install_referrer_raw, ${input.referrerRaw}),
+        analytics_instance_id = coalesce(
+          ${input.analyticsInstanceId},
+          devices.analytics_instance_id
+        ),
+        attribution_captured_at = coalesce(devices.attribution_captured_at, now())
+      where devices.install_id = ${installId}
+      returning true as captured
+    `;
+
+    return row?.captured ?? false;
   }
 
   async registerPushToken(input: PushTokenRegistrationInput): Promise<PushTokenRegistrationResult> {
