@@ -331,6 +331,27 @@ export const pushNotificationFailureKey = (result: PushNotificationSendResult): 
   return result.errorReason ? `${code}:${result.errorReason}` : code;
 };
 
+const DEAD_TOKEN_CODES = new Set(["not_found", "unregistered"]);
+
+/**
+ * True when the provider says the token itself is gone (app uninstalled or token rotated),
+ * so the row should be disabled instead of retried.
+ *
+ * The two providers spell this differently: FCM answers HTTP 404 with `UNREGISTERED` or
+ * `NOT_FOUND`, while direct APNs answers HTTP 410 with the raw reason `Unregistered`. Match
+ * both statuses and compare codes case-insensitively so an APNs uninstall is not missed.
+ *
+ * Deliberately excludes `BadDeviceToken` and `INVALID_ARGUMENT`: those also fire on
+ * environment or credential mismatches, where disabling live tokens would be the wrong call.
+ */
+export const shouldDisablePushToken = (result: PushNotificationSendResult): boolean => {
+  if (result.success) return false;
+  if (result.status === 404 || result.status === 410) return true;
+  const code = result.errorCode?.trim().toLowerCase() ?? "";
+  const reason = result.errorReason?.trim().toLowerCase() ?? "";
+  return DEAD_TOKEN_CODES.has(code) || DEAD_TOKEN_CODES.has(reason);
+};
+
 export const parsePushNotificationSendError = (
   payload: unknown,
 ): Pick<PushNotificationSendResult, "errorCode" | "errorReason"> => {

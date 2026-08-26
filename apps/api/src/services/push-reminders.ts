@@ -3,6 +3,7 @@ import {
   PushNotificationRouter,
   pushNotificationFailureKey,
   type PushNotificationSendResult,
+  shouldDisablePushToken,
 } from "./push-notifications.js";
 import type { SqlClient } from "../db/client.js";
 
@@ -579,7 +580,7 @@ const sendReminderToCandidate = async (
     failed += 1;
     const key = pushNotificationFailureKey(result);
     failures[key] = (failures[key] ?? 0) + 1;
-    if (shouldDisableToken(result)) {
+    if (shouldDisablePushToken(result)) {
       disabledHashes.push(target.tokenHash);
     }
   }
@@ -672,6 +673,3 @@ const timeToMinutes = (value: string): number => {
 const bump = (bucket: Record<string, number>, key: string): void => {
   bucket[key] = (bucket[key] ?? 0) + 1;
 };
-
-const shouldDisableToken = (result: PushNotificationSendResult): boolean =>
-  result.status === 404 || result.errorCode === "NOT_FOUND" || result.errorCode === "UNREGISTERED";

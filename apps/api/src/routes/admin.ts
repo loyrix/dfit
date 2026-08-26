@@ -32,6 +32,7 @@ import {
   PushNotificationConfigurationError,
   PushNotificationRouter,
   pushNotificationFailureKey,
+  shouldDisablePushToken,
 } from "../services/push-notifications.js";
 import { reconcileStaleScanSessionsThrottled } from "../services/scan-maintenance.js";
 
@@ -4227,11 +4228,7 @@ const sendPushNotificationToTargets = async (
     failed += 1;
     const key = pushNotificationFailureKey(result);
     failures[key] = (failures[key] ?? 0) + 1;
-    if (
-      result.status === 404 ||
-      result.errorCode === "NOT_FOUND" ||
-      result.errorCode === "UNREGISTERED"
-    ) {
+    if (shouldDisablePushToken(result)) {
       disabledHashes.push(target.token_hash);
     }
   }
