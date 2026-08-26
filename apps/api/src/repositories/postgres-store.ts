@@ -3099,6 +3099,18 @@ export class PostgresStore implements AppRepository {
     return this.scanAnalysisCacheFromRow(cached);
   }
 
+  /**
+   * Counts distinct *photos* the model rejected, not rejected scan rows.
+   *
+   * Retrying the same photo is the first thing a user does when a scan fails,
+   * so counting rows charged an abuse strike for ordinary persistence: one
+   * user burned the whole daily allowance on two photos in twenty minutes and
+   * was locked out of scanning for a day. Deduplicating on image_hash keeps
+   * the limit pointed at what it was built for — a stream of *different*
+   * non-food images — while a user fighting with one stubborn plate pays for
+   * it once. Scans with no hash (no image reached the provider) have no photo
+   * to deduplicate on, so they fall back to the scan id and count singly.
+   */
   async countNoFoodScanAttemptsSince(sinceIso: string) {
     const profile = await this.getProfile();
     const [row] = await this.sql<{ count: number | string }[]>`
@@ -3109,7 +3121,10 @@ export class PostgresStore implements AppRepository {
         order by reset_at desc
         limit 1
       )
-      select count(*)::integer as count
+      select count(distinct coalesce(
+        scan_sessions.image_hash,
+        scan_sessions.id::text
+      ))::integer as count
       from scan_sessions
       inner join lateral (
         select raw_ai_json

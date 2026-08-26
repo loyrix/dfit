@@ -110,8 +110,8 @@ describe("GeminiAiProvider", () => {
     expect(prompt).toContain('User typed this plate note: "dal rice roti"');
     expect(prompt).toContain("Analyze ONLY food items that are actually visible");
     expect(prompt).toContain("Do NOT invent, hallucinate, or assume food items");
-    expect(prompt).toContain('return mealName "No food detected" and items []');
-    expect(prompt).toContain("Reject screenshots, people, pets, documents");
+    expect(prompt).toContain('Return mealName "No food detected" and items [] ONLY');
+    expect(prompt).toContain("Reject only when there is genuinely nothing to log");
     expect(prompt).toContain("Use the user's locale and plate context only");
     expect(prompt).toContain("plate geometry");
     expect(prompt).toContain("Count visible pieces/items individually");
@@ -127,6 +127,29 @@ describe("GeminiAiProvider", () => {
     expect(prompt).not.toContain("Hinglish");
     expect(prompt).not.toContain("Solkadhi");
     expect(prompt).toContain("cuisine-neutral and globally aware");
+  });
+
+  it("does not let uncertainty about which food is present become no food at all", async () => {
+    const prompt = buildFoodPhotoPrompt();
+
+    // A user photographed roasted chana, nuts and seeds, was told "No food
+    // detected" five times, and tripped the daily non-food limit. The gate
+    // must stay generous about whether food is present while the rules below
+    // it stay strict about what that food is.
+    expect(prompt).toContain("Being unsure WHICH food is present never justifies");
+    expect(prompt).toContain("Food does not need a plate, a bowl, or a cooked dish");
+    expect(prompt).toContain("never fall back to items []");
+    // The guards against inventing food are the half that must not loosen.
+    expect(prompt).toContain("Do NOT invent, hallucinate, or assume food items");
+    expect(prompt).toContain("Do NOT assume hidden ingredients");
+  });
+
+  it("lets a plate note name a visible food but never conjure one", async () => {
+    const prompt = buildFoodPhotoPrompt("roasted chana, almonds, pumpkin seeds");
+
+    expect(prompt).toContain("the note is good evidence for what that food is");
+    expect(prompt).toContain("never evidence that food is present at all");
+    expect(prompt).toContain("do not add items you cannot see");
   });
 
   it("tells the model to estimate real portions rather than shrink them", async () => {

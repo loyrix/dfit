@@ -1045,18 +1045,20 @@ export class InMemoryStore implements AppRepository {
     return { ...cached };
   }
 
+  /** Counts distinct rejected photos, mirroring the SQL store. */
   async countNoFoodScanAttemptsSince(sinceIso: string) {
     const profile = await this.getProfile();
     const sinceTime = Date.parse(sinceIso);
-    let count = 0;
+    const photos = new Set<string>();
 
     for (const scan of this.scans.values()) {
       if (scan.profileId !== profile.id) continue;
       if (Date.parse(scan.createdAt) < sinceTime) continue;
-      if (scanHasNoFoodAnalysis(scan)) count += 1;
+      if (!scanHasNoFoodAnalysis(scan)) continue;
+      photos.add(scan.imageHash ?? scan.id);
     }
 
-    return count;
+    return photos.size;
   }
 
   async getAiPrompt(key: string): Promise<string | undefined> {

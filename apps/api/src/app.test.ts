@@ -3754,7 +3754,9 @@ describe("LogMyPlate API", () => {
       retryable: false,
     });
     expect(afterQuota.json()).toMatchObject(beforeQuota.json());
-    expect(mealImageStorage.uploads).toHaveLength(0);
+    // The photo is kept even though no food was found: a rejection nobody can
+    // look at afterwards cannot be told apart from a genuine non-food image.
+    expect(mealImageStorage.uploads).toHaveLength(1);
     await expect(repository.getScan(scanId)).resolves.toMatchObject({
       status: "failed",
       analyzedResponse: {
@@ -3801,7 +3803,9 @@ describe("LogMyPlate API", () => {
       aiProvider,
       mealImageStorage: new DisabledStorage(),
     });
-    const analyze = async (key: string) => {
+    // Each attempt uses a *different* photo: the limit counts distinct
+    // rejected images, so reusing one would never reach it.
+    const analyze = async (key: string, base64: string) => {
       const prepared = await app.inject({
         method: "POST",
         url: "/v1/scans/prepare",
@@ -3815,7 +3819,7 @@ describe("LogMyPlate API", () => {
           hint: "plate",
           image: {
             mimeType: "image/jpeg",
-            base64: "AQID",
+            base64,
             byteSize: 3,
           },
         },
@@ -3823,9 +3827,9 @@ describe("LogMyPlate API", () => {
     };
 
     try {
-      expect((await analyze("one")).statusCode).toBe(422);
-      expect((await analyze("two")).statusCode).toBe(422);
-      const blocked = await analyze("three");
+      expect((await analyze("one", "AQID")).statusCode).toBe(422);
+      expect((await analyze("two", "BAUG")).statusCode).toBe(422);
+      const blocked = await analyze("three", "BwgJ");
 
       expect(blocked.statusCode).toBe(429);
       expect(blocked.json()).toMatchObject({
@@ -3833,6 +3837,69 @@ describe("LogMyPlate API", () => {
         retryable: false,
       });
       expect(calls).toBe(2);
+    } finally {
+      if (previousLimit === undefined) {
+        delete process.env.NO_FOOD_SCAN_DAILY_LIMIT;
+      } else {
+        process.env.NO_FOOD_SCAN_DAILY_LIMIT = previousLimit;
+      }
+      await app.close();
+    }
+  });
+
+  it("does not spend the no-food limit on retries of the same photo", async () => {
+    const previousLimit = process.env.NO_FOOD_SCAN_DAILY_LIMIT;
+    process.env.NO_FOOD_SCAN_DAILY_LIMIT = "2";
+    const aiProvider: AiProvider = {
+      async analyzeMealImage(input) {
+        return {
+          analysis: {
+            scanId: input.scanId,
+            status: "ready_for_review",
+            mealType: "snack",
+            mealName: "No food detected",
+            detectedLanguage: "en",
+            items: [],
+            totals: { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
+          },
+          providerRun: {
+            provider: "mock",
+            model: "test-no-food-provider",
+            promptVersion: "test",
+            schemaVersion: "scan_v1",
+          },
+        };
+      },
+    };
+    const app = await buildApp({
+      repository: new InMemoryStore(),
+      aiProvider,
+      mealImageStorage: new DisabledStorage(),
+    });
+    const retrySamePhoto = async (key: string) => {
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": `no-food-retry-prepare-${key}` },
+      });
+      return app.inject({
+        method: "POST",
+        url: `/v1/scans/${prepared.json().scanId}/analyze`,
+        headers: { "idempotency-key": `no-food-retry-analyze-${key}` },
+        payload: {
+          hint: "roasted chana, almonds, walnuts, pumpkin and sunflower seeds",
+          image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+        },
+      });
+    };
+
+    try {
+      // Three taps of Retry on one stubborn plate. Every attempt must reach
+      // the model: the user is not producing new non-food images, and locking
+      // them out of scanning for a day over one photo is the bug this guards.
+      expect((await retrySamePhoto("one")).statusCode).toBe(422);
+      expect((await retrySamePhoto("two")).statusCode).toBe(422);
+      expect((await retrySamePhoto("three")).statusCode).toBe(422);
     } finally {
       if (previousLimit === undefined) {
         delete process.env.NO_FOOD_SCAN_DAILY_LIMIT;

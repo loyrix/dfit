@@ -38,7 +38,10 @@ const isStoredImageMimeType = (value: string | undefined): value is StoredMealIm
   value === "image/jpeg" || value === "image/png" || value === "image/webp";
 
 const noFoodScanWindowMs = 24 * 60 * 60 * 1_000;
-const defaultNoFoodScanLimit = 5;
+// Counted per distinct photo, so this is eight *different* rejected images in
+// a day, not eight taps of Retry. Five rows was low enough that two stubborn
+// plates could exhaust it.
+const defaultNoFoodScanLimit = 8;
 const scanImageHashAlgorithm = "sha256:v1" as const;
 
 const sha256Hex = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
@@ -687,8 +690,13 @@ export const registerScanRoutes = async (
       ? timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason))
       : undefined;
 
+    // Uploaded whether or not the model found food. A no-food verdict is the
+    // one case where someone will want to look at the photo afterwards — to
+    // tell a wrong rejection from a genuine non-food image — and gating the
+    // upload on hasFoodItems threw away exactly those. Deleted with the rest
+    // of the profile's objects on account deletion, same as any scan image.
     const scanImageUploadPromise: Promise<StoredMealImage | undefined> | undefined =
-      hasFoodItems && image && imageBytes && mealImageStorage.enabled
+      image && imageBytes && mealImageStorage.enabled
         ? timer
             .measure("scanImageUpload", () =>
               mealImageStorage.uploadScanImage({
