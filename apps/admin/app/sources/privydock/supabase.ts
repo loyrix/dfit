@@ -202,3 +202,109 @@ export function listSnapshots(project: string, metric: string, sinceDay: string)
     { limit: 400 },
   );
 }
+
+// MARK: - First-party analytics
+//
+// These read the aggregate views rather than the raw event tables. Counting
+// distinct visitors cannot be expressed through PostgREST, and pulling every
+// row into the console to count them would stop working long before the numbers
+// get interesting.
+
+/** 0 bot · 1 suspected · 2 human. */
+export const CLIENT_HUMAN = 2;
+
+/**
+ * Visitor identity only exists from this date. Before it, ANALYTICS_SALT_SECRET
+ * was unset in production and every row was written without a visitor_hash, so
+ * unique counts for earlier days are unmeasured — which is not the same as zero
+ * and must never be rendered as one.
+ */
+export const VISITOR_IDENTITY_SINCE = "2026-09-03";
+
+/**
+ * Download events before this date are not click counts.
+ *
+ * Until 4 September the DMG buttons were Next `<Link>` elements, which prefetch
+ * their href on hover — so merely scrolling the button into view recorded a
+ * download. Visits produced two to eight rows each. Counting those alongside
+ * real clicks would overstate downloads several-fold and quietly poison every
+ * conversion rate built on them.
+ */
+export const DOWNLOAD_CLICKS_SINCE = "2026-09-04";
+
+export type DailyTrafficRow = {
+  day: string;
+  client_class: number;
+  views: number;
+  unique_visitors: number;
+};
+
+export type DailyDownloadRow = {
+  day: string;
+  client_class: number;
+  file: string;
+  clicks: number;
+  unique_downloaders: number;
+};
+
+export type PathRow = {
+  path: string;
+  views: number;
+  unique_visitors: number;
+  last_seen: string;
+};
+
+export type ReferrerRow = {
+  referrer_host: string;
+  views: number;
+  unique_visitors: number;
+};
+
+export function trafficDaily(sinceDay: string) {
+  return select<DailyTrafficRow>(
+    "loyrix_traffic_daily",
+    `select=day,client_class,views,unique_visitors&day=gte.${sinceDay}&order=day.desc`,
+    { limit: 400 },
+  );
+}
+
+export function downloadsDaily(sinceDay: string) {
+  return select<DailyDownloadRow>(
+    "loyrix_downloads_daily",
+    `select=day,client_class,file,clicks,unique_downloaders&day=gte.${sinceDay}&order=day.desc`,
+    { limit: 400 },
+  );
+}
+
+export function trafficByPath(limit = 25) {
+  return select<PathRow>(
+    "loyrix_traffic_by_path",
+    "select=path,views,unique_visitors,last_seen&order=views.desc",
+    { limit },
+  );
+}
+
+export function trafficByReferrer(limit = 15) {
+  return select<ReferrerRow>(
+    "loyrix_traffic_by_referrer",
+    "select=referrer_host,views,unique_visitors&order=views.desc",
+    { limit },
+  );
+}
+
+export type InstallRow = {
+  install_id: string;
+  first_seen: string;
+  last_seen: string;
+  app_version: string | null;
+  os_version: string | null;
+  country: string | null;
+};
+
+export function listInstalls(limit = 500) {
+  return select<InstallRow>(
+    "loyrix_app_installs",
+    "select=install_id,first_seen,last_seen,app_version,os_version,country&order=last_seen.desc",
+    { limit },
+  );
+}

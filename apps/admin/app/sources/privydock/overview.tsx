@@ -1,12 +1,21 @@
 import { after } from "next/server";
 
 import { Metric, PageHeader, formatDate, formatNumber } from "../../components/ui";
-import { CaptureButton } from "../../components/capture-button";
 import { SourceError, safe } from "../../components/source-error";
-import { cachedDailyTraffic, cachedDownloadObjects } from "./cloudflare";
+import { CaptureButton } from "../../components/capture-button";
+import { cachedDownloadObjects } from "./cloudflare";
 import { cachedTransactions, netRevenue } from "./paddle";
 import { autoCapturePrivydock } from "./snapshots";
-import { countRows, latestSnapshot, listActivations } from "./supabase";
+import {
+  CLIENT_HUMAN,
+  DOWNLOAD_CLICKS_SINCE,
+  VISITOR_IDENTITY_SINCE,
+  countRows,
+  downloadsDaily,
+  latestSnapshot,
+  listInstalls,
+  trafficDaily,
+} from "./supabase";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -15,46 +24,63 @@ function isoDate(offsetDays: number) {
 }
 
 export async function PrivydockOverview() {
-  // Cloudflare's retention is rolling, so history only exists if it is captured.
-  // There is no scheduler, so opening this page is the trigger — and `after()`
-  // runs it once the response has already been sent, adding no latency here.
   after(autoCapturePrivydock);
 
-  const captured = await safe(() => latestSnapshot("privydock"));
+  const since7 = isoDate(7);
+  const since30 = isoDate(30);
 
-  const [traffic, downloads, licenses, waitlist, activations, transactions] = await Promise.all([
-    safe(() => cachedDailyTraffic(isoDate(7), isoDate(0))),
-    safe(() =>
-      cachedDownloadObjects(
-        new Date(Date.now() - 30 * DAY).toISOString(),
-        new Date().toISOString(),
+  const [captured, traffic, downloads, installs, licenses, waitlist, updateChecks, transactions] =
+    await Promise.all([
+      safe(() => latestSnapshot("privydock")),
+      safe(() => trafficDaily(since7)),
+      safe(() => downloadsDaily(since30)),
+      safe(() => listInstalls(500)),
+      safe(() => countRows("licenses")),
+      safe(() => countRows("waitlist_signups")),
+      // The only figure Cloudflare still owns: Sparkle polls appcast.xml
+      // directly on R2 and never touches anything we instrument.
+      safe(() =>
+        cachedDownloadObjects(
+          new Date(Date.now() - 30 * DAY).toISOString(),
+          new Date().toISOString(),
+        ),
       ),
-    ),
-    safe(() => countRows("licenses")),
-    safe(() => countRows("waitlist_signups")),
-    safe(() => listActivations(500)),
-    safe(() => cachedTransactions(100)),
-  ]);
+      safe(() => cachedTransactions(100)),
+    ]);
 
-  const humanViews = traffic.ok
-    ? traffic.data.reduce((sum, day) => sum + day.humanPageViews, 0)
-    : null;
-  const visitorDays = traffic.ok ? traffic.data.reduce((sum, day) => sum + day.uniqueIps, 0) : null;
-  const dmgDownloads = downloads.ok
-    ? downloads.data
-        .filter((object) => object.object.endsWith(".dmg"))
-        .reduce((sum, object) => sum + object.completed, 0)
-    : null;
-  const updateChecks = downloads.ok
-    ? (downloads.data.find((object) => object.object === "appcast.xml")?.requests ?? 0)
+  const humanTraffic = traffic.ok
+    ? traffic.data.rows.filter((row) => row.client_class === CLIENT_HUMAN)
+    : [];
+  const humanViews = traffic.ok ? humanTraffic.reduce((sum, row) => sum + row.views, 0) : null;
+
+  // Daily unique counts cannot be summed into a period total — the same person
+  // on three days would count three times. Reported as a daily peak instead,
+  // which is a number that means something.
+  const measuredDays = humanTraffic.filter((row) => row.day >= VISITOR_IDENTITY_SINCE);
+  const peakDailyVisitors = measuredDays.length
+    ? Math.max(...measuredDays.map((row) => row.unique_visitors))
     : null;
 
-  const activeInstalls = activations.ok
-    ? new Set(
-        activations.data.rows
-          .filter((row) => Date.parse(row.last_validated_at) > Date.now() - 30 * DAY)
-          .map((row) => row.license_id),
-      ).size
+  const humanDownloads = downloads.ok
+    ? downloads.data.rows.filter((row) => row.client_class === CLIENT_HUMAN)
+    : [];
+  // Only days after the prefetch fix are genuine clicks; earlier rows counted
+  // hovers. Reported over whatever part of the window is trustworthy rather
+  // than over a fixed 30 days that would include inflated history.
+  const countedDownloadDays = humanDownloads.filter((row) => row.day >= DOWNLOAD_CLICKS_SINCE);
+  const downloadClicks = downloads.ok
+    ? countedDownloadDays.reduce((sum, row) => sum + row.clicks, 0)
+    : null;
+  const downloadUniques = downloads.ok
+    ? Math.max(0, ...countedDownloadDays.map((row) => row.unique_downloaders))
+    : null;
+
+  const appcastPolls = updateChecks.ok
+    ? (updateChecks.data.find((object) => object.object === "appcast.xml")?.requests ?? 0)
+    : null;
+
+  const activeInstalls = installs.ok
+    ? installs.data.rows.filter((row) => Date.parse(row.last_seen) > Date.now() - 30 * DAY).length
     : null;
 
   return (
@@ -62,7 +88,7 @@ export async function PrivydockOverview() {
       <PageHeader
         eyebrow="PrivyDock"
         title="Overview"
-        description="Cloudflare, Supabase and Paddle in one view. Each figure states how far it can be trusted."
+        description="Counted first-party in PrivyDock's own database. Bots are excluded by classification, not guessed at from user agents."
         action={<CaptureButton />}
       />
 
@@ -70,22 +96,31 @@ export async function PrivydockOverview() {
         <Metric
           label="Human page views · 7d"
           value={humanViews === null ? "—" : formatNumber(humanViews)}
-          sub="Estimated — user-agent based"
+          sub="Exact · bots excluded"
         />
         <Metric
-          label="Visitor-days · 7d"
-          value={visitorDays === null ? "—" : formatNumber(visitorDays)}
-          sub="Daily-unique IPs, not distinct people"
+          label="Peak daily visitors · 7d"
+          value={peakDailyVisitors === null ? "not measured" : formatNumber(peakDailyVisitors)}
+          sub={
+            peakDailyVisitors === null
+              ? `Visitor identity starts ${VISITOR_IDENTITY_SINCE}`
+              : "Distinct people, busiest day"
+          }
         />
         <Metric
-          label="DMG downloads · 30d"
-          value={dmgDownloads === null ? "—" : formatNumber(dmgDownloads)}
-          sub="Sampled 1:10, derived from bytes"
+          label="Download clicks"
+          value={downloadClicks === null ? "—" : formatNumber(downloadClicks)}
+          sub={`Exact · humans only · since ${DOWNLOAD_CLICKS_SINCE}`}
         />
         <Metric
-          label="Update checks · 30d"
-          value={updateChecks === null ? "—" : formatNumber(updateChecks)}
-          sub="appcast.xml polls — proxy for installs"
+          label="Peak daily downloaders"
+          value={downloadUniques === null ? "—" : formatNumber(downloadUniques)}
+          sub="Distinct people, busiest day"
+        />
+        <Metric
+          label="Installs"
+          value={installs.ok ? formatNumber(installs.data.total) : "—"}
+          sub={activeInstalls === null ? "Exact" : `${formatNumber(activeInstalls)} active in 30d`}
         />
         <Metric
           label="Licences"
@@ -93,14 +128,14 @@ export async function PrivydockOverview() {
           sub="Exact"
         />
         <Metric
-          label="Active installs · 30d"
-          value={activeInstalls === null ? "—" : formatNumber(activeInstalls)}
-          sub="Licences validated in window"
-        />
-        <Metric
           label="Waitlist"
           value={waitlist.ok ? formatNumber(waitlist.data) : "—"}
           sub="Exact"
+        />
+        <Metric
+          label="Update checks · 30d"
+          value={appcastPolls === null ? "—" : formatNumber(appcastPolls)}
+          sub="Cloudflare R2, sampled 1:10"
         />
         <Metric
           label="Revenue"
@@ -111,15 +146,16 @@ export async function PrivydockOverview() {
 
       <p className="muted mt-4 text-sm">
         {captured.ok && captured.data
-          ? `History captured ${formatDate(captured.data.capturedAt)}, through ${captured.data.throughDay}. Cloudflare drops everything after 90 days, so only captured days survive.`
+          ? `History captured ${formatDate(captured.data.capturedAt)}, through ${captured.data.throughDay}.`
           : captured.ok
-            ? "No history captured yet — the first capture is running now and backfills everything Cloudflare still holds. Reload in a minute."
+            ? "No history captured yet — the first capture is running now."
             : `Snapshot store unreachable — ${captured.error}`}
       </p>
 
       <section className="grid mt-4">
-        {!traffic.ok ? <SourceError source="Cloudflare traffic" message={traffic.error} /> : null}
-        {!downloads.ok ? <SourceError source="Cloudflare R2" message={downloads.error} /> : null}
+        {!traffic.ok ? <SourceError source="Page views" message={traffic.error} /> : null}
+        {!downloads.ok ? <SourceError source="Download events" message={downloads.error} /> : null}
+        {!installs.ok ? <SourceError source="Installs" message={installs.error} /> : null}
         {!licenses.ok ? <SourceError source="Supabase" message={licenses.error} /> : null}
         {!transactions.ok ? <SourceError source="Paddle" message={transactions.error} /> : null}
       </section>
