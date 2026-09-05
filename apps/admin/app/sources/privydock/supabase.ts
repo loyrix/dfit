@@ -276,6 +276,27 @@ export function downloadsDaily(sinceDay: string) {
   );
 }
 
+export type DailyDownloadTotalRow = {
+  day: string;
+  client_class: number;
+  clicks: number;
+  unique_downloaders: number;
+};
+
+/**
+ * Day totals across all files. `downloadsDaily` groups by file, which makes a
+ * day's distinct-downloader count unanswerable from it — summing double-counts
+ * one person who took two files, and taking the maximum misses a second person
+ * who took a different one.
+ */
+export function downloadsDailyTotals(sinceDay: string) {
+  return select<DailyDownloadTotalRow>(
+    "loyrix_downloads_daily_totals",
+    `select=day,client_class,clicks,unique_downloaders&day=gte.${sinceDay}&order=day.desc`,
+    { limit: 400 },
+  );
+}
+
 export function trafficByPath(limit = 25) {
   return select<PathRow>(
     "loyrix_traffic_by_path",

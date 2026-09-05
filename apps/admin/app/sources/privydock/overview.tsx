@@ -11,7 +11,7 @@ import {
   DOWNLOAD_CLICKS_SINCE,
   VISITOR_IDENTITY_SINCE,
   countRows,
-  downloadsDaily,
+  downloadsDailyTotals,
   latestSnapshot,
   listInstalls,
   trafficDaily,
@@ -33,7 +33,7 @@ export async function PrivydockOverview() {
     await Promise.all([
       safe(() => latestSnapshot("privydock")),
       safe(() => trafficDaily(since7)),
-      safe(() => downloadsDaily(since30)),
+      safe(() => downloadsDailyTotals(since30)),
       safe(() => listInstalls(500)),
       safe(() => countRows("licenses")),
       safe(() => countRows("waitlist_signups")),

@@ -1,146 +1,227 @@
 import { AdminShell } from "../../components/shell";
 import { privydockSource } from "../../sources/privydock";
 import { SourceError, safe } from "../../components/source-error";
-import { Metric, PageHeader, formatNumber } from "../../components/ui";
-import { cachedDailyTraffic, cachedPathHits } from "../../sources/privydock/cloudflare";
+import { EmptyState, Metric, PageHeader, formatDate, formatNumber } from "../../components/ui";
+import {
+  CLIENT_HUMAN,
+  VISITOR_IDENTITY_SINCE,
+  trafficByPath,
+  trafficByReferrer,
+  trafficDaily,
+} from "../../sources/privydock/supabase";
 
 export const dynamic = "force-dynamic";
 
 const DAY = 24 * 60 * 60 * 1000;
 const isoDate = (offset: number) => new Date(Date.now() - offset * DAY).toISOString().slice(0, 10);
 
+type Day = {
+  day: string;
+  human: number;
+  suspected: number;
+  bot: number;
+  humanVisitors: number;
+  measured: boolean;
+};
+
+/**
+ * The view returns one row per (day, class). Pivoting to one row per day is
+ * what makes the table readable and the human share computable.
+ */
+function byDay(
+  rows: Array<{ day: string; client_class: number; views: number; unique_visitors: number }>,
+) {
+  const days = new Map<string, Day>();
+  for (const row of rows) {
+    const day = days.get(row.day) ?? {
+      day: row.day,
+      human: 0,
+      suspected: 0,
+      bot: 0,
+      humanVisitors: 0,
+      measured: row.day >= VISITOR_IDENTITY_SINCE,
+    };
+    if (row.client_class === CLIENT_HUMAN) {
+      day.human += row.views;
+      day.humanVisitors = row.unique_visitors;
+    } else if (row.client_class === 1) {
+      day.suspected += row.views;
+    } else {
+      day.bot += row.views;
+    }
+    days.set(row.day, day);
+  }
+  return [...days.values()].sort((a, b) => b.day.localeCompare(a.day));
+}
+
 export default async function TrafficPage() {
-  const [traffic, paths] = await Promise.all([
-    safe(() => cachedDailyTraffic(isoDate(30), isoDate(0))),
-    // The adaptive dataset caps queries at one day and retains eight, so recent
-    // days are fetched individually and merged.
-    safe(async () => {
-      const days = await Promise.all([1, 2, 3].map((offset) => cachedPathHits(isoDate(offset))));
-      const merged = new Map<string, { host: string; path: string; count: number }>();
-      for (const hit of days.flat()) {
-        if (hit.status >= 400) continue;
-        const key = `${hit.host}${hit.path}`;
-        const current = merged.get(key) ?? { host: hit.host, path: hit.path, count: 0 };
-        current.count += hit.count;
-        merged.set(key, current);
-      }
-      return [...merged.values()].sort((a, b) => b.count - a.count).slice(0, 25);
-    }),
+  const [traffic, paths, referrers] = await Promise.all([
+    safe(() => trafficDaily(isoDate(30))),
+    safe(() => trafficByPath(25)),
+    safe(() => trafficByReferrer(15)),
   ]);
 
-  const totals = traffic.ok
-    ? traffic.data.reduce(
-        (acc, day) => ({
-          human: acc.human + day.humanPageViews,
-          bot: acc.bot + day.botPageViews,
-          unknown: acc.unknown + day.unknownPageViews,
-          uniques: acc.uniques + day.uniqueIps,
-        }),
-        { human: 0, bot: 0, unknown: 0, uniques: 0 },
-      )
-    : null;
+  if (!traffic.ok) {
+    return (
+      <AdminShell project={privydockSource}>
+        <PageHeader eyebrow="PrivyDock" title="Traffic" />
+        <SourceError source="Page views" message={traffic.error} />
+      </AdminShell>
+    );
+  }
 
-  const totalViews = totals ? totals.human + totals.bot + totals.unknown : 0;
+  const days = byDay(traffic.data.rows);
+  const humanViews = days.reduce((sum, day) => sum + day.human, 0);
+  const filtered = days.reduce((sum, day) => sum + day.bot + day.suspected, 0);
+  const allViews = humanViews + filtered;
+
+  // Daily unique counts cannot be summed into a period total — one person on
+  // three days would count as three. The busiest day is a number that means
+  // something; days before the salt existed carry no identity and are excluded
+  // rather than counted as zero.
+  const measured = days.filter((day) => day.measured);
+  const peakVisitors = measured.length
+    ? Math.max(...measured.map((day) => day.humanVisitors))
+    : null;
 
   return (
     <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Traffic"
-        description="Cloudflare zone analytics over 30 days. The human split is inferred from browser family, which is spoofable — bot scoring needs an Enterprise plan."
+        description="Counted first-party in PrivyDock's own database, one row per rendered page. Automated clients are classified on request shape — not just user agent — and excluded from every human figure below."
       />
 
-      {totals ? (
-        <section className="grid metrics">
-          <Metric
-            label="Human page views · 30d"
-            value={formatNumber(totals.human)}
-            sub={
-              totalViews
-                ? `${Math.round((totals.human / totalViews) * 100)}% of all views`
-                : undefined
-            }
-          />
-          <Metric
-            label="Known bots"
-            value={formatNumber(totals.bot)}
-            sub="GoogleBot, BingBot, curl…"
-          />
-          <Metric
-            label="Unknown agents"
-            value={formatNumber(totals.unknown)}
-            sub="Mostly scripts and scanners"
-          />
-          <Metric
-            label="Visitor-days"
-            value={formatNumber(totals.uniques)}
-            sub="Daily-unique IPs summed — not distinct people"
-          />
-        </section>
-      ) : (
-        <SourceError source="Cloudflare traffic" message={traffic.ok ? "" : traffic.error} />
-      )}
+      <section className="grid metrics">
+        <Metric
+          label="Human page views · 30d"
+          value={formatNumber(humanViews)}
+          sub={allViews ? `${Math.round((humanViews / allViews) * 100)}% of all requests` : "Exact"}
+        />
+        <Metric
+          label="Peak daily visitors"
+          value={peakVisitors === null ? "not measured" : formatNumber(peakVisitors)}
+          sub={
+            peakVisitors === null
+              ? `Visitor identity starts ${VISITOR_IDENTITY_SINCE}`
+              : "Distinct people, busiest day"
+          }
+        />
+        <Metric
+          label="Automated requests"
+          value={formatNumber(filtered)}
+          sub="Bots and suspected clients, excluded above"
+        />
+        <Metric
+          label="Days with visitors"
+          value={formatNumber(days.filter((day) => day.human > 0).length)}
+          sub="of the last 30"
+        />
+      </section>
 
-      {traffic.ok ? (
-        <section className="panel mt-6">
-          <div className="metric-label">Daily page views</div>
+      <section className="panel mt-6">
+        <div className="metric-label">Daily page views</div>
+        <p className="muted mt-1 text-sm">
+          Visitors are distinct people that day, deduplicated by a salted hash that is regenerated
+          every midnight — so the column is never comparable across rows and must not be added up.
+        </p>
+        {days.length ? (
           <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Human</th>
-                  <th>Bot</th>
-                  <th>Unknown</th>
-                  <th>Unique IPs</th>
+                  <th>Human views</th>
+                  <th>Visitors</th>
+                  <th>Suspected</th>
+                  <th>Bots</th>
                 </tr>
               </thead>
               <tbody>
-                {[...traffic.data].reverse().map((day) => (
-                  <tr key={day.date}>
-                    <td>{day.date}</td>
-                    <td>{formatNumber(day.humanPageViews)}</td>
-                    <td>{formatNumber(day.botPageViews)}</td>
-                    <td>{formatNumber(day.unknownPageViews)}</td>
-                    <td>{formatNumber(day.uniqueIps)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
-
-      <section className="panel mt-6">
-        <div className="metric-label">Top paths · last 3 days</div>
-        <p className="muted mt-1 text-sm">
-          Cloudflare retains path-level data for 8 days only. Counts include Next.js prefetches, so
-          they overstate real page views until first-party logging lands.
-        </p>
-        {paths.ok ? (
-          <div className="table-wrap mt-3">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Host</th>
-                  <th>Path</th>
-                  <th>Requests</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paths.data.map((row) => (
-                  <tr key={`${row.host}${row.path}`}>
-                    <td>{row.host}</td>
-                    <td>{row.path}</td>
-                    <td>{formatNumber(row.count)}</td>
+                {days.map((day) => (
+                  <tr key={day.day}>
+                    <td>{day.day}</td>
+                    <td>{formatNumber(day.human)}</td>
+                    <td>{day.measured ? formatNumber(day.humanVisitors) : "—"}</td>
+                    <td>{formatNumber(day.suspected)}</td>
+                    <td>{formatNumber(day.bot)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="muted mt-3 text-sm">Unavailable — {paths.error}</p>
+          <EmptyState title="No page views recorded" body="Nothing has been logged in 30 days." />
         )}
+      </section>
+
+      <section className="grid two-col mt-6">
+        <div className="panel">
+          <div className="metric-label">Top pages · all time</div>
+          <p className="muted mt-1 text-sm">Humans only. Prefetches are not counted.</p>
+          {paths.ok && paths.data.rows.length ? (
+            <div className="table-wrap mt-3">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Path</th>
+                    <th>Views</th>
+                    <th>Visitors</th>
+                    <th>Last seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paths.data.rows.map((row) => (
+                    <tr key={row.path}>
+                      <td>{row.path}</td>
+                      <td>{formatNumber(row.views)}</td>
+                      <td>{formatNumber(row.unique_visitors)}</td>
+                      <td>{formatDate(row.last_seen)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : paths.ok ? (
+            <EmptyState title="No pages recorded yet" />
+          ) : (
+            <p className="muted mt-3 text-sm">Unavailable — {paths.error}</p>
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="metric-label">Referrers · all time</div>
+          <p className="muted mt-1 text-sm">
+            Same-host rows are internal navigation; “(direct)” is a typed URL, a bookmark, or a
+            client that sends no referrer.
+          </p>
+          {referrers.ok && referrers.data.rows.length ? (
+            <div className="table-wrap mt-3">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Source</th>
+                    <th>Views</th>
+                    <th>Visitors</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {referrers.data.rows.map((row) => (
+                    <tr key={row.referrer_host}>
+                      <td>{row.referrer_host}</td>
+                      <td>{formatNumber(row.views)}</td>
+                      <td>{formatNumber(row.unique_visitors)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : referrers.ok ? (
+            <EmptyState title="No referrers recorded yet" />
+          ) : (
+            <p className="muted mt-3 text-sm">Unavailable — {referrers.error}</p>
+          )}
+        </div>
       </section>
     </AdminShell>
   );
