@@ -1,7 +1,14 @@
 import "server-only";
 
 import { dailyDownloads, dailyTraffic } from "./cloudflare";
-import { countRows, latestSnapshot, upsertSnapshots, type Snapshot } from "./supabase";
+import {
+  applyRetention,
+  countRows,
+  latestSnapshot,
+  upsertSnapshots,
+  type RetentionResult,
+  type Snapshot,
+} from "./supabase";
 
 /**
  * Captures PrivyDock's daily metrics into permanent storage.
@@ -63,9 +70,21 @@ export async function collectPrivydockSnapshots(days: number): Promise<Snapshot[
 }
 
 export async function runPrivydockSnapshot(days: number) {
+  // Retention first, and independently. It only touches first-party data, so a
+  // Cloudflare failure below — an expired token, a rate limit — must not be able
+  // to stop it: the privacy policy's 90-day promise is kept only while this
+  // keeps running.
+  let retention: RetentionResult | { error: string };
+  try {
+    retention = await applyRetention(90);
+  } catch (error) {
+    retention = { error: error instanceof Error ? error.message : "unknown" };
+    console.error("[privydock] retention failed", retention.error);
+  }
+
   const rows = await collectPrivydockSnapshots(days);
   await upsertSnapshots(rows);
-  return { project: "privydock", days, written: rows.length };
+  return { project: "privydock", days, written: rows.length, retention };
 }
 
 /** Longest window Cloudflare still retains. */
@@ -82,6 +101,12 @@ export type AutoCaptureResult =
 
 /**
  * Capture triggered by opening the PrivyDock console rather than by a schedule.
+ *
+ * This is also what keeps the 90-day deletion running, since there is no
+ * scheduler: every capture applies retention first. That holds as long as the
+ * console is opened at least every couple of months — each day is rolled up on
+ * every run while it is inside the window, so it only needs one run before it
+ * leaves it.
  *
  * Called from `after()`, so it runs once the page has already been sent and
  * never adds latency. The first run backfills everything Cloudflare still holds;

@@ -359,3 +359,39 @@ export function appIssues(sinceDay: string) {
     { limit: 500 },
   );
 }
+
+export type RetentionResult = {
+  keep_days: number;
+  deleted_before: string;
+  totals_rolled_up: number;
+  page_views_deleted: number;
+  download_events_deleted: number;
+};
+
+/**
+ * Enforces the privacy policy's 90-day limit on raw website measurement.
+ *
+ * The database function does the work — rolls each complete day up into
+ * snapshots while its rows are intact, then deletes whole days past the window.
+ * It runs from the console rather than a schedule because Vercel cron is not
+ * available to this project, and it is idempotent, so running it on every
+ * capture costs nothing beyond the query.
+ */
+export async function applyRetention(keepDays = 90): Promise<RetentionResult> {
+  const { url, key } = config();
+  const response = await fetch(`${url}/rest/v1/rpc/loyrix_apply_retention`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      authorization: `Bearer ${key}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ keep_days: keepDays }),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`retention ${response.status}: ${text.slice(0, 300)}`);
+  }
+  return (await response.json()) as RetentionResult;
+}
