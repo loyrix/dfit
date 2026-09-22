@@ -83,13 +83,17 @@ export default async function InstallsPage() {
   const active30 = seenWithin(30);
   const active7 = seenWithin(7);
   const new7 = rows.filter((row) => Date.parse(row.first_seen) > now - 7 * DAY);
+  // More than one check-in means it was running on more than one day — the
+  // nearest thing to "kept using it" this data can say.
+  const returning = rows.filter((row) => (row.heartbeat_count ?? 0) > 1);
+  const licensed = rows.filter((row) => row.license_id);
 
   return (
     <AdminShell project={privydockSource}>
       <PageHeader
         eyebrow="PrivyDock"
         title="Installs"
-        description="One row per installed copy, keyed by a random identifier the app stores in the Keychain. The app checks in once a day, so a copy that stops appearing has been uninstalled, replaced, or left closed — this is the only figure that reflects real use rather than intent."
+        description="One row per installed copy, keyed by a random identifier the app stores in the Keychain. From 0.1.7 the app checks in once a day while it is running. Earlier versions only checked in at launch, so an older copy left running for weeks shows a single check-in and an old last-seen date even if it is used every day."
       />
 
       <section className="grid metrics">
@@ -109,6 +113,18 @@ export default async function InstallsPage() {
           sub="Checked in within 7 days"
         />
         <Metric label="New · 7d" value={formatNumber(new7.length)} sub="First seen within 7 days" />
+        <Metric
+          label="Returning"
+          value={formatNumber(returning.length)}
+          sub="Checked in on more than one day"
+        />
+        <Metric
+          label="Licensed"
+          value={formatNumber(licensed.length)}
+          sub={
+            rows.length ? `${Math.round((licensed.length / rows.length) * 100)}% of installs` : "—"
+          }
+        />
       </section>
 
       {rows.length ? (
@@ -147,6 +163,7 @@ export default async function InstallsPage() {
                     <th>Country</th>
                     <th>First seen</th>
                     <th>Last seen</th>
+                    <th>Check-ins</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -161,10 +178,15 @@ export default async function InstallsPage() {
                         <td>{row.country ?? "—"}</td>
                         <td>{formatDate(row.first_seen)}</td>
                         <td>{formatDate(row.last_seen)}</td>
+                        <td>{formatNumber(row.heartbeat_count ?? 0)}</td>
                         <td>
-                          <Badge tone={stale ? "gray" : "green"}>
-                            {stale ? "Dormant" : "Active"}
-                          </Badge>
+                          {row.license_id ? (
+                            <Badge tone="green">Licensed</Badge>
+                          ) : (
+                            <Badge tone={stale ? "gray" : "default"}>
+                              {stale ? "Dormant" : "Trial"}
+                            </Badge>
+                          )}
                         </td>
                       </tr>
                     );

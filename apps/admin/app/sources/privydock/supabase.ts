@@ -320,12 +320,42 @@ export type InstallRow = {
   app_version: string | null;
   os_version: string | null;
   country: string | null;
+  /** At most one a day. Until 0.1.7 only at launch, so undercounts older copies. */
+  heartbeat_count: number | null;
+  license_id: string | null;
 };
 
 export function listInstalls(limit = 500) {
   return select<InstallRow>(
     "loyrix_app_installs",
-    "select=install_id,first_seen,last_seen,app_version,os_version,country&order=last_seen.desc",
+    "select=install_id,first_seen,last_seen,app_version,os_version,country,heartbeat_count,license_id&order=last_seen.desc",
     { limit },
+  );
+}
+
+/**
+ * Referrer and source data became real on this date. Before it, every page
+ * view recorded privydock.com — the beacon's own Referer header — so earlier
+ * rows are excluded rather than shown as a wall of self-referrals.
+ */
+export const REFERRER_SINCE = "2026-09-22";
+
+/** Codes reported by the app from 0.1.7, one row per kind of event. */
+export type AppIssueRow = {
+  event: string;
+  error_code: string;
+  missing_permission: string;
+  app_version: string | null;
+  occurrences: number;
+  installs: number;
+  first_seen: string;
+  last_seen: string;
+};
+
+export function appIssues(sinceDay: string) {
+  return select<AppIssueRow>(
+    "loyrix_app_issues",
+    `select=*&last_seen=gte.${sinceDay}&order=installs.desc,occurrences.desc`,
+    { limit: 500 },
   );
 }

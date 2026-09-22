@@ -4,6 +4,7 @@ import { SourceError, safe } from "../../components/source-error";
 import { EmptyState, Metric, PageHeader, formatDate, formatNumber } from "../../components/ui";
 import {
   CLIENT_HUMAN,
+  REFERRER_SINCE,
   VISITOR_IDENTITY_SINCE,
   trafficByPath,
   trafficByReferrer,
@@ -190,10 +191,11 @@ export default async function TrafficPage() {
         </div>
 
         <div className="panel">
-          <div className="metric-label">Referrers · all time</div>
+          <div className="metric-label">Where visitors arrive from · since {REFERRER_SINCE}</div>
           <p className="muted mt-1 text-sm">
-            Same-host rows are internal navigation; “(direct)” is a typed URL, a bookmark, or a
-            client that sends no referrer.
+            The first page of each visit, counted once. &ldquo;(direct)&rdquo; is a typed URL, a
+            bookmark, or an app that sends no referrer. Earlier visits are left out: until{" "}
+            {REFERRER_SINCE} every page recorded this site as its own referrer.
           </p>
           {referrers.ok && referrers.data.rows.length ? (
             <div className="table-wrap mt-3">
