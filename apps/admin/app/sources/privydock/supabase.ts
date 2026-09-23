@@ -323,14 +323,25 @@ export type InstallRow = {
   /** At most one a day. Until 0.1.7 only at launch, so undercounts older copies. */
   heartbeat_count: number | null;
   license_id: string | null;
+  /** A development Mac rather than a customer's. Excluded by default. */
+  is_test: boolean | null;
 };
 
-export function listInstalls(limit = 500) {
-  return select<InstallRow>(
-    "loyrix_app_installs",
-    "select=install_id,first_seen,last_seen,app_version,os_version,country,heartbeat_count,license_id&order=last_seen.desc",
-    { limit },
-  );
+/**
+ * Installs, customers only unless asked otherwise.
+ *
+ * The developer's own Mac reinstalls several times a day and deliberately
+ * triggers failures, on a population small enough that it moves every figure.
+ * It is flagged by device hash rather than dropped, so it can still be looked
+ * at when checking that reporting works at all.
+ */
+export function listInstalls(limit = 500, { includeTest = false } = {}) {
+  const columns =
+    "select=install_id,first_seen,last_seen,app_version,os_version,country,heartbeat_count,license_id,is_test";
+  const filter = includeTest ? "" : "&is_test=is.false";
+  return select<InstallRow>("loyrix_app_installs", `${columns}${filter}&order=last_seen.desc`, {
+    limit,
+  });
 }
 
 /**
