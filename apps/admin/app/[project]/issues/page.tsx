@@ -40,8 +40,32 @@ function meaning(code: string, permission: string): string {
     "PrivyDockError.symlinkNotSupported": "App is a shortcut",
     "NSCocoaErrorDomain:513": "macOS denied permission",
     "NSCocoaErrorDomain:4": "File no longer exists",
+
+    // The app is in a place where macOS refuses both of the permissions it
+    // needs. Worth spelling out per case, because the fix differs and none of
+    // them is "open System Settings".
+    "PrivyDockHelperError.appNotInstalledProperly:translocated":
+      "Opened from a download — never moved to Applications",
+    "PrivyDockHelperError.appNotInstalledProperly:diskImage": "Run from inside the DMG window",
+    "PrivyDockHelperError.appNotInstalledProperly:elsewhere": "Outside the Applications folder",
+
+    // SMAppServiceErrorDomain codes are raw errno values.
+    "PrivyDockHelperError.registrationRefused:1":
+      "macOS refused the helper (EPERM) — usually wrong location, or one still running",
+    "PrivyDockHelperError.registrationRefused:2": "Helper missing from the app bundle (ENOENT)",
+    "PrivyDockHelperError.registrationRefused:13": "macOS denied helper access (EACCES)",
+    "PrivyDockHelperError.registrationRefused:16": "Helper busy (EBUSY)",
+
+    // Sent by builds before the errno was carried in the code.
+    "SMAppServiceErrorDomain:1": "macOS refused the helper (EPERM)",
   };
   if (known[code]) return known[code];
+  if (code.startsWith("PrivyDockHelperError.appNotInstalledProperly"))
+    return "App is in the wrong place";
+  if (code.startsWith("PrivyDockHelperError.registrationRefused"))
+    return "macOS refused the helper";
+  if (code.startsWith("SMAppServiceErrorDomain:"))
+    return `macOS refused the helper (errno ${code.split(":")[1]})`;
   if (code.startsWith("PrivyDockHelperError.")) return "Helper problem";
   if (code.startsWith("LicenseActivationError.")) return "Activation problem";
   return code || "Unknown";
