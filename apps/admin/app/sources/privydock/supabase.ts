@@ -406,3 +406,32 @@ export async function applyRetention(keepDays = 90): Promise<RetentionResult> {
   }
   return (await response.json()) as RetentionResult;
 }
+
+export type AppLogRow = {
+  install_id: string;
+  occurred_at: string;
+  area: string;
+  event: string;
+  code: string | null;
+  app_version: string | null;
+  os_version: string | null;
+};
+
+/**
+ * The permission log, newest first, customers only.
+ *
+ * Read as a sequence rather than aggregated, because that is the thing the
+ * aggregates could not give us. When one user failed to hide a single app,
+ * "hide_failed, 5 occurrences" was all the console had; working out why took a
+ * day of reading Swift. The order of events on one Mac is the answer.
+ *
+ * Carries no app names, bundle identifiers or paths — the app records none, and
+ * the endpoint rejects anything shaped like a path.
+ */
+export function appLogs(sinceDay: string, { limit = 2000 } = {}) {
+  return select<AppLogRow>(
+    "loyrix_app_logs",
+    `select=install_id,occurred_at,area,event,code,app_version,os_version&is_test=is.false&occurred_at=gte.${sinceDay}&order=occurred_at.desc`,
+    { limit },
+  );
+}

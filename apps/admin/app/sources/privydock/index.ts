@@ -21,6 +21,7 @@ export const privydockSource: ProjectSource = {
       { href: "/downloads", label: "Downloads" },
       { href: "/installs", label: "Installs" },
       { href: "/issues", label: "Issues" },
+      { href: "/diagnostics", label: "Diagnostics" },
     ],
     groups: [
       {
