@@ -12,6 +12,7 @@ const EVENT_LABEL: Record<string, string> = {
   hide_failed: "Hide",
   restore_failed: "Restore",
   helper_setup_failed: "Helper setup",
+  app_management_probe: "Permission check",
   license_activation_failed: "Licence activation",
 };
 
@@ -41,6 +42,12 @@ function meaning(code: string, permission: string): string {
     "NSCocoaErrorDomain:513": "macOS denied permission",
     "NSCocoaErrorDomain:4": "File no longer exists",
 
+    // Results of actually testing App Management, rather than trusting a
+    // checkbox. "denied" is the one that means the permission is not granted.
+    granted: "App Management works",
+    denied: "App Management refused by macOS",
+    stranded: "An app was left renamed by a permission check",
+
     // The app is in a place where macOS refuses both of the permissions it
     // needs. Worth spelling out per case, because the fix differs and none of
     // them is "open System Settings".
@@ -60,6 +67,8 @@ function meaning(code: string, permission: string): string {
     "SMAppServiceErrorDomain:1": "macOS refused the helper (EPERM)",
   };
   if (known[code]) return known[code];
+  if (code.startsWith("inconclusive:"))
+    return `Permission check could not finish (errno ${code.split(":")[1]})`;
   if (code.startsWith("PrivyDockHelperError.appNotInstalledProperly"))
     return "App is in the wrong place";
   if (code.startsWith("PrivyDockHelperError.registrationRefused"))
