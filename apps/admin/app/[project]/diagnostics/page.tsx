@@ -29,6 +29,16 @@ function describe(row: AppLogRow): string {
     "permission.resume_target_missing": "Could not finish — that app had gone",
     "helper.install_requested": "Started installing the helper",
     "helper.registering": "About to register the helper",
+    "launch.statement_accepted": "Received a signed entitlement",
+
+    // Things that should not happen to an untouched install. Worded without
+    // accusing anyone: a restored backup and a wiped folder look identical from
+    // here, and a wrong clock is usually just a wrong clock.
+    "integrity.local_state_recreated": "App data was gone but the install id survived",
+    "integrity.statement_signature_invalid": "Cached entitlement had been edited",
+    "integrity.statement_unreadable": "Cached entitlement was corrupt or malformed",
+    "integrity.clock_rolled_back": "Mac's clock is behind a time already seen",
+    "integrity.statement_replayed": "An older entitlement was put back over a newer one",
   };
 
   if (known[key]) return known[key];
@@ -70,6 +80,8 @@ function explainCode(code: string | null): string | null {
 
 /** A failure worth the reader's eye, as opposed to ordinary progress. */
 function isTrouble(row: AppLogRow): boolean {
+  // Every integrity signal is worth a look by definition.
+  if (row.area === "integrity") return true;
   if (row.code === "denied" || row.code === "stranded") return true;
   if (row.event.startsWith("register_failed")) return true;
   if (row.event === "blocked_hide" || row.event === "resume_target_missing") return true;
@@ -125,6 +137,8 @@ export default async function DiagnosticsPage() {
   const denials = rows.filter((row) => row.code === "denied").length;
   const relaunches = rows.filter((row) => row.event === "relaunch_started").length;
   const resumed = rows.filter((row) => row.event === "resumed").length;
+  const integrity = rows.filter((row) => row.area === "integrity");
+  const integrityMacs = new Set(integrity.map((row) => row.install_id)).size;
 
   return (
     <AdminShell project={privydockSource}>
@@ -154,6 +168,15 @@ export default async function DiagnosticsPage() {
           label="Reopened to apply a grant"
           value={formatNumber(relaunches)}
           sub={`${formatNumber(resumed)} went on to finish the hide`}
+        />
+        <Metric
+          label="Integrity signals"
+          value={formatNumber(integrity.length)}
+          sub={
+            integrity.length
+              ? `On ${formatNumber(integrityMacs)} Macs — wiped data, edited files, or a clock set back`
+              : "Nothing odd reported"
+          }
         />
       </section>
 
