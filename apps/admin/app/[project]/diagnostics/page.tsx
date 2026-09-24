@@ -30,6 +30,8 @@ function describe(row: AppLogRow): string {
     "helper.install_requested": "Started installing the helper",
     "helper.registering": "About to register the helper",
     "launch.statement_accepted": "Received a signed entitlement",
+    "hide.gate_closed": "Hiding refused — entitlement",
+    "restore.failed": "Restore failed — should never happen",
 
     // Things that should not happen to an untouched install. Worded without
     // accusing anyone: a restored backup and a wiped folder look identical from
@@ -70,6 +72,21 @@ function explainCode(code: string | null): string | null {
     "SMAppServiceErrorDomain:1": "EPERM — wrong location, or one still running",
     "SMAppServiceErrorDomain:2": "ENOENT — helper missing from the bundle",
     "SMAppServiceErrorDomain:13": "EACCES — access denied",
+
+    // Why hiding was refused. Each needs a different response from us:
+    // sell something, help with a refund, or nothing at all because it is
+    // about reachability and resolves itself.
+    trialEnded: "trial is over",
+    licenceRevoked: "licence refunded or revoked",
+    needsFirstCheckIn: "never reached our server — offline first run",
+    needsRevalidation: "statement went stale — offline too long",
+    clockNotTrusted: "Mac's clock is behind, or a statement was replayed",
+
+    // States a statement can report.
+    trial: "trial",
+    active: "licensed",
+    expired: "trial expired",
+    revoked: "revoked",
   };
   if (known[code]) return known[code];
   if (code.startsWith("inconclusive:")) {
@@ -82,6 +99,8 @@ function explainCode(code: string | null): string | null {
 function isTrouble(row: AppLogRow): boolean {
   // Every integrity signal is worth a look by definition.
   if (row.area === "integrity") return true;
+  // Restore failing is the one thing the product promises will not happen.
+  if (row.area === "restore") return true;
   if (row.code === "denied" || row.code === "stranded") return true;
   if (row.event.startsWith("register_failed")) return true;
   if (row.event === "blocked_hide" || row.event === "resume_target_missing") return true;
