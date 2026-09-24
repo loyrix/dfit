@@ -41,6 +41,10 @@ export const analyzeScanRequestSchema = z.object({
   image: scanImageSchema.optional(),
 });
 
+export const scanBarcodeRequestSchema = z.object({
+  barcode: z.string().trim().min(8).max(20),
+});
+
 export const analyzedMealItemSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
@@ -123,6 +127,7 @@ export const rewardedAdProgressResponseSchema = rewardedAdCreditResponseSchema.o
 });
 
 export type PrepareScanResponseContract = z.infer<typeof prepareScanResponseSchema>;
+export type ScanBarcodeRequestContract = z.infer<typeof scanBarcodeRequestSchema>;
 export type AnalyzeScanRequestContract = z.infer<typeof analyzeScanRequestSchema>;
 export type AnalyzeScanResponseContract = z.infer<typeof analyzeScanResponseSchema>;
 export type ConfirmScanRequestContract = z.infer<typeof confirmScanRequestSchema>;

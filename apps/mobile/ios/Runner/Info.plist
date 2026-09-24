@@ -54,7 +54,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>LogMyPlate uses the camera to analyze your meal photo and save it with your meal log.</string>
+	<string>LogMyPlate uses the camera to analyze your meal photo or scan food package barcodes and save it with your meal log.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>LogMyPlate lets you choose a meal photo for analysis and save it with your meal log.</string>
 	<key>UIApplicationSceneManifest</key>

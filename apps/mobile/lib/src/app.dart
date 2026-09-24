@@ -597,58 +597,80 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     controller.dispose();
   }
 
-  Future<void> _pushCameraFlow() async {
+  Future<void> _pushCameraFlow({
+    CameraScanMode initialMode = CameraScanMode.photo,
+  }) async {
     // Overlap the scan "prepare" round-trip with the time the user spends
     // framing the photo, so analysis starts immediately after capture.
     _journalController.warmUpScanPreparation();
     await _navigatorKey.currentState!.push<void>(
       logmyplatePageRoute<void>(
         builder: (_) => CameraScreen(
-          onCaptured: (photo) {
+          initialMode: initialMode,
+          onCaptured: (photo) => _pushAnalyzingFlow(photo: photo),
+          onBarcodeScanned: (barcode) => _pushAnalyzingFlow(barcode: barcode),
+        ),
+      ),
+    );
+  }
+
+  void _pushAnalyzingFlow({
+    CapturedMealPhoto? photo,
+    String? barcode,
+  }) {
+    _navigatorKey.currentState!.pushReplacement<void, void>(
+      logmyplatePageRoute<void>(
+        builder: (_) => AnalyzingScreen(
+          photo: photo,
+          barcode: barcode,
+          onAnalyze: _journalController.analyzeCapturedMeal,
+          onAnalyzeBarcode: _journalController.analyzeBarcode,
+          onScanCreditRequired: () async {
+            await _openAccountHome(AccountGateReason.quotaExhausted);
+            await _journalController.refreshQuota();
+          },
+          onAddManually: _openManualReview,
+          onSwitchToPhoto: () {
             _navigatorKey.currentState!.pushReplacement<void, void>(
               logmyplatePageRoute<void>(
-                builder: (_) => AnalyzingScreen(
+                builder: (_) => CameraScreen(
+                  initialMode: CameraScanMode.photo,
+                  onCaptured: (p) => _pushAnalyzingFlow(photo: p),
+                  onBarcodeScanned: (b) => _pushAnalyzingFlow(barcode: b),
+                ),
+              ),
+            );
+          },
+          onAnalyzed: (analysis) {
+            _navigatorKey.currentState!.pushReplacement<void, void>(
+              logmyplatePageRoute<void>(
+                builder: (_) => ReviewMealScreen(
+                  isPremium:
+                      _journalController.subscription?.active ?? false,
+                  plateScoreProfile:
+                      _journalController.plateScoreProfile,
+                  plateScorePolicy: _journalController.plateScorePolicy,
+                  onPersonaliseScore: _openHealthTargetEditor,
+                  mealAdvice: analysis.advice,
+                  initialItems: analysis.items,
+                  initialMealType: mealTypeForReview(
+                    localTime: DateTime.now(),
+                    foodSuggestedType: analysis.mealType,
+                  ),
+                  lockInitialItems: true,
                   photo: photo,
-                  onAnalyze: _journalController.analyzeCapturedMeal,
-                  onScanCreditRequired: () async {
-                    await _openAccountHome(AccountGateReason.quotaExhausted);
-                    await _journalController.refreshQuota();
-                  },
-                  onAddManually: _openManualReview,
-                  onAnalyzed: (analysis) {
-                    _navigatorKey.currentState!.pushReplacement<void, void>(
-                      logmyplatePageRoute<void>(
-                        builder: (_) => ReviewMealScreen(
-                          isPremium:
-                              _journalController.subscription?.active ?? false,
-                          plateScoreProfile:
-                              _journalController.plateScoreProfile,
-                          plateScorePolicy: _journalController.plateScorePolicy,
-                          onPersonaliseScore: _openHealthTargetEditor,
-                          mealAdvice: analysis.advice,
-                          initialItems: analysis.items,
-                          initialMealType: mealTypeForReview(
-                            localTime: DateTime.now(),
-                            foodSuggestedType: analysis.mealType,
-                          ),
-                          lockInitialItems: true,
-                          photo: photo,
-                          onFoodSearch: null,
-                          onConfirm:
-                              (type, items, {bool analyzeWithAI = false}) {
-                                return _confirmAnalyzedMeal(
-                                  scanId: analysis.scanId,
-                                  title: analysis.mealName,
-                                  type: type,
-                                  items: items,
-                                  photo: analysis.imageStored ? null : photo,
-                                  analyzeWithAI: analyzeWithAI,
-                                );
-                              },
-                        ),
-                      ),
-                    );
-                  },
+                  onFoodSearch: null,
+                  onConfirm:
+                      (type, items, {bool analyzeWithAI = false}) {
+                        return _confirmAnalyzedMeal(
+                          scanId: analysis.scanId,
+                          title: analysis.mealName,
+                          type: type,
+                          items: items,
+                          photo: analysis.imageStored ? null : photo,
+                          analyzeWithAI: analyzeWithAI,
+                        );
+                      },
                 ),
               ),
             );

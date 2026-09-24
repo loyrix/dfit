@@ -108,6 +108,98 @@ void main() {
     expect(prepareCalls, 1, reason: 'warm-up prepare must be reused');
     expect(analysis.scanId, 'scan_1');
   });
+
+  test('analyzeBarcode calls barcode endpoint and returns analysis', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/google_mobile_ads'),
+      (_) async => null,
+    );
+
+    var barcodeScanned = false;
+    final controller = JournalController(
+      analytics: _RecordingAnalytics(),
+      apiClient: LogMyPlateApiClient(
+        baseUrl: 'http://api.test',
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/v1/scans/prepare') {
+            return http.Response(
+              jsonEncode({
+                'scanId': 'scan_barcode_1',
+                'status': 'prepared',
+                'quota': {
+                  'freeRemaining': 3,
+                  'rewardedRemaining': 0,
+                  'premiumRemaining': 0,
+                },
+              }),
+              201,
+            );
+          }
+          if (request.url.path == '/v1/scans/scan_barcode_1/barcode') {
+            barcodeScanned = true;
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body['barcode'], '737628064500');
+            return http.Response(
+              jsonEncode({
+                'scanId': 'scan_barcode_1',
+                'status': 'ready_for_review',
+                'mealType': 'snack',
+                'mealName': 'Thai Peanut Noodles',
+                'detectedLanguage': 'en',
+                'imageStored': false,
+                'totals': {
+                  'calories': 320,
+                  'proteinG': 8.0,
+                  'carbsG': 46.0,
+                  'fatG': 12.0,
+                },
+                'items': [
+                  {
+                    'id': 'item_barcode_1',
+                    'name': 'Thai Peanut Noodles',
+                    'aliases': <String>[],
+                    'quantity': 1,
+                    'unit': 'serving',
+                    'estimatedGrams': 100,
+                    'confidence': 1.0,
+                    'nutrition': {
+                      'calories': 320,
+                      'proteinG': 8.0,
+                      'carbsG': 46.0,
+                      'fatG': 12.0,
+                    },
+                  },
+                ],
+              }),
+              200,
+            );
+          }
+          if (request.url.path == '/v1/quota') {
+            return http.Response(
+              jsonEncode({
+                'freeRemaining': 2,
+                'rewardedRemaining': 0,
+                'premiumRemaining': 0,
+              }),
+              200,
+            );
+          }
+          fail('Unexpected request: ${request.url.path}');
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final analysis = await controller.analyzeBarcode('737628064500');
+    expect(barcodeScanned, isTrue);
+    expect(analysis.scanId, 'scan_barcode_1');
+    expect(analysis.mealName, 'Thai Peanut Noodles');
+    expect(analysis.totals.calories, 320);
+    expect(analysis.items, hasLength(1));
+    expect(controller.quota?.freeRemaining, 2);
+  });
 }
 
 Map<String, dynamic> _analyzePayload() {

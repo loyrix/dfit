@@ -75,6 +75,7 @@ type FoodRow = {
   fiber_g_per_100g: string | null;
   sugar_g_per_100g: string | null;
   sodium_mg_per_100g: string | null;
+  barcode?: string | null;
 };
 
 type HistoricalConfirmedFoodRow = {
@@ -1423,6 +1424,119 @@ export class PostgresStore implements AppRepository {
 
     if (!row) return undefined;
     return this.foodFromRow(row);
+  }
+
+  async findFoodByBarcode(barcode: string): Promise<FoodRecord | undefined> {
+    const clean = barcode.trim();
+    if (!clean) return undefined;
+
+    const [row] = await this.sql<(FoodRow & { aliases: string[] })[]>`
+      select
+        foods.*,
+        food_sources.name as source_name,
+        array_remove(array_agg(distinct food_aliases.alias), null) as aliases
+      from foods
+      left join food_sources on food_sources.id = foods.source_id
+      left join food_aliases on food_aliases.food_id = foods.id
+      where foods.barcode = ${clean}
+      group by foods.id, food_sources.name
+      limit 1
+    `;
+
+    if (!row) return undefined;
+    return this.foodFromRow(row);
+  }
+
+  async saveFoodWithBarcode(food: FoodRecord): Promise<FoodRecord> {
+    const barcode = food.barcode?.trim();
+    if (!barcode) return food;
+
+    return this.sql.begin(async (sql) => {
+      const [sourceRow] = await sql<{ id: string }[]>`
+        select id from food_sources where name = 'Open Food Facts' limit 1
+      `;
+      const sourceId = sourceRow?.id ?? null;
+
+      const [upserted] = await sql<FoodRow[]>`
+        insert into foods (
+          canonical_name,
+          region,
+          source_id,
+          barcode,
+          calories_per_100g,
+          protein_g_per_100g,
+          carbs_g_per_100g,
+          fat_g_per_100g,
+          fiber_g_per_100g,
+          sugar_g_per_100g,
+          sodium_mg_per_100g
+        )
+        values (
+          ${food.canonicalName},
+          ${food.region},
+          ${sourceId},
+          ${barcode},
+          ${food.nutritionPer100g.calories},
+          ${food.nutritionPer100g.proteinG},
+          ${food.nutritionPer100g.carbsG},
+          ${food.nutritionPer100g.fatG},
+          ${food.nutritionPer100g.fiberG ?? null},
+          ${food.nutritionPer100g.sugarG ?? null},
+          ${food.nutritionPer100g.sodiumMg ?? null}
+        )
+        on conflict (barcode) where barcode is not null do update
+        set
+          canonical_name = excluded.canonical_name,
+          source_id = coalesce(excluded.source_id, foods.source_id),
+          calories_per_100g = excluded.calories_per_100g,
+          protein_g_per_100g = excluded.protein_g_per_100g,
+          carbs_g_per_100g = excluded.carbs_g_per_100g,
+          fat_g_per_100g = excluded.fat_g_per_100g,
+          fiber_g_per_100g = excluded.fiber_g_per_100g,
+          sugar_g_per_100g = excluded.sugar_g_per_100g,
+          sodium_mg_per_100g = excluded.sodium_mg_per_100g,
+          updated_at = now()
+        returning *
+      `;
+
+      if (upserted) {
+        for (const portion of food.portions) {
+          await sql`
+            insert into portion_conversions (food_id, unit, grams, source, confidence)
+            select
+              ${upserted.id},
+              ${portion.unit}::portion_unit,
+              ${portion.grams},
+              'open_food_facts',
+              ${portion.confidence}
+            where not exists (
+              select 1
+              from portion_conversions
+              where food_id = ${upserted.id}
+                and unit = ${portion.unit}::portion_unit
+            )
+          `;
+        }
+
+        for (const alias of food.aliases) {
+          await sql`
+            insert into food_aliases (food_id, alias, locale)
+            select ${upserted.id}, ${alias}, 'en'
+            where not exists (
+              select 1 from food_aliases
+              where food_id = ${upserted.id} and alias = ${alias}
+            )
+          `;
+        }
+
+        return {
+          ...food,
+          id: upserted.id,
+        };
+      }
+
+      return food;
+    });
   }
 
   private async getOrCreateQuota(profile: Profile): Promise<QuotaRow> {
@@ -4118,12 +4232,20 @@ export class PostgresStore implements AppRepository {
       order by confidence desc
     `;
 
+    const source: FoodRecord["source"] =
+      row.source_name === "Open Food Facts"
+        ? "open_food_facts"
+        : row.source_name === "LogMyPlate learned"
+          ? "logmyplate_learned"
+          : "logmyplate_seed";
+
     return {
       id: row.id,
       canonicalName: row.canonical_name,
       region: row.region,
       aliases: row.aliases ?? [],
-      source: row.source_name === "LogMyPlate learned" ? "logmyplate_learned" : "logmyplate_seed",
+      source,
+      barcode: row.barcode ?? undefined,
       nutritionPer100g: {
         calories: Number(row.calories_per_100g),
         proteinG: Number(row.protein_g_per_100g),

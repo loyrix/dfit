@@ -19,18 +19,27 @@ import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 class AnalyzingScreen extends StatefulWidget {
   const AnalyzingScreen({
     super.key,
-    required this.photo,
-    required this.onAnalyze,
+    this.photo,
+    this.barcode,
+    this.onAnalyze,
+    this.onAnalyzeBarcode,
     required this.onAnalyzed,
     this.onScanCreditRequired,
     this.onAddManually,
-  });
+    this.onSwitchToPhoto,
+  }) : assert(
+         photo != null || barcode != null,
+         'Either photo or barcode must be provided',
+       );
 
-  final CapturedMealPhoto photo;
-  final Future<ScanAnalysis> Function(CapturedMealPhoto photo) onAnalyze;
+  final CapturedMealPhoto? photo;
+  final String? barcode;
+  final Future<ScanAnalysis> Function(CapturedMealPhoto photo)? onAnalyze;
+  final Future<ScanAnalysis> Function(String barcode)? onAnalyzeBarcode;
   final ValueChanged<ScanAnalysis> onAnalyzed;
   final Future<void> Function()? onScanCreditRequired;
   final VoidCallback? onAddManually;
+  final VoidCallback? onSwitchToPhoto;
 
   @override
   State<AnalyzingScreen> createState() => _AnalyzingScreenState();
@@ -38,12 +47,22 @@ class AnalyzingScreen extends StatefulWidget {
 
 class _AnalyzingScreenState extends State<AnalyzingScreen>
     with SingleTickerProviderStateMixin {
-  static const _steps = [
+  static const _photoSteps = [
     'Captured',
     'Identifying visible foods',
     'Estimating portions',
     'Calculating macro nutrients',
   ];
+
+  static const _barcodeSteps = [
+    'Scanned',
+    'Looking up food product',
+    'Verifying nutrition facts',
+    'Calculating macro nutrients',
+  ];
+
+  List<String> get _steps =>
+      widget.barcode != null ? _barcodeSteps : _photoSteps;
 
   _AnalysisFailure? _failure;
   int _activeStep = 1;
@@ -74,7 +93,14 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     _startStepTimer(reset: true);
 
     try {
-      final analysis = await widget.onAnalyze(widget.photo);
+      final ScanAnalysis analysis;
+      if (widget.barcode != null && widget.onAnalyzeBarcode != null) {
+        analysis = await widget.onAnalyzeBarcode!(widget.barcode!);
+      } else if (widget.photo != null && widget.onAnalyze != null) {
+        analysis = await widget.onAnalyze!(widget.photo!);
+      } else {
+        throw StateError('No analyzer configured');
+      }
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
       widget.onAnalyzed(analysis);
@@ -82,7 +108,10 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
       if (!mounted) return;
       _stepTimer?.cancel();
       setState(() {
-        _failure = _AnalysisFailure.from(error);
+        _failure = _AnalysisFailure.from(
+          error,
+          isBarcode: widget.barcode != null,
+        );
       });
     }
   }
@@ -103,7 +132,8 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
   @override
   Widget build(BuildContext context) {
     final failure = _failure;
-    final plateHint = widget.photo.userHint?.trim();
+    final isBarcode = widget.barcode != null;
+    final plateHint = widget.photo?.userHint?.trim();
     final colors = context.logmyplate;
 
     return Scaffold(
@@ -144,16 +174,26 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _AnalyzingMealPreview(
-                              photo: widget.photo,
-                              animation: _controller,
-                              width: imageWidth,
-                              height: imageHeight,
-                            ),
+                            if (isBarcode)
+                              _BarcodeAnalyzingPreview(
+                                barcode: widget.barcode!,
+                                animation: _controller,
+                                width: imageWidth,
+                                height: imageHeight,
+                              )
+                            else if (widget.photo != null)
+                              _AnalyzingMealPreview(
+                                photo: widget.photo!,
+                                animation: _controller,
+                                width: imageWidth,
+                                height: imageHeight,
+                              ),
                             SizedBox(height: compact ? 16 : 22),
                             Text(
                               failure == null
-                                  ? 'Reading your plate'
+                                  ? (isBarcode
+                                      ? 'Looking up barcode'
+                                      : 'Reading your plate')
                                   : failure.title,
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.titleLarge
@@ -167,7 +207,10 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                               duration: const Duration(milliseconds: 220),
                               child: Text(
                                 failure == null
-                                    ? _progressLabel(_activeStep)
+                                    ? _progressLabel(
+                                        _activeStep,
+                                        isBarcode: isBarcode,
+                                      )
                                     : failure.subtitle,
                                 key: ValueKey(
                                   failure == null ? _activeStep : failure.kind,
@@ -205,6 +248,8 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                                 onScanCreditRequired:
                                     widget.onScanCreditRequired,
                                 onAddManually: widget.onAddManually,
+                                onSwitchToPhoto: widget.onSwitchToPhoto,
+                                isBarcode: isBarcode,
                               ),
                             ],
                           ],
@@ -233,7 +278,15 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     );
   }
 
-  String _progressLabel(int step) {
+  String _progressLabel(int step, {bool isBarcode = false}) {
+    if (isBarcode) {
+      return switch (step) {
+        1 => 'Searching food database',
+        2 => 'Reading nutrition facts',
+        3 => 'Calculating macro nutrients',
+        _ => 'Securing barcode scan',
+      };
+    }
     return switch (step) {
       1 => 'Reading visible foods',
       2 => 'Estimating portions and grams',
@@ -258,7 +311,7 @@ class _AnalysisFailure {
   final String subtitle;
   final String message;
 
-  factory _AnalysisFailure.from(Object error) {
+  factory _AnalysisFailure.from(Object error, {bool isBarcode = false}) {
     if (error is LogMyPlateApiException) {
       if (error.isScanCreditRequired) {
         return const _AnalysisFailure(
@@ -270,21 +323,25 @@ class _AnalysisFailure {
         );
       }
       if (error.errorCode == 'no_food_detected') {
-        return const _AnalysisFailure(
+        return _AnalysisFailure(
           kind: _AnalysisFailureKind.invalidImage,
-          title: 'No food detected',
-          subtitle: 'Try another plate photo',
-          message:
-              'Keep the full meal visible in a clear, well-lit top-down photo. We will not use a scan credit for this attempt.',
+          title: isBarcode ? 'No food found' : 'No food detected',
+          subtitle: isBarcode
+              ? 'Barcode was not recognized as food'
+              : 'Try another plate photo',
+          message: isBarcode
+              ? 'This barcode did not match a recognized food product. You can take a photo of your plate or retry scanning the barcode. We will not use a scan credit for this attempt.'
+              : 'Keep the full meal visible in a clear, well-lit top-down photo. We will not use a scan credit for this attempt.',
         );
       }
       if (error.errorCode == 'no_food_scan_limit_exceeded') {
-        return const _AnalysisFailure(
+        return _AnalysisFailure(
           kind: _AnalysisFailureKind.invalidImage,
-          title: 'Scan limit paused',
-          subtitle: 'Too many non-food photos',
-          message:
-              'Try again later with a clear meal photo. This protects your scan credits and keeps AI costs under control.',
+          title: 'Scan limit reached',
+          subtitle: 'Too many non-food attempts',
+          message: isBarcode
+              ? 'Try again later. This protects your scan credits and maintains system performance.'
+              : 'Try again later with a clear meal photo. This protects your scan credits and keeps AI costs under control.',
         );
       }
       if (error.errorCode == 'invalid_scan_image') {
@@ -297,10 +354,10 @@ class _AnalysisFailure {
         );
       }
       if (error.retryable || error.statusCode >= 500) {
-        return const _AnalysisFailure(
+        return _AnalysisFailure(
           kind: _AnalysisFailureKind.provider,
           title: 'Still thinking',
-          subtitle: 'The AI took too long',
+          subtitle: isBarcode ? 'Lookup took too long' : 'The AI took too long',
           message:
               'LogMyPlate is taking longer than expected. Retry in a moment.',
         );
@@ -330,23 +387,62 @@ class _FailureActions extends StatelessWidget {
     required this.onRetry,
     this.onScanCreditRequired,
     this.onAddManually,
+    this.onSwitchToPhoto,
+    this.isBarcode = false,
   });
 
   final _AnalysisFailure failure;
   final VoidCallback onRetry;
   final Future<void> Function()? onScanCreditRequired;
   final VoidCallback? onAddManually;
+  final VoidCallback? onSwitchToPhoto;
+  final bool isBarcode;
 
   @override
   Widget build(BuildContext context) {
     final isQuota = failure.kind == _AnalysisFailureKind.quota;
+
+    if (isBarcode && failure.kind == _AnalysisFailureKind.invalidImage) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onSwitchToPhoto != null)
+            PremiumButton(
+              onPressed: onSwitchToPhoto,
+              child: const Text('Take plate photo'),
+            ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
+              ),
+              side: BorderSide(
+                color: LogMyPlateColors.accent.withValues(alpha: 0.5),
+              ),
+            ),
+            child: const Text('Retry barcode'),
+          ),
+          const SizedBox(height: 4),
+          GlassWrapper(
+            child: TextButton(
+              onPressed: onAddManually ?? () => Navigator.of(context).pop(),
+              child: Text(onAddManually != null ? 'Add manually' : 'Back'),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         PremiumButton(
           onPressed: isQuota ? _handleQuotaAction : onRetry,
-
           child: Text(isQuota ? 'Open account' : 'Retry scan'),
         ),
         const SizedBox(height: 4),
@@ -393,6 +489,147 @@ class _HintPill extends StatelessWidget {
           color: colors.accentText,
           letterSpacing: 0.2,
         ),
+      ),
+    );
+  }
+}
+
+class _BarcodeAnalyzingPreview extends StatelessWidget {
+  const _BarcodeAnalyzingPreview({
+    required this.barcode,
+    required this.animation,
+    required this.width,
+    required this.height,
+  });
+
+  final String barcode;
+  final Animation<double> animation;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = LogMyPlateHeroSurfaceStyle.of(context);
+    final colors = context.logmyplate;
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.heroImageBorderRadius,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: surface.shadowColor,
+                    blurRadius: surface.isDark ? 42 : 22,
+                    offset: Offset(0, surface.isDark ? 24 : 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.heroImageBorderRadius,
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceCard,
+                    borderRadius: BorderRadius.circular(
+                      LogMyPlateSpacing.heroImageBorderRadius,
+                    ),
+                    border: Border.all(color: surface.border),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: LogMyPlateColors.accent.withValues(
+                                  alpha: 0.14,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.qr_code_scanner_rounded,
+                                size: 32,
+                                color: LogMyPlateColors.accent,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              barcode,
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 2.0,
+                                color: colors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Open Food Facts Lookup',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                    color: colors.accentText,
+                                    letterSpacing: 1.0,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          AnimatedBuilder(
+            animation: animation,
+            builder: (context, child) {
+              final scanY =
+                  34 +
+                  (math.sin(animation.value * math.pi * 2) + 1) *
+                      (height * 0.32);
+              return Positioned(
+                left: 26,
+                right: 26,
+                top: scanY,
+                child: child!,
+              );
+            },
+            child: Container(
+              height: 2.5,
+              decoration: BoxDecoration(
+                color: LogMyPlateColors.accent,
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.pillBorderRadius,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: LogMyPlateColors.accent.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

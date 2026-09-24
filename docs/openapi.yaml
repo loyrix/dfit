@@ -1257,6 +1257,63 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiProviderError"
 
+  /v1/scans/{id}/barcode:
+    post:
+      tags: [Scans]
+      summary: Scan food barcode
+      description: |
+        Looks up a food package by barcode for a prepared scan. On successful food detection,
+        the scan consumes one available credit and returns editable analysis output for review.
+        If no food is detected (non-food item or unrecognized barcode), no scan credit is consumed.
+      security:
+        - bearerAuth: []
+        - installId: []
+        - {}
+      parameters:
+        - $ref: "#/components/parameters/ScanIdPath"
+        - $ref: "#/components/parameters/IdempotencyKeyHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanBarcodeRequest"
+      responses:
+        "200":
+          description: Food analysis ready for review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeScanResponse"
+        "400":
+          description: Invalid barcode payload.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ValidationError"
+                  - $ref: "#/components/schemas/ErrorWithMessage"
+        "402":
+          description: No available scan credit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanCreditRequiredError"
+        "404":
+          $ref: "#/components/responses/ScanNotFound"
+        "422":
+          description: No food product found for this barcode.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
+        "429":
+          description: Too many repeated non-food scan attempts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProviderError"
+
   /v1/scans/{id}/confirm:
     post:
       tags: [Scans]
@@ -2210,6 +2267,16 @@ components:
           type: integer
           minimum: 1
           maximum: 6000000
+
+    ScanBarcodeRequest:
+      type: object
+      required: [barcode]
+      properties:
+        barcode:
+          type: string
+          minLength: 8
+          maxLength: 20
+          description: Food package UPC/EAN barcode to lookup.
 
     AnalyzeScanRequest:
       type: object

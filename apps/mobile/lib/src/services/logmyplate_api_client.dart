@@ -459,6 +459,25 @@ class LogMyPlateApiClient {
     );
   }
 
+  Future<ScanAnalysis> scanBarcode({
+    required String scanId,
+    required String barcode,
+    required String idempotencyKey,
+  }) async {
+    final response = await _httpClient.post(
+      Uri.parse('$baseUrl/v1/scans/$scanId/barcode'),
+      headers: await _headers(
+        contentTypeJson: true,
+        idempotencyKey: idempotencyKey,
+      ),
+      body: jsonEncode({'barcode': barcode.trim()}),
+    );
+    _throwIfBad(response);
+    return ScanAnalysis.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   Future<ConfirmedScanMeal> confirmScan({
     required String scanId,
     required MealType type,

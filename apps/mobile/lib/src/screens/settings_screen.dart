@@ -75,6 +75,15 @@ class SettingsScreen extends StatelessWidget {
                   _StaticRow(label: 'Anonymous journal on this device'),
                 ],
               ),
+              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+              _SettingsSection(
+                title: 'Data & Attributions',
+                children: const [
+                  _StaticRow(
+                    label: 'Packaged food data provided by Open Food Facts (ODbL)',
+                  ),
+                ],
+              ),
             ],
           ),
         ),
