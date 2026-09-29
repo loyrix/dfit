@@ -323,6 +323,10 @@ export type InstallRow = {
   /** At most one a day. Until 0.1.7 only at launch, so undercounts older copies. */
   heartbeat_count: number | null;
   license_id: string | null;
+  /** Links to the device trial, which owns the window when present. */
+  device_hash: string | null;
+  /** The install's own window. Only used when no device row exists. */
+  trial_expires_at: string | null;
   /** A development Mac rather than a customer's. Excluded by default. */
   is_test: boolean | null;
 };
@@ -337,7 +341,7 @@ export type InstallRow = {
  */
 export function listInstalls(limit = 500, { includeTest = false } = {}) {
   const columns =
-    "select=install_id,first_seen,last_seen,app_version,os_version,country,heartbeat_count,license_id,is_test";
+    "select=install_id,first_seen,last_seen,app_version,os_version,country,heartbeat_count,license_id,is_test,device_hash,trial_expires_at";
   const filter = includeTest ? "" : "&is_test=is.false";
   return select<InstallRow>("loyrix_app_installs", `${columns}${filter}&order=last_seen.desc`, {
     limit,
@@ -432,6 +436,31 @@ export function appLogs(sinceDay: string, { limit = 2000 } = {}) {
   return select<AppLogRow>(
     "loyrix_app_logs",
     `select=install_id,occurred_at,area,event,code,app_version,os_version&is_test=is.false&occurred_at=gte.${sinceDay}&order=occurred_at.desc`,
+    { limit },
+  );
+}
+
+export type DeviceTrialRow = {
+  device_hash: string;
+  trial_started_at: string;
+  trial_expires_at: string;
+  install_count: number;
+};
+
+/**
+ * The trial window per Mac.
+ *
+ * This is the authority once an install reports a device hash: the window
+ * belongs to the machine, not to the copy of the app, which is what stops a
+ * reinstall earning another thirty days. Installs from before device anchoring
+ * existed carry only their own dates, and those cannot be re-anchored
+ * retroactively — only from their next check-in, which for a dormant install
+ * may never come.
+ */
+export function deviceTrials(limit = 500) {
+  return select<DeviceTrialRow>(
+    "loyrix_device_trials",
+    "select=device_hash,trial_started_at,trial_expires_at,install_count&is_test=is.false&order=trial_expires_at.asc",
     { limit },
   );
 }

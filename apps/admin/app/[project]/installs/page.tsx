@@ -10,7 +10,7 @@ import {
   formatNumber,
   shortId,
 } from "../../components/ui";
-import { listInstalls } from "../../sources/privydock/supabase";
+import { type InstallRow, deviceTrials, listInstalls } from "../../sources/privydock/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,24 @@ const DAY = 24 * 60 * 60 * 1000;
 function macOsRelease(value: string | null) {
   if (!value) return "Unknown";
   return value.replace(/^Version\s+/i, "").replace(/\s*\(Build [^)]*\)\s*$/i, "");
+}
+
+/**
+ * Whole days from now until the trial ends, negative once it has passed.
+ *
+ * The device's window wins where there is one: the trial belongs to the Mac,
+ * not to the copy of the app, which is what stops a reinstall earning another
+ * thirty days. Installs predating device anchoring fall back to their own
+ * dates, and those cannot be corrected retroactively.
+ */
+function trialDaysLeft(row: InstallRow, windows: Map<string, string>, now: number): number | null {
+  const ends = (row.device_hash ? windows.get(row.device_hash) : null) ?? row.trial_expires_at;
+  if (!ends) return null;
+  return Math.ceil((Date.parse(ends) - now) / DAY);
+}
+
+function trialEndsOn(row: InstallRow, windows: Map<string, string>): string | null {
+  return (row.device_hash ? windows.get(row.device_hash) : null) ?? row.trial_expires_at;
 }
 
 function tally<T>(rows: T[], key: (row: T) => string) {
@@ -65,7 +83,10 @@ function Breakdown({
 }
 
 export default async function InstallsPage() {
-  const installs = await safe(() => listInstalls(500));
+  const [installs, trials] = await Promise.all([
+    safe(() => listInstalls(500)),
+    safe(() => deviceTrials(500)),
+  ]);
 
   if (!installs.ok) {
     return (
@@ -78,6 +99,18 @@ export default async function InstallsPage() {
 
   const rows = installs.data.rows;
   const now = Date.now();
+  // A device row is the authority when one exists. A failed trials query is not
+  // fatal: every install still has its own dates to fall back on, and a missing
+  // column is better than a missing page.
+  const windows = new Map(
+    (trials.ok ? trials.data.rows : []).map((trial) => [trial.device_hash, trial.trial_expires_at]),
+  );
+  const daysLeft = (row: InstallRow) => trialDaysLeft(row, windows, now);
+
+  const unlicensed = rows.filter((row) => !row.license_id);
+  const inTrial = unlicensed.filter((row) => (daysLeft(row) ?? -1) >= 0);
+  const expiringSoon = inTrial.filter((row) => (daysLeft(row) ?? 99) <= 7);
+  const expired = unlicensed.filter((row) => (daysLeft(row) ?? 1) < 0);
   const seenWithin = (days: number) =>
     rows.filter((row) => Date.parse(row.last_seen) > now - days * DAY);
   const active30 = seenWithin(30);
@@ -93,7 +126,7 @@ export default async function InstallsPage() {
       <PageHeader
         eyebrow="PrivyDock"
         title="Installs"
-        description="One row per installed copy, keyed by a random identifier the app stores in the Keychain. From 0.1.7 the app checks in once a day while it is running. Earlier versions only checked in at launch, so an older copy left running for weeks shows a single check-in and an old last-seen date even if it is used every day."
+        description="One row per installed copy, keyed by a random identifier the app stores in the Keychain, soonest-to-expire first. The trial belongs to the Mac rather than the copy, so reinstalling does not restart it — but installs from before that existed carry only their own dates and cannot be re-anchored retroactively. From 0.1.7 the app checks in once a day while running; earlier versions only checked in at launch, so an old copy left running for weeks shows one check-in even if used daily."
       />
 
       <section className="grid metrics">
@@ -123,6 +156,24 @@ export default async function InstallsPage() {
           value={formatNumber(licensed.length)}
           sub={
             rows.length ? `${Math.round((licensed.length / rows.length) * 100)}% of installs` : "—"
+          }
+        />
+        <Metric
+          label="Expiring · 7d"
+          value={formatNumber(expiringSoon.length)}
+          sub={
+            expiringSoon.length
+              ? "Trials ending this week — the paywall meets them next"
+              : "No trial ends in the next week"
+          }
+        />
+        <Metric
+          label="Trial ended"
+          value={formatNumber(expired.length)}
+          sub={
+            expired.length
+              ? `${formatNumber(expired.length)} past their 30 days and not licensed`
+              : "Nobody has reached the end yet"
           }
         />
       </section>
@@ -164,33 +215,58 @@ export default async function InstallsPage() {
                     <th>First seen</th>
                     <th>Last seen</th>
                     <th>Check-ins</th>
+                    <th>Trial ends</th>
+                    <th>Days left</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => {
-                    const stale = Date.parse(row.last_seen) <= now - 30 * DAY;
-                    return (
-                      <tr key={row.install_id}>
-                        <td>{shortId(row.install_id)}</td>
-                        <td>{row.app_version ?? "—"}</td>
-                        <td>{macOsRelease(row.os_version)}</td>
-                        <td>{row.country ?? "—"}</td>
-                        <td>{formatDate(row.first_seen)}</td>
-                        <td>{formatDate(row.last_seen)}</td>
-                        <td>{formatNumber(row.heartbeat_count ?? 0)}</td>
-                        <td>
-                          {row.license_id ? (
-                            <Badge tone="green">Licensed</Badge>
-                          ) : (
-                            <Badge tone={stale ? "gray" : "default"}>
-                              {stale ? "Dormant" : "Trial"}
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {[...rows]
+                    .sort((a, b) => {
+                      // Licensed installs have no clock to run out; they sit at
+                      // the bottom rather than pretending to be urgent.
+                      if (Boolean(a.license_id) !== Boolean(b.license_id)) {
+                        return a.license_id ? 1 : -1;
+                      }
+                      return (daysLeft(a) ?? 9999) - (daysLeft(b) ?? 9999);
+                    })
+                    .map((row) => {
+                      const stale = Date.parse(row.last_seen) <= now - 30 * DAY;
+                      const left = daysLeft(row);
+                      const ends = trialEndsOn(row, windows);
+                      return (
+                        <tr key={row.install_id}>
+                          <td>{shortId(row.install_id)}</td>
+                          <td>{row.app_version ?? "—"}</td>
+                          <td>{macOsRelease(row.os_version)}</td>
+                          <td>{row.country ?? "—"}</td>
+                          <td>{formatDate(row.first_seen)}</td>
+                          <td>{formatDate(row.last_seen)}</td>
+                          <td>{formatNumber(row.heartbeat_count ?? 0)}</td>
+                          <td>{row.license_id ? "—" : ends ? formatDate(ends) : "—"}</td>
+                          <td>
+                            {row.license_id || left === null
+                              ? "—"
+                              : left < 0
+                                ? `${Math.abs(left)}d ago`
+                                : `${left}d`}
+                          </td>
+                          <td>
+                            {row.license_id ? (
+                              <Badge tone="green">Licensed</Badge>
+                            ) : left !== null && left < 0 ? (
+                              <Badge tone="red">Trial ended</Badge>
+                            ) : left !== null && left <= 7 ? (
+                              <Badge tone="red">Ends in {left}d</Badge>
+                            ) : (
+                              <Badge tone={stale ? "gray" : "default"}>
+                                {stale ? "Dormant" : "Trial"}
+                              </Badge>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
