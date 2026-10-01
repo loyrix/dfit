@@ -13,6 +13,7 @@ const EVENT_LABEL: Record<string, string> = {
   restore_failed: "Restore",
   helper_setup_failed: "Helper setup",
   app_management_probe: "Permission check",
+  private_app_open_failed: "Opening a hidden app",
   license_activation_failed: "Licence activation",
 };
 

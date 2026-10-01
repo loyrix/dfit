@@ -10,7 +10,12 @@ import {
   formatNumber,
   shortId,
 } from "../../components/ui";
-import { type InstallRow, deviceTrials, listInstalls } from "../../sources/privydock/supabase";
+import {
+  type InstallRow,
+  deviceTrials,
+  installUsage,
+  listInstalls,
+} from "../../sources/privydock/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -83,9 +88,11 @@ function Breakdown({
 }
 
 export default async function InstallsPage() {
-  const [installs, trials] = await Promise.all([
+  const since = new Date(Date.now() - 30 * DAY).toISOString().slice(0, 10);
+  const [installs, trials, usage] = await Promise.all([
     safe(() => listInstalls(500)),
     safe(() => deviceTrials(500)),
+    safe(() => installUsage(since)),
   ]);
 
   if (!installs.ok) {
@@ -106,6 +113,12 @@ export default async function InstallsPage() {
     (trials.ok ? trials.data.rows : []).map((trial) => [trial.device_hash, trial.trial_expires_at]),
   );
   const daysLeft = (row: InstallRow) => trialDaysLeft(row, windows, now);
+  // Opens are only reported from 0.1.8, so an absent count means "too old to
+  // say", not "never used" — the table shows those differently for that reason.
+  const opensBy = usage.ok ? usage.data : new Map();
+  const opens = (row: InstallRow) => opensBy.get(row.install_id)?.opens ?? 0;
+  const usingIt = rows.filter((row) => opens(row) > 0);
+  const reporting = rows.filter((row) => (row.app_version ?? "") >= "0.1.8");
 
   const unlicensed = rows.filter((row) => !row.license_id);
   const inTrial = unlicensed.filter((row) => (daysLeft(row) ?? -1) >= 0);
@@ -156,6 +169,15 @@ export default async function InstallsPage() {
           value={formatNumber(licensed.length)}
           sub={
             rows.length ? `${Math.round((licensed.length / rows.length) * 100)}% of installs` : "—"
+          }
+        />
+        <Metric
+          label="Actually using it · 30d"
+          value={formatNumber(usingIt.length)}
+          sub={
+            reporting.length
+              ? `of ${formatNumber(reporting.length)} on 0.1.8+ — opening a hidden app is the habit, hiding is a one-off`
+              : "Reported from 0.1.8 onwards"
           }
         />
         <Metric
@@ -215,6 +237,7 @@ export default async function InstallsPage() {
                     <th>First seen</th>
                     <th>Last seen</th>
                     <th>Check-ins</th>
+                    <th>Opens · 30d</th>
                     <th>Trial ends</th>
                     <th>Days left</th>
                     <th>Status</th>

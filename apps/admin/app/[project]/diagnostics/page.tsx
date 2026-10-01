@@ -32,6 +32,7 @@ function describe(row: AppLogRow): string {
     "launch.statement_accepted": "Received a signed entitlement",
     "hide.gate_closed": "Hiding refused — entitlement",
     "restore.failed": "Restore failed — should never happen",
+    "restore.open_failed": "Could not open a hidden app",
 
     // Things that should not happen to an untouched install. Worded without
     // accusing anyone: a restored backup and a wiped folder look identical from

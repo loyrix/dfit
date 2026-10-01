@@ -464,3 +464,42 @@ export function deviceTrials(limit = 500) {
     { limit },
   );
 }
+
+export type InstallUsageRow = { install_id: string; opens: number; last_open: string };
+
+/**
+ * How often each Mac opened a hidden app, which is the nearest thing to "is
+ * this person actually using it".
+ *
+ * Hiding is a one-off. Opening is the habit — so this is what separates a Mac
+ * where two apps were hidden once and forgotten from one where PrivyDock is
+ * part of the day, and those two should behave very differently when a trial
+ * ends.
+ *
+ * Counts only. The event carries no app identity, because the product exists so
+ * that we do not learn which apps someone hides, and opening one does not
+ * change that.
+ */
+export async function installUsage(sinceDay: string) {
+  const events = await select<{ install_id: string; occurred_at: string }>(
+    "loyrix_app_events",
+    `select=install_id,occurred_at&event=eq.private_app_opened&is_test=is.false&occurred_at=gte.${sinceDay}`,
+    { limit: 5000 },
+  );
+
+  const byInstall = new Map<string, InstallUsageRow>();
+  for (const event of events.rows) {
+    const existing = byInstall.get(event.install_id);
+    if (existing) {
+      existing.opens += 1;
+      if (event.occurred_at > existing.last_open) existing.last_open = event.occurred_at;
+    } else {
+      byInstall.set(event.install_id, {
+        install_id: event.install_id,
+        opens: 1,
+        last_open: event.occurred_at,
+      });
+    }
+  }
+  return byInstall;
+}
