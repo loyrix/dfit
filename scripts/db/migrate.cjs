@@ -89,6 +89,10 @@ async function main() {
 }
 
 async function ensureMetaTables() {
+  // Every database command starts here, so this is where the lazy connection
+  // opens. `validate` and `new` never reach it and need no DATABASE_URL.
+  getSql();
+
   await sql`
     create table if not exists schema_migrations (
       version text primary key,
@@ -156,7 +160,7 @@ function printConnectionHelp(error) {
 
 function safeDatabaseUrl() {
   try {
-    return new URL(databaseUrl);
+    return new URL(process.env.DATABASE_URL);
   } catch {
     return undefined;
   }
