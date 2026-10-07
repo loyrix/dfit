@@ -580,15 +580,6 @@ class _BarcodeAnalyzingPreview extends StatelessWidget {
                                 color: colors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Open Food Facts Lookup',
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(
-                                    color: colors.accentText,
-                                    letterSpacing: 1.0,
-                                  ),
-                            ),
                           ],
                         ),
                       ),

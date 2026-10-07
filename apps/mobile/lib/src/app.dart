@@ -607,72 +607,61 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       logmyplatePageRoute<void>(
         builder: (_) => CameraScreen(
           initialMode: initialMode,
-          onCaptured: (photo) => _pushAnalyzingFlow(photo: photo),
-          onBarcodeScanned: (barcode) => _pushAnalyzingFlow(barcode: barcode),
+          onCaptured: _pushAnalyzingFlow,
+          onAnalyzeBarcode: _journalController.analyzeBarcode,
+          onBarcodeAnalyzed: _pushAnalyzedReview,
+          onScanCreditRequired: _openScanCreditGate,
+          onAddManually: _openManualReview,
         ),
       ),
     );
   }
 
-  void _pushAnalyzingFlow({
-    CapturedMealPhoto? photo,
-    String? barcode,
-  }) {
+  Future<void> _openScanCreditGate() async {
+    await _openAccountHome(AccountGateReason.quotaExhausted);
+    await _journalController.refreshQuota();
+  }
+
+  void _pushAnalyzingFlow(CapturedMealPhoto photo) {
     _navigatorKey.currentState!.pushReplacement<void, void>(
       logmyplatePageRoute<void>(
         builder: (_) => AnalyzingScreen(
           photo: photo,
-          barcode: barcode,
           onAnalyze: _journalController.analyzeCapturedMeal,
-          onAnalyzeBarcode: _journalController.analyzeBarcode,
-          onScanCreditRequired: () async {
-            await _openAccountHome(AccountGateReason.quotaExhausted);
-            await _journalController.refreshQuota();
-          },
+          onScanCreditRequired: _openScanCreditGate,
           onAddManually: _openManualReview,
-          onSwitchToPhoto: () {
-            _navigatorKey.currentState!.pushReplacement<void, void>(
-              logmyplatePageRoute<void>(
-                builder: (_) => CameraScreen(
-                  initialMode: CameraScanMode.photo,
-                  onCaptured: (p) => _pushAnalyzingFlow(photo: p),
-                  onBarcodeScanned: (b) => _pushAnalyzingFlow(barcode: b),
-                ),
-              ),
-            );
-          },
-          onAnalyzed: (analysis) {
-            _navigatorKey.currentState!.pushReplacement<void, void>(
-              logmyplatePageRoute<void>(
-                builder: (_) => ReviewMealScreen(
-                  isPremium:
-                      _journalController.subscription?.active ?? false,
-                  plateScoreProfile:
-                      _journalController.plateScoreProfile,
-                  plateScorePolicy: _journalController.plateScorePolicy,
-                  onPersonaliseScore: _openHealthTargetEditor,
-                  mealAdvice: analysis.advice,
-                  initialItems: analysis.items,
-                  initialMealType: mealTypeForReview(
-                    localTime: DateTime.now(),
-                    foodSuggestedType: analysis.mealType,
-                  ),
-                  lockInitialItems: true,
-                  photo: photo,
-                  onFoodSearch: null,
-                  onConfirm:
-                      (type, items, {bool analyzeWithAI = false}) {
-                        return _confirmAnalyzedMeal(
-                          scanId: analysis.scanId,
-                          title: analysis.mealName,
-                          type: type,
-                          items: items,
-                          photo: analysis.imageStored ? null : photo,
-                          analyzeWithAI: analyzeWithAI,
-                        );
-                      },
-                ),
-              ),
+          onAnalyzed: (analysis) => _pushAnalyzedReview(analysis, photo: photo),
+        ),
+      ),
+    );
+  }
+
+  // Barcode lookups arrive here straight from the scanner, without a photo.
+  void _pushAnalyzedReview(ScanAnalysis analysis, {CapturedMealPhoto? photo}) {
+    _navigatorKey.currentState!.pushReplacement<void, void>(
+      logmyplatePageRoute<void>(
+        builder: (_) => ReviewMealScreen(
+          isPremium: _journalController.subscription?.active ?? false,
+          plateScoreProfile: _journalController.plateScoreProfile,
+          plateScorePolicy: _journalController.plateScorePolicy,
+          onPersonaliseScore: _openHealthTargetEditor,
+          mealAdvice: analysis.advice,
+          initialItems: analysis.items,
+          initialMealType: mealTypeForReview(
+            localTime: DateTime.now(),
+            foodSuggestedType: analysis.mealType,
+          ),
+          lockInitialItems: true,
+          photo: photo,
+          onFoodSearch: null,
+          onConfirm: (type, items, {bool analyzeWithAI = false}) {
+            return _confirmAnalyzedMeal(
+              scanId: analysis.scanId,
+              title: analysis.mealName,
+              type: type,
+              items: items,
+              photo: analysis.imageStored ? null : photo,
+              analyzeWithAI: analyzeWithAI,
             );
           },
         ),

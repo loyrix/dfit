@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../models/captured_meal_photo.dart';
+import '../models/meal.dart';
+import '../services/logmyplate_api_client.dart';
 import '../services/meal_photo_optimizer.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_surfaces.dart';
@@ -71,16 +73,96 @@ class _PreparedCapture {
 
 enum CameraScanMode { photo, barcode }
 
+enum _BarcodeLookupFailureKind { quota, notFound, limit, transient }
+
+class _BarcodeLookupFailure {
+  const _BarcodeLookupFailure({
+    required this.kind,
+    required this.title,
+    required this.message,
+  });
+
+  final _BarcodeLookupFailureKind kind;
+  final String title;
+  final String message;
+
+  factory _BarcodeLookupFailure.from(Object error) {
+    if (error is LogMyPlateApiException) {
+      if (error.isScanCreditRequired) {
+        return const _BarcodeLookupFailure(
+          kind: _BarcodeLookupFailureKind.quota,
+          title: 'Unlock scans',
+          message:
+              'Your free scans are used. Create or open your account to keep this journal safe, then unlock more scans when credits are available.',
+        );
+      }
+      if (error.errorCode == 'no_food_detected') {
+        return const _BarcodeLookupFailure(
+          kind: _BarcodeLookupFailureKind.notFound,
+          title: 'No food found',
+          message:
+              'This barcode did not match a food product. Scan another package or take a photo of your plate. No scan credit was used.',
+        );
+      }
+      if (error.errorCode == 'invalid_barcode') {
+        return const _BarcodeLookupFailure(
+          kind: _BarcodeLookupFailureKind.notFound,
+          title: 'Not a product barcode',
+          message:
+              'Scan the barcode printed on the food package, or type the numbers below it. No scan credit was used.',
+        );
+      }
+      if (error.errorCode == 'no_food_scan_limit_exceeded') {
+        return const _BarcodeLookupFailure(
+          kind: _BarcodeLookupFailureKind.limit,
+          title: 'Scan limit reached',
+          message:
+              'Too many scans did not match a food. Try again later. This protects your scan credits.',
+        );
+      }
+      if (error.retryable || error.statusCode >= 500) {
+        return const _BarcodeLookupFailure(
+          kind: _BarcodeLookupFailureKind.transient,
+          title: 'Lookup took too long',
+          message:
+              'LogMyPlate is taking longer than expected. Retry in a moment.',
+        );
+      }
+      return _BarcodeLookupFailure(
+        kind: _BarcodeLookupFailureKind.transient,
+        title: 'Lookup paused',
+        message:
+            error.message ??
+            'Could not look up this barcode (${error.statusCode}). Try again.',
+      );
+    }
+
+    return const _BarcodeLookupFailure(
+      kind: _BarcodeLookupFailureKind.transient,
+      title: 'Connection paused',
+      message: 'Could not reach LogMyPlate. Check your connection and try again.',
+    );
+  }
+}
+
 class CameraScreen extends StatefulWidget {
   const CameraScreen({
     super.key,
     required this.onCaptured,
-    this.onBarcodeScanned,
+    this.onAnalyzeBarcode,
+    this.onBarcodeAnalyzed,
+    this.onScanCreditRequired,
+    this.onAddManually,
     this.initialMode = CameraScanMode.photo,
   });
 
   final ValueChanged<CapturedMealPhoto> onCaptured;
-  final ValueChanged<String>? onBarcodeScanned;
+  // Barcode mode is offered only when a lookup is provided. The lookup runs on
+  // this screen so a miss leaves the user at the scanner, ready to scan again.
+  final Future<ScanAnalysis> Function(String barcode)? onAnalyzeBarcode;
+  final ValueChanged<ScanAnalysis>? onBarcodeAnalyzed;
+  final Future<void> Function()? onScanCreditRequired;
+  final VoidCallback? onAddManually;
   final CameraScanMode initialMode;
 
   @override
@@ -94,7 +176,9 @@ class _CameraScreenState extends State<CameraScreen>
   late CameraScanMode _mode = widget.initialMode;
   MobileScannerController? _scannerController;
   bool _torchEnabled = false;
-  bool _barcodeDetected = false;
+  bool _lookingUpBarcode = false;
+  String? _failedBarcode;
+  _BarcodeLookupFailure? _barcodeFailure;
   _CaptureSource? _activeSource;
   _PreparedCapture? _preparedCapture;
   String? _captureNotice;
@@ -131,7 +215,9 @@ class _CameraScreenState extends State<CameraScreen>
     unawaited(HapticFeedback.selectionClick());
     setState(() {
       _mode = mode;
-      _barcodeDetected = false;
+      _lookingUpBarcode = false;
+      _failedBarcode = null;
+      _barcodeFailure = null;
     });
     if (mode == CameraScanMode.barcode) {
       _initBarcodeScanner();
@@ -171,16 +257,65 @@ class _CameraScreenState extends State<CameraScreen>
     } catch (_) {}
   }
 
-  void _onBarcodeDetected(String barcode) {
-    if (_barcodeDetected) return;
-    setState(() => _barcodeDetected = true);
+  Future<void> _lookUpBarcode(String barcode) async {
+    final analyze = widget.onAnalyzeBarcode;
+    if (analyze == null || _lookingUpBarcode) return;
+    setState(() {
+      _lookingUpBarcode = true;
+      _failedBarcode = null;
+      _barcodeFailure = null;
+    });
     unawaited(HapticFeedback.mediumImpact());
-    widget.onBarcodeScanned?.call(barcode);
+    _controller.stop();
+    // Hold the last camera frame behind the lookup status instead of letting
+    // the preview keep moving and re-detecting the same code.
+    unawaited(_pauseScanner());
+
+    try {
+      final analysis = await analyze(barcode);
+      if (!mounted) return;
+      widget.onBarcodeAnalyzed?.call(analysis);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _lookingUpBarcode = false;
+        _failedBarcode = barcode;
+        _barcodeFailure = _BarcodeLookupFailure.from(error);
+      });
+    }
+  }
+
+  Future<void> _pauseScanner() async {
+    try {
+      await _scannerController?.pause();
+    } catch (_) {}
+  }
+
+  void _scanAgain() {
+    setState(() {
+      _failedBarcode = null;
+      _barcodeFailure = null;
+    });
+    if (!_controller.isAnimating) _controller.repeat();
+    unawaited(_resumeScanner());
+  }
+
+  Future<void> _resumeScanner() async {
+    try {
+      await _scannerController?.start();
+    } catch (_) {}
+  }
+
+  void _retryFailedBarcode() {
+    final barcode = _failedBarcode;
+    if (barcode == null) return;
+    unawaited(_lookUpBarcode(barcode));
   }
 
   @override
   void dispose() {
     _hintController.dispose();
+    _scannerController?.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -281,7 +416,7 @@ class _CameraScreenState extends State<CameraScreen>
     );
 
     if (barcode != null && barcode.isNotEmpty && mounted) {
-      _onBarcodeDetected(barcode);
+      unawaited(_lookUpBarcode(barcode));
     }
   }
 
@@ -313,41 +448,72 @@ class _CameraScreenState extends State<CameraScreen>
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const BackMark(),
                   ),
-                  const Spacer(),
-                  if (_preparedCapture == null && widget.onBarcodeScanned != null)
-                    _ScanModeSelector(
-                      selectedMode: _mode,
-                      onModeChanged: _setMode,
-                    ),
-                  const Spacer(),
-                  const SizedBox(width: 48),
                 ],
               ),
             ),
             Positioned.fill(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 54, 24, 24),
+                padding: const EdgeInsets.fromLTRB(24, 62, 24, 24),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final compact = constraints.maxHeight < 720;
                     final keyboardOpen =
                         MediaQuery.viewInsetsOf(context).bottom > 0;
                     final hasPhoto = preparedCapture != null;
+                    final barcodeFailure = _barcodeFailure;
+                    // The switch leads the screen in both modes so the barcode
+                    // option is seen up front and does not move when toggled.
+                    // It steps aside once a photo or a barcode is being handled.
+                    final showModeSelector =
+                        widget.onAnalyzeBarcode != null &&
+                        !hasPhoto &&
+                        !keyboardOpen &&
+                        !_lookingUpBarcode &&
+                        barcodeFailure == null;
+                    final modeSelector = showModeSelector
+                        ? Padding(
+                            padding: EdgeInsets.only(bottom: compact ? 12 : 18),
+                            child: _ScanModeSelector(
+                              selectedMode: _mode,
+                              onModeChanged: _setMode,
+                            ),
+                          )
+                        : const SizedBox.shrink();
 
                     if (_mode == CameraScanMode.barcode) {
-                      return _BarcodeScannerView(
-                        controller: _scannerController,
-                        laserAnimation: _controller,
-                        torchEnabled: _torchEnabled,
-                        onToggleTorch: _toggleTorch,
-                        onBarcodeDetected: _onBarcodeDetected,
-                        onEnterManually: () => _showManualBarcodeDialog(context),
-                        compact: compact,
+                      return Column(
+                        children: [
+                          modeSelector,
+                          Expanded(
+                            child: _BarcodeScannerView(
+                              controller: _scannerController,
+                              laserAnimation: _controller,
+                              torchEnabled: _torchEnabled,
+                              lookingUp: _lookingUpBarcode,
+                              failure: barcodeFailure,
+                              onToggleTorch: _toggleTorch,
+                              onBarcodeDetected: (barcode) {
+                                if (_barcodeFailure != null) return;
+                                unawaited(_lookUpBarcode(barcode));
+                              },
+                              onEnterManually: () =>
+                                  _showManualBarcodeDialog(context),
+                              onScanAgain: _scanAgain,
+                              onRetry: _retryFailedBarcode,
+                              onTakePhoto: () =>
+                                  _setMode(CameraScanMode.photo),
+                              onScanCreditRequired: widget.onScanCreditRequired,
+                              onAddManually: widget.onAddManually,
+                              compact: compact,
+                            ),
+                          ),
+                        ],
                       );
                     }
 
                     return Column(
                       children: [
+                        modeSelector,
                         AnimatedSize(
                           duration: const Duration(milliseconds: 220),
                           curve: Curves.easeOutCubic,
@@ -1293,24 +1459,27 @@ class _ScanModeSelector extends StatelessWidget {
     return GlassSurface(
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
       child: Padding(
-        padding: const EdgeInsets.all(3),
+        padding: const EdgeInsets.all(4),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            _ModeTab(
-              label: 'Plate Photo',
-              icon: Icons.camera_alt_outlined,
-              selected: selectedMode == CameraScanMode.photo,
-              onTap: () => onModeChanged(CameraScanMode.photo),
-              colors: colors,
+            Expanded(
+              child: _ModeTab(
+                label: 'Plate Photo',
+                icon: Icons.camera_alt_outlined,
+                selected: selectedMode == CameraScanMode.photo,
+                onTap: () => onModeChanged(CameraScanMode.photo),
+                colors: colors,
+              ),
             ),
-            const SizedBox(width: 2),
-            _ModeTab(
-              label: 'Barcode',
-              icon: Icons.qr_code_scanner_rounded,
-              selected: selectedMode == CameraScanMode.barcode,
-              onTap: () => onModeChanged(CameraScanMode.barcode),
-              colors: colors,
+            const SizedBox(width: 4),
+            Expanded(
+              child: _ModeTab(
+                label: 'Barcode',
+                icon: Icons.qr_code_scanner_rounded,
+                selected: selectedMode == CameraScanMode.barcode,
+                onTap: () => onModeChanged(CameraScanMode.barcode),
+                colors: colors,
+              ),
             ),
           ],
         ),
@@ -1336,45 +1505,54 @@ class _ModeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: selected
-                ? LogMyPlateColors.accent.withValues(alpha: 0.18)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(
-              LogMyPlateSpacing.pillBorderRadius,
-            ),
-            border: Border.all(
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
               color: selected
-                  ? LogMyPlateColors.accent.withValues(alpha: 0.45)
+                  ? LogMyPlateColors.accent.withValues(alpha: 0.18)
                   : Colors.transparent,
-              width: 0.5,
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.pillBorderRadius,
+              ),
+              border: Border.all(
+                color: selected
+                    ? LogMyPlateColors.accent.withValues(alpha: 0.45)
+                    : Colors.transparent,
+                width: 0.5,
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 15,
-                color: selected ? colors.accentText : colors.textSecondary,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 19,
                   color: selected ? colors.accentText : colors.textSecondary,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: selected ? colors.accentText : colors.textSecondary,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1411,7 +1589,7 @@ class _BarcodeIntroCard extends StatelessWidget {
         ),
         SizedBox(height: compact ? 4 : 7),
         Text(
-          'Instant nutrition from packaged foods and drinks via Open Food Facts.',
+          'Instant nutrition from packaged foods and drinks.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: surface.textSecondary,
@@ -1428,23 +1606,39 @@ class _BarcodeScannerView extends StatelessWidget {
     required this.controller,
     required this.laserAnimation,
     required this.torchEnabled,
+    required this.lookingUp,
+    required this.failure,
     required this.onToggleTorch,
     required this.onBarcodeDetected,
     required this.onEnterManually,
+    required this.onScanAgain,
+    required this.onRetry,
+    required this.onTakePhoto,
+    required this.onScanCreditRequired,
+    required this.onAddManually,
     required this.compact,
   });
 
   final MobileScannerController? controller;
   final Animation<double> laserAnimation;
   final bool torchEnabled;
+  final bool lookingUp;
+  final _BarcodeLookupFailure? failure;
   final VoidCallback onToggleTorch;
   final ValueChanged<String> onBarcodeDetected;
   final VoidCallback onEnterManually;
+  final VoidCallback onScanAgain;
+  final VoidCallback onRetry;
+  final VoidCallback onTakePhoto;
+  final Future<void> Function()? onScanCreditRequired;
+  final VoidCallback? onAddManually;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final failure = this.failure;
+    final scanning = !lookingUp && failure == null;
 
     return Column(
       children: [
@@ -1490,7 +1684,7 @@ class _BarcodeScannerView extends StatelessWidget {
                               }
                             }
                           },
-                          errorBuilder: (context, error, child) {
+                          errorBuilder: (context, error) {
                             return Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(20),
@@ -1520,35 +1714,39 @@ class _BarcodeScannerView extends StatelessWidget {
                       else
                         const Center(child: CircularProgressIndicator()),
                       const _BarcodeReticleOverlay(),
-                      AnimatedBuilder(
-                        animation: laserAnimation,
-                        builder: (context, _) {
-                          return CustomPaint(
-                            painter: _LaserSweepPainter(
-                              progress: laserAnimation.value,
-                            ),
-                          );
-                        },
-                      ),
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: GlassPill(
-                          padding: const EdgeInsets.all(8),
-                          child: InkWell(
-                            onTap: onToggleTorch,
-                            child: Icon(
-                              torchEnabled
-                                  ? Icons.flash_on_rounded
-                                  : Icons.flash_off_rounded,
-                              size: 20,
-                              color: torchEnabled
-                                  ? LogMyPlateColors.accent
-                                  : colors.textSecondary,
+                      if (scanning)
+                        AnimatedBuilder(
+                          animation: laserAnimation,
+                          builder: (context, _) {
+                            return CustomPaint(
+                              painter: _LaserSweepPainter(
+                                progress: laserAnimation.value,
+                              ),
+                            );
+                          },
+                        )
+                      else
+                        _BarcodeLookupStatus(failure: failure),
+                      if (scanning)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: GlassPill(
+                            padding: const EdgeInsets.all(8),
+                            child: InkWell(
+                              onTap: onToggleTorch,
+                              child: Icon(
+                                torchEnabled
+                                    ? Icons.flash_on_rounded
+                                    : Icons.flash_off_rounded,
+                                size: 20,
+                                color: torchEnabled
+                                    ? LogMyPlateColors.accent
+                                    : colors.textSecondary,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -1572,7 +1770,8 @@ class _BarcodeScannerView extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Align the barcode inside the frame. Only food items consume a scan credit.',
+                  failure?.message ??
+                      'Align the barcode inside the frame. Only food items consume a scan credit.',
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
@@ -1582,25 +1781,204 @@ class _BarcodeScannerView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: onEnterManually,
-            icon: const Icon(Icons.keyboard_outlined, size: 18),
-            label: const Text('Enter barcode manually'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              foregroundColor: colors.accentText,
-              side: BorderSide(
-                color: LogMyPlateColors.accent.withValues(alpha: 0.4),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(
-                  LogMyPlateSpacing.pillBorderRadius,
+        if (failure != null)
+          _BarcodeFailureActions(
+            failure: failure,
+            onScanAgain: onScanAgain,
+            onRetry: onRetry,
+            onTakePhoto: onTakePhoto,
+            onScanCreditRequired: onScanCreditRequired,
+            onAddManually: onAddManually,
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: lookingUp ? null : onEnterManually,
+              icon: const Icon(Icons.keyboard_outlined, size: 18),
+              label: const Text('Enter barcode manually'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                foregroundColor: colors.accentText,
+                side: BorderSide(
+                  color: LogMyPlateColors.accent.withValues(alpha: 0.4),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.pillBorderRadius,
+                  ),
                 ),
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _BarcodeLookupStatus extends StatelessWidget {
+  const _BarcodeLookupStatus({required this.failure});
+
+  final _BarcodeLookupFailure? failure;
+
+  @override
+  Widget build(BuildContext context) {
+    final failure = this.failure;
+
+    // A fixed dark scrim keeps the light text legible over any camera frame.
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.62),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (failure == null)
+                const SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: LogMyPlateColors.accent,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 34,
+                  color: LogMyPlateColors.accent,
+                ),
+              const SizedBox(height: 14),
+              Text(
+                failure?.title ?? 'Looking up product',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarcodeFailureActions extends StatelessWidget {
+  const _BarcodeFailureActions({
+    required this.failure,
+    required this.onScanAgain,
+    required this.onRetry,
+    required this.onTakePhoto,
+    required this.onScanCreditRequired,
+    required this.onAddManually,
+  });
+
+  final _BarcodeLookupFailure failure;
+  final VoidCallback onScanAgain;
+  final VoidCallback onRetry;
+  final VoidCallback onTakePhoto;
+  final Future<void> Function()? onScanCreditRequired;
+  final VoidCallback? onAddManually;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    final addManually = onAddManually;
+    final scanCreditAction = onScanCreditRequired;
+
+    // Quota and transient failures can succeed for the same barcode, so their
+    // primary action keeps it. A miss needs a different barcode or a photo.
+    final (primaryLabel, primaryIcon, primaryAction) = switch (failure.kind) {
+      _BarcodeLookupFailureKind.quota when scanCreditAction != null => (
+        'Open account',
+        Icons.lock_open_rounded,
+        () => unawaited(scanCreditAction()),
+      ),
+      _BarcodeLookupFailureKind.quota ||
+      _BarcodeLookupFailureKind.transient => (
+        'Try again',
+        Icons.refresh_rounded,
+        onRetry,
+      ),
+      _BarcodeLookupFailureKind.notFound ||
+      _BarcodeLookupFailureKind.limit => (
+        'Scan again',
+        Icons.qr_code_scanner_rounded,
+        onScanAgain,
+      ),
+    };
+    final offerScanAgain =
+        failure.kind == _BarcodeLookupFailureKind.quota ||
+        failure.kind == _BarcodeLookupFailureKind.transient;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: _CaptureButton(
+            label: primaryLabel,
+            icon: Icon(primaryIcon, size: 20),
+            primary: true,
+            loading: false,
+            disabled: false,
+            onTap: primaryAction,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: offerScanAgain
+                  ? _CaptureButton(
+                      label: 'Scan again',
+                      icon: Icon(
+                        Icons.qr_code_scanner_rounded,
+                        color: colors.textPrimary,
+                        size: 18,
+                      ),
+                      primary: false,
+                      loading: false,
+                      disabled: false,
+                      height: 44,
+                      onTap: onScanAgain,
+                    )
+                  : _CaptureButton(
+                      label: 'Plate photo',
+                      icon: Icon(
+                        Icons.photo_camera_rounded,
+                        color: colors.textPrimary,
+                        size: 18,
+                      ),
+                      primary: false,
+                      loading: false,
+                      disabled: false,
+                      height: 44,
+                      onTap: onTakePhoto,
+                    ),
+            ),
+            if (addManually != null) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: _CaptureButton(
+                  label: 'Add manually',
+                  icon: Icon(
+                    Icons.edit_note_rounded,
+                    color: colors.textPrimary,
+                    size: 18,
+                  ),
+                  primary: false,
+                  loading: false,
+                  disabled: false,
+                  height: 44,
+                  onTap: addManually,
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     );

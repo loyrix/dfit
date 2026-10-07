@@ -18,6 +18,30 @@ void main() {
     );
   }
 
+  ScanAnalysis analysisFor(String scanId) {
+    return ScanAnalysis(
+      scanId: scanId,
+      mealType: MealType.snack,
+      mealName: 'Masala oats',
+      detectedLanguage: 'en',
+      items: const [],
+    );
+  }
+
+  LogMyPlateApiException apiError(int status, Map<String, Object?> body) {
+    return LogMyPlateApiException(status, jsonEncode(body));
+  }
+
+  Future<void> enterBarcodeManually(WidgetTester tester, String barcode) async {
+    await tester.tap(find.text('Enter barcode manually'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(find.byType(TextField), barcode);
+    await tester.tap(find.text('Look up'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
   group('CameraScreen barcode mode', () {
     testWidgets('renders scan mode selector with Plate Photo and Barcode', (
       tester,
@@ -26,7 +50,7 @@ void main() {
         testFrame(
           child: CameraScreen(
             onCaptured: (_) {},
-            onBarcodeScanned: (_) {},
+            onAnalyzeBarcode: (_) async => analysisFor('scan_1'),
           ),
         ),
       );
@@ -36,6 +60,43 @@ void main() {
       expect(find.text('AI powered meal scan'), findsOneWidget);
     });
 
+    testWidgets('hides the mode selector when no barcode lookup is provided', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        testFrame(child: CameraScreen(onCaptured: (_) {})),
+      );
+
+      expect(find.text('Plate Photo'), findsNothing);
+      expect(find.text('Barcode'), findsNothing);
+    });
+
+    testWidgets('mode selector leads the screen at a full tap target height', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        testFrame(
+          child: CameraScreen(
+            onCaptured: (_) {},
+            onAnalyzeBarcode: (_) async => analysisFor('scan_1'),
+          ),
+        ),
+      );
+
+      final barcodeTab = tester.getRect(
+        find.ancestor(
+          of: find.text('Barcode'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      expect(barcodeTab.height, greaterThanOrEqualTo(44));
+      expect(barcodeTab.width, greaterThan(300));
+      expect(
+        barcodeTab.bottom,
+        lessThan(tester.getRect(find.text('AI powered meal scan')).top),
+      );
+    });
+
     testWidgets('switches to barcode mode and reveals manual entry button', (
       tester,
     ) async {
@@ -43,7 +104,7 @@ void main() {
         testFrame(
           child: CameraScreen(
             onCaptured: (_) {},
-            onBarcodeScanned: (_) {},
+            onAnalyzeBarcode: (_) async => analysisFor('scan_1'),
           ),
         ),
       );
@@ -54,35 +115,187 @@ void main() {
 
       expect(find.text('Scan barcode to log food'), findsOneWidget);
       expect(find.text('Enter barcode manually'), findsOneWidget);
+      expect(find.textContaining('Open Food Facts'), findsNothing);
     });
 
-    testWidgets('entering barcode manually triggers onBarcodeScanned callback', (
+    testWidgets('looks up a manually entered barcode on the scanner screen', (
       tester,
     ) async {
-      String? scannedBarcode;
+      final lookup = Completer<ScanAnalysis>();
+      String? lookedUp;
+      ScanAnalysis? delivered;
 
       await tester.pumpWidget(
         testFrame(
           child: CameraScreen(
             initialMode: CameraScanMode.barcode,
             onCaptured: (_) {},
-            onBarcodeScanned: (code) => scannedBarcode = code,
+            onAnalyzeBarcode: (code) {
+              lookedUp = code;
+              return lookup.future;
+            },
+            onBarcodeAnalyzed: (analysis) => delivered = analysis,
           ),
         ),
       );
 
+      await enterBarcodeManually(tester, '737628064500');
+
+      expect(lookedUp, '737628064500');
+      expect(find.text('Looking up product'), findsOneWidget);
+      // Switching mode mid-lookup would strand the result, so the switch and
+      // the scanner copy stay put while the screen is still the scanner.
+      expect(find.text('Scan barcode to log food'), findsOneWidget);
+      expect(find.text('Plate Photo'), findsNothing);
+      expect(delivered, isNull);
+
+      lookup.complete(analysisFor('scan_42'));
+      await tester.pump();
+
+      expect(delivered?.scanId, 'scan_42');
+    });
+
+    testWidgets('a barcode with no food match stays on the scanner and can '
+        'scan again', (tester) async {
+      var lookups = 0;
+      var addedManually = false;
+
+      await tester.pumpWidget(
+        testFrame(
+          child: CameraScreen(
+            initialMode: CameraScanMode.barcode,
+            onCaptured: (_) {},
+            onAnalyzeBarcode: (_) async {
+              lookups += 1;
+              throw apiError(422, {'error': 'no_food_detected'});
+            },
+            onAddManually: () => addedManually = true,
+          ),
+        ),
+      );
+
+      await enterBarcodeManually(tester, '0000000000');
+
+      expect(find.text('No food found'), findsOneWidget);
+      expect(find.textContaining('No scan credit was used'), findsOneWidget);
+      expect(find.text('Try again'), findsNothing);
+      expect(find.text('Plate photo'), findsOneWidget);
+
+      await tester.tap(find.text('Add manually'));
+      expect(addedManually, isTrue);
+
+      await tester.tap(find.text('Scan again'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Back to a live scanner without re-sending the barcode that missed.
+      expect(lookups, 1);
+      expect(find.text('No food found'), findsNothing);
       expect(find.text('Enter barcode manually'), findsOneWidget);
-      await tester.tap(find.text('Enter barcode manually'));
+      expect(find.text('Barcode'), findsOneWidget);
+    });
+
+    testWidgets('a miss offers a switch to plate photo', (tester) async {
+      await tester.pumpWidget(
+        testFrame(
+          child: CameraScreen(
+            initialMode: CameraScanMode.barcode,
+            onCaptured: (_) {},
+            onAnalyzeBarcode: (_) async {
+              throw apiError(422, {'error': 'no_food_detected'});
+            },
+          ),
+        ),
+      );
+
+      await enterBarcodeManually(tester, '0000000000');
+      await tester.tap(find.text('Plate photo'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Enter barcode'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), '737628064500');
-      await tester.tap(find.text('Look up'));
+      expect(find.text('AI powered meal scan'), findsOneWidget);
+      expect(find.text('No food found'), findsNothing);
+    });
+
+    testWidgets('a server failure retries the same barcode', (tester) async {
+      final seen = <String>[];
+      ScanAnalysis? delivered;
+
+      await tester.pumpWidget(
+        testFrame(
+          child: CameraScreen(
+            initialMode: CameraScanMode.barcode,
+            onCaptured: (_) {},
+            onAnalyzeBarcode: (code) async {
+              seen.add(code);
+              if (seen.length == 1) {
+                throw apiError(503, {
+                  'message': 'connect ECONNREFUSED 10.0.0.4:5432',
+                });
+              }
+              return analysisFor('scan_retry');
+            },
+            onBarcodeAnalyzed: (analysis) => delivered = analysis,
+          ),
+        ),
+      );
+
+      await enterBarcodeManually(tester, '8901058000290');
+
+      expect(find.text('Lookup took too long'), findsOneWidget);
+      expect(find.textContaining('ECONNREFUSED'), findsNothing);
+
+      await tester.tap(find.text('Try again'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(scannedBarcode, '737628064500');
+      expect(seen, ['8901058000290', '8901058000290']);
+      expect(delivered?.scanId, 'scan_retry');
+    });
+
+    testWidgets('a used-up quota offers the account handoff', (tester) async {
+      var accountOpened = false;
+
+      await tester.pumpWidget(
+        testFrame(
+          child: CameraScreen(
+            initialMode: CameraScanMode.barcode,
+            onCaptured: (_) {},
+            onAnalyzeBarcode: (_) async {
+              throw apiError(402, {'error': 'scan_credit_required'});
+            },
+            onScanCreditRequired: () async => accountOpened = true,
+          ),
+        ),
+      );
+
+      await enterBarcodeManually(tester, '8901058000290');
+
+      expect(find.text('Unlock scans'), findsOneWidget);
+
+      await tester.tap(find.text('Open account'));
+      await tester.pump();
+
+      expect(accountOpened, isTrue);
+    });
+
+    testWidgets('an unreachable API reports a connection problem', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        testFrame(
+          child: CameraScreen(
+            initialMode: CameraScanMode.barcode,
+            onCaptured: (_) {},
+            onAnalyzeBarcode: (_) async => throw TimeoutException('offline'),
+          ),
+        ),
+      );
+
+      await enterBarcodeManually(tester, '8901058000290');
+
+      expect(find.text('Connection paused'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
     });
   });
 
@@ -106,7 +319,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('737628064500'), findsOneWidget);
-      expect(find.text('Open Food Facts Lookup'), findsOneWidget);
+      expect(find.textContaining('Open Food Facts'), findsNothing);
       expect(find.text('Looking up barcode'), findsOneWidget);
       expect(find.text('Searching food database'), findsOneWidget);
 
