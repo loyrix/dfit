@@ -632,6 +632,23 @@ export class InMemoryStore implements AppRepository {
     return findFoodById(foodId, this.foods);
   }
 
+  async findFoodByBarcode(barcode: string): Promise<FoodRecord | undefined> {
+    const clean = barcode.trim();
+    return this.foods.find((food) => food.barcode === clean);
+  }
+
+  async saveFoodWithBarcode(food: FoodRecord): Promise<FoodRecord> {
+    const existingIndex = this.foods.findIndex(
+      (f) => (food.barcode && f.barcode === food.barcode) || f.id === food.id,
+    );
+    if (existingIndex >= 0) {
+      this.foods[existingIndex] = food;
+    } else {
+      this.foods.push(food);
+    }
+    return food;
+  }
+
   async getQuota() {
     const profile = await this.getProfile();
     const quota = this.quotaFor(profile);

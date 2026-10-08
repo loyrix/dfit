@@ -379,6 +379,8 @@ export interface AppRepository {
   revokeSession(token: string): Promise<void>;
   searchFoods(query: string): Promise<FoodSearchResult[]>;
   getFood(foodId: string): Promise<FoodRecord | undefined>;
+  findFoodByBarcode(barcode: string): Promise<FoodRecord | undefined>;
+  saveFoodWithBarcode(food: FoodRecord): Promise<FoodRecord>;
   getQuota(): Promise<ScanCreditState>;
   getSubscriptionStatus(): Promise<SubscriptionStatusState>;
   upsertSubscriptionEntitlement(

@@ -41,6 +41,7 @@ import {
   createPasswordResetEmailSender,
   type PasswordResetEmailSender,
 } from "./services/password-reset-email.js";
+import type { BarcodeFoodProvider } from "./services/barcode-food-provider.js";
 
 export type BuildAppOptions = {
   repository?: AppRepository;
@@ -53,6 +54,7 @@ export type BuildAppOptions = {
   mealImageStorage?: MealImageStorage;
   passwordResetEmailSender?: PasswordResetEmailSender;
   revenueCat?: ApiConfig["revenueCat"];
+  barcodeFoodProvider?: BarcodeFoodProvider;
 };
 
 export const buildApp = async (options: BuildAppOptions = {}) => {
@@ -123,7 +125,14 @@ export const buildApp = async (options: BuildAppOptions = {}) => {
   await registerSubscriptionRoutes(app, repository, options.revenueCat ?? config.revenueCat);
   await registerBootstrapRoutes(app, repository, mealImageStorage, sql);
   await registerJournalRoutes(app, repository, mealImageStorage, sql);
-  await registerScanRoutes(app, repository, mealImageStorage, aiProvider, sql);
+  await registerScanRoutes(
+    app,
+    repository,
+    mealImageStorage,
+    aiProvider,
+    sql,
+    options.barcodeFoodProvider,
+  );
   await registerAdminRoutes(app, sql, mealImageStorage);
   await registerCronRoutes(app, sql);
   await registerChatRoutes(app, repository, chatAiProvider, config.chat);

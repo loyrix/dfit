@@ -576,6 +576,73 @@ class JournalController extends ChangeNotifier {
     }
   }
 
+  Future<ScanAnalysis> analyzeBarcode(String barcode) async {
+    _error = null;
+    final seed = DateTime.now().microsecondsSinceEpoch;
+    try {
+      unawaited(
+        _analytics.logEvent(
+          'barcode_scan_started',
+          parameters: {'barcode': barcode},
+        ),
+      );
+      final pending = _pendingPreparedScan;
+      _pendingPreparedScan = null;
+      PreparedScan prepared;
+      if (pending != null) {
+        try {
+          prepared = await pending;
+        } catch (_) {
+          prepared = await _apiClient.prepareScan(
+            idempotencyKey: 'scan-prepare-$seed',
+          );
+        }
+      } else {
+        prepared = await _apiClient.prepareScan(
+          idempotencyKey: 'scan-prepare-$seed',
+        );
+      }
+      _quota = prepared.quota;
+      notifyListeners();
+
+      final analysis = await _apiClient.scanBarcode(
+        scanId: prepared.scanId,
+        barcode: barcode,
+        idempotencyKey: 'scan-barcode-$seed',
+      );
+      unawaited(
+        _analytics.logEvent(
+          'barcode_scan_succeeded',
+          parameters: {
+            'item_count': analysis.items.length,
+            'calories': analysis.totals.calories,
+          },
+        ),
+      );
+      await _refreshQuota(notify: false);
+      return analysis;
+    } catch (error, stackTrace) {
+      unawaited(
+        _analytics.logEvent(
+          'barcode_scan_failed',
+          parameters: {
+            'error_type': error is LogMyPlateApiException
+                ? error.errorCode ?? 'api_error'
+                : error.runtimeType.toString(),
+            'barcode': barcode,
+          },
+        ),
+      );
+      AppDiagnostics.instance.record(
+        'scan.barcode',
+        error,
+        stackTrace: stackTrace,
+        context: {'barcode': barcode},
+      );
+      rethrow;
+    }
+  }
+
   Future<MealLog> confirmAnalyzedMeal({
     required String scanId,
     required MealType type,

@@ -31,6 +31,7 @@ import type {
   PasswordResetEmailSender,
 } from "./services/password-reset-email.js";
 import type { MealImageSummary } from "@logmyplate/domain";
+import { MockBarcodeFoodProvider } from "./services/barcode-food-provider.js";
 
 type AnalyzedTestItem = {
   name: string;
@@ -3129,7 +3130,16 @@ describe("LogMyPlate API", () => {
   });
 
   it("applies RevenueCat premium entitlement to scan quota", async () => {
-    const app = await testApp();
+    const webhookAuthToken = "test-rc-webhook-token";
+    const app = await testApp({
+      revenueCat: {
+        apiBaseUrl: "https://api.revenuecat.com/v1",
+        entitlementId: "premium",
+        premiumMonthlyScanLimit: 300,
+        premiumDailyScanLimit: 10,
+        webhookAuthToken,
+      },
+    });
     const installHeaders = {
       "x-logmyplate-install-id": "install-revenuecat-premium",
       "x-logmyplate-platform": "ios",
@@ -3151,9 +3161,7 @@ describe("LogMyPlate API", () => {
     const webhook = await app.inject({
       method: "POST",
       url: "/v1/subscription/revenuecat/webhook",
-      headers: process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN
-        ? { authorization: `Bearer ${process.env.REVENUECAT_WEBHOOK_AUTH_TOKEN}` }
-        : undefined,
+      headers: { authorization: `Bearer ${webhookAuthToken}` },
       payload: {
         event: {
           id: "evt-premium-initial",
@@ -4522,6 +4530,164 @@ describe("LogMyPlate API", () => {
       // Absent, not "unknown": the scorer skips the modifier rather than
       // applying a neutral one it was never told about.
       expect(repository.lastCreateMeal?.items[0].cookingMethod).toBeUndefined();
+      await app.close();
+    });
+  });
+
+  describe("barcode scanning", () => {
+    it("successfully scans a valid barcode, consumes 1 scan credit, and returns reviewable analysis", async () => {
+      const mockBarcodeProvider = new MockBarcodeFoodProvider();
+      mockBarcodeProvider.setProduct("8901058852393", {
+        id: "food_barcode_8901058852393",
+        canonicalName: "Maggi 2-Minute Noodles Masala",
+        region: "GLOBAL",
+        aliases: ["Maggi"],
+        source: "open_food_facts",
+        barcode: "8901058852393",
+        nutritionPer100g: {
+          calories: 427,
+          proteinG: 8,
+          carbsG: 63.5,
+          fatG: 15.7,
+          fiberG: 3.6,
+          sodiumMg: 1160,
+        },
+        portions: [{ unit: "serving", grams: 70, confidence: 0.95 }],
+      });
+
+      const app = await testApp({ barcodeFoodProvider: mockBarcodeProvider });
+      const headers = { "x-install-id": "barcode-install-1" };
+
+      // Prepare scan
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...headers, "idempotency-key": "prep-barcode-1" },
+      });
+      expect(prepared.statusCode).toBe(201);
+      const scanId = prepared.json().scanId;
+
+      // Scan barcode
+      const scanned = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/barcode`,
+        headers: { ...headers, "idempotency-key": "scan-barcode-1" },
+        payload: { barcode: "8901058852393" },
+      });
+
+      expect(scanned.statusCode).toBe(200);
+      const body = scanned.json();
+      expect(body.status).toBe("ready_for_review");
+      expect(body.mealName).toBe("Maggi 2-Minute Noodles Masala");
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].name).toBe("Maggi 2-Minute Noodles Masala");
+      expect(body.items[0].estimatedGrams).toBe(70);
+      expect(body.items[0].preparation).toBe("packaged");
+      expect(body.totals.calories).toBe(Math.round(427 * 0.7 * 10) / 10);
+      expect(body.plateScore).toBeDefined();
+
+      // Check quota decremented by 1
+      const quota = await app.inject({
+        method: "GET",
+        url: "/v1/quota",
+        headers,
+      });
+      expect(quota.json().freeRemaining).toBe(2);
+
+      await app.close();
+    });
+
+    it("returns 422 no_food_detected when barcode is unknown, without consuming credit", async () => {
+      const mockBarcodeProvider = new MockBarcodeFoodProvider();
+      const app = await testApp({ barcodeFoodProvider: mockBarcodeProvider });
+      const headers = { "x-install-id": "barcode-install-2" };
+
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...headers, "idempotency-key": "prep-barcode-2" },
+      });
+      const scanId = prepared.json().scanId;
+
+      const scanned = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/barcode`,
+        headers: { ...headers, "idempotency-key": "scan-barcode-2" },
+        payload: { barcode: "999999999999" },
+      });
+
+      expect(scanned.statusCode).toBe(422);
+      expect(scanned.json().error).toBe("no_food_detected");
+
+      // Verify quota is intact (still 3 free scans remaining)
+      const quota = await app.inject({
+        method: "GET",
+        url: "/v1/quota",
+        headers,
+      });
+      expect(quota.json().freeRemaining).toBe(3);
+
+      await app.close();
+    });
+
+    it("returns 402 scan_credit_required when user quota is exhausted", async () => {
+      const mockBarcodeProvider = new MockBarcodeFoodProvider();
+      mockBarcodeProvider.setProduct("1234567890", {
+        id: "food_test",
+        canonicalName: "Snack Bar",
+        region: "GLOBAL",
+        aliases: [],
+        source: "open_food_facts",
+        barcode: "1234567890",
+        nutritionPer100g: { calories: 200, proteinG: 5, carbsG: 30, fatG: 5 },
+        portions: [{ unit: "serving", grams: 50, confidence: 0.9 }],
+      });
+
+      const app = await testApp({ barcodeFoodProvider: mockBarcodeProvider });
+      const headers = { "x-install-id": "barcode-install-exhaust" };
+
+      // Exhaust free credits
+      await exhaustFreeScanCredits(app, headers, "barcode-exhaust");
+
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { ...headers, "idempotency-key": "prep-barcode-exhausted" },
+      });
+      const scanId = prepared.json().scanId;
+
+      const scanned = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/barcode`,
+        headers: { ...headers, "idempotency-key": "scan-barcode-exhausted" },
+        payload: { barcode: "1234567890" },
+      });
+
+      expect(scanned.statusCode).toBe(402);
+      expect(scanned.json().error).toBe("scan_credit_required");
+
+      await app.close();
+    });
+
+    it("returns 400 for invalid barcode payload", async () => {
+      const app = await testApp();
+      const prepared = await app.inject({
+        method: "POST",
+        url: "/v1/scans/prepare",
+        headers: { "idempotency-key": "prep-bad-barcode" },
+      });
+      const scanId = prepared.json().scanId;
+
+      const scanned = await app.inject({
+        method: "POST",
+        url: `/v1/scans/${scanId}/barcode`,
+        headers: { "idempotency-key": "scan-bad-barcode" },
+        payload: { barcode: "123" }, // too short (< 8 chars)
+      });
+
+      expect(scanned.statusCode).toBe(400);
+      expect(scanned.json().error).toBe("invalid_barcode");
+
       await app.close();
     });
   });

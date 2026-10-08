@@ -16,3 +16,4 @@ export * from "./food-quality.js";
 export * from "./daily-score.js";
 export * from "./weekly-score.js";
 export * from "./score-stars.js";
+export * from "./open-food-facts.js";

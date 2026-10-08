@@ -3,6 +3,7 @@ import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import {
   analyzeScanRequestSchema,
   confirmScanRequestSchema,
+  scanBarcodeRequestSchema,
   type AnalyzeScanResponseContract,
   type ConfirmScanRequestContract,
 } from "@logmyplate/contracts";
@@ -33,6 +34,10 @@ import { createRouteTimer } from "./route-timing.js";
 import { loadPlateScorePolicy } from "../services/plate-score-policy.js";
 import { loadMealScorePolicy } from "../services/meal-score-policy.js";
 import type { SqlClient } from "../db/client.js";
+import {
+  OpenFoodFactsBarcodeProvider,
+  type BarcodeFoodProvider,
+} from "../services/barcode-food-provider.js";
 
 const isStoredImageMimeType = (value: string | undefined): value is StoredMealImage["mimeType"] =>
   value === "image/jpeg" || value === "image/png" || value === "image/webp";
@@ -416,6 +421,7 @@ export const registerScanRoutes = async (
   mealImageStorage: MealImageStorage,
   aiProvider: AiProvider = new MockAiProvider(),
   sql?: SqlClient,
+  barcodeFoodProvider: BarcodeFoodProvider = new OpenFoodFactsBarcodeProvider(),
 ): Promise<void> => {
   app.get("/v1/quota", async () => repository.getQuota());
 
@@ -793,6 +799,215 @@ export const registerScanRoutes = async (
     );
 
     return response;
+  });
+
+  app.post("/v1/scans/:id/barcode", async (request, reply) => {
+    const timer = createRouteTimer();
+    const params = request.params as { id: string };
+    const scan = await timer.measure("getScan", () => repository.getScan(params.id));
+    if (!scan) return reply.status(404).send({ error: "scan_not_found" });
+
+    if (scan.analyzedResponse) {
+      if (isNoFoodAnalysis(scan.analyzedResponse)) {
+        return reply.status(422).send(noFoodDetectedResponse());
+      }
+
+      request.log.info(
+        {
+          route: "/v1/scans/:id/barcode",
+          scanId: scan.id,
+          timings: timer.snapshot(),
+          cached: true,
+        },
+        "scan barcode timings",
+      );
+      return {
+        ...(await withFreshPlateScore(
+          withoutStaleAdvice(scan.analyzedResponse as Record<string, unknown>),
+          scan.profileId,
+          repository,
+          sql,
+          request.log,
+        )),
+        imageStored: false,
+      };
+    }
+
+    const parsed = scanBarcodeRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        error: "invalid_barcode",
+        issues: parsed.error.issues,
+      });
+    }
+
+    const barcode = parsed.data.barcode.trim();
+
+    const quotaPromise = timer.measure("quota", () => repository.getQuota());
+    quotaPromise.catch(() => undefined);
+    const noFoodLimit = noFoodScanLimit();
+    const noFoodAttemptsPromise =
+      noFoodLimit > 0
+        ? timer.measure("noFoodAttempts", () =>
+            repository.countNoFoodScanAttemptsSince(
+              new Date(Date.now() - noFoodScanWindowMs).toISOString(),
+            ),
+          )
+        : undefined;
+    noFoodAttemptsPromise?.catch(() => undefined);
+
+    const quota = await quotaPromise;
+    const decision = decideScanQuota(quota);
+    if (!decision.allowed) {
+      return reply.status(402).send({
+        error: "scan_credit_required",
+        reason: decision.reason,
+        quota,
+      });
+    }
+
+    if (noFoodAttemptsPromise) {
+      const noFoodAttempts = await noFoodAttemptsPromise;
+      if (noFoodAttempts >= noFoodLimit) {
+        return reply.status(429).send(noFoodLimitResponse());
+      }
+    }
+
+    // 1. Check local catalog / database cache first
+    let food = await timer.measure("findFoodByBarcode", () =>
+      repository.findFoodByBarcode(barcode),
+    );
+
+    // 2. If not found in local db, query Open Food Facts provider
+    if (!food) {
+      food = await timer.measure("barcodeProviderLookup", () =>
+        barcodeFoodProvider.lookupBarcode(barcode),
+      );
+
+      // If found from provider, persist in DB for fast future lookups
+      if (food) {
+        try {
+          food = await repository.saveFoodWithBarcode(food);
+        } catch (saveError) {
+          request.log.warn({ err: saveError, barcode }, "saving barcode food to db failed");
+        }
+      }
+    }
+
+    if (!food) {
+      // Non-food or unrecognized barcode: failed scan, no credit deducted
+      await timer.measure("scanMarkFailed", () =>
+        repository.updateScan({
+          ...scan,
+          status: "failed",
+          userHint: `barcode:${barcode}`,
+        }),
+      );
+
+      request.log.info(
+        {
+          route: "/v1/scans/:id/barcode",
+          scanId: scan.id,
+          barcode,
+          noFoodDetected: true,
+          timings: timer.snapshot(),
+        },
+        "barcode scan no food detected",
+      );
+
+      return reply.status(422).send({
+        error: "no_food_detected",
+        message:
+          "No food product was found for this barcode. Try scanning another package or take a photo of your plate.",
+        retryable: false,
+      });
+    }
+
+    // Genuine food item found: consume credit
+    await timer.measure("consumeCredit", () => repository.consumeCredit(decision.reason));
+
+    const defaultPortion = food.portions[0] ?? {
+      unit: "serving",
+      grams: 100,
+      confidence: 0.9,
+    };
+    const portionGrams = defaultPortion.grams;
+    const ratio = portionGrams / 100;
+
+    const itemNutrition = {
+      calories: Math.round(food.nutritionPer100g.calories * ratio * 10) / 10,
+      proteinG: Math.round(food.nutritionPer100g.proteinG * ratio * 10) / 10,
+      carbsG: Math.round(food.nutritionPer100g.carbsG * ratio * 10) / 10,
+      fatG: Math.round(food.nutritionPer100g.fatG * ratio * 10) / 10,
+      fiberG:
+        food.nutritionPer100g.fiberG !== undefined
+          ? Math.round(food.nutritionPer100g.fiberG * ratio * 10) / 10
+          : undefined,
+      sugarG:
+        food.nutritionPer100g.sugarG !== undefined
+          ? Math.round(food.nutritionPer100g.sugarG * ratio * 10) / 10
+          : undefined,
+      sodiumMg:
+        food.nutritionPer100g.sodiumMg !== undefined
+          ? Math.round(food.nutritionPer100g.sodiumMg * ratio)
+          : undefined,
+    };
+
+    const analyzedItem = {
+      id: "item_1",
+      name: food.canonicalName,
+      aliases: food.aliases,
+      quantity: 1,
+      unit: defaultPortion.unit,
+      estimatedGrams: portionGrams,
+      preparation: "packaged" as const,
+      confidence: 1,
+      nutrition: itemNutrition,
+    };
+
+    const analysisResponse = {
+      scanId: scan.id,
+      status: "ready_for_review" as const,
+      mealType: "snack" as const,
+      mealName: food.canonicalName,
+      detectedLanguage: "en",
+      imageStored: false,
+      items: [analyzedItem],
+      totals: itemNutrition,
+    };
+
+    const withScore = await timer.measure("plateScore", () =>
+      withFreshPlateScore(
+        analysisResponse as unknown as Record<string, unknown>,
+        scan.profileId,
+        repository,
+        sql,
+        request.log,
+      ),
+    );
+
+    await timer.measure("scanMarkReady", () =>
+      repository.updateScan({
+        ...scan,
+        status: "ready_for_review",
+        creditReason: decision.reason,
+        userHint: `barcode:${barcode}`,
+        analyzedResponse: withScore,
+      }),
+    );
+
+    request.log.info(
+      {
+        route: "/v1/scans/:id/barcode",
+        scanId: scan.id,
+        barcode,
+        foodName: food.canonicalName,
+        timings: timer.snapshot(),
+      },
+      "barcode scan completed",
+    );
+
+    return withScore;
   });
 
   app.post("/v1/scans/:id/confirm", async (request, reply) => {

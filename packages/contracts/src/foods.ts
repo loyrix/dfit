@@ -13,9 +13,16 @@ export const foodSchema = z.object({
   region: z.enum(["IN", "GLOBAL"]),
   aliases: z.array(z.string()),
   source: z.string(),
+  barcode: z.string().optional(),
   nutritionPer100g: macroTotalsSchema,
   portions: z.array(portionConversionSchema),
 });
+
+export const barcodeLookupRequestSchema = z.object({
+  barcode: z.string().trim().min(8).max(20),
+});
+
+export type BarcodeLookupRequestContract = z.infer<typeof barcodeLookupRequestSchema>;
 
 export const foodSearchResponseSchema = z.object({
   query: z.string(),

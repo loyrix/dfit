@@ -5,7 +5,8 @@ export type FoodSource =
   | "logmyplate_learned"
   | "ifct_pending"
   | "usda_pending"
-  | "open_food_facts_pending";
+  | "open_food_facts_pending"
+  | "open_food_facts";
 
 export type PortionConversion = {
   unit: PortionUnit;
@@ -19,6 +20,7 @@ export type FoodRecord = {
   region: "IN" | "GLOBAL";
   aliases: string[];
   source: FoodSource;
+  barcode?: string;
   nutritionPer100g: NutritionPer100g;
   portions: PortionConversion[];
 };

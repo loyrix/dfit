@@ -2,8 +2,6 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const postgres = require("postgres");
-
 const repoRoot = path.resolve(__dirname, "../..");
 const migrationsDir = path.join(repoRoot, "infra/db/migrations");
 const seedersDir = path.join(repoRoot, "infra/db/seeders");
@@ -14,18 +12,23 @@ const targetArg = process.argv[3];
 loadEnvFile(path.join(repoRoot, ".env"));
 loadEnvFile(path.join(repoRoot, ".env.local"));
 
-const databaseUrl = process.env.DATABASE_URL;
+let sql;
 
-if (!databaseUrl) {
-  fatal("DATABASE_URL is required. Put it in .env or pass it in the deployment environment.");
+function getSql() {
+  if (sql) return sql;
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    fatal("DATABASE_URL is required. Put it in .env or pass it in the deployment environment.");
+  }
+  const postgres = require("postgres");
+  sql = postgres(databaseUrl, {
+    max: 1,
+    prepare: false,
+    ssl: shouldUseSsl(databaseUrl) ? "require" : false,
+    onnotice: () => {},
+  });
+  return sql;
 }
-
-const sql = postgres(databaseUrl, {
-  max: 1,
-  prepare: false,
-  ssl: shouldUseSsl(databaseUrl) ? "require" : false,
-  onnotice: () => {},
-});
 
 main()
   .catch((error) => {
@@ -33,7 +36,9 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await sql.end({ timeout: 5 });
+    if (sql) {
+      await sql.end({ timeout: 5 });
+    }
   });
 
 async function main() {
@@ -84,6 +89,10 @@ async function main() {
 }
 
 async function ensureMetaTables() {
+  // Every database command starts here, so this is where the lazy connection
+  // opens. `validate` and `new` never reach it and need no DATABASE_URL.
+  getSql();
+
   await sql`
     create table if not exists schema_migrations (
       version text primary key,
@@ -151,7 +160,7 @@ function printConnectionHelp(error) {
 
 function safeDatabaseUrl() {
   try {
-    return new URL(databaseUrl);
+    return new URL(process.env.DATABASE_URL);
   } catch {
     return undefined;
   }

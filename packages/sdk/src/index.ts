@@ -8,6 +8,7 @@ import type {
   JournalWeeksResponseContract,
   MealContract,
   PrepareScanResponseContract,
+  ScanBarcodeRequestContract,
   TodayJournalResponseContract,
   UpdateMealRequestContract,
 } from "@logmyplate/contracts";
@@ -74,6 +75,18 @@ export class LogMyPlateClient {
     body: AnalyzeScanRequestContract,
   ): Promise<AnalyzeScanResponseContract> {
     return this.request<AnalyzeScanResponseContract>(`/v1/scans/${scanId}/analyze`, {
+      method: "POST",
+      body,
+      idempotencyKey,
+    });
+  }
+
+  async scanBarcode(
+    scanId: string,
+    idempotencyKey: string,
+    body: ScanBarcodeRequestContract,
+  ): Promise<AnalyzeScanResponseContract> {
+    return this.request<AnalyzeScanResponseContract>(`/v1/scans/${scanId}/barcode`, {
       method: "POST",
       body,
       idempotencyKey,
