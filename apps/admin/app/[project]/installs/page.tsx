@@ -6,8 +6,12 @@ import {
   EmptyState,
   Metric,
   PageHeader,
+  Pagination,
+  ResultSummary,
+  SortableHeader,
   formatDate,
   formatNumber,
+  resolveTableState,
   shortId,
 } from "../../components/ui";
 import {
@@ -87,7 +91,29 @@ function Breakdown({
   );
 }
 
-export default async function InstallsPage() {
+type InstallsSearchParams = {
+  page?: string;
+  sort?: string;
+  direction?: string;
+};
+
+export default async function InstallsPage({
+  params: projectParams,
+  searchParams,
+}: {
+  params: Promise<{ project: string }>;
+  searchParams?: Promise<InstallsSearchParams>;
+}) {
+  const { project } = await projectParams;
+  const query = (await searchParams) ?? {};
+  // Soonest-to-expire first until a column is chosen; a chosen column starts
+  // wherever its link says.
+  const listParams = {
+    page: query.page,
+    sort: query.sort ?? "trialEnds",
+    direction: query.direction ?? (query.sort ? undefined : "asc"),
+  };
+  const basePath = `/${project}/installs`;
   const since = new Date(Date.now() - 30 * DAY).toISOString().slice(0, 10);
   const [installs, trials, usage] = await Promise.all([
     safe(() => listInstalls(500)),
@@ -117,8 +143,9 @@ export default async function InstallsPage() {
   // say", not "never used" — the table shows those differently for that reason.
   const opensBy = usage.ok ? usage.data : new Map();
   const opens = (row: InstallRow) => opensBy.get(row.install_id)?.opens ?? 0;
+  const reportsOpens = (row: InstallRow) => (row.app_version ?? "") >= "0.1.8";
   const usingIt = rows.filter((row) => opens(row) > 0);
-  const reporting = rows.filter((row) => (row.app_version ?? "") >= "0.1.8");
+  const reporting = rows.filter(reportsOpens);
 
   const unlicensed = rows.filter((row) => !row.license_id);
   const inTrial = unlicensed.filter((row) => (daysLeft(row) ?? -1) >= 0);
@@ -133,6 +160,22 @@ export default async function InstallsPage() {
   // nearest thing to "kept using it" this data can say.
   const returning = rows.filter((row) => (row.heartbeat_count ?? 0) > 1);
   const licensed = rows.filter((row) => row.license_id);
+
+  const { rows: visibleRows, pageInfo } = resolveTableState(rows, undefined, listParams, {
+    defaultPageSize: 25,
+    defaultSort: "trialEnds",
+    sorters: {
+      checkIns: (row) => row.heartbeat_count ?? 0,
+      lastSeen: (row) => new Date(row.last_seen),
+      // Licensed installs have no clock to run out; an empty value sorts them
+      // to the bottom in either direction rather than pretending to be urgent.
+      trialEnds: (row) => {
+        const ends = row.license_id ? null : trialEndsOn(row, windows);
+        return ends ? new Date(ends) : null;
+      },
+    },
+  });
+  const sortable = { basePath, params: listParams, pageInfo };
 
   return (
     <AdminShell project={privydockSource}>
@@ -221,7 +264,10 @@ export default async function InstallsPage() {
           </section>
 
           <section className="panel mt-6">
-            <div className="metric-label">Every install</div>
+            <div className="section-head">
+              <div className="metric-label">Every install</div>
+              <ResultSummary pageInfo={pageInfo} noun="installs" />
+            </div>
             <p className="muted mt-1 text-sm">
               Identifiers are random and device-local. They carry no name, email, or address, and
               cannot be linked back to a person.
@@ -235,64 +281,69 @@ export default async function InstallsPage() {
                     <th>macOS</th>
                     <th>Country</th>
                     <th>First seen</th>
-                    <th>Last seen</th>
-                    <th>Check-ins</th>
+                    <th>
+                      <SortableHeader {...sortable} sort="lastSeen">
+                        Last seen
+                      </SortableHeader>
+                    </th>
+                    <th>
+                      <SortableHeader {...sortable} sort="checkIns">
+                        Check-ins
+                      </SortableHeader>
+                    </th>
                     <th>Opens · 30d</th>
-                    <th>Trial ends</th>
+                    <th>
+                      <SortableHeader {...sortable} sort="trialEnds">
+                        Trial ends
+                      </SortableHeader>
+                    </th>
                     <th>Days left</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...rows]
-                    .sort((a, b) => {
-                      // Licensed installs have no clock to run out; they sit at
-                      // the bottom rather than pretending to be urgent.
-                      if (Boolean(a.license_id) !== Boolean(b.license_id)) {
-                        return a.license_id ? 1 : -1;
-                      }
-                      return (daysLeft(a) ?? 9999) - (daysLeft(b) ?? 9999);
-                    })
-                    .map((row) => {
-                      const stale = Date.parse(row.last_seen) <= now - 30 * DAY;
-                      const left = daysLeft(row);
-                      const ends = trialEndsOn(row, windows);
-                      return (
-                        <tr key={row.install_id}>
-                          <td>{shortId(row.install_id)}</td>
-                          <td>{row.app_version ?? "—"}</td>
-                          <td>{macOsRelease(row.os_version)}</td>
-                          <td>{row.country ?? "—"}</td>
-                          <td>{formatDate(row.first_seen)}</td>
-                          <td>{formatDate(row.last_seen)}</td>
-                          <td>{formatNumber(row.heartbeat_count ?? 0)}</td>
-                          <td>{row.license_id ? "—" : ends ? formatDate(ends) : "—"}</td>
-                          <td>
-                            {row.license_id || left === null
-                              ? "—"
-                              : left < 0
-                                ? `${Math.abs(left)}d ago`
-                                : `${left}d`}
-                          </td>
-                          <td>
-                            {row.license_id ? (
-                              <Badge tone="green">Licensed</Badge>
-                            ) : left !== null && left < 0 ? (
-                              <Badge tone="red">Trial ended</Badge>
-                            ) : left !== null && left <= 7 ? (
-                              <Badge tone="red">Ends in {left}d</Badge>
-                            ) : (
-                              <Badge tone={stale ? "gray" : "default"}>
-                                {stale ? "Dormant" : "Trial"}
-                              </Badge>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                  {visibleRows.map((row) => {
+                    const stale = Date.parse(row.last_seen) <= now - 30 * DAY;
+                    const left = daysLeft(row);
+                    const ends = trialEndsOn(row, windows);
+                    return (
+                      <tr key={row.install_id}>
+                        <td>{shortId(row.install_id)}</td>
+                        <td>{row.app_version ?? "—"}</td>
+                        <td>{macOsRelease(row.os_version)}</td>
+                        <td>{row.country ?? "—"}</td>
+                        <td>{formatDate(row.first_seen)}</td>
+                        <td>{formatDate(row.last_seen)}</td>
+                        <td>{formatNumber(row.heartbeat_count ?? 0)}</td>
+                        <td>{reportsOpens(row) ? formatNumber(opens(row)) : "—"}</td>
+                        <td>{row.license_id ? "—" : ends ? formatDate(ends) : "—"}</td>
+                        <td>
+                          {row.license_id || left === null
+                            ? "—"
+                            : left < 0
+                              ? `${Math.abs(left)}d ago`
+                              : `${left}d`}
+                        </td>
+                        <td>
+                          {row.license_id ? (
+                            <Badge tone="green">Licensed</Badge>
+                          ) : left !== null && left < 0 ? (
+                            <Badge tone="red">Trial ended</Badge>
+                          ) : left !== null && left <= 7 ? (
+                            <Badge tone="red">Ends in {left}d</Badge>
+                          ) : (
+                            <Badge tone={stale ? "gray" : "default"}>
+                              {stale ? "Dormant" : "Trial"}
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            <Pagination basePath={basePath} params={listParams} pageInfo={pageInfo} />
           </section>
         </>
       ) : (
