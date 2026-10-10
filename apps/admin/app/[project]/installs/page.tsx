@@ -71,14 +71,16 @@ function Breakdown({
     <div className="panel">
       <div className="metric-label">{label}</div>
       {rows.length ? (
-        <div className="table-wrap mt-3">
-          <table className="table">
+        <div className="table-wrap table-scroll mt-3">
+          <table className="table table-fit">
             <tbody>
               {rows.map(([value, count]) => (
                 <tr key={value}>
                   <td>{value}</td>
-                  <td>{formatNumber(count)}</td>
-                  <td className="muted">{total ? `${Math.round((count / total) * 100)}%` : "—"}</td>
+                  <td className="num">{formatNumber(count)}</td>
+                  <td className="num muted">
+                    {total ? `${Math.round((count / total) * 100)}%` : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -185,7 +187,7 @@ export default async function InstallsPage({
         description="One row per installed copy, keyed by a random identifier the app stores in the Keychain, soonest-to-expire first. The trial belongs to the Mac rather than the copy, so reinstalling does not restart it — but installs from before that existed carry only their own dates and cannot be re-anchored retroactively. From 0.1.7 the app checks in once a day while running; earlier versions only checked in at launch, so an old copy left running for weeks shows one check-in even if used daily."
       />
 
-      <section className="grid metrics">
+      <section className="grid metrics metrics-even">
         <Metric
           label="Installs"
           value={formatNumber(installs.data.total)}
@@ -208,19 +210,19 @@ export default async function InstallsPage({
           sub="Checked in on more than one day"
         />
         <Metric
-          label="Licensed"
-          value={formatNumber(licensed.length)}
-          sub={
-            rows.length ? `${Math.round((licensed.length / rows.length) * 100)}% of installs` : "—"
-          }
-        />
-        <Metric
           label="Actually using it · 30d"
           value={formatNumber(usingIt.length)}
           sub={
             reporting.length
               ? `of ${formatNumber(reporting.length)} on 0.1.8+ — opening a hidden app is the habit, hiding is a one-off`
               : "Reported from 0.1.8 onwards"
+          }
+        />
+        <Metric
+          label="Licensed"
+          value={formatNumber(licensed.length)}
+          sub={
+            rows.length ? `${Math.round((licensed.length / rows.length) * 100)}% of installs` : "—"
           }
         />
         <Metric
@@ -245,7 +247,7 @@ export default async function InstallsPage({
 
       {rows.length ? (
         <>
-          <section className="grid metrics mt-6">
+          <section className="grid metrics metrics-even mt-6">
             <Breakdown
               label="App version"
               rows={tally(rows, (row) => row.app_version ?? "Unknown")}
@@ -273,7 +275,7 @@ export default async function InstallsPage({
               cannot be linked back to a person.
             </p>
             <div className="table-wrap mt-3">
-              <table className="table">
+              <table className="table table-nowrap">
                 <thead>
                   <tr>
                     <th>Install</th>

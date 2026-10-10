@@ -160,6 +160,8 @@ export function SortableHeader({
   return (
     <Link
       className={`sort-link ${active ? "is-active" : ""}`}
+      // Re-sorting should leave the table where it is, not jump to the top.
+      scroll={false}
       href={hrefWithParams(basePath, params, {
         sort,
         direction: nextDirection,

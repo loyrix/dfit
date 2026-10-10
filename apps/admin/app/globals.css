@@ -202,6 +202,11 @@ textarea {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.metrics-even {
+  align-items: stretch;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .two-col {
   align-items: start;
   grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);
@@ -267,6 +272,25 @@ textarea {
 .table-wrap .table th:last-child,
 .table-wrap .table td:last-child {
   padding-right: 14px;
+}
+
+.table-fit {
+  min-width: 0;
+}
+
+.table-nowrap td {
+  white-space: nowrap;
+}
+
+.table-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .table th,
