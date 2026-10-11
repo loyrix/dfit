@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logmyplate_mobile/src/models/macro_targets.dart';
+import 'package:logmyplate_mobile/src/models/meal.dart';
 import 'package:logmyplate_mobile/src/models/score_rating.dart';
 import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/daily_score_card.dart';
+import 'package:logmyplate_mobile/src/widgets/macro_bar_group.dart';
 import 'package:logmyplate_mobile/src/widgets/macro_split_sliders.dart';
 import 'package:logmyplate_mobile/src/widgets/meal_score_row.dart';
 import 'package:logmyplate_mobile/src/widgets/score_visuals.dart';
@@ -316,6 +318,113 @@ void main() {
         closeTo(100, 0.05),
       );
       expect(reported!.carbsPct, lessThan(50));
+    });
+  });
+
+  group('MacroSplitSliders grams', () {
+    testWidgets('shows the grams each percentage comes to', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          MacroSplitSliders(
+            enabled: true,
+            split: const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25),
+            computed: const MacroSplit(
+              carbsPct: 45,
+              fatPct: 30,
+              proteinPct: 25,
+            ),
+            dailyCalories: 2000,
+            onEnabledChanged: (_) {},
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(find.text('50% · 250 g'), findsOneWidget);
+      expect(find.text('25% · 56 g'), findsOneWidget);
+      expect(find.text('25% · 125 g'), findsOneWidget);
+    });
+
+    testWidgets('shows grams for the calculated split when switched off', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          MacroSplitSliders(
+            enabled: false,
+            split: const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25),
+            computed: const MacroSplit(
+              carbsPct: 45,
+              fatPct: 30,
+              proteinPct: 25,
+            ),
+            dailyCalories: 2238,
+            onEnabledChanged: (_) {},
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(find.text('45% · 252 g'), findsOneWidget);
+      expect(find.text('30% · 75 g'), findsOneWidget);
+      expect(find.text('25% · 140 g'), findsOneWidget);
+    });
+  });
+
+  group('MacroBarGroup targets', () {
+    testWidgets('reads as consumed against target when a target is set', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const MacroBarGroup(
+            totals: MacroTotals(
+              calories: 900,
+              proteinG: 40,
+              carbsG: 110,
+              fatG: 30,
+            ),
+            target: MacroTotals(
+              calories: 2238,
+              proteinG: 140,
+              carbsG: 252,
+              fatG: 75,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('40 / 140g', findRichText: true), findsOneWidget);
+      expect(find.text('110 / 252g', findRichText: true), findsOneWidget);
+      expect(find.text('30 / 75g', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('falls back to consumed grams when no macro target is set', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const MacroBarGroup(
+            totals: MacroTotals(
+              calories: 900,
+              proteinG: 40,
+              carbsG: 110,
+              fatG: 30,
+            ),
+            // An older API sends the calorie target with zeroed macros.
+            target: MacroTotals(
+              calories: 2238,
+              proteinG: 0,
+              carbsG: 0,
+              fatG: 0,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('40g'), findsOneWidget);
+      expect(find.text('110g'), findsOneWidget);
+      expect(find.text('30g'), findsOneWidget);
     });
   });
 

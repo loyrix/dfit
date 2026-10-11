@@ -51,8 +51,9 @@ class NutritionistController extends ChangeNotifier {
   bool get sessionsExhausted =>
       _maxSessionsPerDay > 0 && _sessionsUsedToday >= _maxSessionsPerDay;
 
-  int get sessionsRemainingToday =>
-      _maxSessionsPerDay <= 0 ? 0 : (_maxSessionsPerDay - _sessionsUsedToday).clamp(0, 999);
+  int get sessionsRemainingToday => _maxSessionsPerDay <= 0
+      ? 0
+      : (_maxSessionsPerDay - _sessionsUsedToday).clamp(0, 999);
 
   bool get sessionComplete => !_readOnly && _turnNumber >= _maxTurns;
 
@@ -174,7 +175,8 @@ class NutritionistController extends ChangeNotifier {
     if (e.errorCode == 'daily_session_limit_reached') {
       return 'Daily chat limit reached. Try again tomorrow.';
     }
-    if (e.errorCode == 'session_not_found' || e.errorCode == 'session_expired') {
+    if (e.errorCode == 'session_not_found' ||
+        e.errorCode == 'session_expired') {
       return 'Session expired or not found. Start a new chat.';
     }
     if (e.errorCode == 'turn_limit_reached') {

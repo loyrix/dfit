@@ -128,15 +128,18 @@ bool _isHigherActivity(ActivityLevel level) =>
 MacroSplit _macroCenters(HealthGoal goal, ActivityLevel activityLevel) {
   final higher = _isHigherActivity(activityLevel);
   return switch (goal) {
-    HealthGoal.loseGently => higher
-        ? const MacroSplit(carbsPct: 35, fatPct: 25, proteinPct: 40)
-        : const MacroSplit(carbsPct: 30, fatPct: 30, proteinPct: 40),
-    HealthGoal.gainGently => higher
-        ? const MacroSplit(carbsPct: 45, fatPct: 25, proteinPct: 30)
-        : const MacroSplit(carbsPct: 40, fatPct: 25, proteinPct: 35),
-    HealthGoal.maintain => higher
-        ? const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25)
-        : const MacroSplit(carbsPct: 45, fatPct: 30, proteinPct: 25),
+    HealthGoal.loseGently =>
+      higher
+          ? const MacroSplit(carbsPct: 35, fatPct: 25, proteinPct: 40)
+          : const MacroSplit(carbsPct: 30, fatPct: 30, proteinPct: 40),
+    HealthGoal.gainGently =>
+      higher
+          ? const MacroSplit(carbsPct: 45, fatPct: 25, proteinPct: 30)
+          : const MacroSplit(carbsPct: 40, fatPct: 25, proteinPct: 35),
+    HealthGoal.maintain =>
+      higher
+          ? const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25)
+          : const MacroSplit(carbsPct: 45, fatPct: 30, proteinPct: 25),
   };
 }
 
@@ -175,8 +178,10 @@ double calculateBmr({
   };
 }
 
-MacroBand _band(double center, double tolerance) =>
-    MacroBand(min: _round1(center - tolerance), max: _round1(center + tolerance));
+MacroBand _band(double center, double tolerance) => MacroBand(
+  min: _round1(center - tolerance),
+  max: _round1(center + tolerance),
+);
 
 MacroTargets calculateMacroTargets({
   required double heightCm,
@@ -237,3 +242,28 @@ int targetCaloriesWithFloor({
   required int targetDailyCalories,
   required HealthSex sex,
 }) => math.max(calorieFloorFor(sex), targetDailyCalories);
+
+class MacroGrams {
+  const MacroGrams({
+    required this.carbsG,
+    required this.fatG,
+    required this.proteinG,
+  });
+
+  final int carbsG;
+  final int fatG;
+  final int proteinG;
+}
+
+/// A percentage split expressed as whole grams of a daily calorie target.
+///
+/// Display only: the split stays the stored and scored value. Ported from
+/// `macroGramTargets` in `packages/domain`; keep the two in step, since the
+/// target screen and the Today page must show the same gram figure.
+MacroGrams macroGramsFor(MacroSplit split, int dailyCalories) {
+  return MacroGrams(
+    carbsG: (dailyCalories * split.carbsPct / 100 / 4).round(),
+    fatG: (dailyCalories * split.fatPct / 100 / 9).round(),
+    proteinG: (dailyCalories * split.proteinPct / 100 / 4).round(),
+  );
+}

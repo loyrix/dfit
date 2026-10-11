@@ -67,6 +67,7 @@ class JournalController extends ChangeNotifier {
       goal: target.goal,
     );
   }
+
   AppUpdatePolicy get updatePolicy => _updatePolicy;
   EngagementPolicy get engagementPolicy => _engagementPolicy;
   MacroTotals? get dailyTarget =>
@@ -571,6 +572,85 @@ class JournalController extends ChangeNotifier {
           'hasHint': photo.userHint?.trim().isNotEmpty == true,
           'bytes': photo.byteSize,
         },
+      );
+      rethrow;
+    }
+  }
+
+  /// Analyses a meal described in words, with no photo.
+  ///
+  /// The same prepare, analyse and review flow as a photo, and it costs a scan
+  /// credit the same way. Only the description's length is logged, never its
+  /// text: it is what someone ate.
+  Future<ScanAnalysis> analyzeDescribedMeal(String description) async {
+    _error = null;
+    final seed = DateTime.now().microsecondsSinceEpoch;
+    try {
+      unawaited(
+        _analytics.logEvent(
+          'scan_started',
+          parameters: {
+            'input': 'description',
+            'has_hint': true,
+            'chars': description.length,
+          },
+        ),
+      );
+      final pending = _pendingPreparedScan;
+      _pendingPreparedScan = null;
+      PreparedScan prepared;
+      if (pending != null) {
+        try {
+          prepared = await pending;
+        } catch (_) {
+          prepared = await _apiClient.prepareScan(
+            idempotencyKey: 'scan-prepare-$seed',
+          );
+        }
+      } else {
+        prepared = await _apiClient.prepareScan(
+          idempotencyKey: 'scan-prepare-$seed',
+        );
+      }
+      _quota = prepared.quota;
+      notifyListeners();
+
+      final analysis = await _apiClient.analyzeScan(
+        scanId: prepared.scanId,
+        idempotencyKey: 'scan-analyze-$seed',
+        description: description,
+      );
+      unawaited(
+        _analytics.logEvent(
+          'scan_analysis_succeeded',
+          parameters: {
+            'input': 'description',
+            'meal_type': analysis.mealType.name,
+            'item_count': analysis.items.length,
+            'calories': analysis.totals.calories,
+            'image_stored': analysis.imageStored,
+          },
+        ),
+      );
+      await _refreshQuota(notify: false);
+      return analysis;
+    } catch (error, stackTrace) {
+      unawaited(
+        _analytics.logEvent(
+          'scan_analysis_failed',
+          parameters: {
+            'input': 'description',
+            'error_type': error is LogMyPlateApiException
+                ? error.errorCode ?? 'api_error'
+                : error.runtimeType.toString(),
+          },
+        ),
+      );
+      AppDiagnostics.instance.record(
+        'scan.analyze',
+        error,
+        stackTrace: stackTrace,
+        context: {'input': 'description', 'chars': description.length},
       );
       rethrow;
     }

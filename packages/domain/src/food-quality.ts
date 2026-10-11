@@ -417,3 +417,137 @@ export const applyConditionAdjustment = (
     appliedTo,
   };
 };
+
+/** Whether a reason lifted the rating or held it back. */
+export type QualityReasonTone = "good" | "watch";
+
+export type QualityReasonCode =
+  | "light_energy"
+  | "dense_energy"
+  | "good_fiber"
+  | "low_fiber"
+  | "good_protein"
+  | "low_protein"
+  | "high_sugar"
+  | "high_sodium"
+  | "light_cooking"
+  | "heavy_cooking"
+  | "empty_calories"
+  | "health_focus";
+
+export type QualityReason = {
+  tone: QualityReasonTone;
+  code: QualityReasonCode;
+  /** A full sentence in plain words. Never carries a number. */
+  text: string;
+  /** True when the user's own health focus is what made this count. */
+  personalised: boolean;
+};
+
+const HEALTH_FOCUS_WORDS: Record<HealthFocus, string> = {
+  diabetes: "diabetes or prediabetes",
+  pcos: "PCOS",
+  blood_pressure: "high blood pressure",
+  cholesterol: "high cholesterol",
+};
+
+const LIGHT_COOKING_TEXT: Partial<Record<CookingMethodValue, string>> = {
+  grilled: "Grilled, which keeps added fat low.",
+  steamed: "Steamed, with no added fat.",
+  raw: "Fresh and uncooked, with no added fat.",
+};
+
+const HEAVY_COOKING_TEXT: Partial<Record<CookingMethodValue, string>> = {
+  fried: "Fried, which adds fat.",
+  sauced_creamy: "A rich or creamy sauce adds fat.",
+};
+
+/** The most a tier list can award, so "a good amount" tracks the live policy. */
+const topPoints = (tiers: QualityTier[]): number =>
+  tiers.reduce((best, tier) => Math.max(best, tier.points), 0);
+
+/**
+ * Says in words why a food scored the way it did.
+ *
+ * This is the explanation behind a star rating, so it reads the same breakdown
+ * the score was built from rather than re-deriving anything: a reason can only
+ * appear if that factor actually moved the number. It never states a figure —
+ * the score, and the micronutrients behind it, are estimates that would not
+ * survive being quoted.
+ *
+ * Something a food simply lacks (little protein, little fiber) is only worth
+ * saying when the rating is middling or low. A five-star orange is not improved
+ * by a note that it is light on protein.
+ */
+export const explainFoodQuality = (
+  breakdown: FoodQualityBreakdown,
+  input: FoodQualityInput,
+  options: {
+    adjusted?: ConditionAdjustedScore;
+    /** Whether to include what the food lacks, not only what counted against it. */
+    includeMissed?: boolean;
+    policy?: FoodQualityPolicy;
+  } = {},
+): QualityReason[] => {
+  const policy = options.policy ?? defaultFoodQualityPolicy;
+  const includeMissed = options.includeMissed ?? false;
+  const reasons: QualityReason[] = [];
+  const add = (tone: QualityReasonTone, code: QualityReasonCode, text: string) =>
+    reasons.push({ tone, code, text, personalised: false });
+
+  if (breakdown.energyPoints > 0) {
+    add("good", "light_energy", "Light on calories for the amount of food.");
+  } else if (breakdown.energyPoints < 0) {
+    add("watch", "dense_energy", "Calorie-dense: a small amount carries a lot of energy.");
+  }
+
+  // "A good amount" means the upper tiers, not any bonus at all.
+  const strong = (points: number, tiers: QualityTier[]) =>
+    points > 0 && points >= topPoints(tiers) * 0.6;
+
+  if (strong(breakdown.proteinPoints, policy.proteinDensity)) {
+    add("good", "good_protein", "A good amount of protein for the calories.");
+  } else if (includeMissed && breakdown.proteinPoints <= 0) {
+    add("watch", "low_protein", "Not much protein for the calories.");
+  }
+
+  // Fiber is optional data. An unmeasured food is not a low-fiber food.
+  if (isPresent(input.fiberG)) {
+    if (strong(breakdown.fiberPoints, policy.fiberDensity)) {
+      add("good", "good_fiber", "A good amount of fiber.");
+    } else if (includeMissed && breakdown.fiberPoints <= 0) {
+      add("watch", "low_fiber", "Little fiber for the calories.");
+    }
+  }
+
+  if (breakdown.emptyCaloriePoints < 0) {
+    add("watch", "empty_calories", "Mostly sugar, with little fiber alongside it.");
+  } else if (breakdown.sugarPoints < 0) {
+    add("watch", "high_sugar", "High in sugar for the calories.");
+  }
+
+  if (breakdown.sodiumPoints < 0) {
+    add("watch", "high_sodium", "High in sodium (salt) for the calories.");
+  }
+
+  const method = input.cookingMethod;
+  if (method !== undefined) {
+    const light = LIGHT_COOKING_TEXT[method];
+    const heavy = HEAVY_COOKING_TEXT[method];
+    if (breakdown.cookingPoints > 0 && light) add("good", "light_cooking", light);
+    if (breakdown.cookingPoints < 0 && heavy) add("watch", "heavy_cooking", heavy);
+  }
+
+  const adjusted = options.adjusted;
+  if (adjusted && adjusted.adjustment < 0 && adjusted.appliedTo.length > 0) {
+    const focus = adjusted.appliedTo.map((entry) => HEALTH_FOCUS_WORDS[entry]).join(", ");
+    reasons.push({
+      tone: "watch",
+      code: "health_focus",
+      text: `Rated more strictly because of your health focus: ${focus}.`,
+      personalised: true,
+    });
+  }
+
+  return reasons;
+};

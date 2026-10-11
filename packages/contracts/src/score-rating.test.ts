@@ -3,6 +3,7 @@ import {
   defaultMealScorePolicyConfig,
   mealScorePolicySchema,
   scoreRatingSchema,
+  scoreReasonSchema,
 } from "./score-rating.js";
 
 describe("mealScorePolicySchema", () => {
@@ -51,8 +52,20 @@ describe("scoreRatingSchema", () => {
       "stars",
       "message",
       "level",
+      "reasons",
       "provisional",
     ]);
+  });
+
+  it("explains a rating in words, with no numeric field to render", () => {
+    // The reasons are the explanation behind the stars, so the same rule
+    // applies to them: nothing in the shape can carry a figure.
+    expect(Object.keys(scoreReasonSchema.shape)).toEqual(["tone", "code", "text", "personalised"]);
+  });
+
+  it("defaults reasons to empty, so a rating without them stays valid", () => {
+    const parsed = scoreRatingSchema.parse({ stars: 3, message: "ok", level: "daily" });
+    expect(parsed.reasons).toEqual([]);
   });
 
   it("defaults provisional to false", () => {

@@ -29,17 +29,51 @@ export const scanImageSchema = z.object({
   byteSize: z.number().int().positive().max(6_000_000),
 });
 
-export const analyzeScanRequestSchema = z.object({
-  hint: z
-    .string()
-    .trim()
-    .min(1)
-    .max(280)
-    .refine((value) => value.split(/\s+/).filter(Boolean).length <= 50, {
-      message: "Plate hint must be 50 words or fewer.",
-    }),
-  image: scanImageSchema.optional(),
-});
+/** A note alongside a photo is a clue, so it stays short. */
+export const scanHintMaxChars = 280;
+export const scanHintMaxWords = 50;
+/**
+ * With no photo the text is the whole meal, and a full plate with quantities
+ * does not fit in a clue-sized note.
+ */
+export const mealDescriptionMaxChars = 600;
+export const mealDescriptionMaxWords = 120;
+
+const wordCount = (value: string) => value.split(/\s+/).filter(Boolean).length;
+
+/**
+ * `image` is optional: a request with only `hint` logs a meal described in
+ * words. The limits depend on which it is, so they are checked together.
+ */
+export const analyzeScanRequestSchema = z
+  .object({
+    hint: z.string().trim().min(1).max(mealDescriptionMaxChars),
+    image: scanImageSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    const describesMeal = !value.image;
+    const maxChars = describesMeal ? mealDescriptionMaxChars : scanHintMaxChars;
+    const maxWords = describesMeal ? mealDescriptionMaxWords : scanHintMaxWords;
+
+    if (value.hint.length > maxChars) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hint"],
+        message: describesMeal
+          ? `Meal description must be ${maxChars} characters or fewer.`
+          : `Plate hint must be ${maxChars} characters or fewer.`,
+      });
+    }
+    if (wordCount(value.hint) > maxWords) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hint"],
+        message: describesMeal
+          ? `Meal description must be ${maxWords} words or fewer.`
+          : `Plate hint must be ${maxWords} words or fewer.`,
+      });
+    }
+  });
 
 export const scanBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(8).max(20),

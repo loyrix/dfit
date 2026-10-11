@@ -252,7 +252,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
     await _analytics.setUserProperty(
       'is_premium',
-      subscription == null ? null : (subscription.hasPremiumAccess ? 'true' : 'false'),
+      subscription == null
+          ? null
+          : (subscription.hasPremiumAccess ? 'true' : 'false'),
     );
     await _analytics.setUserProperty(
       'app_platform',
@@ -608,6 +610,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         builder: (_) => CameraScreen(
           initialMode: initialMode,
           onCaptured: _pushAnalyzingFlow,
+          onDescribed: _pushDescribedMealFlow,
           onAnalyzeBarcode: _journalController.analyzeBarcode,
           onBarcodeAnalyzed: _pushAnalyzedReview,
           onScanCreditRequired: _openScanCreditGate,
@@ -636,37 +639,72 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
   }
 
-  // Barcode lookups arrive here straight from the scanner, without a photo.
-  void _pushAnalyzedReview(ScanAnalysis analysis, {CapturedMealPhoto? photo}) {
-    _navigatorKey.currentState!.pushReplacement<void, void>(
+  /// Analyses a meal the user described in words, from the scan screen's food
+  /// note or from the manual screen.
+  ///
+  /// Pushed on top rather than replacing the screen it came from, so backing
+  /// out of a failed attempt returns to the text still intact.
+  Future<void> _pushDescribedMealFlow(String description) async {
+    if (!await _ensureScanAllowed()) return;
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
+    await navigator.push<void>(
       logmyplatePageRoute<void>(
-        builder: (_) => ReviewMealScreen(
-          isPremium: _journalController.subscription?.active ?? false,
-          plateScoreProfile: _journalController.plateScoreProfile,
-          plateScorePolicy: _journalController.plateScorePolicy,
-          onPersonaliseScore: _openHealthTargetEditor,
-          mealAdvice: analysis.advice,
-          initialItems: analysis.items,
-          initialMealType: mealTypeForReview(
-            localTime: DateTime.now(),
-            foodSuggestedType: analysis.mealType,
-          ),
-          lockInitialItems: true,
-          photo: photo,
-          onFoodSearch: null,
-          onConfirm: (type, items, {bool analyzeWithAI = false}) {
-            return _confirmAnalyzedMeal(
-              scanId: analysis.scanId,
-              title: analysis.mealName,
-              type: type,
-              items: items,
-              photo: analysis.imageStored ? null : photo,
-              analyzeWithAI: analyzeWithAI,
-            );
-          },
+        builder: (_) => AnalyzingScreen(
+          description: description,
+          onAnalyzeDescription: _journalController.analyzeDescribedMeal,
+          onScanCreditRequired: _openScanCreditGate,
+          onAnalyzed: (analysis) =>
+              _pushAnalyzedReview(analysis, clearEntryScreens: true),
         ),
       ),
     );
+  }
+
+  // Barcode lookups arrive here straight from the scanner, without a photo.
+  void _pushAnalyzedReview(
+    ScanAnalysis analysis, {
+    CapturedMealPhoto? photo,
+    bool clearEntryScreens = false,
+  }) {
+    final route = logmyplatePageRoute<void>(
+      builder: (_) => ReviewMealScreen(
+        isPremium: _journalController.subscription?.active ?? false,
+        plateScoreProfile: _journalController.plateScoreProfile,
+        plateScorePolicy: _journalController.plateScorePolicy,
+        onPersonaliseScore: _openHealthTargetEditor,
+        mealAdvice: analysis.advice,
+        initialItems: analysis.items,
+        initialMealType: mealTypeForReview(
+          localTime: DateTime.now(),
+          foodSuggestedType: analysis.mealType,
+        ),
+        lockInitialItems: true,
+        photo: photo,
+        onFoodSearch: null,
+        onConfirm: (type, items, {bool analyzeWithAI = false}) {
+          return _confirmAnalyzedMeal(
+            scanId: analysis.scanId,
+            title: analysis.mealName,
+            type: type,
+            items: items,
+            photo: analysis.imageStored ? null : photo,
+            analyzeWithAI: analyzeWithAI,
+          );
+        },
+      ),
+    );
+
+    final navigator = _navigatorKey.currentState!;
+    if (clearEntryScreens) {
+      // A described meal leaves the screen it was typed on underneath the
+      // progress screen. Both go, so Back from the review returns home rather
+      // than to a form whose meal has already been analysed.
+      navigator.pushAndRemoveUntil<void>(route, (existing) => existing.isFirst);
+      return;
+    }
+    navigator.pushReplacement<void, void>(route);
   }
 
   Future<void> _openManualReview() async {
@@ -680,6 +718,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           initialItems: const [],
           initialMealType: mealTypeForLocalTime(DateTime.now()),
           onFoodSearch: null,
+          onDescribeMeal: _pushDescribedMealFlow,
           onConfirm: _saveMeal,
         ),
       ),
@@ -1076,7 +1115,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
       'product_id': plan.productId,
       'cadence': plan.cadence,
     };
-    unawaited(_analytics.logEvent('purchase_started', parameters: planParameters));
+    unawaited(
+      _analytics.logEvent('purchase_started', parameters: planParameters),
+    );
 
     final bool activeInRevenueCat;
     try {
@@ -1112,7 +1153,9 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
           // The store can confirm a purchase before our backend has caught up.
           // That is a sync lag, not a lost sale, and must not be counted as one.
           if (!activated)
-            'reason': activeInRevenueCat ? 'entitlement_not_synced' : 'not_active',
+            'reason': activeInRevenueCat
+                ? 'entitlement_not_synced'
+                : 'not_active',
         },
       ),
     );

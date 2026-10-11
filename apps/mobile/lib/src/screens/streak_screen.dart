@@ -21,18 +21,32 @@ class StreakScreen extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          child: Column(
             children: [
-              _Header(),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _StreakHero(streak: streak),
-              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-              _MilestoneSection(streak: streak),
-              if (streak.achievedMilestoneTitle != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-                _AchievedMilestoneSection(streak: streak),
-              ],
+              // Outside the scroll view so Back stays reachable on a long page.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _Header(),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    LogMyPlateSpacing.sectionSpacing,
+                    16,
+                    28,
+                  ),
+                  children: [
+                    _StreakHero(streak: streak),
+                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                    _MilestoneSection(streak: streak),
+                    if (streak.achievedMilestoneTitle != null) ...[
+                      const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                      _AchievedMilestoneSection(streak: streak),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),

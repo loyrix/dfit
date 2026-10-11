@@ -69,6 +69,7 @@ class MacroDetailChip extends StatelessWidget {
     required this.value,
     required this.share,
     required this.color,
+    this.targetValue,
   });
 
   final String label;
@@ -76,9 +77,20 @@ class MacroDetailChip extends StatelessWidget {
   final double share;
   final Color color;
 
+  /// Target grams for the day. Null or zero means none is set, and the chip
+  /// falls back to the consumed figure with its share of energy.
+  final double? targetValue;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final target = targetValue;
+    final hasTarget = target != null && target > 0;
+    final valueStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
+      fontWeight: FontWeight.bold,
+      height: 1.1,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
 
     return Expanded(
       child: _GlassTintBox(
@@ -99,25 +111,53 @@ class MacroDetailChip extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  '${(share * 100).round()}%',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textTertiary,
-                    letterSpacing: 0,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                // Against a gram target the share of energy is a second,
+                // competing number, so it is left out.
+                if (!hasTarget)
+                  Text(
+                    '${(share * 100).round()}%',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: colors.textTertiary,
+                      letterSpacing: 0,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 9),
-            Text(
-              '${value.round()}g',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                height: 1.1,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+            if (hasTarget)
+              Semantics(
+                label: '$label ${value.round()} of ${target.round()} grams',
+                child: ExcludeSemantics(
+                  // Three chips share the row, so a three-digit pair has to
+                  // shrink rather than wrap or clip.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text.rich(
+                      TextSpan(
+                        text: '${value.round()}',
+                        style: valueStyle,
+                        children: [
+                          TextSpan(
+                            text: ' / ${target.round()}g',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: colors.textSecondary,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Text('${value.round()}g', style: valueStyle),
             const SizedBox(height: 1),
             Text(
               label,

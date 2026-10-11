@@ -8,9 +8,13 @@ import '../widgets/glass/glass_section_card.dart';
 import '../widgets/macro_chips.dart';
 
 class MacroBarGroup extends StatelessWidget {
-  const MacroBarGroup({super.key, required this.totals});
+  const MacroBarGroup({super.key, required this.totals, this.target});
 
   final MacroTotals totals;
+
+  /// The day's macro targets in grams. When present each chip reads as
+  /// consumed against target. A macro whose target is zero has none set.
+  final MacroTotals? target;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +49,7 @@ class MacroBarGroup extends StatelessWidget {
               MacroDetailChip(
                 label: 'Protein',
                 value: totals.proteinG,
+                targetValue: target?.proteinG,
                 share: hasMacros ? proteinCalories / macroCalories : 0,
                 color: _MacroColors.protein,
               ),
@@ -52,6 +57,7 @@ class MacroBarGroup extends StatelessWidget {
               MacroDetailChip(
                 label: 'Carbs',
                 value: totals.carbsG,
+                targetValue: target?.carbsG,
                 share: hasMacros ? carbsCalories / macroCalories : 0,
                 color: _MacroColors.carbs,
               ),
@@ -59,6 +65,7 @@ class MacroBarGroup extends StatelessWidget {
               MacroDetailChip(
                 label: 'Fat',
                 value: totals.fatG,
+                targetValue: target?.fatG,
                 share: hasMacros ? fatCalories / macroCalories : 0,
                 color: _MacroColors.fat,
               ),

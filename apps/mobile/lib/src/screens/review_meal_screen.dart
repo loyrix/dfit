@@ -15,8 +15,6 @@ import '../widgets/macro_chips.dart';
 import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_wrapper.dart';
 import '../widgets/meal_item_editor_sheet.dart';
-import '../widgets/plate_score_card.dart';
-import '../widgets/plate_score_copy.dart';
 import '../widgets/premium_button.dart';
 
 class ReviewMealScreen extends StatefulWidget {
@@ -33,6 +31,7 @@ class ReviewMealScreen extends StatefulWidget {
     this.plateScorePolicy = PlateScorePolicy.fallback,
     this.onPersonaliseScore,
     this.mealAdvice,
+    this.onDescribeMeal,
   });
 
   final List<MealItem> initialItems;
@@ -61,6 +60,10 @@ class ReviewMealScreen extends StatefulWidget {
   /// built meals, which never went through the model.
   final MealAdvice? mealAdvice;
 
+  /// Sends a typed description of the meal for AI estimation. Supplied only on
+  /// the manual screen; the described meal then comes back as a normal review.
+  final ValueChanged<String>? onDescribeMeal;
+
   @override
   State<ReviewMealScreen> createState() => _ReviewMealScreenState();
 }
@@ -87,20 +90,9 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     );
   }
 
-  /// Recomputed on every build, so the score tracks portion edits immediately
-  /// rather than waiting for a round-trip. The API stays authoritative once the
-  /// meal is saved.
-  PlateScore? get _plateScore => calculatePlateScore(
-    items: _entries.map((entry) => entry.item.nutrition).toList(),
-    mealType: _mealType,
-    profile: widget.plateScoreProfile,
-    policy: widget.plateScorePolicy,
-  );
-
   @override
   Widget build(BuildContext context) {
     final totals = _totals;
-    final plateScore = _plateScore;
     final primaryText = _reviewPrimaryText(context);
     final secondaryText = _reviewSecondaryText(context);
     final borderColor = _reviewBorder(context);
@@ -110,110 +102,127 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
       backgroundColor: Colors.transparent,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    tooltip: 'Back',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
-                  ),
-                  _MealTypePill(type: _mealType, onTap: _cycleMealType),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              _ReviewSummaryCard(
-                photo: widget.photo,
-                mealType: _mealType,
-                totals: totals,
-                itemCount: _items.length,
-              ),
-              if (plateScore != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                PlateScoreCard(
-                  score: plateScore,
-                  advice: widget.mealAdvice,
-                  mealLabel: PlateScoreMealLabel(_mealType.label.toLowerCase()),
-                  // The meal type is still editable here, and a mis-labelled
-                  // meal is the most common reason a portion bar looks wrong.
-                  showMealTypeNote: true,
-                  onPersonalise: widget.onPersonaliseScore,
-                ),
-              ],
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              Text(
-                'Items to confirm',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: secondaryText,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 10),
-              LiteGlassCard(
-                borderRadius: BorderRadius.circular(
-                  LogMyPlateSpacing.heroCardBorderRadius,
-                ),
-                padding: EdgeInsets.zero,
-                child: Column(
+              // Outside the scroll view so Back stays reachable on a long page.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    for (var index = 0; index < _entries.length; index++)
-                      _ReviewItemRow(
-                        rowKey: ValueKey('${_entries[index].item.name}-$index'),
-                        item: _entries[index].item,
-                        onEdit: () => _openEditItemSheet(index),
-                        onDelete: () {
-                          setState(() => _entries.removeAt(index));
-                        },
-                      ),
+                    IconButton(
+                      tooltip: 'Back',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const BackMark(),
+                    ),
+                    _MealTypePill(type: _mealType, onTap: _cycleMealType),
+                    const SizedBox(width: 48),
                   ],
                 ),
               ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              GlassWrapper(
-                child: OutlinedButton(
-                  onPressed: _openAddCustomItemSheet,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: primaryText,
-                    side: BorderSide(color: borderColor),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        LogMyPlateSpacing.elementBorderRadius,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    LogMyPlateSpacing.itemSpacing,
+                    16,
+                    24,
+                  ),
+                  children: [
+                    _ReviewSummaryCard(
+                      photo: widget.photo,
+                      mealType: _mealType,
+                      totals: totals,
+                      itemCount: _items.length,
+                    ),
+                    // Offered only while the meal is still empty: the
+                    // estimate comes back as its own review, so anything
+                    // already added by hand would be left behind.
+                    if (widget.onDescribeMeal != null && _entries.isEmpty) ...[
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      _DescribeMealCard(onSubmit: widget.onDescribeMeal!),
+                    ],
+                    // No rating here on purpose. The Plate Score is no
+                    // longer shown, and the star rating is computed by the
+                    // server, so it first appears once the meal is saved.
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    Text(
+                      'Items to confirm',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: secondaryText,
+                        letterSpacing: 1.2,
                       ),
                     ),
-                  ),
-                  child: const Text('Add custom item'),
+                    const SizedBox(height: 10),
+                    LiteGlassCard(
+                      borderRadius: BorderRadius.circular(
+                        LogMyPlateSpacing.heroCardBorderRadius,
+                      ),
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var index = 0; index < _entries.length; index++)
+                            _ReviewItemRow(
+                              rowKey: ValueKey(
+                                '${_entries[index].item.name}-$index',
+                              ),
+                              item: _entries[index].item,
+                              onEdit: () => _openEditItemSheet(index),
+                              onDelete: () {
+                                setState(() => _entries.removeAt(index));
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    GlassWrapper(
+                      child: OutlinedButton(
+                        onPressed: _openAddCustomItemSheet,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primaryText,
+                          side: BorderSide(color: borderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              LogMyPlateSpacing.elementBorderRadius,
+                            ),
+                          ),
+                        ),
+                        child: const Text('Add custom item'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_error != null) ...[
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _reviewAccentText(context),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    PremiumButton.icon(
+                      onPressed: _items.isEmpty
+                          ? null
+                          : _saving
+                          ? () {}
+                          : () => _confirm(analyzeWithAI: false),
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.check_rounded, size: 20),
+                      label: const Text(
+                        'Confirm meal',
+                        key: ValueKey('confirm'),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 10),
-              if (_error != null) ...[
-                Text(
-                  _error!,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: _reviewAccentText(context),
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
-              PremiumButton.icon(
-                onPressed: _items.isEmpty
-                    ? null
-                    : _saving
-                    ? () {}
-                    : () => _confirm(analyzeWithAI: false),
-                icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check_rounded, size: 20),
-                label: const Text('Confirm meal', key: ValueKey('confirm')),
               ),
             ],
           ),
@@ -292,6 +301,135 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     );
     if (result == null || result.delete) return null;
     return result.item;
+  }
+}
+
+// Mirrors the API limits for a meal described without a photo, in
+// packages/contracts/src/scans.ts.
+const _describedMealMaxChars = 600;
+const _describedMealMaxWords = 120;
+
+/// Lets someone type what they ate and have the AI estimate it, with no photo.
+class _DescribeMealCard extends StatefulWidget {
+  const _DescribeMealCard({required this.onSubmit});
+
+  final ValueChanged<String> onSubmit;
+
+  @override
+  State<_DescribeMealCard> createState() => _DescribeMealCardState();
+}
+
+class _DescribeMealCardState extends State<_DescribeMealCard> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  int get _wordCount {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return 0;
+    return text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
+  }
+
+  void _submit() {
+    final description = _controller.text.trim();
+    if (description.isEmpty || _wordCount > _describedMealMaxWords) return;
+    FocusScope.of(context).unfocus();
+    widget.onSubmit(description);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final secondaryText = _reviewSecondaryText(context);
+    final wordCount = _wordCount;
+    final overLimit = wordCount > _describedMealMaxWords;
+    final canSubmit = wordCount > 0 && !overLimit;
+
+    return LiteGlassCard(
+      borderRadius: BorderRadius.circular(
+        LogMyPlateSpacing.heroCardBorderRadius,
+      ),
+      padding: const EdgeInsets.all(LogMyPlateSpacing.itemSpacing),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Describe your meal',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: _reviewPrimaryText(context),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Type what you ate and how much. AI estimates the calories and '
+            'macros for you to review. Uses 1 scan.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: secondaryText,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            key: const ValueKey('describe-meal-field'),
+            controller: _controller,
+            maxLength: _describedMealMaxChars,
+            minLines: 3,
+            maxLines: 6,
+            textInputAction: TextInputAction.newline,
+            onChanged: (_) => setState(() {}),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: _reviewPrimaryText(context),
+              letterSpacing: 0,
+            ),
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: 'e.g. 2 rotis, 1 bowl dal and a small bowl of rice',
+              hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                color: secondaryText,
+                letterSpacing: 0,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.elementBorderRadius,
+                ),
+                borderSide: BorderSide(color: _reviewBorder(context)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(
+                  LogMyPlateSpacing.elementBorderRadius,
+                ),
+                borderSide: BorderSide(color: _reviewBorder(context)),
+              ),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$wordCount/ $_describedMealMaxWords words',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: overLimit ? _reviewAccentText(context) : secondaryText,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          PremiumButton.icon(
+            onPressed: canSubmit ? _submit : null,
+            icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+            label: const Text(
+              'Estimate with AI',
+              key: ValueKey('describe-meal-submit'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

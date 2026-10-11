@@ -9,6 +9,7 @@ import 'package:logmyplate_mobile/src/widgets/plate_score_card.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_chip.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_copy.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_sheet.dart';
+import 'package:logmyplate_mobile/src/widgets/score_star_row.dart';
 
 MealItem _item({
   required String name,
@@ -34,34 +35,13 @@ MealItem _item({
 Widget _wrap(Widget child) =>
     MaterialApp(theme: LogMyPlateTheme.light(), home: child);
 
-int _visibleScore(WidgetTester tester) {
-  final text = tester.widget<Text>(
-    find.byKey(const ValueKey('plate-score-value')),
-  );
-  return int.parse(text.data!);
-}
-
 void main() {
-  group('review screen plate score', () {
-    testWidgets('shows a general-tier score when there is no health target', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        _wrap(
-          ReviewMealScreen(
-            initialItems: [_item(name: 'Dal', calories: 350)],
-            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
-          ),
-        ),
-      );
-
-      expect(find.byKey(const ValueKey('plate-score-value')), findsOneWidget);
-      expect(find.textContaining('personalise'), findsOneWidget);
-    });
-
-    testWidgets('labels the score for a user with a health target', (
-      tester,
-    ) async {
+  // The Plate Score is still computed and still has its card and sheet, but no
+  // screen shows it any more: users see the star rating instead. These tests
+  // pin both halves — the screens stay free of the number, and the card keeps
+  // working for when it is shown again.
+  group('review screen shows no rating before the meal is saved', () {
+    testWidgets('has no Plate Score number and no stars', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReviewMealScreen(
@@ -75,72 +55,94 @@ void main() {
         ),
       );
 
-      expect(find.text('Tap to see why'), findsOneWidget);
-      expect(find.textContaining('personalise'), findsNothing);
+      expect(find.byType(PlateScoreCard), findsNothing);
+      expect(find.byKey(const ValueKey('plate-score-value')), findsNothing);
+      expect(find.text('/100'), findsNothing);
+      // Stars are computed by the server, so they first exist after saving.
+      expect(find.byType(ScoreStarRow), findsNothing);
     });
+  });
 
-    testWidgets('recomputes immediately when an item is removed', (
+  group('plate score card', () {
+    PlateScore scoreFor(List<MealItem> items, {PlateScoreProfile? profile}) =>
+        calculatePlateScore(
+          items: items.map((item) => item.nutrition).toList(),
+          mealType: MealType.lunch,
+          profile: profile,
+          policy: PlateScorePolicy.fallback,
+        )!;
+
+    Widget card(PlateScore score, {VoidCallback? onPersonalise}) => _wrap(
+      Scaffold(
+        body: PlateScoreCard(score: score, onPersonalise: onPersonalise),
+      ),
+    );
+
+    testWidgets('shows a general-tier score when there is no health target', (
       tester,
     ) async {
       await tester.pumpWidget(
-        _wrap(
-          ReviewMealScreen(
-            // A large, fat-heavy second item drags the balance down, so removing
-            // it must visibly move the score without any network round-trip.
-            initialItems: [
-              _item(name: 'Dal', calories: 350),
-              _item(
-                name: 'Fried Snack',
-                calories: 900,
-                proteinG: 4,
-                carbsG: 60,
-                fatG: 70,
-                fiberG: 0,
-              ),
-            ],
-            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+        card(scoreFor([_item(name: 'Dal', calories: 350)])),
+      );
+
+      expect(find.byKey(const ValueKey('plate-score-value')), findsOneWidget);
+      expect(find.textContaining('personalise'), findsOneWidget);
+    });
+
+    testWidgets('labels the score for a user with a health target', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        card(
+          scoreFor(
+            [_item(name: 'Dal', calories: 350)],
+            profile: const PlateScoreProfile(
+              dailyCalorieTarget: 2000,
+              goal: HealthGoal.maintain,
+            ),
           ),
         ),
       );
 
-      final before = _visibleScore(tester);
-
-      await tester.drag(find.text('Fried Snack'), const Offset(-500, 0));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Fried Snack'), findsNothing);
-      expect(_visibleScore(tester), greaterThan(before));
+      expect(find.text('Tap to see why'), findsOneWidget);
+      expect(find.textContaining('personalise'), findsNothing);
     });
 
-    testWidgets('opens the breakdown sheet without leaving the review screen', (
-      tester,
-    ) async {
+    test('scores a meal higher once a heavy item is removed', () {
+      // A large, fat-heavy second item drags the balance down.
+      final dal = _item(name: 'Dal', calories: 350);
+      final friedSnack = _item(
+        name: 'Fried Snack',
+        calories: 900,
+        proteinG: 4,
+        carbsG: 60,
+        fatG: 70,
+        fiberG: 0,
+      );
+
+      expect(
+        scoreFor([dal]).score,
+        greaterThan(scoreFor([dal, friedSnack]).score),
+      );
+    });
+
+    testWidgets('opens the breakdown sheet', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          ReviewMealScreen(
-            initialItems: [_item(name: 'Dal', calories: 350)],
-            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
-          ),
-        ),
+        card(scoreFor([_item(name: 'Dal', calories: 350)])),
       );
 
       await tester.tap(find.byKey(const ValueKey('plate-score-value')));
       await tester.pumpAndSettle();
 
       expect(find.text('HOW THIS ADDS UP'), findsOneWidget);
-      // The unconfirmed meal must still be behind the sheet.
-      expect(find.text('Confirm meal'), findsOneWidget);
     });
 
     testWidgets('offers to personalise a general-tier score', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
-        _wrap(
-          ReviewMealScreen(
-            initialItems: [_item(name: 'Dal', calories: 350)],
-            onPersonaliseScore: () => tapped = true,
-            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
-          ),
+        card(
+          scoreFor([_item(name: 'Dal', calories: 350)]),
+          onPersonalise: () => tapped = true,
         ),
       );
 
@@ -347,9 +349,16 @@ void main() {
     testWidgets('anchors the number and names the verdict', (tester) async {
       await tester.pumpWidget(
         _wrap(
-          ReviewMealScreen(
-            initialItems: [_item(name: 'Dal', calories: 350)],
-            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+          const Scaffold(
+            body: PlateScoreCard(
+              score: PlateScore(
+                score: 78,
+                band: PlateScoreBand.good,
+                tier: PlateScoreTier.general,
+                axes: [],
+                skipped: [],
+              ),
+            ),
           ),
         ),
       );
@@ -420,14 +429,16 @@ void main() {
       expect(restored.advice?.summary, 'Mostly refined carbs.');
     });
 
-    testWidgets('meal detail renders the score card', (tester) async {
-      // The card was present but guarded on a value the screen rebuilt without,
-      // so the guard could never be true and it never rendered.
+    testWidgets('meal detail keeps the Plate Score out of sight', (
+      tester,
+    ) async {
+      // The meal still carries its score; the screen just does not show it.
       await tester.pumpWidget(_wrap(MealDetailScreen(meal: savedMeal())));
       await tester.pumpAndSettle();
 
-      expect(find.byType(PlateScoreCard), findsOneWidget);
-      expect(find.text('/100'), findsOneWidget);
+      expect(find.byType(PlateScoreCard), findsNothing);
+      expect(find.text('/100'), findsNothing);
+      expect(find.text('74'), findsNothing);
     });
 
     testWidgets('meal detail shows no card when there is no score', (

@@ -752,6 +752,7 @@ const aiPromptKeySchema = z.enum([
   "food_photo",
   "food_photo_IN",
   "food_photo_GLOBAL",
+  "food_text",
   "nutritionist_prompt",
 ]);
 

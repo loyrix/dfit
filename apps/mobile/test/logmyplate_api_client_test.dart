@@ -793,6 +793,10 @@ void main() {
     expect(target.bmi, 24.2);
     expect(target.friendlyBmiCategory, 'Balanced range');
     expect(target.dailyTargetTotals.calories, 2238);
+    // Light activity and maintain give a 45/30/25 carb/fat/protein split.
+    expect(target.dailyTargetTotals.carbsG, 252);
+    expect(target.dailyTargetTotals.fatG, 75);
+    expect(target.dailyTargetTotals.proteinG, 140);
   });
 
   test('sends account lifecycle requests with account auth headers', () async {

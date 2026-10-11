@@ -115,137 +115,148 @@ class _HealthTargetScreenState extends State<HealthTargetScreen> {
       backgroundColor: Colors.transparent,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 128),
+          child: Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: _saving
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
-                  ),
-                  const Spacer(),
-                  GlassWrapper(
-                    child: TextButton(
+              // Outside the scroll view so Back stays reachable on a long page.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                child: Row(
+                  children: [
+                    IconButton(
                       onPressed: _saving
                           ? null
                           : () => Navigator.of(context).pop(),
-                      child: Text(
-                        widget.initialTarget == null ? 'Set later' : 'Close',
+                      icon: const BackMark(),
+                    ),
+                    const Spacer(),
+                    GlassWrapper(
+                      child: TextButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: Text(
+                          widget.initialTarget == null ? 'Set later' : 'Close',
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                widget.initialTarget == null
-                    ? 'Set your daily target'
-                    : 'Edit daily target',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: colors.textPrimary,
-                  height: 1.04,
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                widget.initialTarget == null
-                    ? 'A quick BMI estimate helps tune calories for your journal.'
-                    : 'Update your details when your body, routine or goal changes.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.35,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 128),
+                  children: [
+                    Text(
+                      widget.initialTarget == null
+                          ? 'Set your daily target'
+                          : 'Edit daily target',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(color: colors.textPrimary, height: 1.04),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.initialTarget == null
+                          ? 'A quick BMI estimate helps tune calories for your journal.'
+                          : 'Update your details when your body, routine or goal changes.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _TargetPreviewCard(preview: preview),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _HeightInputCard(
+                      unit: _heightUnit,
+                      cmController: _heightCmController,
+                      feetController: _heightFeetController,
+                      inchesController: _heightInchesController,
+                      enabled: !_saving,
+                      onUnitChanged: _setHeightUnit,
+                      onCmChanged: _setHeightFromCentimeters,
+                      onCmComplete: _normalizeMetricHeightInput,
+                      onImperialChanged: _setHeightFromImperialText,
+                      onImperialComplete: _normalizeImperialHeightInput,
+                    ),
+                    const SizedBox(height: 10),
+                    _NumberInputCard(
+                      label: 'Weight',
+                      controller: _weightController,
+                      fieldKey: const ValueKey('target-weight-input'),
+                      suffix: 'kg',
+                      decimal: true,
+                      enabled: !_saving,
+                      onTextChanged: (value) =>
+                          _setWeight(value, syncText: false),
+                      onTextComplete: _normalizeWeightInput,
+                    ),
+                    const SizedBox(height: 10),
+                    _NumberInputCard(
+                      label: 'Age',
+                      controller: _ageController,
+                      fieldKey: const ValueKey('target-age-input'),
+                      suffix: 'years',
+                      decimal: false,
+                      enabled: !_saving,
+                      onTextChanged: (value) =>
+                          _setAge(value.round(), syncText: false),
+                      onTextComplete: _normalizeAgeInput,
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _ChoiceGroup<HealthSex>(
+                      label: 'Body profile',
+                      values: HealthSex.values,
+                      selected: _sex,
+                      labelFor: (value) => value.label,
+                      onSelected: _saving
+                          ? null
+                          : (value) => setState(() => _sex = value),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _ChoiceGroup<ActivityLevel>(
+                      label: 'Typical movement',
+                      values: ActivityLevel.values,
+                      selected: _activityLevel,
+                      labelFor: (value) => value.label,
+                      onSelected: _saving
+                          ? null
+                          : (value) => setState(() => _activityLevel = value),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _ChoiceGroup<HealthGoal>(
+                      label: 'Goal',
+                      values: HealthGoal.values,
+                      selected: _goal,
+                      labelFor: (value) => value.label,
+                      onSelected: _saving
+                          ? null
+                          : (value) => setState(() => _goal = value),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    MacroSplitSliders(
+                      enabled: _customSplitEnabled && !_saving,
+                      split: _customSplit ?? _computedSplit,
+                      computed: _computedSplit,
+                      dailyCalories: preview.targetCalories,
+                      onEnabledChanged: _saving
+                          ? (_) {}
+                          : _setCustomSplitEnabled,
+                      onChanged: _saving
+                          ? (_) {}
+                          : (split) => setState(() => _customSplit = split),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _HealthFocusGroup(
+                      selected: _healthFocus,
+                      onToggle: _saving ? null : _toggleHealthFocus,
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                      _HealthError(message: _error!),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _TargetPreviewCard(preview: preview),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _HeightInputCard(
-                unit: _heightUnit,
-                cmController: _heightCmController,
-                feetController: _heightFeetController,
-                inchesController: _heightInchesController,
-                enabled: !_saving,
-                onUnitChanged: _setHeightUnit,
-                onCmChanged: _setHeightFromCentimeters,
-                onCmComplete: _normalizeMetricHeightInput,
-                onImperialChanged: _setHeightFromImperialText,
-                onImperialComplete: _normalizeImperialHeightInput,
-              ),
-              const SizedBox(height: 10),
-              _NumberInputCard(
-                label: 'Weight',
-                controller: _weightController,
-                fieldKey: const ValueKey('target-weight-input'),
-                suffix: 'kg',
-                decimal: true,
-                enabled: !_saving,
-                onTextChanged: (value) => _setWeight(value, syncText: false),
-                onTextComplete: _normalizeWeightInput,
-              ),
-              const SizedBox(height: 10),
-              _NumberInputCard(
-                label: 'Age',
-                controller: _ageController,
-                fieldKey: const ValueKey('target-age-input'),
-                suffix: 'years',
-                decimal: false,
-                enabled: !_saving,
-                onTextChanged: (value) =>
-                    _setAge(value.round(), syncText: false),
-                onTextComplete: _normalizeAgeInput,
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _ChoiceGroup<HealthSex>(
-                label: 'Body profile',
-                values: HealthSex.values,
-                selected: _sex,
-                labelFor: (value) => value.label,
-                onSelected: _saving
-                    ? null
-                    : (value) => setState(() => _sex = value),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _ChoiceGroup<ActivityLevel>(
-                label: 'Typical movement',
-                values: ActivityLevel.values,
-                selected: _activityLevel,
-                labelFor: (value) => value.label,
-                onSelected: _saving
-                    ? null
-                    : (value) => setState(() => _activityLevel = value),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _ChoiceGroup<HealthGoal>(
-                label: 'Goal',
-                values: HealthGoal.values,
-                selected: _goal,
-                labelFor: (value) => value.label,
-                onSelected: _saving
-                    ? null
-                    : (value) => setState(() => _goal = value),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              MacroSplitSliders(
-                enabled: _customSplitEnabled && !_saving,
-                split: _customSplit ?? _computedSplit,
-                computed: _computedSplit,
-                onEnabledChanged: _saving ? (_) {} : _setCustomSplitEnabled,
-                onChanged: _saving
-                    ? (_) {}
-                    : (split) => setState(() => _customSplit = split),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _HealthFocusGroup(
-                selected: _healthFocus,
-                onToggle: _saving ? null : _toggleHealthFocus,
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                _HealthError(message: _error!),
-              ],
             ],
           ),
         ),

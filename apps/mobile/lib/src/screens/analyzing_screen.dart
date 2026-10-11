@@ -21,21 +21,27 @@ class AnalyzingScreen extends StatefulWidget {
     super.key,
     this.photo,
     this.barcode,
+    this.description,
     this.onAnalyze,
     this.onAnalyzeBarcode,
+    this.onAnalyzeDescription,
     required this.onAnalyzed,
     this.onScanCreditRequired,
     this.onAddManually,
     this.onSwitchToPhoto,
   }) : assert(
-         photo != null || barcode != null,
-         'Either photo or barcode must be provided',
+         photo != null || barcode != null || description != null,
+         'A photo, a barcode or a description must be provided',
        );
 
   final CapturedMealPhoto? photo;
   final String? barcode;
+
+  /// A meal described in words, analysed with no photo.
+  final String? description;
   final Future<ScanAnalysis> Function(CapturedMealPhoto photo)? onAnalyze;
   final Future<ScanAnalysis> Function(String barcode)? onAnalyzeBarcode;
+  final Future<ScanAnalysis> Function(String description)? onAnalyzeDescription;
   final ValueChanged<ScanAnalysis> onAnalyzed;
   final Future<void> Function()? onScanCreditRequired;
   final VoidCallback? onAddManually;
@@ -61,8 +67,23 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     'Calculating macro nutrients',
   ];
 
-  List<String> get _steps =>
-      widget.barcode != null ? _barcodeSteps : _photoSteps;
+  static const _descriptionSteps = [
+    'Noted',
+    'Identifying described foods',
+    'Estimating portions',
+    'Calculating macro nutrients',
+  ];
+
+  bool get _isDescription =>
+      widget.barcode == null &&
+      widget.photo == null &&
+      widget.description != null;
+
+  List<String> get _steps => widget.barcode != null
+      ? _barcodeSteps
+      : _isDescription
+      ? _descriptionSteps
+      : _photoSteps;
 
   _AnalysisFailure? _failure;
   int _activeStep = 1;
@@ -98,6 +119,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
         analysis = await widget.onAnalyzeBarcode!(widget.barcode!);
       } else if (widget.photo != null && widget.onAnalyze != null) {
         analysis = await widget.onAnalyze!(widget.photo!);
+      } else if (widget.description != null &&
+          widget.onAnalyzeDescription != null) {
+        analysis = await widget.onAnalyzeDescription!(widget.description!);
       } else {
         throw StateError('No analyzer configured');
       }
@@ -111,6 +135,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
         _failure = _AnalysisFailure.from(
           error,
           isBarcode: widget.barcode != null,
+          isDescription: _isDescription,
         );
       });
     }
@@ -133,7 +158,9 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
   Widget build(BuildContext context) {
     final failure = _failure;
     final isBarcode = widget.barcode != null;
-    final plateHint = widget.photo?.userHint?.trim();
+    final isDescription = _isDescription;
+    final plateHint =
+        (isDescription ? widget.description : widget.photo?.userHint)?.trim();
     final colors = context.logmyplate;
 
     return Scaffold(
@@ -192,8 +219,10 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                             Text(
                               failure == null
                                   ? (isBarcode
-                                      ? 'Looking up barcode'
-                                      : 'Reading your plate')
+                                        ? 'Looking up barcode'
+                                        : isDescription
+                                        ? 'Reading your meal'
+                                        : 'Reading your plate')
                                   : failure.title,
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.titleLarge
@@ -210,6 +239,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                                     ? _progressLabel(
                                         _activeStep,
                                         isBarcode: isBarcode,
+                                        isDescription: isDescription,
                                       )
                                     : failure.subtitle,
                                 key: ValueKey(
@@ -250,6 +280,7 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
                                 onAddManually: widget.onAddManually,
                                 onSwitchToPhoto: widget.onSwitchToPhoto,
                                 isBarcode: isBarcode,
+                                isDescription: isDescription,
                               ),
                             ],
                           ],
@@ -278,13 +309,25 @@ class _AnalyzingScreenState extends State<AnalyzingScreen>
     );
   }
 
-  String _progressLabel(int step, {bool isBarcode = false}) {
+  String _progressLabel(
+    int step, {
+    bool isBarcode = false,
+    bool isDescription = false,
+  }) {
     if (isBarcode) {
       return switch (step) {
         1 => 'Searching food database',
         2 => 'Reading nutrition facts',
         3 => 'Calculating macro nutrients',
         _ => 'Securing barcode scan',
+      };
+    }
+    if (isDescription) {
+      return switch (step) {
+        1 => 'Reading what you described',
+        2 => 'Estimating portions and grams',
+        3 => 'Calculating macro nutrients',
+        _ => 'Saving your description',
       };
     }
     return switch (step) {
@@ -311,8 +354,43 @@ class _AnalysisFailure {
   final String subtitle;
   final String message;
 
-  factory _AnalysisFailure.from(Object error, {bool isBarcode = false}) {
+  factory _AnalysisFailure.from(
+    Object error, {
+    bool isBarcode = false,
+    bool isDescription = false,
+  }) {
     if (error is LogMyPlateApiException) {
+      // Photo wording would send someone who typed their meal off to retake a
+      // picture they never took.
+      if (isDescription && error.errorCode == 'no_food_detected') {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.invalidImage,
+          title: 'No food found',
+          subtitle: 'Try describing the meal again',
+          message:
+              'Name the foods and how much you had, for example "2 rotis and a bowl of dal". We will not use a scan credit for this attempt.',
+        );
+      }
+      if (isDescription && error.errorCode == 'no_food_scan_limit_exceeded') {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.invalidImage,
+          title: 'Scan limit reached',
+          subtitle: 'Too many non-food attempts',
+          message:
+              'Try again later with the foods you ate. This protects your scan credits and keeps AI costs under control.',
+        );
+      }
+      // An API that predates described meals answers a text-only request this
+      // way, so the copy has to make sense for that case too.
+      if (isDescription && error.errorCode == 'invalid_scan_image') {
+        return const _AnalysisFailure(
+          kind: _AnalysisFailureKind.invalidImage,
+          title: 'Could not read that',
+          subtitle: 'Try a shorter description',
+          message:
+              'Describe the meal in a few plain words, or take a photo of your plate instead.',
+        );
+      }
       if (error.isScanCreditRequired) {
         return const _AnalysisFailure(
           kind: _AnalysisFailureKind.quota,
@@ -389,6 +467,7 @@ class _FailureActions extends StatelessWidget {
     this.onAddManually,
     this.onSwitchToPhoto,
     this.isBarcode = false,
+    this.isDescription = false,
   });
 
   final _AnalysisFailure failure;
@@ -397,10 +476,20 @@ class _FailureActions extends StatelessWidget {
   final VoidCallback? onAddManually;
   final VoidCallback? onSwitchToPhoto;
   final bool isBarcode;
+  final bool isDescription;
 
   @override
   Widget build(BuildContext context) {
     final isQuota = failure.kind == _AnalysisFailureKind.quota;
+
+    // Retrying the same words gets the same answer, so the useful action is to
+    // go back and change them.
+    if (isDescription && failure.kind == _AnalysisFailureKind.invalidImage) {
+      return PremiumButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Edit description'),
+      );
+    }
 
     if (isBarcode && failure.kind == _AnalysisFailureKind.invalidImage) {
       return Column(
@@ -596,12 +685,7 @@ class _BarcodeAnalyzingPreview extends StatelessWidget {
                   34 +
                   (math.sin(animation.value * math.pi * 2) + 1) *
                       (height * 0.32);
-              return Positioned(
-                left: 26,
-                right: 26,
-                top: scanY,
-                child: child!,
-              );
+              return Positioned(left: 26, right: 26, top: scanY, child: child!);
             },
             child: Container(
               height: 2.5,

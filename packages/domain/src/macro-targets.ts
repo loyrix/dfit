@@ -192,3 +192,22 @@ export const calculateMacroTargets = (input: MacroTargetInput): MacroTargets => 
     customSplitApplied,
   };
 };
+
+export type MacroGramTargets = { carbsG: number; fatG: number; proteinG: number };
+
+/**
+ * A percentage split expressed as whole grams of a daily calorie target.
+ *
+ * Display only. The split stays the stored and scored value, so these are
+ * derived on read and move with the calorie target. Ported to
+ * `apps/mobile/lib/src/models/macro_targets.dart`; keep the two in step, since
+ * the target screen and the Today page must show the same gram figure.
+ */
+export const macroGramTargets = (
+  split: { carbsPct: number; fatPct: number; proteinPct: number },
+  dailyCalories: number,
+): MacroGramTargets => ({
+  carbsG: Math.round((dailyCalories * split.carbsPct) / 100 / 4),
+  fatG: Math.round((dailyCalories * split.fatPct) / 100 / 9),
+  proteinG: Math.round((dailyCalories * split.proteinPct) / 100 / 4),
+});

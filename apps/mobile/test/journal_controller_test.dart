@@ -17,9 +17,9 @@ void main() {
       TestWidgetsFlutterBinding.ensureInitialized();
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/google_mobile_ads'),
-        (_) async => null,
-      );
+            const MethodChannel('plugins.flutter.io/google_mobile_ads'),
+            (_) async => null,
+          );
 
       final analytics = _RecordingAnalytics();
       final controller = JournalController(
@@ -52,9 +52,9 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/google_mobile_ads'),
-      (_) async => null,
-    );
+          const MethodChannel('plugins.flutter.io/google_mobile_ads'),
+          (_) async => null,
+        );
 
     var prepareCalls = 0;
     final controller = JournalController(
@@ -113,9 +113,9 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/google_mobile_ads'),
-      (_) async => null,
-    );
+          const MethodChannel('plugins.flutter.io/google_mobile_ads'),
+          (_) async => null,
+        );
 
     var barcodeScanned = false;
     final controller = JournalController(
@@ -267,9 +267,7 @@ Map<String, dynamic> _bootstrapPayload() {
           'healthTargetSaved': true,
         },
       },
-      'admob': {
-        'testDeviceIds': [],
-      },
+      'admob': {'testDeviceIds': []},
     },
     'quota': {
       'freeRemaining': 3,

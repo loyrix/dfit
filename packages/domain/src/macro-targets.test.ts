@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateBmr,
   calculateMacroTargets,
+  macroGramTargets,
   type MacroActivityLevel,
   type MacroGoal,
   type MacroTargetInput,
@@ -206,5 +207,25 @@ describe("calculateMacroTargets", () => {
 
   it("is deterministic", () => {
     expect(calculateMacroTargets(workedExample)).toEqual(calculateMacroTargets(workedExample));
+  });
+});
+
+// The same figures are asserted by apps/mobile/test/macro_targets_test.dart:
+// the target screen and the Today page must show one gram number.
+describe("macroGramTargets", () => {
+  it("converts a split to whole grams at 4 kcal/g and 9 kcal/g for fat", () => {
+    expect(macroGramTargets({ carbsPct: 50, fatPct: 25, proteinPct: 25 }, 2000)).toEqual({
+      carbsG: 250,
+      fatG: 56,
+      proteinG: 125,
+    });
+  });
+
+  it("rounds to the nearest gram", () => {
+    expect(macroGramTargets({ carbsPct: 45, fatPct: 30, proteinPct: 25 }, 2238)).toEqual({
+      carbsG: 252,
+      fatG: 75,
+      proteinG: 140,
+    });
   });
 });

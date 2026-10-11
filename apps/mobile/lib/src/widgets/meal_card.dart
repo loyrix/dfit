@@ -6,9 +6,8 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import 'glass/fake_glass_row.dart';
 import 'meal_delete_controls.dart';
-import 'plate_score_chip.dart';
-import 'plate_score_copy.dart';
-import 'plate_score_sheet.dart';
+import 'meal_rating_sheet.dart';
+import 'meal_score_row.dart';
 
 class MealCard extends StatelessWidget {
   const MealCard({
@@ -104,21 +103,13 @@ class MealCard extends StatelessWidget {
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
-                    if (meal.plateScore != null) ...[
-                      const SizedBox(height: 4),
-                      // Tappable in place: previously this looked interactive
-                      // but only opened the meal, which showed no score at all.
-                      PlateScoreChip(
-                        score: meal.plateScore!,
-                        onTap: () => PlateScoreSheet.show(
-                          context,
-                          score: meal.plateScore!,
-                          mealLabel: PlateScoreMealLabel(
-                            meal.type.label.toLowerCase(),
-                          ),
-                        ),
+                    // Stars, not the Plate Score number. The number is still
+                    // computed and stored; it is just no longer shown.
+                    if (meal.rating != null)
+                      MealStarsButton(
+                        rating: meal.rating!,
+                        onTap: () => MealRatingSheet.show(context, meal: meal),
                       ),
-                    ],
                   ],
                 ),
               ],

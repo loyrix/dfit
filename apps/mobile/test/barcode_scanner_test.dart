@@ -12,10 +12,7 @@ import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 
 void main() {
   Widget testFrame({required Widget child}) {
-    return MaterialApp(
-      theme: LogMyPlateTheme.light(),
-      home: child,
-    );
+    return MaterialApp(theme: LogMyPlateTheme.light(), home: child);
   }
 
   ScanAnalysis analysisFor(String scanId) {
@@ -84,10 +81,7 @@ void main() {
       );
 
       final barcodeTab = tester.getRect(
-        find.ancestor(
-          of: find.text('Barcode'),
-          matching: find.byType(InkWell),
-        ),
+        find.ancestor(of: find.text('Barcode'), matching: find.byType(InkWell)),
       );
       expect(barcodeTab.height, greaterThanOrEqualTo(44));
       expect(barcodeTab.width, greaterThan(300));
@@ -324,10 +318,7 @@ void main() {
       expect(find.text('Searching food database'), findsOneWidget);
 
       completer.completeError(
-        LogMyPlateApiException(
-          422,
-          jsonEncode({'error': 'no_food_detected'}),
-        ),
+        LogMyPlateApiException(422, jsonEncode({'error': 'no_food_detected'})),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
@@ -335,40 +326,41 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
-    testWidgets('handles non-food rejection with photo switch and retry actions', (
-      tester,
-    ) async {
-      var switchedToPhoto = false;
+    testWidgets(
+      'handles non-food rejection with photo switch and retry actions',
+      (tester) async {
+        var switchedToPhoto = false;
 
-      await tester.pumpWidget(
-        testFrame(
-          child: AnalyzingScreen(
-            barcode: '0000000000',
-            onAnalyzeBarcode: (_) async {
-              throw LogMyPlateApiException(
-                422,
-                jsonEncode({'error': 'no_food_detected'}),
-              );
-            },
-            onAnalyzed: (_) {},
-            onSwitchToPhoto: () => switchedToPhoto = true,
+        await tester.pumpWidget(
+          testFrame(
+            child: AnalyzingScreen(
+              barcode: '0000000000',
+              onAnalyzeBarcode: (_) async {
+                throw LogMyPlateApiException(
+                  422,
+                  jsonEncode({'error': 'no_food_detected'}),
+                );
+              },
+              onAnalyzed: (_) {},
+              onSwitchToPhoto: () => switchedToPhoto = true,
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
 
-      expect(find.text('No food found'), findsOneWidget);
-      expect(find.text('Barcode was not recognized as food'), findsOneWidget);
-      expect(find.text('Take plate photo'), findsOneWidget);
-      expect(find.text('Retry barcode'), findsOneWidget);
+        expect(find.text('No food found'), findsOneWidget);
+        expect(find.text('Barcode was not recognized as food'), findsOneWidget);
+        expect(find.text('Take plate photo'), findsOneWidget);
+        expect(find.text('Retry barcode'), findsOneWidget);
 
-      await tester.tap(find.text('Take plate photo'));
-      expect(switchedToPhoto, isTrue);
+        await tester.tap(find.text('Take plate photo'));
+        expect(switchedToPhoto, isTrue);
 
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
   });
 
   group('SettingsScreen attributions', () {

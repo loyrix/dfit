@@ -66,122 +66,132 @@ class _AccountGateScreenState extends State<AccountGateScreen> {
       backgroundColor: Colors.transparent,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: widget.loading
-                        ? null
-                        : () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
-                  ),
-                  const Spacer(),
-                  _GatePill(label: copy.eyebrow),
-                ],
-              ),
-              const SizedBox(height: 26),
-              Center(child: _AccountMark(loading: widget.loading)),
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              Text(
-                'LogMyPlate',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colors.textSecondary,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const SizedBox(height: 9),
-              Text(
-                copy.title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: colors.textPrimary,
-                  height: 1.05,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                copy.subtitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.textSecondary,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-              if (!_passwordResetMode) ...[
-                Row(
+              // Outside the scroll view so Back stays reachable on a long page.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Row(
                   children: [
-                    if (showAppleSignIn) ...[
-                      Expanded(
-                        child: _ProviderButton(
-                          label: 'Apple',
-                          provider: AuthProvider.apple,
-                          loading: widget.loading,
-                          onTap: () => _signIn(context, AuthProvider.apple),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                    Expanded(
-                      child: _ProviderButton(
-                        label: 'Google',
-                        provider: AuthProvider.google,
-                        loading: widget.loading,
-                        onTap: () => _signIn(context, AuthProvider.google),
-                      ),
+                    IconButton(
+                      onPressed: widget.loading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const BackMark(),
                     ),
+                    const Spacer(),
+                    _GatePill(label: copy.eyebrow),
                   ],
                 ),
-                const SizedBox(height: 10),
-              ],
-              _EmailAuthPanel(
-                key: const ValueKey('account-email-auth-panel'),
-                loading: widget.loading,
-                onEmailAuth: widget.onEmailAuth,
-                onPasswordResetRequest: widget.onPasswordResetRequest,
-                onPasswordResetConfirm: widget.onPasswordResetConfirm,
-                onPasswordResetModeChanged: (value) {
-                  if (_passwordResetMode != value) {
-                    setState(() => _passwordResetMode = value);
-                  }
-                },
-                onClearError: widget.onClearError,
               ),
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              if (widget.error != null) ...[
-                _InlineAuthError(message: widget.error!),
-                const SizedBox(height: 8),
-              ],
-              if (!_passwordResetMode) ...[
-                GlassWrapper(
-                  child: TextButton(
-                    onPressed: widget.loading
-                        ? null
-                        : widget.reason == AccountGateReason.quotaExhausted
-                        ? widget.onManualLog
-                        : () => Navigator.of(context).pop(),
-                    child: Text(
-                      widget.reason == AccountGateReason.quotaExhausted
-                          ? 'Log manually instead'
-                          : 'Maybe later',
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 26, 20, 24),
+                  children: [
+                    Center(child: _AccountMark(loading: widget.loading)),
+                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    Text(
+                      'LogMyPlate',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.textSecondary,
+                        letterSpacing: 1.4,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 9),
+                    Text(
+                      copy.title,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(color: colors.textPrimary, height: 1.05),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      copy.subtitle,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                    if (!_passwordResetMode) ...[
+                      Row(
+                        children: [
+                          if (showAppleSignIn) ...[
+                            Expanded(
+                              child: _ProviderButton(
+                                label: 'Apple',
+                                provider: AuthProvider.apple,
+                                loading: widget.loading,
+                                onTap: () =>
+                                    _signIn(context, AuthProvider.apple),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          Expanded(
+                            child: _ProviderButton(
+                              label: 'Google',
+                              provider: AuthProvider.google,
+                              loading: widget.loading,
+                              onTap: () =>
+                                  _signIn(context, AuthProvider.google),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    _EmailAuthPanel(
+                      key: const ValueKey('account-email-auth-panel'),
+                      loading: widget.loading,
+                      onEmailAuth: widget.onEmailAuth,
+                      onPasswordResetRequest: widget.onPasswordResetRequest,
+                      onPasswordResetConfirm: widget.onPasswordResetConfirm,
+                      onPasswordResetModeChanged: (value) {
+                        if (_passwordResetMode != value) {
+                          setState(() => _passwordResetMode = value);
+                        }
+                      },
+                      onClearError: widget.onClearError,
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    if (widget.error != null) ...[
+                      _InlineAuthError(message: widget.error!),
+                      const SizedBox(height: 8),
+                    ],
+                    if (!_passwordResetMode) ...[
+                      GlassWrapper(
+                        child: TextButton(
+                          onPressed: widget.loading
+                              ? null
+                              : widget.reason ==
+                                    AccountGateReason.quotaExhausted
+                              ? widget.onManualLog
+                              : () => Navigator.of(context).pop(),
+                          child: Text(
+                            widget.reason == AccountGateReason.quotaExhausted
+                                ? 'Log manually instead'
+                                : 'Maybe later',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        widget.reason == AccountGateReason.accountDeletion
+                            ? 'Deletion starts only after your confirmation.'
+                            : 'Your photos are analyzed and saved with your meal logs.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: colors.textTertiary,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  widget.reason == AccountGateReason.accountDeletion
-                      ? 'Deletion starts only after your confirmation.'
-                      : 'Your photos are analyzed and saved with your meal logs.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colors.textTertiary,
-                    letterSpacing: 0,
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),

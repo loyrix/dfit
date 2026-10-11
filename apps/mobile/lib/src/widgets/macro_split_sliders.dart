@@ -24,6 +24,7 @@ class MacroSplitSliders extends StatelessWidget {
     required this.computed,
     required this.onEnabledChanged,
     required this.onChanged,
+    this.dailyCalories,
   });
 
   /// Whether the manual split is in use.
@@ -38,6 +39,11 @@ class MacroSplitSliders extends StatelessWidget {
 
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<MacroSplit> onChanged;
+
+  /// The calorie target the split applies to. When supplied each slider also
+  /// shows what its percentage comes to in grams. Read-only: the percentage is
+  /// still the only thing the user edits and the only thing saved.
+  final int? dailyCalories;
 
   static const _minPct = 10.0;
   static const _maxPct = 70.0;
@@ -108,6 +114,10 @@ class MacroSplitSliders extends StatelessWidget {
     final colors = context.logmyplate;
     final theme = Theme.of(context);
     final active = enabled ? split : computed;
+    final calories = dailyCalories;
+    final grams = calories == null || calories <= 0
+        ? null
+        : macroGramsFor(active, calories);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,6 +159,7 @@ class MacroSplitSliders extends StatelessWidget {
           key: const ValueKey('macro-split-carbs'),
           label: 'Carbs',
           value: active.carbsPct,
+          grams: grams?.carbsG,
           enabled: enabled,
           onChanged: (value) =>
               onChanged(redistribute(split, MacroKind.carbs, value)),
@@ -157,6 +168,7 @@ class MacroSplitSliders extends StatelessWidget {
           key: const ValueKey('macro-split-fat'),
           label: 'Fat',
           value: active.fatPct,
+          grams: grams?.fatG,
           enabled: enabled,
           onChanged: (value) =>
               onChanged(redistribute(split, MacroKind.fat, value)),
@@ -165,6 +177,7 @@ class MacroSplitSliders extends StatelessWidget {
           key: const ValueKey('macro-split-protein'),
           label: 'Protein',
           value: active.proteinPct,
+          grams: grams?.proteinG,
           enabled: enabled,
           onChanged: (value) =>
               onChanged(redistribute(split, MacroKind.protein, value)),
@@ -183,12 +196,14 @@ class _MacroSlider extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    required this.grams,
     required this.enabled,
     required this.onChanged,
   });
 
   final String label;
   final double value;
+  final int? grams;
   final bool enabled;
   final ValueChanged<double> onChanged;
 
@@ -225,13 +240,16 @@ class _MacroSlider extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 44,
+            width: grams == null ? 44 : 92,
             child: Text(
-              '${value.round()}%',
+              grams == null
+                  ? '${value.round()}%'
+                  : '${value.round()}% · $grams g',
               textAlign: TextAlign.end,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: enabled ? colors.textPrimary : colors.textTertiary,
                 fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),

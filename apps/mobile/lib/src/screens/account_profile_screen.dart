@@ -54,120 +54,142 @@ class AccountProfileScreen extends StatelessWidget {
         child: SafeArea(
           child: Stack(
             children: [
-              ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              Column(
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: loading
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                      icon: const BackMark(),
+                  // Outside the scroll view so Back stays reachable on a long
+                  // page.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: loading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: const BackMark(),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-                  Center(child: _AccountAvatar(session: session)),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Profile',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.textSecondary,
-                      letterSpacing: 1.8,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    session.displayName,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${session.provider.label} account',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                    _AccountErrorBanner(
-                      message: error!,
-                      onDismiss: onClearError,
-                    ),
-                  ],
-                  const SizedBox(height: 28),
-                  _ProfileSection(
-                    title: 'Account and Journal Status',
-                    children: [
-                      _ProfileRow(label: 'Status', value: 'Signed in'),
-                      _ProfileRow(
-                        label: 'Provider',
-                        value: session.provider.label,
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        16,
+                        LogMyPlateSpacing.lgSpacing,
+                        16,
+                        32,
                       ),
-                      _ProfileRow(
-                        label: 'Journal',
-                        value: 'Synced to this account',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  _ProfileSection(
-                    title: 'Membership Status',
-                    children: [
-                      _ProfileRow(
-                        label: 'Current Plan',
-                        value: subscription?.active == true
-                            ? 'Premium'
-                            : 'Free',
-                      ),
-                      _ProfileRow(
-                        label: 'Subscribed on',
-                        value: _formatDate(subscription?.currentPeriodStart),
-                      ),
-                      _ProfileRow(
-                        label: 'Auto Renewal on',
-                        value: _renewalLabel(subscription),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                  _ProfileSection(
-                    title: 'Manage Account',
-                    children: [
-                      if (onPasswordResetRequest != null)
-                        _ProfileActionRow(
-                          label: 'Reset Password',
-                          value: '',
-                          color: colors.textPrimary,
-                          enabled: !loading,
-                          onTap: () => _showPasswordResetSheet(context),
+                      children: [
+                        Center(child: _AccountAvatar(session: session)),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Profile',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: colors.textSecondary,
+                                letterSpacing: 1.8,
+                              ),
                         ),
-                      _ProfileActionRow(
-                        label: 'Deactivate profile',
-                        value: 'Pause access',
-                        color: LogMyPlateColors.accent,
-                        enabled: !loading,
-                        onTap: () => _requestLifecycleAction(
-                          context,
-                          action: _ProfileLifecycleAction.deactivate,
+                        const SizedBox(height: 8),
+                        Text(
+                          session.displayName,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(color: colors.textPrimary),
                         ),
-                      ),
-                      _ProfileActionRow(
-                        label: 'Delete account and data',
-                        value: 'Permanent',
-                        color: LogMyPlateColors.destructive,
-                        enabled: !loading,
-                        onTap: () => _requestLifecycleAction(
-                          context,
-                          action: _ProfileLifecycleAction.delete,
+                        const SizedBox(height: 6),
+                        Text(
+                          '${session.provider.label} account',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colors.textSecondary),
                         ),
-                      ),
-                    ],
+                        if (error != null) ...[
+                          const SizedBox(
+                            height: LogMyPlateSpacing.sectionSpacing,
+                          ),
+                          _AccountErrorBanner(
+                            message: error!,
+                            onDismiss: onClearError,
+                          ),
+                        ],
+                        const SizedBox(height: 28),
+                        _ProfileSection(
+                          title: 'Account and Journal Status',
+                          children: [
+                            _ProfileRow(label: 'Status', value: 'Signed in'),
+                            _ProfileRow(
+                              label: 'Provider',
+                              value: session.provider.label,
+                            ),
+                            _ProfileRow(
+                              label: 'Journal',
+                              value: 'Synced to this account',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: LogMyPlateSpacing.sectionSpacing,
+                        ),
+                        _ProfileSection(
+                          title: 'Membership Status',
+                          children: [
+                            _ProfileRow(
+                              label: 'Current Plan',
+                              value: subscription?.active == true
+                                  ? 'Premium'
+                                  : 'Free',
+                            ),
+                            _ProfileRow(
+                              label: 'Subscribed on',
+                              value: _formatDate(
+                                subscription?.currentPeriodStart,
+                              ),
+                            ),
+                            _ProfileRow(
+                              label: 'Auto Renewal on',
+                              value: _renewalLabel(subscription),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: LogMyPlateSpacing.sectionSpacing,
+                        ),
+                        _ProfileSection(
+                          title: 'Manage Account',
+                          children: [
+                            if (onPasswordResetRequest != null)
+                              _ProfileActionRow(
+                                label: 'Reset Password',
+                                value: '',
+                                color: colors.textPrimary,
+                                enabled: !loading,
+                                onTap: () => _showPasswordResetSheet(context),
+                              ),
+                            _ProfileActionRow(
+                              label: 'Deactivate profile',
+                              value: 'Pause access',
+                              color: LogMyPlateColors.accent,
+                              enabled: !loading,
+                              onTap: () => _requestLifecycleAction(
+                                context,
+                                action: _ProfileLifecycleAction.deactivate,
+                              ),
+                            ),
+                            _ProfileActionRow(
+                              label: 'Delete account and data',
+                              value: 'Permanent',
+                              color: LogMyPlateColors.destructive,
+                              enabled: !loading,
+                              onTap: () => _requestLifecycleAction(
+                                context,
+                                action: _ProfileLifecycleAction.delete,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

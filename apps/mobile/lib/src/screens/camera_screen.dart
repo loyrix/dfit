@@ -140,15 +140,24 @@ class _BarcodeLookupFailure {
     return const _BarcodeLookupFailure(
       kind: _BarcodeLookupFailureKind.transient,
       title: 'Connection paused',
-      message: 'Could not reach LogMyPlate. Check your connection and try again.',
+      message:
+          'Could not reach LogMyPlate. Check your connection and try again.',
     );
   }
 }
+
+// Mirrors the API limits in packages/contracts/src/scans.ts. A note beside a
+// photo is a clue and stays short; with no photo the text is the whole meal.
+const _photoNoteMaxChars = 280;
+const _photoNoteMaxWords = 50;
+const _describedMealMaxChars = 600;
+const _describedMealMaxWords = 120;
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({
     super.key,
     required this.onCaptured,
+    this.onDescribed,
     this.onAnalyzeBarcode,
     this.onBarcodeAnalyzed,
     this.onScanCreditRequired,
@@ -157,6 +166,10 @@ class CameraScreen extends StatefulWidget {
   });
 
   final ValueChanged<CapturedMealPhoto> onCaptured;
+
+  /// Logs the meal from the food note alone. Offered only when supplied, and
+  /// only while there is a note but no photo.
+  final ValueChanged<String>? onDescribed;
   // Barcode mode is offered only when a lookup is provided. The lookup runs on
   // this screen so a miss leaves the user at the scanner, ready to scan again.
   final Future<ScanAnalysis> Function(String barcode)? onAnalyzeBarcode;
@@ -388,16 +401,41 @@ class _CameraScreenState extends State<CameraScreen>
     FocusScope.of(context).unfocus();
     final hint = _hintController.text.trim();
     final hintWordCount = _wordCount(hint);
-    if (hint.isEmpty || hintWordCount > 50) {
+    // A note typed before the photo was added may be as long as a described
+    // meal allows, which is more than a note beside a photo may be.
+    if (hint.isEmpty ||
+        hintWordCount > _photoNoteMaxWords ||
+        hint.length > _photoNoteMaxChars) {
       setState(() {
         _captureNotice = hint.isEmpty
             ? 'Add a food note for better accuracy.'
-            : 'Keep the food note within 50 words.';
+            : hintWordCount > _photoNoteMaxWords
+            ? 'Keep the food note within $_photoNoteMaxWords words.'
+            : 'Keep the food note within $_photoNoteMaxChars characters.';
       });
       return;
     }
 
     widget.onCaptured(preparedCapture.toMealPhoto(hint));
+  }
+
+  /// Logs the meal from the note alone, with no photo.
+  void _submitDescription() {
+    final onDescribed = widget.onDescribed;
+    if (onDescribed == null || _activeSource != null) return;
+    FocusScope.of(context).unfocus();
+    final description = _hintController.text.trim();
+    if (description.isEmpty ||
+        _wordCount(description) > _describedMealMaxWords) {
+      setState(() {
+        _captureNotice = description.isEmpty
+            ? 'Describe what you ate, or add a photo.'
+            : 'Keep the description within $_describedMealMaxWords words.';
+      });
+      return;
+    }
+
+    onDescribed(description);
   }
 
   void _clearPreparedCapture() {
@@ -426,8 +464,15 @@ class _CameraScreenState extends State<CameraScreen>
     final activeSource = _activeSource;
     final preparedCapture = _preparedCapture;
     final hintWordCount = _wordCount(_hintController.text);
+    final hintText = _hintController.text.trim();
     final hasValidHint =
-        _hintController.text.trim().isNotEmpty && hintWordCount <= 50;
+        hintText.isNotEmpty &&
+        hintWordCount <= _photoNoteMaxWords &&
+        hintText.length <= _photoNoteMaxChars;
+    final canDescribe =
+        widget.onDescribed != null &&
+        hintText.isNotEmpty &&
+        hintWordCount <= _describedMealMaxWords;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -500,8 +545,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   _showManualBarcodeDialog(context),
                               onScanAgain: _scanAgain,
                               onRetry: _retryFailedBarcode,
-                              onTakePhoto: () =>
-                                  _setMode(CameraScanMode.photo),
+                              onTakePhoto: () => _setMode(CameraScanMode.photo),
                               onScanCreditRequired: widget.onScanCreditRequired,
                               onAddManually: widget.onAddManually,
                               compact: compact,
@@ -589,12 +633,14 @@ class _CameraScreenState extends State<CameraScreen>
                           activeSource: activeSource,
                           prepared: hasPhoto,
                           canAnalyze: hasValidHint,
+                          canDescribe: canDescribe,
                           notice: _captureNotice,
                           onChanged: () =>
                               setState(() => _captureNotice = null),
                           onCamera: () => _captureFrom(_CaptureSource.camera),
                           onGallery: () => _captureFrom(_CaptureSource.gallery),
                           onAnalyze: _submitPreparedCapture,
+                          onDescribe: _submitDescription,
                         ),
                       ],
                     );
@@ -946,12 +992,16 @@ class _PlateHintField extends StatelessWidget {
     required this.controller,
     required this.compact,
     required this.keyboardOpen,
+    required this.maxChars,
+    required this.maxWords,
     required this.onChanged,
   });
 
   final TextEditingController controller;
   final bool compact;
   final bool keyboardOpen;
+  final int maxChars;
+  final int maxWords;
   final VoidCallback onChanged;
 
   @override
@@ -984,7 +1034,7 @@ class _PlateHintField extends StatelessWidget {
     final wordCount = empty
         ? 0
         : text.split(RegExp(r'\s+')).where((word) => word.isNotEmpty).length;
-    final overLimit = wordCount > 50;
+    final overLimit = wordCount > maxWords || text.length > maxChars;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -995,7 +1045,7 @@ class _PlateHintField extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
-                maxLength: 280,
+                maxLength: maxChars,
                 minLines: keyboardOpen
                     ? 2
                     : compact
@@ -1050,7 +1100,7 @@ class _PlateHintField extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '$wordCount/ 50 words',
+              '$wordCount/ $maxWords words',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: overLimit ? colors.accentText : colors.textSecondary,
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -1071,11 +1121,13 @@ class _CaptureComposerPanel extends StatelessWidget {
     required this.activeSource,
     required this.prepared,
     required this.canAnalyze,
+    required this.canDescribe,
     required this.notice,
     required this.onChanged,
     required this.onCamera,
     required this.onGallery,
     required this.onAnalyze,
+    required this.onDescribe,
   });
 
   final TextEditingController controller;
@@ -1084,11 +1136,13 @@ class _CaptureComposerPanel extends StatelessWidget {
   final _CaptureSource? activeSource;
   final bool prepared;
   final bool canAnalyze;
+  final bool canDescribe;
   final String? notice;
   final VoidCallback onChanged;
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback onAnalyze;
+  final VoidCallback onDescribe;
 
   @override
   Widget build(BuildContext context) {
@@ -1102,6 +1156,10 @@ class _CaptureComposerPanel extends StatelessWidget {
             controller: controller,
             compact: compact,
             keyboardOpen: keyboardOpen,
+            // Without a photo the note may become the whole meal, so it gets
+            // the room a described meal is allowed.
+            maxChars: prepared ? _photoNoteMaxChars : _describedMealMaxChars,
+            maxWords: prepared ? _photoNoteMaxWords : _describedMealMaxWords,
             onChanged: onChanged,
           ),
           AnimatedSwitcher(
@@ -1117,10 +1175,12 @@ class _CaptureComposerPanel extends StatelessWidget {
             activeSource: activeSource,
             prepared: prepared,
             canAnalyze: canAnalyze,
+            canDescribe: canDescribe,
             compact: compact,
             onCamera: onCamera,
             onGallery: onGallery,
             onAnalyze: onAnalyze,
+            onDescribe: onDescribe,
           ),
         ],
       ),
@@ -1171,19 +1231,23 @@ class _CaptureActionBar extends StatelessWidget {
     required this.activeSource,
     required this.prepared,
     required this.canAnalyze,
+    required this.canDescribe,
     required this.compact,
     required this.onCamera,
     required this.onGallery,
     required this.onAnalyze,
+    required this.onDescribe,
   });
 
   final _CaptureSource? activeSource;
   final bool prepared;
   final bool canAnalyze;
+  final bool canDescribe;
   final bool compact;
   final VoidCallback onCamera;
   final VoidCallback onGallery;
   final VoidCallback onAnalyze;
+  final VoidCallback onDescribe;
 
   @override
   Widget build(BuildContext context) {
@@ -1249,34 +1313,62 @@ class _CaptureActionBar extends StatelessWidget {
                 ),
               ],
             )
-          : Row(
+          : Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: _CaptureButton(
-                    label: 'Take Photo',
-                    icon: const PrimitiveCameraIcon(size: 22),
-                    primary: true,
-                    loading: activeSource == _CaptureSource.camera,
-                    disabled: disabled && activeSource != _CaptureSource.camera,
-                    onTap: onCamera,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _CaptureButton(
-                    label: 'Gallery',
-                    icon: Icon(
-                      Icons.photo_library_rounded,
-                      color: colors.textPrimary,
-                      size: 21,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _CaptureButton(
+                        label: 'Take Photo',
+                        icon: const PrimitiveCameraIcon(size: 22),
+                        primary: true,
+                        loading: activeSource == _CaptureSource.camera,
+                        disabled:
+                            disabled && activeSource != _CaptureSource.camera,
+                        onTap: onCamera,
+                      ),
                     ),
-                    primary: false,
-                    loading: activeSource == _CaptureSource.gallery,
-                    disabled:
-                        disabled && activeSource != _CaptureSource.gallery,
-                    onTap: onGallery,
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _CaptureButton(
+                        label: 'Gallery',
+                        icon: Icon(
+                          Icons.photo_library_rounded,
+                          color: colors.textPrimary,
+                          size: 21,
+                        ),
+                        primary: false,
+                        loading: activeSource == _CaptureSource.gallery,
+                        disabled:
+                            disabled && activeSource != _CaptureSource.gallery,
+                        onTap: onGallery,
+                      ),
+                    ),
+                  ],
                 ),
+                // Appears once there is a note to log from, so the photo
+                // buttons stay the obvious first choice on an empty screen.
+                if (canDescribe) ...[
+                  SizedBox(height: compact ? 6 : 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _CaptureButton(
+                      key: const ValueKey('log-from-note'),
+                      label: 'Log from note, no photo',
+                      icon: Icon(
+                        Icons.edit_note_rounded,
+                        color: colors.textPrimary,
+                        size: 20,
+                      ),
+                      primary: false,
+                      loading: false,
+                      disabled: disabled,
+                      height: compact ? 42 : 44,
+                      onTap: onDescribe,
+                    ),
+                  ),
+                ],
               ],
             ),
     );
@@ -1285,6 +1377,7 @@ class _CaptureActionBar extends StatelessWidget {
 
 class _CaptureButton extends StatelessWidget {
   const _CaptureButton({
+    super.key,
     required this.label,
     required this.icon,
     required this.primary,
@@ -1512,7 +1605,9 @@ class _ModeTab extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(LogMyPlateSpacing.pillBorderRadius),
+          borderRadius: BorderRadius.circular(
+            LogMyPlateSpacing.pillBorderRadius,
+          ),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: 44,
@@ -1545,7 +1640,9 @@ class _ModeTab extends StatelessWidget {
                     label,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: selected ? colors.accentText : colors.textSecondary,
+                      color: selected
+                          ? colors.accentText
+                          : colors.textSecondary,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                       letterSpacing: 0,
                     ),
@@ -1699,11 +1796,12 @@ class _BarcodeScannerView extends StatelessWidget {
                                     const SizedBox(height: 12),
                                     Text(
                                       'Camera preview unavailable',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium?.copyWith(
-                                        color: colors.textSecondary,
-                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: colors.textSecondary,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -1897,14 +1995,9 @@ class _BarcodeFailureActions extends StatelessWidget {
         Icons.lock_open_rounded,
         () => unawaited(scanCreditAction()),
       ),
-      _BarcodeLookupFailureKind.quota ||
-      _BarcodeLookupFailureKind.transient => (
-        'Try again',
-        Icons.refresh_rounded,
-        onRetry,
-      ),
-      _BarcodeLookupFailureKind.notFound ||
-      _BarcodeLookupFailureKind.limit => (
+      _BarcodeLookupFailureKind.quota || _BarcodeLookupFailureKind.transient =>
+        ('Try again', Icons.refresh_rounded, onRetry),
+      _BarcodeLookupFailureKind.notFound || _BarcodeLookupFailureKind.limit => (
         'Scan again',
         Icons.qr_code_scanner_rounded,
         onScanAgain,
@@ -2129,9 +2222,9 @@ class _ManualBarcodeDialogState extends State<_ManualBarcodeDialog> {
       ),
       title: Text(
         'Enter barcode',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: colors.textPrimary,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2139,9 +2232,9 @@ class _ManualBarcodeDialogState extends State<_ManualBarcodeDialog> {
         children: [
           Text(
             'Type the numbers printed below the barcode on the package (e.g. 737628064500).',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: colors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -2191,4 +2284,3 @@ class _ManualBarcodeDialogState extends State<_ManualBarcodeDialog> {
     );
   }
 }
-

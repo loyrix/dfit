@@ -171,7 +171,7 @@ class TodayScreen extends StatelessWidget {
                         onSetTarget: onSetTarget,
                       ),
                       const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                      MacroBarGroup(totals: totals),
+                      MacroBarGroup(totals: totals, target: target),
                       if (weeklyRange != null) ...[
                         const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                         _WeeklyRhythmCard(

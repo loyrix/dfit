@@ -10,7 +10,9 @@ import {
 import { estimateGeminiCostUsd } from "./ai-pricing.js";
 import {
   buildFoodPhotoPrompt,
+  buildFoodTextPrompt,
   foodPhotoPromptVersion,
+  foodTextPromptVersion,
   foodPhotoResponseSchema,
   foodPhotoSchemaVersion,
   mapFoodPhotoAnalysisToScan,
@@ -34,6 +36,12 @@ export type VertexAiProviderOptions = {
   thinkingBudget?: number;
   promptTemplate?: string;
   promptVersion?: string;
+  /**
+   * The prompt for a meal described in words. Kept apart from `promptTemplate`
+   * so a configured photo prompt can never be applied to a text-only request.
+   */
+  textPromptTemplate?: string;
+  textPromptVersion?: string;
   client?: VertexGenerateClient;
   sleepFn?: (ms: number) => Promise<void>;
 };
@@ -86,16 +94,22 @@ export class VertexAiProvider implements AiProvider {
   }
 
   async analyzeMealImage(input: AnalyzeMealImageInput): Promise<AnalyzeMealImageResult> {
-    if (!input.image) {
+    const description = input.userHint?.trim();
+    if (!input.image && !description) {
       throw new AiProviderError(
         "invalid_scan_image",
-        "A food photo is required for Vertex AI analysis.",
+        "A food photo or a meal description is required for Vertex AI analysis.",
         400,
         false,
       );
     }
 
     const startedAt = Date.now();
+    // Threaded into the run metadata so a failed text run is not recorded
+    // against the photo prompt.
+    const promptVersion = input.image
+      ? (this.options.promptVersion ?? foodPhotoPromptVersion)
+      : (this.options.textPromptVersion ?? foodTextPromptVersion);
 
     try {
       const response = await this.generateWithRetries({
@@ -103,21 +117,33 @@ export class VertexAiProvider implements AiProvider {
         contents: [
           {
             role: "user",
-            parts: [
-              {
-                text: buildFoodPhotoPrompt(
-                  input.userHint,
-                  this.options.promptTemplate,
-                  input.userProfile,
-                ),
-              },
-              {
-                inlineData: {
-                  mimeType: input.image.mimeType,
-                  data: input.image.base64,
-                },
-              },
-            ],
+            // No photo means the description is the meal, and it gets the
+            // prompt written for that rather than the visible-only one.
+            parts: input.image
+              ? [
+                  {
+                    text: buildFoodPhotoPrompt(
+                      input.userHint,
+                      this.options.promptTemplate,
+                      input.userProfile,
+                    ),
+                  },
+                  {
+                    inlineData: {
+                      mimeType: input.image.mimeType,
+                      data: input.image.base64,
+                    },
+                  },
+                ]
+              : [
+                  {
+                    text: buildFoodTextPrompt(
+                      description ?? "",
+                      this.options.textPromptTemplate,
+                      input.userProfile,
+                    ),
+                  },
+                ],
           },
         ],
         config: {
@@ -138,7 +164,7 @@ export class VertexAiProvider implements AiProvider {
           "Vertex AI returned an empty analysis.",
           502,
           true,
-          { run: this.failedRun(startedAt) },
+          { run: this.failedRun(startedAt, promptVersion) },
         );
       }
 
@@ -155,7 +181,7 @@ export class VertexAiProvider implements AiProvider {
             true,
             {
               cause: error,
-              run: this.failedRun(startedAt),
+              run: this.failedRun(startedAt, promptVersion),
               details: {
                 rawTextPreview: previewText(text),
                 issues: error instanceof z.ZodError ? error.issues : undefined,
@@ -171,7 +197,7 @@ export class VertexAiProvider implements AiProvider {
         providerRun: {
           provider: "vertex-ai",
           model: this.options.model,
-          promptVersion: this.options.promptVersion ?? foodPhotoPromptVersion,
+          promptVersion,
           schemaVersion: foodPhotoSchemaVersion,
           latencyMs: Date.now() - startedAt,
           inputTokenEstimate: response.usageMetadata?.promptTokenCount,
@@ -188,7 +214,8 @@ export class VertexAiProvider implements AiProvider {
         },
       };
     } catch (error) {
-      if (error instanceof AiProviderError) throw this.withRunMetadata(error, startedAt);
+      if (error instanceof AiProviderError)
+        throw this.withRunMetadata(error, startedAt, promptVersion);
       if (error instanceof z.ZodError || error instanceof SyntaxError) {
         throw new AiProviderError(
           "ai_provider_invalid_response",
@@ -207,31 +234,35 @@ export class VertexAiProvider implements AiProvider {
         );
       }
       const upstreamError = toVertexUpstreamProviderError(error);
-      if (upstreamError) throw this.withRunMetadata(upstreamError, startedAt);
+      if (upstreamError) throw this.withRunMetadata(upstreamError, startedAt, promptVersion);
       throw new AiProviderError("ai_provider_failed", "Vertex AI analysis failed.", 502, true, {
         cause: error,
-        run: this.failedRun(startedAt),
+        run: this.failedRun(startedAt, promptVersion),
       });
     }
   }
 
   /** Which model and prompt a failed call used, so the route can record it. */
-  private failedRun(startedAt: number): FailedRunMetadata {
+  private failedRun(startedAt: number, promptVersion: string): FailedRunMetadata {
     return {
       provider: "vertex-ai",
       model: this.options.model,
-      promptVersion: this.options.promptVersion ?? foodPhotoPromptVersion,
+      promptVersion,
       schemaVersion: foodPhotoSchemaVersion,
       latencyMs: Date.now() - startedAt,
     };
   }
 
-  private withRunMetadata(error: AiProviderError, startedAt: number): AiProviderError {
+  private withRunMetadata(
+    error: AiProviderError,
+    startedAt: number,
+    promptVersion: string,
+  ): AiProviderError {
     if (error.run) return error;
     return new AiProviderError(error.code, error.message, error.statusCode, error.retryable, {
       cause: error.cause,
       details: error.details,
-      run: this.failedRun(startedAt),
+      run: this.failedRun(startedAt, promptVersion),
     });
   }
 

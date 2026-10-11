@@ -3,6 +3,8 @@ import {
   applyConditionAdjustment,
   averageQualityScore,
   calculateFoodQuality,
+  explainFoodQuality,
+  type FoodQualityInput,
 } from "./food-quality.js";
 
 const score = (input: Parameters<typeof calculateFoodQuality>[0]) =>
@@ -365,5 +367,113 @@ describe("applyConditionAdjustment", () => {
         expect(result.score).toBeGreaterThanOrEqual(0);
       }
     }
+  });
+});
+
+describe("explainFoodQuality", () => {
+  const explain = (
+    food: FoodQualityInput,
+    options: { conditions?: Parameters<typeof applyConditionAdjustment>[2]; missed?: boolean } = {},
+  ) => {
+    const breakdown = calculateFoodQuality(food)!;
+    return explainFoodQuality(breakdown, food, {
+      adjusted: applyConditionAdjustment(breakdown, food, options.conditions ?? []),
+      includeMissed: options.missed ?? false,
+    });
+  };
+  const codes = (reasons: ReturnType<typeof explain>) => reasons.map((reason) => reason.code);
+
+  const grilledChicken: FoodQualityInput = {
+    calories: 248,
+    proteinG: 46,
+    carbsG: 0,
+    fatG: 5.4,
+    fiberG: 0,
+    sugarG: 0,
+    sodiumMg: 111,
+    grams: 150,
+    cookingMethod: "grilled",
+  };
+  const cola: FoodQualityInput = {
+    calories: 140,
+    proteinG: 0,
+    carbsG: 39,
+    fatG: 0,
+    fiberG: 0,
+    sugarG: 39,
+    sodiumMg: 45,
+    grams: 355,
+  };
+  const friedSnack: FoodQualityInput = {
+    calories: 540,
+    proteinG: 6,
+    carbsG: 52,
+    fatG: 34,
+    fiberG: 2,
+    sugarG: 3,
+    // Sodium is judged per 100 kcal, so a dense snack needs a lot to count.
+    sodiumMg: 2200,
+    grams: 100,
+    cookingMethod: "fried",
+  };
+
+  it("names what lifted a good food", () => {
+    const reasons = explain(grilledChicken);
+    expect(codes(reasons)).toContain("good_protein");
+    expect(codes(reasons)).toContain("light_cooking");
+    expect(reasons.every((reason) => reason.tone === "good")).toBe(true);
+  });
+
+  it("names what held a poor food back", () => {
+    const reasons = explain(friedSnack, { missed: true });
+    expect(codes(reasons)).toEqual(
+      expect.arrayContaining(["dense_energy", "high_sodium", "heavy_cooking"]),
+    );
+  });
+
+  it("calls sugar with nothing alongside it what it is, once", () => {
+    const reasons = codes(explain(cola, { missed: true }));
+    expect(reasons).toContain("empty_calories");
+    // The same sugar must not be reported as two separate problems.
+    expect(reasons).not.toContain("high_sugar");
+  });
+
+  it("never quotes a number", () => {
+    for (const food of [grilledChicken, cola, friedSnack]) {
+      for (const reason of explain(food, { missed: true, conditions: ["diabetes"] })) {
+        expect(reason.text).not.toMatch(/\d/);
+      }
+    }
+  });
+
+  it("only mentions what a food lacks when asked to", () => {
+    const orange: FoodQualityInput = {
+      calories: 47,
+      proteinG: 0.7,
+      carbsG: 12,
+      fatG: 0.2,
+      grams: 88,
+    };
+    // A top-rated fruit is not helped by "not much protein".
+    expect(codes(explain(orange))).not.toContain("low_protein");
+    expect(codes(explain(orange, { missed: true }))).toContain("low_protein");
+  });
+
+  it("does not call an unmeasured food low in fiber", () => {
+    const unmeasured: FoodQualityInput = { calories: 300, proteinG: 5, carbsG: 60, fatG: 4 };
+    expect(codes(explain(unmeasured, { missed: true }))).not.toContain("low_fiber");
+  });
+
+  it("says so when the user's health focus lowered the rating", () => {
+    const withFocus = explain(cola, { conditions: ["diabetes"] });
+    const focus = withFocus.find((reason) => reason.code === "health_focus");
+    expect(focus).toMatchObject({ tone: "watch", personalised: true });
+    expect(focus?.text).toContain("diabetes or prediabetes");
+
+    expect(codes(explain(cola))).not.toContain("health_focus");
+    // A condition that did not move this food's score is not mentioned.
+    expect(codes(explain(grilledChicken, { conditions: ["diabetes"] }))).not.toContain(
+      "health_focus",
+    );
   });
 });

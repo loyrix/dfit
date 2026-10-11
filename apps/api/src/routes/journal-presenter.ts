@@ -2,6 +2,7 @@ import {
   calculatePlateScore,
   defaultPlateScorePolicy,
   detectPlateWarnings,
+  macroGramTargets,
   sumTotals,
   type PlateScorePolicy,
   type PlateScoreProfile,
@@ -167,15 +168,26 @@ const dailyAverage = (totals: ReturnType<typeof sumTotals>, days: number) => ({
   sodiumMg: Math.round((totals.sodiumMg ?? 0) / days),
 });
 
-const dailyCalorieTarget = (healthTarget?: ProfileHealthTarget) =>
-  healthTarget
-    ? {
-        calories: healthTarget.dailyCalorieTarget,
-        proteinG: 0,
-        carbsG: 0,
-        fatG: 0,
-      }
-    : undefined;
+/**
+ * The day's calorie target with its macro split in grams.
+ *
+ * The grams are the split applied to the stored calorie target, so they always
+ * agree with the calorie figure beside them. They fall back to zero, which
+ * clients read as "no macro target", if the split cannot be derived.
+ */
+const dailyCalorieTarget = (healthTarget?: ProfileHealthTarget) => {
+  if (!healthTarget) return undefined;
+  const centers = toMacroTargets(healthTarget)?.centers;
+  const grams = centers
+    ? macroGramTargets(centers, healthTarget.dailyCalorieTarget)
+    : { proteinG: 0, carbsG: 0, fatG: 0 };
+  return {
+    calories: healthTarget.dailyCalorieTarget,
+    proteinG: grams.proteinG,
+    carbsG: grams.carbsG,
+    fatG: grams.fatG,
+  };
+};
 
 /**
  * `undefined` means "not supplied, go and load it"; `null` means "this user has

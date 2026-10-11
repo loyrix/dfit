@@ -96,6 +96,120 @@ describe("VertexAiProvider", () => {
     expect(prompt).toContain('Return mealName "No food detected" and items [] ONLY');
   });
 
+  const describedMealResponse = {
+    text: JSON.stringify({
+      mealType: "lunch",
+      mealName: "Roti and dal",
+      detectedLanguage: "en-IN",
+      items: [
+        {
+          name: "Roti",
+          aliases: ["chapati"],
+          quantity: 2,
+          unit: "roti",
+          estimatedGrams: 60,
+          preparation: "home",
+          confidence: 0.8,
+          nutrition: { calories: 160, proteinG: 5, carbsG: 32, fatG: 2 },
+        },
+      ],
+    }),
+    usageMetadata: { promptTokenCount: 90, candidatesTokenCount: 40 },
+  };
+
+  it("analyzes a meal described in words, with no photo", async () => {
+    let requestBody: unknown;
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      // A configured photo prompt must never be applied to a described meal.
+      promptTemplate: "PHOTO PROMPT {{USER_HINT_BLOCK}}",
+      promptVersion: "food_photo_IN:custom",
+      client: {
+        models: {
+          generateContent: async (params) => {
+            requestBody = params;
+            return describedMealResponse;
+          },
+        },
+      },
+    });
+
+    const result = await provider.analyzeMealImage({
+      scanId: "scan-text",
+      userHint: "2 rotis and a bowl of dal",
+    });
+
+    expect(result.analysis).toMatchObject({ mealName: "Roti and dal", status: "ready_for_review" });
+    expect(result.providerRun.promptVersion).toBe("gemini_food_text_v1");
+
+    const parts = (requestBody as { contents: Array<{ parts: Array<{ text?: string }> }> })
+      .contents[0]?.parts;
+    // Text only: no image part is sent.
+    expect(parts).toHaveLength(1);
+    expect(parts?.[0]?.text).toContain('"2 rotis and a bowl of dal"');
+    expect(parts?.[0]?.text).toContain("Log ONLY the foods and drinks the description names");
+    expect(parts?.[0]?.text).not.toContain("PHOTO PROMPT");
+    expect(parts?.[0]?.text).not.toContain("actually visible in the image");
+  });
+
+  it("uses a runtime text prompt when one is supplied", async () => {
+    let requestBody: unknown;
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      textPromptTemplate: "TEXT PROMPT\n{{MEAL_DESCRIPTION_BLOCK}}",
+      textPromptVersion: "food_text:custom_v2",
+      client: {
+        models: {
+          generateContent: async (params) => {
+            requestBody = params;
+            return describedMealResponse;
+          },
+        },
+      },
+    });
+
+    const result = await provider.analyzeMealImage({ scanId: "scan-text", userHint: "an apple" });
+
+    expect(result.providerRun.promptVersion).toBe("food_text:custom_v2");
+    const prompt = (requestBody as { contents: Array<{ parts: Array<{ text?: string }> }> })
+      .contents[0]?.parts[0]?.text;
+    expect(prompt).toContain("TEXT PROMPT");
+    expect(prompt).toContain('"an apple"');
+  });
+
+  it("refuses a request with neither a photo nor a description", async () => {
+    const provider = new VertexAiProvider({
+      project: "logmyplate-ai",
+      location: "asia-south1",
+      model: "gemini-2.5-flash",
+      credentialsJsonBase64: "unused-by-injected-client",
+      timeoutMs: 1_000,
+      maxOutputTokens: 3_072,
+      client: {
+        models: {
+          generateContent: async () => {
+            throw new Error("must not be called");
+          },
+        },
+      },
+    });
+
+    await expect(provider.analyzeMealImage({ scanId: "scan-empty" })).rejects.toMatchObject({
+      code: "invalid_scan_image",
+      statusCode: 400,
+    });
+  });
+
   it("retries transient Vertex AI failures", async () => {
     let calls = 0;
     const provider = new VertexAiProvider({

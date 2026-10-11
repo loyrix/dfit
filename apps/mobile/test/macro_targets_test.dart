@@ -84,7 +84,11 @@ void main() {
         ),
       );
 
-      expect(actual.bmi, (expected['bmi'] as num).toDouble(), reason: '$name bmi');
+      expect(
+        actual.bmi,
+        (expected['bmi'] as num).toDouble(),
+        reason: '$name bmi',
+      );
       expect(
         actual.targetDailyCalories,
         (expected['targetDailyCalories'] as num).toInt(),
@@ -158,5 +162,29 @@ void main() {
     expect(targets.centers.proteinPct, 45);
     expect(targets.customSplitApplied, isTrue);
     expect(targets.tolerance, 5);
+  });
+
+  // The same figures are asserted by packages/domain/src/macro-targets.test.ts:
+  // the target screen and the Today page must show one gram number.
+  group('macroGramsFor', () {
+    test('converts a split to whole grams', () {
+      final grams = macroGramsFor(
+        const MacroSplit(carbsPct: 50, fatPct: 25, proteinPct: 25),
+        2000,
+      );
+      expect(grams.carbsG, 250);
+      expect(grams.fatG, 56);
+      expect(grams.proteinG, 125);
+    });
+
+    test('rounds to the nearest gram', () {
+      final grams = macroGramsFor(
+        const MacroSplit(carbsPct: 45, fatPct: 30, proteinPct: 25),
+        2238,
+      );
+      expect(grams.carbsG, 252);
+      expect(grams.fatG, 75);
+      expect(grams.proteinG, 140);
+    });
   });
 }

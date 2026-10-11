@@ -6,10 +6,8 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_spacing.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
-import '../models/plate_score.dart';
-import '../widgets/plate_score_chip.dart';
-import '../widgets/plate_score_copy.dart';
-import '../widgets/plate_score_sheet.dart';
+import '../widgets/meal_rating_sheet.dart';
+import '../widgets/meal_score_row.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
@@ -76,70 +74,94 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
         .where((day) => day.mealCount > 0)
         .toList(growable: false);
 
+    final header = _JournalHeader(
+      label: '7 Day Journal',
+      title: 'Weekly summary',
+      subtitle: _rangeLabel(_range),
+      showBackButton: widget.showBackButton,
+    );
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, widget.bottomPadding),
+          child: Column(
             children: [
-              _JournalHeader(
-                label: '7 Day Journal',
-                title: 'Weekly summary',
-                subtitle: _rangeLabel(_range),
-                showBackButton: widget.showBackButton,
-              ),
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
-                _WeekSelector(
-                  range: _range,
-                  loading: _loadingWeek || _loadingAvailableWeeks,
-                  onTap: _openWeekPicker,
+              // Pinned only when there is a Back button to keep reachable; as
+              // a tab the header scrolls with the page as before.
+              if (widget.showBackButton)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: header,
                 ),
-              if (widget.isSyncing ||
-                  widget.syncMessage != null ||
-                  _loadingWeek ||
-                  _weekLoadError != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                _JournalSyncStrip(
-                  isSyncing: widget.isSyncing || _loadingWeek,
-                  message: _weekLoadError ?? widget.syncMessage,
-                  onRefresh: widget.onRefresh,
-                ),
-              ],
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              if (_range.summary.rating != null) ...[
-                WeeklyScoreCard(
-                  rating: _range.summary.rating!,
-                  trackedDays: _range.summary.activeDays,
-                ),
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              ],
-              _WeeklyJournalHero(range: _range),
-              if (widget.onOpenNutritionist != null) ...[
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                NutritionistEntryButton(
-                  isPremium: widget.isPremium,
-                  onTap: widget.onOpenNutritionist!,
-                ),
-              ],
-              const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-              _LabeledPanel(
-                label: 'Tracked Day Average',
-                child: MacroBarGroup(totals: _range.summary.trackedDayAverage),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _SectionLabel('Day Wise'),
-              const SizedBox(height: 10),
-              if (days.isEmpty)
-                const _EmptyWeekCard()
-              else
-                for (final day in days)
-                  _JournalDayRow(
-                    day: day,
-                    target: _range.target,
-                    onTap: () => _openDay(context, day),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    widget.bottomPadding,
                   ),
+                  children: [
+                    if (!widget.showBackButton) ...[
+                      header,
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    ],
+                    if (_loadingAvailableWeeks || _availableWeeks.isNotEmpty)
+                      _WeekSelector(
+                        range: _range,
+                        loading: _loadingWeek || _loadingAvailableWeeks,
+                        onTap: _openWeekPicker,
+                      ),
+                    if (widget.isSyncing ||
+                        widget.syncMessage != null ||
+                        _loadingWeek ||
+                        _weekLoadError != null) ...[
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      _JournalSyncStrip(
+                        isSyncing: widget.isSyncing || _loadingWeek,
+                        message: _weekLoadError ?? widget.syncMessage,
+                        onRefresh: widget.onRefresh,
+                      ),
+                    ],
+                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    if (_range.summary.rating != null) ...[
+                      WeeklyScoreCard(
+                        rating: _range.summary.rating!,
+                        trackedDays: _range.summary.activeDays,
+                      ),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    ],
+                    _WeeklyJournalHero(range: _range),
+                    if (widget.onOpenNutritionist != null) ...[
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      NutritionistEntryButton(
+                        isPremium: widget.isPremium,
+                        onTap: widget.onOpenNutritionist!,
+                      ),
+                    ],
+                    const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                    _LabeledPanel(
+                      label: 'Tracked Day Average',
+                      child: MacroBarGroup(
+                        totals: _range.summary.trackedDayAverage,
+                      ),
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _SectionLabel('Day Wise'),
+                    const SizedBox(height: 10),
+                    if (days.isEmpty)
+                      const _EmptyWeekCard()
+                    else
+                      for (final day in days)
+                        _JournalDayRow(
+                          day: day,
+                          target: _range.target,
+                          onTap: () => _openDay(context, day),
+                        ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -270,38 +292,52 @@ class _DayJournalDetailScreenState extends State<DayJournalDetailScreen> {
       extendBodyBehindAppBar: true,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          child: Column(
             children: [
-              _JournalHeader(
-                label: 'Day Analysis',
-                title: _dayTitle(_day.date),
-                subtitle: _mealCountLabel(_day.mealCount),
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              if (hasMeals) ...[
-                EnergyHeroCard(
-                  totals: _day.totals,
-                  mealCount: _day.mealCount,
-                  label: 'Day Energy',
-                  target: widget.target,
+              // Outside the scroll view so Back stays reachable on a long page.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _JournalHeader(
+                  label: 'Day Analysis',
+                  title: _dayTitle(_day.date),
+                  subtitle: _mealCountLabel(_day.mealCount),
                 ),
-                const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                MacroBarGroup(totals: _day.totals),
-              ] else
-                _EmptyDayOverview(day: _day),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _SectionLabel('Meals'),
-              const SizedBox(height: 10),
-              if (meals.isEmpty)
-                const _EmptyDayCard()
-              else
-                for (final meal in meals)
-                  _DayMealRow(
-                    meal: meal,
-                    onTap: () => _openMeal(context, meal),
-                    onDelete: () => _deleteMeal(context, meal),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    LogMyPlateSpacing.sectionSpacing,
+                    16,
+                    28,
                   ),
+                  children: [
+                    if (hasMeals) ...[
+                      EnergyHeroCard(
+                        totals: _day.totals,
+                        mealCount: _day.mealCount,
+                        label: 'Day Energy',
+                        target: widget.target,
+                      ),
+                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
+                      MacroBarGroup(totals: _day.totals),
+                    ] else
+                      _EmptyDayOverview(day: _day),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _SectionLabel('Meals'),
+                    const SizedBox(height: 10),
+                    if (meals.isEmpty)
+                      const _EmptyDayCard()
+                    else
+                      for (final meal in meals)
+                        _DayMealRow(
+                          meal: meal,
+                          onTap: () => _openMeal(context, meal),
+                          onDelete: () => _deleteMeal(context, meal),
+                        ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -427,19 +463,13 @@ class _DayMealRow extends StatelessWidget {
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
-                    if (meal.plateScore != null) ...[
-                      const SizedBox(height: 4),
-                      PlateScoreChip(
-                        score: meal.plateScore!,
-                        onTap: () => PlateScoreSheet.show(
-                          context,
-                          score: meal.plateScore!,
-                          mealLabel: PlateScoreMealLabel(
-                            meal.type.label.toLowerCase(),
-                          ),
-                        ),
+                    // Stars, not the Plate Score number. The number is still
+                    // computed and stored; it is just no longer shown.
+                    if (meal.rating != null)
+                      MealStarsButton(
+                        rating: meal.rating!,
+                        onTap: () => MealRatingSheet.show(context, meal: meal),
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -807,7 +837,6 @@ class _WeeklyJournalHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
     final summary = range.summary;
-    final weekScore = range.averagePlateScore;
     final activePct = summary.windowDays == 0
         ? 0.0
         : (summary.activeDays / summary.windowDays).clamp(0.0, 1.0);
@@ -849,25 +878,8 @@ class _WeeklyJournalHero extends StatelessWidget {
               ),
             ],
           ),
-          if (weekScore != null) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                PlateScoreDot(
-                  score: weekScore,
-                  band: plateScoreBandFor(weekScore, PlateScorePolicy.fallback),
-                  size: 7,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Plate score $weekScore this week',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: surface.textSecondary),
-                ),
-              ],
-            ),
-          ],
+          // The week's Plate Score number used to sit here. It is no longer
+          // shown; the weekly star card above carries the rating.
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
           _SegmentedProgress(value: activePct),
           const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
@@ -1057,7 +1069,6 @@ class _JournalDayRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final hasMeals = day.mealCount > 0;
-    final dayScore = day.averagePlateScore;
     final date = _parseDate(day.date);
     final targetCalories = target?.calories;
     final hasTarget = targetCalories != null && targetCalories > 0;
@@ -1105,16 +1116,6 @@ class _JournalDayRow extends StatelessWidget {
                                     ],
                                   ),
                             ),
-                            if (dayScore != null) ...[
-                              const SizedBox(width: 8),
-                              PlateScoreDot(
-                                score: dayScore,
-                                band: plateScoreBandFor(
-                                  dayScore,
-                                  PlateScorePolicy.fallback,
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                         const SizedBox(height: 6),

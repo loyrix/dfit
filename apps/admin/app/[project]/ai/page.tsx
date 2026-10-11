@@ -685,6 +685,7 @@ export default async function AiPage({
                   <option value="food_photo" />
                   <option value="food_photo_IN" />
                   <option value="food_photo_GLOBAL" />
+                  <option value="food_text" />
                   <option value="nutritionist_prompt" />
                   <option value="website_reference_content" />
                 </datalist>
@@ -707,7 +708,7 @@ export default async function AiPage({
                 <textarea
                   className="textarea"
                   name="body"
-                  placeholder="Prompt body. Include {{USER_HINT_BLOCK}} where the user food note should be inserted. For nutritionist_prompt, use {{CONTEXT_JSON}} to inject user context."
+                  placeholder="Prompt body. Include {{USER_HINT_BLOCK}} where the user food note should be inserted. For food_text, use {{MEAL_DESCRIPTION_BLOCK}} for the described meal. For nutritionist_prompt, use {{CONTEXT_JSON}} to inject user context."
                   minLength={100}
                   maxLength={20000}
                   required

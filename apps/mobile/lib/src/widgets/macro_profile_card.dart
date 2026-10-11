@@ -85,6 +85,15 @@ class MacroProfileCard extends StatelessWidget {
     );
   }
 
+  /// The rule-based line this card shows for [meal], for reuse where there is
+  /// no AI suggestion to offer. Null when the meal has nothing to judge.
+  static String? suggestionFor(MealLog meal) {
+    final profile = _MealMacroProfile.fromMeal(meal);
+    final hasMacros =
+        profile.proteinShare + profile.carbsShare + profile.fatShare > 0;
+    return hasMacros ? profile.focusMessage : null;
+  }
+
   static String _formatGrams(double grams) {
     return grams % 1 == 0 ? grams.toStringAsFixed(0) : grams.toStringAsFixed(1);
   }

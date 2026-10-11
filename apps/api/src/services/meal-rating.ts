@@ -5,6 +5,8 @@ import {
   calculateFoodQuality,
   calculateMacroTargets,
   dominantCookingMethod,
+  explainFoodQuality,
+  scoreToStars,
   toScoreRating,
   type CookingMethodValue,
   type HealthFocus,
@@ -161,15 +163,41 @@ export const universalMealScore = (
   }
 };
 
-/** How healthy this meal was, as stars. Reachable by opening the meal. */
+/** A day or a week is an average of meals and carries no reasons of its own. */
+const withNoReasons = <T extends object>(rating: T): T & { reasons: never[] } => ({
+  ...rating,
+  reasons: [],
+});
+
+/**
+ * How healthy this meal was, as stars, with the reasons behind them.
+ *
+ * The reasons are read from the same breakdown and the same condition
+ * adjustment the stars come from, so the explanation can never describe a
+ * different score from the one shown.
+ */
 export const mealRating = (
   items: MealScoringItem[],
   context: RatingContext,
 ): ScoreRatingContract | undefined => {
-  const score = mealQualityScore(items, context);
-  if (score === undefined) return undefined;
+  if (items.length === 0) return undefined;
   try {
-    return toScoreRating(score, "meal", { thresholds: toStarThresholds(context.policy) });
+    const food = sumForScoring(items);
+    const base = calculateFoodQuality(food, context.policy.quality);
+    if (!base) return undefined;
+    const adjusted = applyConditionAdjustment(base, food, context.healthFocus);
+    const thresholds = toStarThresholds(context.policy);
+
+    return {
+      ...toScoreRating(adjusted.score, "meal", { thresholds }),
+      reasons: explainFoodQuality(base, food, {
+        adjusted,
+        // What a meal lacks is only worth saying when the rating has room to
+        // improve; a top-rated fruit is not helped by "not much protein".
+        includeMissed: scoreToStars(adjusted.score, thresholds) <= 3,
+        policy: context.policy.quality,
+      }),
+    };
   } catch {
     return undefined;
   }
@@ -199,10 +227,12 @@ export const dailyRating = (
 ): ScoreRatingContract | undefined => {
   if (score === undefined) return undefined;
   try {
-    return toScoreRating(score, "daily", {
-      provisional: options.provisional,
-      thresholds: toStarThresholds(context.policy),
-    });
+    return withNoReasons(
+      toScoreRating(score, "daily", {
+        provisional: options.provisional,
+        thresholds: toStarThresholds(context.policy),
+      }),
+    );
   } catch {
     return undefined;
   }
@@ -222,7 +252,9 @@ export const weeklyRating = (
     const scored = dailyScores.filter((score): score is number => score !== undefined);
     const average = averageQualityScore(scored);
     if (average === undefined) return undefined;
-    return toScoreRating(average, "weekly", { thresholds: toStarThresholds(context.policy) });
+    return withNoReasons(
+      toScoreRating(average, "weekly", { thresholds: toStarThresholds(context.policy) }),
+    );
   } catch {
     return undefined;
   }

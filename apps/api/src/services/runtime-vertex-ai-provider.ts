@@ -8,6 +8,7 @@ import {
 } from "./ai-provider.js";
 import { loadAiScanConfig } from "./ai-scan-config.js";
 import { foodPhotoPromptKey } from "./food-photo-prompt-routing.js";
+import { foodTextPromptKey } from "./gemini-ai-provider.js";
 import { VertexAiProvider } from "./vertex-ai-provider.js";
 
 type AiModelConfigRow = {
@@ -44,7 +45,12 @@ export class RuntimeVertexAiProvider implements AiProvider {
   ) {}
 
   async analyzeMealImage(input: AnalyzeMealImageInput): Promise<AnalyzeMealImageResult> {
-    const runtime = await this.loadSettings(input.promptKey);
+    // A described meal has its own prompt key and must never fall back to a
+    // photo prompt, which would reject it for having nothing visible.
+    const textOnly = !input.image;
+    const runtime = textOnly
+      ? await this.loadSettings(foodTextPromptKey, foodTextPromptKey)
+      : await this.loadSettings(input.promptKey);
 
     if (runtime.modelFamily !== "gemini") {
       throw new AiProviderError(
@@ -62,12 +68,17 @@ export class RuntimeVertexAiProvider implements AiProvider {
       temperature: runtime.temperature,
       topP: runtime.topP,
       thinkingBudget: runtime.thinkingBudget,
-      promptTemplate: runtime.promptTemplate,
-      promptVersion: runtime.promptVersion,
+      promptTemplate: textOnly ? undefined : runtime.promptTemplate,
+      promptVersion: textOnly ? undefined : runtime.promptVersion,
+      textPromptTemplate: textOnly ? runtime.promptTemplate : undefined,
+      textPromptVersion: textOnly ? runtime.promptVersion : undefined,
     }).analyzeMealImage(input);
   }
 
-  private async loadSettings(promptKey = foodPhotoPromptKey): Promise<RuntimeVertexSettings> {
+  private async loadSettings(
+    promptKey: string = foodPhotoPromptKey,
+    fallbackKey: string = foodPhotoPromptKey,
+  ): Promise<RuntimeVertexSettings> {
     // The three lookups are independent; run them concurrently. A scan-config
     // failure falls back to the provider default instead of blocking the scan.
     const [modelRows, promptRows, scanConfig] = await Promise.all([
@@ -89,7 +100,7 @@ export class RuntimeVertexAiProvider implements AiProvider {
       this.sql<AiPromptVersionRow[]>`
         select key, version, body
         from ai_prompt_versions
-        where (key = ${promptKey} or key = ${foodPhotoPromptKey})
+        where (key = ${promptKey} or key = ${fallbackKey})
           and status = 'published'
           and is_active
         order by

@@ -435,8 +435,11 @@ class LogMyPlateApiClient {
     required String scanId,
     required String idempotencyKey,
     CapturedMealPhoto? photo,
+    String? description,
   }) async {
-    final hint = photo?.userHint?.trim();
+    // With no photo the description is the meal; with one, the note is a clue.
+    // Both travel as `hint`, which is what the API already accepts.
+    final hint = (description ?? photo?.userHint)?.trim();
     final response = await _httpClient.post(
       Uri.parse('$baseUrl/v1/scans/$scanId/analyze'),
       headers: await _headers(

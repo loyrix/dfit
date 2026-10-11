@@ -29,60 +29,82 @@ class SettingsScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       body: GlassBackdrop(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const BackMark(),
-                  ),
-                  const Spacer(),
-                ],
+              // Outside the scroll view so Back stays reachable on a long page.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const BackMark(),
+                    ),
+                    const Spacer(),
+                  ],
+                ),
               ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              Text('Settings', style: Theme.of(context).textTheme.displayLarge),
-              const SizedBox(height: LogMyPlateSpacing.lgSpacing),
-              _AccountCard(session: session, onTap: onOpenAccount),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _SettingsSection(
-                title: 'Theme',
-                children: [
-                  _ThemeOption(
-                    label: 'System',
-                    selected: themeMode == ThemeMode.system,
-                    onTap: () => onThemeChanged(ThemeMode.system),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    LogMyPlateSpacing.sectionSpacing,
+                    16,
+                    24,
                   ),
-                  _ThemeOption(
-                    label: 'Light',
-                    selected: themeMode == ThemeMode.light,
-                    onTap: () => onThemeChanged(ThemeMode.light),
-                  ),
-                  _ThemeOption(
-                    label: 'Dark',
-                    selected: themeMode == ThemeMode.dark,
-                    onTap: () => onThemeChanged(ThemeMode.dark),
-                  ),
-                ],
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _SettingsSection(
-                title: 'Privacy',
-                children: const [
-                  _StaticRow(label: 'Food photos are saved with meal logs'),
-                  _StaticRow(label: 'Nutrition estimates are approximate'),
-                  _StaticRow(label: 'Anonymous journal on this device'),
-                ],
-              ),
-              const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-              _SettingsSection(
-                title: 'Data & Attributions',
-                children: const [
-                  _StaticRow(
-                    label: 'Packaged food data provided by Open Food Facts (ODbL)',
-                  ),
-                ],
+                  children: [
+                    Text(
+                      'Settings',
+                      style: Theme.of(context).textTheme.displayLarge,
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.lgSpacing),
+                    _AccountCard(session: session, onTap: onOpenAccount),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _SettingsSection(
+                      title: 'Theme',
+                      children: [
+                        _ThemeOption(
+                          label: 'System',
+                          selected: themeMode == ThemeMode.system,
+                          onTap: () => onThemeChanged(ThemeMode.system),
+                        ),
+                        _ThemeOption(
+                          label: 'Light',
+                          selected: themeMode == ThemeMode.light,
+                          onTap: () => onThemeChanged(ThemeMode.light),
+                        ),
+                        _ThemeOption(
+                          label: 'Dark',
+                          selected: themeMode == ThemeMode.dark,
+                          onTap: () => onThemeChanged(ThemeMode.dark),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _SettingsSection(
+                      title: 'Privacy',
+                      children: const [
+                        _StaticRow(
+                          label: 'Food photos are saved with meal logs',
+                        ),
+                        _StaticRow(
+                          label: 'Nutrition estimates are approximate',
+                        ),
+                        _StaticRow(label: 'Anonymous journal on this device'),
+                      ],
+                    ),
+                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
+                    _SettingsSection(
+                      title: 'Data & Attributions',
+                      children: const [
+                        _StaticRow(
+                          label:
+                              'Packaged food data provided by Open Food Facts (ODbL)',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

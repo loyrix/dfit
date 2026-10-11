@@ -21,10 +21,29 @@ export const scoreStarsSchema = z.number().int().min(1).max(5);
 /** Where the rating came from. Drives the copy, and where it may be shown. */
 export const scoreLevelSchema = z.enum(["meal", "daily", "weekly"]);
 
+/**
+ * One plain-language line behind a rating: what lifted it or held it back.
+ *
+ * Words only, for the same reason the score itself stays off the wire. `code`
+ * identifies the factor for analytics and tests; clients render `text`.
+ */
+export const scoreReasonSchema = z.object({
+  tone: z.enum(["good", "watch"]),
+  code: z.string().min(1),
+  text: z.string().min(1),
+  /** True when the user's own health focus is what made this count. */
+  personalised: z.boolean().default(false),
+});
+
 export const scoreRatingSchema = z.object({
   stars: scoreStarsSchema,
   message: z.string().min(1),
   level: scoreLevelSchema,
+  /**
+   * Why the rating came out as it did. Sent for meals only, and defaulted so a
+   * response without it, and a client that predates it, both stay valid.
+   */
+  reasons: z.array(scoreReasonSchema).max(8).default([]),
   /**
    * True while a day is still in progress. The app uses this to frame the card
    * as live rather than final — a user who has logged only breakfast is not
@@ -35,6 +54,7 @@ export const scoreRatingSchema = z.object({
 
 export type ScoreStarsContract = z.infer<typeof scoreStarsSchema>;
 export type ScoreLevelContract = z.infer<typeof scoreLevelSchema>;
+export type ScoreReasonContract = z.infer<typeof scoreReasonSchema>;
 export type ScoreRatingContract = z.infer<typeof scoreRatingSchema>;
 
 /**

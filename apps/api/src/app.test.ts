@@ -863,6 +863,90 @@ describe("LogMyPlate API", () => {
     await app.close();
   });
 
+  it("analyzes and confirms a meal described in words, with no photo", async () => {
+    const app = await testApp();
+    const before = (await app.inject({ method: "GET", url: "/v1/quota" })).json();
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "text-prepare" },
+    });
+    const scanId = prepared.json().scanId as string;
+
+    // Longer than a photo note is allowed to be, which is the point: with no
+    // photo the text is the whole meal.
+    const description =
+      "For lunch I had two medium rotis with ghee, one katori of yellow dal tadka, a small " +
+      "bowl of steamed basmati rice, a serving of mixed vegetable sabzi cooked in mustard oil, " +
+      "a cucumber and tomato salad with lemon, and a glass of salted buttermilk after the meal " +
+      "with a few roasted peanuts on the side.";
+    expect(description.length).toBeGreaterThan(280);
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/analyze`,
+      headers: { "idempotency-key": "text-analyze" },
+      payload: { hint: description },
+    });
+    expect(analyzed.statusCode).toBe(200);
+    expect(analyzed.json()).toMatchObject({ status: "ready_for_review", imageStored: false });
+    expect(analyzed.json().items.length).toBeGreaterThan(0);
+
+    // Costs a scan credit exactly as a photo does.
+    const after = (await app.inject({ method: "GET", url: "/v1/quota" })).json();
+    expect(after.freeRemaining).toBe(before.freeRemaining - 1);
+
+    const analysis = analyzed.json();
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${scanId}/confirm`,
+      headers: { "idempotency-key": "text-confirm" },
+      payload: {
+        mealType: analysis.mealType,
+        title: analysis.mealName,
+        items: analysis.items.map(
+          (item: {
+            name: string;
+            quantity: number;
+            unit: string;
+            estimatedGrams: number;
+            nutrition: unknown;
+          }) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            estimatedGrams: item.estimatedGrams,
+            nutrition: item.nutrition,
+          }),
+        ),
+      },
+    });
+    expect(confirmed.statusCode).toBe(201);
+    expect(confirmed.json().meal.image).toBeUndefined();
+    await app.close();
+  });
+
+  it("holds a note sent with a photo to the shorter limit", async () => {
+    const app = await testApp();
+    const prepared = await app.inject({
+      method: "POST",
+      url: "/v1/scans/prepare",
+      headers: { "idempotency-key": "long-note-prepare" },
+    });
+
+    const analyzed = await app.inject({
+      method: "POST",
+      url: `/v1/scans/${prepared.json().scanId}/analyze`,
+      headers: { "idempotency-key": "long-note-analyze" },
+      payload: {
+        hint: "a".repeat(281),
+        image: { mimeType: "image/jpeg", base64: "AQID", byteSize: 3 },
+      },
+    });
+    expect(analyzed.statusCode).toBe(400);
+    await app.close();
+  });
+
   it("records no corrections when the user confirms the AI analysis unchanged", async () => {
     const repository = new InMemoryStore();
     const app = await testApp({ repository });
@@ -2244,11 +2328,18 @@ describe("LogMyPlate API", () => {
     expect(bootstrap.json().healthTarget).toMatchObject({
       dailyCalorieTarget: 2238,
     });
+    // Light activity and maintain give a 45/30/25 carb/fat/protein split.
     expect(bootstrap.json().today.target).toMatchObject({
       calories: 2238,
+      carbsG: 252,
+      fatG: 75,
+      proteinG: 140,
     });
     expect(bootstrap.json().weeklySummary.target).toMatchObject({
       calories: 2238,
+      carbsG: 252,
+      fatG: 75,
+      proteinG: 140,
     });
     await app.close();
   });
@@ -4423,6 +4514,18 @@ describe("LogMyPlate API", () => {
       expect(confirmed.meal.rating.level).toBe("meal");
       expect(confirmed.meal.rating).not.toHaveProperty("score");
 
+      // The explanation behind the stars travels as words only.
+      const reasons = confirmed.meal.rating.reasons as Array<{
+        tone: string;
+        code: string;
+        text: string;
+      }>;
+      expect(reasons.length).toBeGreaterThan(0);
+      for (const reason of reasons) {
+        expect(["good", "watch"]).toContain(reason.tone);
+        expect(reason.text).not.toMatch(/\d/);
+      }
+
       const meal = await app.inject({
         method: "GET",
         url: `/v1/meals/${confirmed.mealId}`,
@@ -4459,6 +4562,8 @@ describe("LogMyPlate API", () => {
       const summary = range.json().summary;
       expect(summary.rating.level).toBe("weekly");
       expect(summary.rating).not.toHaveProperty("score");
+      // A week is an average of meals and has no reasons of its own.
+      expect(summary.rating.reasons).toEqual([]);
 
       const days = range.json().days;
       const rated = days.filter((day: { rating?: unknown }) => day.rating);

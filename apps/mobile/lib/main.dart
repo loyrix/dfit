@@ -65,7 +65,7 @@ void main() {
 
       await LogMyPlateAdConfig.detectInstallSource();
       LogMyPlateAdConfig.validateForCurrentBuild();
-      
+
       runApp(const LogMyPlateApp());
 
       if (kDebugMode) {

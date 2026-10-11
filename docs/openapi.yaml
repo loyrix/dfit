@@ -1186,10 +1186,11 @@ paths:
       tags: [Scans]
       summary: Analyze scan
       description: |
-        Runs food-photo analysis for a prepared scan. The caller may include a short human hint
-        and an image. On successful food detection, the scan consumes one available credit and
-        returns editable analysis output for review. If no food is detected, the AI run is logged
-        but no scan credit is consumed.
+        Runs food analysis for a prepared scan. With an image, `hint` is a short note about the
+        plate. Without an image, `hint` is the meal described in words and is analysed on its own.
+        Either way, successful food detection consumes one available credit and returns editable
+        analysis output for review. If no food is detected, the AI run is logged but no scan
+        credit is consumed.
       security:
         - bearerAuth: []
         - installId: []
@@ -1974,7 +1975,12 @@ components:
         totals:
           $ref: "#/components/schemas/MacroTotals"
         target:
-          $ref: "#/components/schemas/MacroTotals"
+          allOf:
+            - $ref: "#/components/schemas/MacroTotals"
+          description: |
+            The profile's daily target. `calories` is the stored calorie target; `proteinG`,
+            `carbsG` and `fatG` are the macro split applied to it, in whole grams. Absent when
+            the profile has no health target. Macro values of 0 mean no macro target.
         meals:
           type: array
           items:
@@ -2033,7 +2039,9 @@ components:
         timezone:
           type: string
         target:
-          $ref: "#/components/schemas/MacroTotals"
+          allOf:
+            - $ref: "#/components/schemas/MacroTotals"
+          description: Daily target, with the same meaning as on the today journal.
         days:
           type: array
           items:
@@ -2285,10 +2293,15 @@ components:
         hint:
           type: string
           minLength: 1
-          maxLength: 280
-          description: Optional human clue about the plate; current schema requires a non-empty value.
+          maxLength: 600
+          description: |
+            Required. With `image`, a note about the plate, limited to 280 characters and 50
+            words. Without `image`, the meal described in words, limited to 600 characters and
+            120 words.
         image:
-          $ref: "#/components/schemas/ScanImage"
+          allOf:
+            - $ref: "#/components/schemas/ScanImage"
+          description: Optional. Omit to log a meal from the description in `hint` alone.
 
     AnalyzedMealItem:
       type: object

@@ -962,12 +962,27 @@ class HealthTarget {
     );
   }
 
+  /// The calorie target with its macro split in grams.
+  ///
+  /// The grams are the split applied to the stored calorie target, the same
+  /// conversion the target screen shows beside each slider.
   MacroTotals get dailyTargetTotals {
+    final split =
+        customMacroSplit ??
+        calculateMacroTargets(
+          heightCm: heightCm,
+          weightKg: weightKg,
+          ageYears: ageYears,
+          sex: sex,
+          activityLevel: activityLevel,
+          goal: goal,
+        ).centers;
+    final grams = macroGramsFor(split, dailyCalorieTarget);
     return MacroTotals(
       calories: dailyCalorieTarget,
-      proteinG: 0,
-      carbsG: 0,
-      fatG: 0,
+      proteinG: grams.proteinG.toDouble(),
+      carbsG: grams.carbsG.toDouble(),
+      fatG: grams.fatG.toDouble(),
     );
   }
 }
