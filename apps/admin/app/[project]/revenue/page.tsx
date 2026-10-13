@@ -86,7 +86,11 @@ export default async function RevenuePage() {
           step a checkout stopped at and what the bank or wallet answered, not why someone closed
           the window.
         </p>
-        {rows.length ? (
+        {!transactions.ok ? (
+          <p className="muted mt-3 text-sm">
+            Not shown: Paddle could not be read, so this is not a count of zero.
+          </p>
+        ) : rows.length ? (
           <div className="table-wrap mt-3">
             <table className="table">
               <thead>
