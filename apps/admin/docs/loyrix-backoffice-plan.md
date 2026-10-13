@@ -313,13 +313,14 @@ That last row is free and genuinely useful: both tables already carry `normalize
 
 ### Screen 6 — Revenue
 
-| Panel               | Definition                         | Source                  |
-| ------------------- | ---------------------------------- | ----------------------- |
-| Transactions        | Completed, refunded, disputed      | Paddle API              |
-| Revenue over time   | Net of refunds                     | Paddle API              |
-| By country          | Where sales come from              | Paddle API              |
-| Price points served | Cached display price per country   | `pricing_cache`         |
-| Webhook health      | Last event received, count by type | `paddle_webhook_events` |
+| Panel               | Definition                                                     | Source                        |
+| ------------------- | -------------------------------------------------------------- | ----------------------------- |
+| Transactions        | Completed, refunded, disputed                                  | Paddle API                    |
+| What happened       | How far each checkout got and what the bank or wallet answered | Paddle API (payment attempts) |
+| Revenue over time   | Net of refunds                                                 | Paddle API                    |
+| By country          | Where sales come from                                          | Paddle API                    |
+| Price points served | Cached display price per country                               | `pricing_cache`               |
+| Webhook health      | Last event received, count by type                             | `paddle_webhook_events`       |
 
 Webhook health is an ops panel rather than an analytics one. `paddle_webhook_events` is currently empty; once selling starts, a stale "last received" timestamp is the earliest warning that licence delivery has silently broken.
 

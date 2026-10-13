@@ -9,7 +9,7 @@ import {
   formatDate,
   formatNumber,
 } from "../../components/ui";
-import { cachedTransactions, netRevenue } from "../../sources/privydock/paddle";
+import { cachedTransactions, explainTransaction, netRevenue } from "../../sources/privydock/paddle";
 import { listWebhookEvents } from "../../sources/privydock/supabase";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +20,18 @@ export default async function RevenuePage() {
     safe(() => listWebhookEvents(20)),
   ]);
 
-  const rows = transactions.ok ? transactions.data : [];
+  const rows = (transactions.ok ? transactions.data : []).map((row) => ({
+    ...row,
+    outcome: explainTransaction(row),
+  }));
   const completed = rows.filter((row) => row.status === "completed" || row.status === "billed");
+  const unpaid = rows.filter((row) => row.outcome.stage !== "Paid");
+  const stoppedAt = Object.entries(
+    unpaid.reduce<Record<string, number>>((acc, row) => {
+      acc[row.outcome.stage] = (acc[row.outcome.stage] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b[1] - a[1]);
   const byCountry = completed.reduce<Record<string, number>>((acc, row) => {
     const key = row.country ?? "??";
     acc[key] = (acc[key] ?? 0) + row.total;
@@ -35,7 +45,7 @@ export default async function RevenuePage() {
       <PageHeader
         eyebrow="PrivyDock"
         title="Revenue"
-        description="Paddle transactions, plus webhook health — a stale last-received timestamp is the earliest warning that licence delivery has broken."
+        description="Paddle transactions and how far each checkout got, plus webhook health — a stale last-received timestamp is the earliest warning that licence delivery has broken."
       />
 
       {transactions.ok ? (
@@ -45,8 +55,16 @@ export default async function RevenuePage() {
             value={`$${netRevenue(rows).toFixed(2)}`}
             sub="Completed, net of refunds"
           />
-          <Metric label="Transactions" value={formatNumber(rows.length)} />
-          <Metric label="Completed" value={formatNumber(completed.length)} />
+          <Metric
+            label="Checkouts"
+            value={formatNumber(rows.length)}
+            sub={`${formatNumber(completed.length)} completed`}
+          />
+          <Metric
+            label="Not paid"
+            value={formatNumber(unpaid.length)}
+            sub={stoppedAt.map(([stage, count]) => `${stage} ${count}`).join(" · ")}
+          />
           <Metric
             label="Countries"
             value={Object.keys(byCountry).length}
@@ -63,42 +81,48 @@ export default async function RevenuePage() {
 
       <section className="panel mt-6">
         <div className="metric-label">Transactions</div>
+        <p className="muted mt-2 text-sm">
+          What happened is read from Paddle&apos;s record of each payment attempt. Paddle knows the
+          step a checkout stopped at and what the bank or wallet answered, not why someone closed
+          the window.
+        </p>
         {rows.length ? (
           <div className="table-wrap mt-3">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Id</th>
-                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Customer</th>
+                  <th>What happened</th>
                   <th>Total</th>
                   <th>Country</th>
-                  <th>Created</th>
+                  <th>Id</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.id}</td>
+                    <td>{formatDate(row.created_at)}</td>
+                    <td>{row.email ?? "—"}</td>
                     <td>
-                      <Badge tone={row.status === "completed" ? "green" : "gray"}>
-                        {row.status}
-                      </Badge>
+                      <Badge tone={row.outcome.tone}>{row.outcome.stage}</Badge>
+                      <div className="muted mt-1 text-sm">{row.outcome.detail}</div>
                     </td>
                     <td>
                       {row.currency_code} {(row.total / 100).toFixed(2)}
+                      {row.discount_percent ? (
+                        <div className="muted text-sm">{row.discount_percent}% off</div>
+                      ) : null}
                     </td>
                     <td>{row.country ?? "—"}</td>
-                    <td>{formatDate(row.created_at)}</td>
+                    <td>{row.id}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <EmptyState
-            title="No transactions yet"
-            body="The beta is free. This fills in once the paid release ships."
-          />
+          <EmptyState title="No transactions yet" body="Nobody has opened a checkout yet." />
         )}
       </section>
 
@@ -132,9 +156,7 @@ export default async function RevenuePage() {
               </div>
             </>
           ) : (
-            <p className="muted mt-2 text-sm">
-              No Paddle webhooks received yet. Expected while the beta is free.
-            </p>
+            <p className="muted mt-2 text-sm">No Paddle webhooks received yet.</p>
           )
         ) : (
           <p className="muted mt-2 text-sm">Unavailable — {webhooks.error}</p>
