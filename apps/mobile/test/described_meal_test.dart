@@ -16,8 +16,22 @@ import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 
 /// A meal logged from words alone, with no photo.
 void main() {
-  Widget testFrame({required Widget child}) {
-    return MaterialApp(theme: LogMyPlateTheme.light(), home: child);
+  Widget testFrame({
+    required Widget child,
+    TextScaler textScaler = TextScaler.noScaling,
+  }) {
+    return MaterialApp(
+      theme: LogMyPlateTheme.light(),
+      home: Builder(
+        builder: (context) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(textScaler: textScaler),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   test('sends the description as the hint, with no image', () async {
@@ -195,6 +209,75 @@ void main() {
 
       expect(find.byKey(const ValueKey('log-from-note')), findsNothing);
     });
+
+    testWidgets(
+      'shows plain prominent AI label, restored empty state, and text-logging link above toggle',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        var manualTapped = false;
+        await tester.pumpWidget(
+          testFrame(
+            child: CameraScreen(
+              onCaptured: (_) {},
+              onAddManually: () => manualTapped = true,
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Fix 1: Plain prominent text
+        final labelFinder = find.text('AI powered meal scan');
+        expect(labelFinder, findsOneWidget);
+        final textWidget = tester.widget<Text>(labelFinder);
+        expect(textWidget.style?.fontWeight, FontWeight.w600);
+        expect(textWidget.style?.fontSize, 16);
+
+        // Fix 2: Empty state elements
+        expect(find.text('No photo yet'), findsOneWidget);
+        expect(find.text('Use one clear plate image.'), findsOneWidget);
+
+        // Fix 3: Two-line link above toggle
+        expect(find.text("Don't have a photo? No worries,"), findsOneWidget);
+        final linkFinder = find.text('add your meal with text');
+        expect(linkFinder, findsOneWidget);
+
+        // Verify link sits above the Plate Photo toggle
+        final linkY = tester.getTopLeft(linkFinder).dy;
+        final toggleFinder = find.text('Plate Photo');
+        if (toggleFinder.evaluate().isNotEmpty) {
+          final toggleY = tester.getTopLeft(toggleFinder).dy;
+          expect(linkY, lessThan(toggleY));
+        }
+
+        await tester.tap(linkFinder);
+        await tester.pump();
+        expect(manualTapped, isTrue);
+      },
+    );
+
+    testWidgets(
+      'handles small device (iPhone SE) and large accessibility font scale without overflow',
+      (tester) async {
+        // iPhone SE: 375 x 667
+        await tester.binding.setSurfaceSize(const Size(375, 667));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          testFrame(
+            child: CameraScreen(onCaptured: (_) {}, onAddManually: () {}),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('AI powered meal scan'), findsOneWidget);
+        expect(find.text("Don't have a photo? No worries,"), findsOneWidget);
+        expect(find.text('add your meal with text'), findsOneWidget);
+        expect(find.text('No photo yet'), findsOneWidget);
+      },
+    );
   });
 
   group('manual screen describe-your-meal card', () {

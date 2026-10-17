@@ -80,13 +80,28 @@ class MealScoreRow extends StatelessWidget {
 /// Stars only: the row already carries the meal's name and calories, and the
 /// explanation is one tap away.
 class MealStarsButton extends StatelessWidget {
-  const MealStarsButton({super.key, required this.rating, required this.onTap});
+  const MealStarsButton({super.key, required this.rating, this.onTap});
 
   final ScoreRating rating;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final stars = Padding(
+      // Padded so the tap target is comfortably larger than the stars.
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: ScoreStarRow(
+        stars: rating.stars,
+        size: 14,
+        semanticsPrefix: 'This meal',
+        animate: false,
+      ),
+    );
+
+    if (onTap == null) {
+      return stars;
+    }
+
     return Semantics(
       button: true,
       hint: 'Shows why this meal got this rating',
@@ -95,16 +110,7 @@ class MealStarsButton extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(999),
           onTap: onTap,
-          child: Padding(
-            // Padded so the tap target is comfortably larger than the stars.
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            child: ScoreStarRow(
-              stars: rating.stars,
-              size: 14,
-              semanticsPrefix: 'This meal',
-              animate: false,
-            ),
-          ),
+          child: stars,
         ),
       ),
     );

@@ -68,28 +68,36 @@ void main() {
       expect(find.text('Barcode'), findsNothing);
     });
 
-    testWidgets('mode selector leads the screen at a full tap target height', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        testFrame(
-          child: CameraScreen(
-            onCaptured: (_) {},
-            onAnalyzeBarcode: (_) async => analysisFor('scan_1'),
+    testWidgets(
+      'mode selector renders at full tap target height above bottom card',
+      (tester) async {
+        await tester.pumpWidget(
+          testFrame(
+            child: CameraScreen(
+              onCaptured: (_) {},
+              onAnalyzeBarcode: (_) async => analysisFor('scan_1'),
+            ),
           ),
-        ),
-      );
+        );
 
-      final barcodeTab = tester.getRect(
-        find.ancestor(of: find.text('Barcode'), matching: find.byType(InkWell)),
-      );
-      expect(barcodeTab.height, greaterThanOrEqualTo(44));
-      expect(barcodeTab.width, greaterThan(300));
-      expect(
-        barcodeTab.bottom,
-        lessThan(tester.getRect(find.text('AI powered meal scan')).top),
-      );
-    });
+        final barcodeTab = tester.getRect(
+          find.ancestor(
+            of: find.text('Barcode'),
+            matching: find.byType(InkWell),
+          ),
+        );
+        expect(barcodeTab.height, greaterThanOrEqualTo(44));
+        expect(barcodeTab.width, greaterThan(300));
+        expect(
+          barcodeTab.top,
+          greaterThan(tester.getRect(find.text('AI powered meal scan')).bottom),
+        );
+        expect(
+          barcodeTab.bottom,
+          lessThan(tester.getRect(find.text('Take Photo')).top),
+        );
+      },
+    );
 
     testWidgets('switches to barcode mode and reveals manual entry button', (
       tester,

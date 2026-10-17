@@ -6,7 +6,6 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_spacing.dart';
 import '../theme/logmyplate_surfaces.dart';
 import '../theme/logmyplate_theme.dart';
-import '../widgets/meal_rating_sheet.dart';
 import '../widgets/meal_score_row.dart';
 import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
@@ -405,7 +404,6 @@ class _DayMealRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
     final totals = meal.totals;
-    final itemNames = meal.items.map((item) => item.name).join(', ');
 
     final row = FakeGlassRow(
       borderRadius: BorderRadius.circular(LogMyPlateSpacing.cardBorderRadius),
@@ -442,11 +440,12 @@ class _DayMealRow extends StatelessWidget {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        itemNames,
+                        'Protein ${totals.proteinG.round()}g  Carbs ${totals.carbsG.round()}g  Fat ${totals.fatG.round()}g',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: colors.textSecondary,
+                          letterSpacing: 0,
                         ),
                       ),
                     ],
@@ -466,10 +465,7 @@ class _DayMealRow extends StatelessWidget {
                     // Stars, not the Plate Score number. The number is still
                     // computed and stored; it is just no longer shown.
                     if (meal.rating != null)
-                      MealStarsButton(
-                        rating: meal.rating!,
-                        onTap: () => MealRatingSheet.show(context, meal: meal),
-                      ),
+                      MealStarsButton(rating: meal.rating!),
                   ],
                 ),
               ],
