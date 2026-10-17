@@ -16,7 +16,6 @@ import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/nutritionist_entry_button.dart';
-import '../widgets/primitive_icons.dart';
 import '../widgets/glass/glass_backdrop.dart';
 import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
@@ -1084,6 +1083,7 @@ class _MealsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1101,11 +1101,54 @@ class _MealsList extends StatelessWidget {
             onTap: () => onOpenMeal(meal),
             onDelete: () => _deleteMeal(context, meal),
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         GlassWrapper(
-          child: TextButton(
-            onPressed: onAddManually,
-            child: const Text('Add manually'),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(
+                LogMyPlateSpacing.pillBorderRadius,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: LogMyPlateColors.accent.withValues(
+                    alpha: isDark ? 0.20 : 0.15,
+                  ),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: OutlinedButton.icon(
+              onPressed: onAddManually,
+              icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+              label: const Text(
+                'Add your meal with text',
+                style: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.accentText,
+                backgroundColor: isDark
+                    ? const Color(0xFF222B24)
+                    : const Color(0xFFFFF6E5),
+                side: BorderSide(
+                  color: LogMyPlateColors.accent.withValues(
+                    alpha: isDark ? 0.45 : 0.50,
+                  ),
+                  width: 1.2,
+                ),
+                minimumSize: const Size(0, 42),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    LogMyPlateSpacing.pillBorderRadius,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ],
@@ -1209,21 +1252,42 @@ class _EmptyTodayBody extends StatelessWidget {
                         ),
                       ),
                       child: Center(
-                        child: PrimitiveCameraIcon(
+                        child: Icon(
+                          Icons.edit_note_rounded,
                           color: colors.accentText,
-                          size: 28,
+                          size: 32,
                         ),
                       ),
                     ),
                     Positioned(
                       right: 6,
-                      top: 12,
+                      top: 10,
                       child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          color: LogMyPlateColors.accent,
+                        padding: const EdgeInsets.all(2.5),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1B221E)
+                              : Colors.white,
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: LogMyPlateColors.accent.withValues(
+                              alpha: 0.35,
+                            ),
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: LogMyPlateColors.accent.withValues(
+                                alpha: 0.25,
+                              ),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: LogMyPlateColors.accent,
+                          size: 12,
                         ),
                       ),
                     ),
@@ -1236,40 +1300,75 @@ class _EmptyTodayBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Ready for your first meal',
+                      'Log your first meal',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      'Use Scan from the bottom bar, or add a quick manual log.',
+                      'Just type what you ate and AI will do the rest.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colors.textSecondary,
                         height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 11),
+                    const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: GlassWrapper(
-                        child: TextButton(
-                          onPressed: onAddManually,
-                          style: TextButton.styleFrom(
-                            foregroundColor: colors.accentText,
-                            backgroundColor: LogMyPlateColors.accent.withValues(
-                              alpha: 0.12,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              LogMyPlateSpacing.pillBorderRadius,
                             ),
-                            minimumSize: const Size(0, 34),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                LogMyPlateSpacing.pillBorderRadius,
+                            boxShadow: [
+                              BoxShadow(
+                                color: LogMyPlateColors.accent.withValues(
+                                  alpha: isDark ? 0.20 : 0.15,
+                                ),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: OutlinedButton.icon(
+                            onPressed: onAddManually,
+                            icon: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 16,
+                            ),
+                            label: const Text(
+                              'Add your meal with text',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: colors.accentText,
+                              backgroundColor: isDark
+                                  ? const Color(0xFF222B24)
+                                  : const Color(0xFFFFF6E5),
+                              side: BorderSide(
+                                color: LogMyPlateColors.accent.withValues(
+                                  alpha: isDark ? 0.45 : 0.50,
+                                ),
+                                width: 1.2,
+                              ),
+                              minimumSize: const Size(0, 42),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  LogMyPlateSpacing.pillBorderRadius,
+                                ),
                               ),
                             ),
                           ),
-                          child: const Text('Add manually'),
                         ),
                       ),
                     ),

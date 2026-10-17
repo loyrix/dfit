@@ -6,7 +6,6 @@ import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 import 'glass/fake_glass_row.dart';
 import 'meal_delete_controls.dart';
-import 'meal_rating_sheet.dart';
 import 'meal_score_row.dart';
 
 class MealCard extends StatelessWidget {
@@ -15,11 +14,13 @@ class MealCard extends StatelessWidget {
     required this.meal,
     required this.onTap,
     this.onDelete,
+    this.onRatingTap,
   });
 
   final MealLog meal;
   final VoidCallback onTap;
   final Future<bool> Function()? onDelete;
+  final VoidCallback? onRatingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -106,10 +107,7 @@ class MealCard extends StatelessWidget {
                     // Stars, not the Plate Score number. The number is still
                     // computed and stored; it is just no longer shown.
                     if (meal.rating != null)
-                      MealStarsButton(
-                        rating: meal.rating!,
-                        onTap: () => MealRatingSheet.show(context, meal: meal),
-                      ),
+                      MealStarsButton(rating: meal.rating!, onTap: onRatingTap),
                   ],
                 ),
               ],

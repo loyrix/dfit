@@ -497,155 +497,186 @@ class _CameraScreenState extends State<CameraScreen>
               ),
             ),
             Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 62, 24, 24),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final compact = constraints.maxHeight < 720;
-                    final keyboardOpen =
-                        MediaQuery.viewInsetsOf(context).bottom > 0;
-                    final hasPhoto = preparedCapture != null;
-                    final barcodeFailure = _barcodeFailure;
-                    // The switch leads the screen in both modes so the barcode
-                    // option is seen up front and does not move when toggled.
-                    // It steps aside once a photo or a barcode is being handled.
-                    final showModeSelector =
-                        widget.onAnalyzeBarcode != null &&
-                        !hasPhoto &&
-                        !keyboardOpen &&
-                        !_lookingUpBarcode &&
-                        barcodeFailure == null;
-                    final modeSelector = showModeSelector
-                        ? Padding(
-                            padding: EdgeInsets.only(bottom: compact ? 12 : 18),
-                            child: _ScanModeSelector(
-                              selectedMode: _mode,
-                              onModeChanged: _setMode,
-                            ),
-                          )
-                        : const SizedBox.shrink();
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxHeight < 720;
+                  final keyboardOpen =
+                      MediaQuery.viewInsetsOf(context).bottom > 0;
+                  final hasPhoto = preparedCapture != null;
+                  final barcodeFailure = _barcodeFailure;
+                  // The switch leads the screen in both modes so the barcode
+                  // option is seen up front and does not move when toggled.
+                  // It steps aside once a photo or a barcode is being handled.
+                  final showModeSelector =
+                      widget.onAnalyzeBarcode != null &&
+                      !hasPhoto &&
+                      !keyboardOpen &&
+                      !_lookingUpBarcode &&
+                      barcodeFailure == null;
+                  final showManualLink =
+                      _mode == CameraScanMode.photo &&
+                      !hasPhoto &&
+                      !keyboardOpen &&
+                      widget.onAddManually != null;
+                  final modeSelector = showModeSelector
+                      ? Padding(
+                          padding: EdgeInsets.only(bottom: compact ? 10 : 18),
+                          child: _ScanModeSelector(
+                            selectedMode: _mode,
+                            onModeChanged: _setMode,
+                          ),
+                        )
+                      : const SizedBox.shrink();
 
-                    if (_mode == CameraScanMode.barcode) {
-                      return Column(
-                        children: [
-                          modeSelector,
-                          Expanded(
-                            child: _BarcodeScannerView(
-                              controller: _scannerController,
-                              laserAnimation: _controller,
-                              torchEnabled: _torchEnabled,
-                              lookingUp: _lookingUpBarcode,
-                              failure: barcodeFailure,
-                              onToggleTorch: _toggleTorch,
-                              onBarcodeDetected: (barcode) {
-                                if (_barcodeFailure != null) return;
-                                unawaited(_lookUpBarcode(barcode));
-                              },
-                              onEnterManually: () =>
-                                  _showManualBarcodeDialog(context),
-                              onScanAgain: _scanAgain,
-                              onRetry: _retryFailedBarcode,
-                              onTakePhoto: () => _setMode(CameraScanMode.photo),
-                              onScanCreditRequired: widget.onScanCreditRequired,
-                              onAddManually: widget.onAddManually,
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      compact ? 50 : 62,
+                      24,
+                      compact ? 12 : 24,
+                    ),
+                    child: Builder(
+                      builder: (context) {
+                        if (_mode == CameraScanMode.barcode) {
+                          return Column(
+                            children: [
+                              modeSelector,
+                              Expanded(
+                                child: _BarcodeScannerView(
+                                  controller: _scannerController,
+                                  laserAnimation: _controller,
+                                  torchEnabled: _torchEnabled,
+                                  lookingUp: _lookingUpBarcode,
+                                  failure: barcodeFailure,
+                                  onToggleTorch: _toggleTorch,
+                                  onBarcodeDetected: (barcode) {
+                                    if (_barcodeFailure != null) return;
+                                    unawaited(_lookUpBarcode(barcode));
+                                  },
+                                  onEnterManually: () =>
+                                      _showManualBarcodeDialog(context),
+                                  onScanAgain: _scanAgain,
+                                  onRetry: _retryFailedBarcode,
+                                  onTakePhoto: () =>
+                                      _setMode(CameraScanMode.photo),
+                                  onScanCreditRequired:
+                                      widget.onScanCreditRequired,
+                                  onAddManually: widget.onAddManually,
+                                  compact: compact,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: keyboardOpen
+                                  ? const SizedBox.shrink()
+                                  : _ScanIntroCard(
+                                      activeSource: activeSource,
+                                      hasPhoto: hasPhoto,
+                                    ),
+                            ),
+                            SizedBox(
+                              height: keyboardOpen
+                                  ? 8
+                                  : compact
+                                  ? 10
+                                  : 22,
+                            ),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, previewConstraints) {
+                                  final maxPreviewWidth = math.min(
+                                    370.0,
+                                    previewConstraints.maxWidth,
+                                  );
+                                  final emptySize = math.min(
+                                    compact ? 214.0 : 292.0,
+                                    math.min(
+                                      previewConstraints.maxWidth,
+                                      previewConstraints.maxHeight,
+                                    ),
+                                  );
+                                  final preparedHeight = keyboardOpen
+                                      ? math.min(
+                                          126.0,
+                                          previewConstraints.maxHeight,
+                                        )
+                                      : math.min(
+                                          compact ? 252.0 : 330.0,
+                                          previewConstraints.maxHeight,
+                                        );
+
+                                  return Center(
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 260,
+                                      ),
+                                      child: preparedCapture == null
+                                          ? _EmptyCaptureState(size: emptySize)
+                                          : _PreparedMealPreview(
+                                              key: ValueKey(
+                                                preparedCapture.fileName,
+                                              ),
+                                              capture: preparedCapture,
+                                              progress: _controller,
+                                              onClear: _clearPreparedCapture,
+                                              frameWidth: maxPreviewWidth,
+                                              frameHeight: preparedHeight,
+                                            ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            if (showManualLink) ...[
+                              _ManualMealTextLink(onTap: widget.onAddManually!),
+                              SizedBox(height: compact ? 12 : 14),
+                            ] else if (showModeSelector)
+                              SizedBox(height: compact ? 10 : 14),
+                            if (showModeSelector) ...[
+                              _ScanModeSelector(
+                                selectedMode: _mode,
+                                onModeChanged: _setMode,
+                              ),
+                              SizedBox(height: compact ? 8 : 12),
+                            ] else if (!showManualLink)
+                              SizedBox(
+                                height: keyboardOpen
+                                    ? 8
+                                    : compact
+                                    ? 10
+                                    : 18,
+                              ),
+                            _CaptureComposerPanel(
+                              controller: _hintController,
                               compact: compact,
+                              keyboardOpen: keyboardOpen,
+                              activeSource: activeSource,
+                              prepared: hasPhoto,
+                              canAnalyze: hasValidHint,
+                              canDescribe: canDescribe,
+                              notice: _captureNotice,
+                              onChanged: () =>
+                                  setState(() => _captureNotice = null),
+                              onCamera: () =>
+                                  _captureFrom(_CaptureSource.camera),
+                              onGallery: () =>
+                                  _captureFrom(_CaptureSource.gallery),
+                              onAnalyze: _submitPreparedCapture,
+                              onDescribe: _submitDescription,
                             ),
-                          ),
-                        ],
-                      );
-                    }
-
-                    return Column(
-                      children: [
-                        modeSelector,
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          child: keyboardOpen
-                              ? const SizedBox.shrink()
-                              : _ScanIntroCard(
-                                  activeSource: activeSource,
-                                  hasPhoto: hasPhoto,
-                                ),
-                        ),
-                        SizedBox(
-                          height: keyboardOpen
-                              ? 8
-                              : compact
-                              ? 16
-                              : 22,
-                        ),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, previewConstraints) {
-                              final maxPreviewWidth = math.min(
-                                370.0,
-                                previewConstraints.maxWidth,
-                              );
-                              final emptySize = math.min(
-                                compact ? 214.0 : 292.0,
-                                math.min(
-                                  previewConstraints.maxWidth,
-                                  previewConstraints.maxHeight,
-                                ),
-                              );
-                              final preparedHeight = keyboardOpen
-                                  ? math.min(
-                                      126.0,
-                                      previewConstraints.maxHeight,
-                                    )
-                                  : math.min(
-                                      compact ? 252.0 : 330.0,
-                                      previewConstraints.maxHeight,
-                                    );
-
-                              return Center(
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 260),
-                                  child: preparedCapture == null
-                                      ? _EmptyCaptureState(size: emptySize)
-                                      : _PreparedMealPreview(
-                                          key: ValueKey(
-                                            preparedCapture.fileName,
-                                          ),
-                                          capture: preparedCapture,
-                                          progress: _controller,
-                                          onClear: _clearPreparedCapture,
-                                          frameWidth: maxPreviewWidth,
-                                          frameHeight: preparedHeight,
-                                        ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        SizedBox(
-                          height: keyboardOpen
-                              ? 8
-                              : compact
-                              ? 12
-                              : 18,
-                        ),
-                        _CaptureComposerPanel(
-                          controller: _hintController,
-                          compact: compact,
-                          keyboardOpen: keyboardOpen,
-                          activeSource: activeSource,
-                          prepared: hasPhoto,
-                          canAnalyze: hasValidHint,
-                          canDescribe: canDescribe,
-                          notice: _captureNotice,
-                          onChanged: () =>
-                              setState(() => _captureNotice = null),
-                          onCamera: () => _captureFrom(_CaptureSource.camera),
-                          onGallery: () => _captureFrom(_CaptureSource.gallery),
-                          onAnalyze: _submitPreparedCapture,
-                          onDescribe: _submitDescription,
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                          ],
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -680,14 +711,17 @@ class _ScanIntroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surface = LogMyPlateHeroSurfaceStyle.of(context);
+    final colors = context.logmyplate;
 
     return Column(
       children: [
         Text(
           'AI powered meal scan',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: surface.textSecondary,
-            letterSpacing: 1.8,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: colors.accentText,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6,
           ),
         ),
         const SizedBox(height: 8),
@@ -729,39 +763,37 @@ class _EmptyCaptureState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
-    final compact = size < 180;
 
     return SizedBox(
-      width: size,
       height: size,
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 28),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Stack(
           alignment: Alignment.center,
           children: [
             Positioned.fill(
               child: CustomPaint(painter: _EmptyPlatePainter(colors)),
             ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: compact ? 44 : 52,
-                    height: compact ? 44 : 52,
-                    decoration: BoxDecoration(
-                      color: LogMyPlateColors.accent.withValues(alpha: 0.18),
-                      shape: BoxShape.circle,
+            Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: LogMyPlateColors.accent.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.restaurant_rounded,
+                        color: LogMyPlateColors.accent,
+                        size: 24,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.restaurant_rounded,
-                      color: LogMyPlateColors.accent,
-                      size: compact ? 21 : 24,
-                    ),
-                  ),
-                  if (!compact) ...[
                     const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
                     Text(
                       'No photo yet',
@@ -776,12 +808,80 @@ class _EmptyCaptureState extends StatelessWidget {
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ManualMealTextLink extends StatelessWidget {
+  const _ManualMealTextLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          "Don't have a photo? No worries,",
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: colors.textSecondary,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 14,
+                      color: colors.accentText,
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        'add your meal with text',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.accentText,
+                          decoration: TextDecoration.underline,
+                          decorationColor: colors.accentText,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 13,
+                      color: colors.accentText,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

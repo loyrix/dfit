@@ -5,6 +5,9 @@ import 'package:logmyplate_mobile/src/app.dart';
 import 'package:logmyplate_mobile/src/models/auth_session.dart';
 import 'package:logmyplate_mobile/src/models/captured_meal_photo.dart';
 import 'package:logmyplate_mobile/src/models/meal.dart';
+import 'package:logmyplate_mobile/src/models/score_rating.dart';
+import 'package:logmyplate_mobile/src/widgets/meal_rating_sheet.dart';
+import 'package:logmyplate_mobile/src/widgets/score_star_row.dart';
 import 'package:logmyplate_mobile/src/screens/account_gate_screen.dart';
 import 'package:logmyplate_mobile/src/screens/account_profile_screen.dart';
 import 'package:logmyplate_mobile/src/screens/analyzing_screen.dart';
@@ -522,16 +525,23 @@ void main() {
     await _pumpAppFrame(tester);
 
     await tester.scrollUntilVisible(
-      find.text('Add manually'),
+      find.text('Add your meal with text'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pump();
-    await tester.tap(find.text('Add manually'));
+    await tester.tap(find.text('Add your meal with text'));
     await _pumpAppFrame(tester);
 
     expect(find.byType(ReviewMealScreen), findsOneWidget);
-    expect(find.textContaining(' - 0 items'), findsOneWidget);
+    expect(find.text('Describe your meal'), findsOneWidget);
+    expect(find.text('Estimate with AI'), findsOneWidget);
+    expect(find.text('or'), findsOneWidget);
+    expect(find.text('Add custom item'), findsOneWidget);
+    expect(find.text('Review estimate'), findsNothing);
+    expect(find.textContaining(' - 0 items'), findsNothing);
+    expect(find.text('Items to confirm'), findsNothing);
+    expect(find.text('Confirm meal'), findsNothing);
     expect(find.text('Dal'), findsNothing);
     expect(find.text('Rice'), findsNothing);
 
@@ -559,6 +569,117 @@ void main() {
     expect(find.byType(TodayScreen), findsOneWidget);
     expect(find.byType(MealDetailScreen), findsNothing);
   });
+
+  testWidgets(
+    'empty text-entry state transitions to review after adding a custom item',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LogMyPlateTheme.light(),
+          home: ReviewMealScreen(
+            initialItems: const [],
+            onDescribeMeal: (text) {},
+            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Empty text-entry state before adding any item
+      expect(find.text('Describe your meal'), findsOneWidget);
+      expect(find.text('Estimate with AI'), findsOneWidget);
+      expect(find.text('or'), findsOneWidget);
+      expect(find.text('Add custom item'), findsOneWidget);
+      expect(find.text('Review estimate'), findsNothing);
+      expect(find.text('Items to confirm'), findsNothing);
+      expect(find.text('Confirm meal'), findsNothing);
+
+      // Add a custom item
+      await tester.tap(find.text('Add custom item'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-name')),
+        'Paneer tikka',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-calories')),
+        '250',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-protein')),
+        '18',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-carbs')),
+        '6',
+      );
+      await tester.enterText(find.byKey(const ValueKey('edit-item-fat')), '16');
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      // After adding item: Review estimate, Items to confirm, Confirm meal appear with correct totals
+      expect(find.text('Review estimate'), findsOneWidget);
+      expect(find.text('Items to confirm'), findsOneWidget);
+      expect(find.text('Confirm meal'), findsOneWidget);
+      expect(find.text('250'), findsOneWidget);
+      expect(find.text('Protein 18g'), findsOneWidget);
+      expect(find.text('Carbs 6g'), findsOneWidget);
+      expect(find.text('Fat 16g'), findsOneWidget);
+
+      // Empty state controls disappear
+      expect(find.text('or'), findsNothing);
+      expect(find.text('Describe your meal'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'Mode 2 review layout remains unchanged when onDescribeMeal is null',
+    (tester) async {
+      // 1. Mode 2 with empty items
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LogMyPlateTheme.light(),
+          home: ReviewMealScreen(
+            key: const ValueKey('mode-2-empty'),
+            initialItems: const [],
+            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review estimate'), findsOneWidget);
+      expect(find.textContaining(' - 0 items'), findsOneWidget);
+      expect(find.text('Items to confirm'), findsOneWidget);
+      expect(find.text('Add custom item'), findsOneWidget);
+      expect(find.text('Confirm meal'), findsOneWidget);
+      expect(find.text('Describe your meal'), findsNothing);
+      expect(find.text('or'), findsNothing);
+
+      // 2. Mode 2 with pre-filled items
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LogMyPlateTheme.light(),
+          home: ReviewMealScreen(
+            key: const ValueKey('mode-2-prefilled'),
+            initialItems: sampleDetectedItems().take(1).toList(),
+            onConfirm: (_, _, {bool analyzeWithAI = false}) async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review estimate'), findsOneWidget);
+      expect(find.textContaining(' - 1 item'), findsOneWidget);
+      expect(find.text('Items to confirm'), findsOneWidget);
+      expect(find.text('Dal'), findsOneWidget);
+      expect(find.text('Add custom item'), findsOneWidget);
+      expect(find.text('Confirm meal'), findsOneWidget);
+      expect(find.text('Describe your meal'), findsNothing);
+      expect(find.text('or'), findsNothing);
+    },
+  );
 
   testWidgets('primitive icons inherit dark theme color', (tester) async {
     late Color resolvedColor;
@@ -777,6 +898,73 @@ void main() {
 
     expect(deleted, isTrue);
   });
+
+  testWidgets(
+    'today meal card stars are non-interactive and tap opens meal details',
+    (tester) async {
+      MealLog? openedMeal;
+      final meal = MealLog(
+        id: 'today-stars',
+        type: MealType.snack,
+        title: 'Chai and biscuit',
+        loggedAt: DateTime(2026, 5, 12, 16),
+        items: const [
+          MealItem(
+            name: 'Chai and biscuit',
+            quantity: 1,
+            unit: 'cup',
+            grams: 180,
+            nutrition: MacroTotals(
+              calories: 120,
+              proteinG: 2,
+              carbsG: 20,
+              fatG: 4,
+            ),
+          ),
+        ],
+        rating: const ScoreRating(
+          stars: 4,
+          message: 'Balanced snack.',
+          level: ScoreLevel.meal,
+          reasons: [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LogMyPlateTheme.light(),
+          home: TodayScreen(
+            meals: [meal],
+            totals: meal.totals,
+            onRefresh: () async {},
+            onScan: () {},
+            onAddManually: () {},
+            onOpenSettings: () {},
+            onOpenMeal: (selected) => openedMeal = selected,
+            onDeleteMeal: (_) async {},
+            onOpenWeeklyJournal: () {},
+            onOpenStreak: () {},
+            showScanAction: false,
+          ),
+        ),
+      );
+
+      // Tap on the stars
+      await tester.tap(find.byType(ScoreStarRow));
+      await tester.pumpAndSettle();
+
+      expect(openedMeal, equals(meal));
+      expect(find.byType(MealRatingSheet), findsNothing);
+
+      // Reset and tap elsewhere on the card (title/name)
+      openedMeal = null;
+      await tester.tap(find.text('Chai and biscuit'));
+      await tester.pumpAndSettle();
+
+      expect(openedMeal, equals(meal));
+      expect(find.byType(MealRatingSheet), findsNothing);
+    },
+  );
 
   testWidgets('weekly journal analyses day rows and opens meals', (
     tester,
@@ -1029,6 +1217,81 @@ void main() {
     expect(find.text('No meals logged'), findsWidgets);
   });
 
+  testWidgets(
+    'Day Analysis meal cards show macro line and non-interactive stars that open meal details',
+    (tester) async {
+      MealLog? openedMeal;
+      final meal = MealLog(
+        id: 'day-meal-1',
+        type: MealType.snack,
+        title: 'Plain Rice',
+        loggedAt: DateTime(2026, 5, 11, 16),
+        items: const [
+          MealItem(
+            name: 'Plain Rice',
+            quantity: 1,
+            unit: 'bowl',
+            grams: 150,
+            nutrition: MacroTotals(
+              calories: 195,
+              proteinG: 4.2,
+              carbsG: 42.1,
+              fatG: 0.6,
+            ),
+          ),
+        ],
+        rating: const ScoreRating(
+          stars: 3,
+          message: 'Moderate balance.',
+          level: ScoreLevel.meal,
+          reasons: [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LogMyPlateTheme.light(),
+          home: DayJournalDetailScreen(
+            day: JournalDayData(
+              date: '2026-05-11',
+              mealCount: 1,
+              totals: meal.totals,
+              meals: [meal],
+            ),
+            onOpenMeal: (selected) async {
+              openedMeal = selected;
+              return false;
+            },
+            onDeleteMeal: (_) async {},
+            onMealDeleted: () async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Second line shows macro line formatted as Today card, not repeating meal name
+      const expectedMacroLine = 'Protein 4g  Carbs 42g  Fat 1g';
+      expect(find.text(expectedMacroLine), findsOneWidget);
+      // 'Plain Rice' is only the title, not repeated on the second line
+      expect(find.text('Plain Rice'), findsOneWidget);
+
+      // 2. Tapping the stars opens meal detail and does not open MealRatingSheet
+      await tester.tap(find.byType(ScoreStarRow));
+      await tester.pumpAndSettle();
+
+      expect(openedMeal, equals(meal));
+      expect(find.byType(MealRatingSheet), findsNothing);
+
+      // 3. Tapping elsewhere on the card still opens meal detail
+      openedMeal = null;
+      await tester.tap(find.text('Plain Rice'));
+      await tester.pumpAndSettle();
+
+      expect(openedMeal, equals(meal));
+      expect(find.byType(MealRatingSheet), findsNothing);
+    },
+  );
+
   testWidgets('meal detail owns meal-level macro profile', (tester) async {
     final meal = MealLog(
       id: 'meal-1',
@@ -1102,6 +1365,12 @@ void main() {
     expect(find.text('1.3 katori - 225g'), findsOneWidget);
     expect(savedMeal, isNull);
 
+    await tester.scrollUntilVisible(
+      find.text('Save updated meal'),
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Save updated meal'));
     await tester.pumpAndSettle();
 
@@ -1112,6 +1381,113 @@ void main() {
     expect(find.byType(MealDetailScreen), findsOneWidget);
     expect(find.text('225'), findsWidgets);
   });
+
+  testWidgets(
+    'meal detail hides Save updated meal button until changes are made and hides on save/revert',
+    (tester) async {
+      final item = sampleDetectedItems().first;
+      final meal = MealLog(
+        id: 'meal-toggle-save',
+        type: MealType.lunch,
+        title: 'Lunch',
+        loggedAt: DateTime(2026, 5, 12, 12),
+        items: [item],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: LogMyPlateTheme.dark(),
+          home: MealDetailScreen(
+            meal: meal,
+            onUpdateMeal: (_, items) async {
+              return MealLog(
+                id: meal.id,
+                type: meal.type,
+                title: meal.title,
+                loggedAt: meal.loggedAt,
+                items: items,
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Button hidden on open
+      expect(find.text('Save updated meal'), findsNothing);
+      expect(find.text('Reset changes'), findsNothing);
+
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, -420),
+      );
+      await tester.pumpAndSettle();
+
+      // 2. Hidden after opening and saving the editor with no changes
+      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit item'), findsOneWidget);
+
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Save updated meal'), findsNothing);
+      expect(find.text('Reset changes'), findsNothing);
+
+      // 3. Shown after changing a value
+      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-quantity')),
+        '2',
+      );
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save updated meal'), findsOneWidget);
+      expect(find.text('Reset changes'), findsOneWidget);
+
+      // 4. Hidden again after reverting the value back to original
+      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-quantity')),
+        '1',
+      );
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save updated meal'), findsNothing);
+      expect(find.text('Reset changes'), findsNothing);
+
+      // Change again, then test 5: hidden after successful save
+      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('edit-item-quantity')),
+        '3',
+      );
+      await tester.tap(find.text('Save changes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Save updated meal'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Save updated meal'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save updated meal'));
+      await tester.pumpAndSettle();
+
+      // 5. Hidden after successful save
+      expect(find.text('Save updated meal'), findsNothing);
+      expect(find.text('Reset changes'), findsNothing);
+    },
+  );
 
   testWidgets('meal detail deletes after explicit confirmation', (
     tester,

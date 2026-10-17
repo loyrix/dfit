@@ -78,6 +78,8 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
     return false;
   }
 
+  bool get _hasUnsavedChanges => _hasChanges;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.logmyplate;
@@ -296,44 +298,89 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                                 ),
                               ],
                               if (canEdit) ...[
-                                const SizedBox(
-                                  height: LogMyPlateSpacing.sectionSpacing,
-                                ),
-                                PremiumButton(
-                                  onPressed:
-                                      !_hasChanges || _saving || _deleting
-                                      ? null
-                                      : _saveChanges,
-
-                                  child: AnimatedSwitcher(
-                                    duration: const Duration(milliseconds: 180),
-                                    child: _saving
-                                        ? SizedBox(
-                                            key: const ValueKey(
-                                              'saving-updated-meal',
-                                            ),
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: colors.primaryActionText,
-                                            ),
-                                          )
-                                        : const Text(
-                                            'Save updated meal',
-                                            key: ValueKey('save-updated-meal'),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
+                                  layoutBuilder:
+                                      (currentChild, previousChildren) {
+                                        return Stack(
+                                          alignment: Alignment.topCenter,
+                                          children: <Widget>[
+                                            ...previousChildren,
+                                            ?currentChild,
+                                          ],
+                                        );
+                                      },
+                                  transitionBuilder: (child, animation) {
+                                    return SizeTransition(
+                                      sizeFactor: animation,
+                                      alignment: Alignment.topCenter,
+                                      child: child,
+                                    );
+                                  },
+                                  child: _hasUnsavedChanges
+                                      ? Padding(
+                                          key: const ValueKey(
+                                            'save-updated-meal-section',
                                           ),
-                                  ),
+                                          padding: const EdgeInsets.only(
+                                            top: LogMyPlateSpacing
+                                                .sectionSpacing,
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              PremiumButton(
+                                                onPressed: _saving || _deleting
+                                                    ? null
+                                                    : _saveChanges,
+                                                child: AnimatedSwitcher(
+                                                  duration: const Duration(
+                                                    milliseconds: 180,
+                                                  ),
+                                                  child: _saving
+                                                      ? SizedBox(
+                                                          key: const ValueKey(
+                                                            'saving-updated-meal',
+                                                          ),
+                                                          width: 18,
+                                                          height: 18,
+                                                          child: CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: colors
+                                                                .primaryActionText,
+                                                          ),
+                                                        )
+                                                      : const Text(
+                                                          'Save updated meal',
+                                                          key: ValueKey(
+                                                            'save-updated-meal',
+                                                          ),
+                                                        ),
+                                                ),
+                                              ),
+                                              GlassWrapper(
+                                                child: TextButton(
+                                                  onPressed:
+                                                      _saving || _deleting
+                                                      ? null
+                                                      : _resetChanges,
+                                                  child: const Text(
+                                                    'Reset changes',
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(
+                                          key: ValueKey(
+                                            'save-updated-meal-hidden',
+                                          ),
+                                        ),
                                 ),
-                                if (_hasChanges)
-                                  GlassWrapper(
-                                    child: TextButton(
-                                      onPressed: _saving || _deleting
-                                          ? null
-                                          : _resetChanges,
-                                      child: const Text('Reset changes'),
-                                    ),
-                                  ),
                               ],
                             ],
                             if (_isCapturing) ...[
@@ -766,8 +813,12 @@ bool _sameItem(MealItem first, MealItem second) {
       first.quantity == second.quantity &&
       first.unit == second.unit &&
       first.grams == second.grams &&
+      first.confidence == second.confidence &&
       first.nutrition.calories == second.nutrition.calories &&
       first.nutrition.proteinG == second.nutrition.proteinG &&
       first.nutrition.carbsG == second.nutrition.carbsG &&
-      first.nutrition.fatG == second.nutrition.fatG;
+      first.nutrition.fatG == second.nutrition.fatG &&
+      first.nutrition.fiberG == second.nutrition.fiberG &&
+      first.nutrition.sugarG == second.nutrition.sugarG &&
+      first.nutrition.sodiumMg == second.nutrition.sodiumMg;
 }

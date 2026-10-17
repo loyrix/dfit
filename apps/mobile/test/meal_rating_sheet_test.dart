@@ -8,6 +8,7 @@ import 'package:logmyplate_mobile/src/theme/logmyplate_theme.dart';
 import 'package:logmyplate_mobile/src/widgets/meal_card.dart';
 import 'package:logmyplate_mobile/src/widgets/meal_rating_sheet.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_chip.dart';
+import 'package:logmyplate_mobile/src/widgets/score_star_row.dart';
 
 Widget _wrap(Widget child) =>
     MaterialApp(theme: LogMyPlateTheme.light(), home: child);
@@ -236,27 +237,52 @@ void main() {
   });
 
   group('stars replace the Plate Score', () {
-    testWidgets('a meal row shows tappable stars, not the score chip', (
+    testWidgets(
+      'tapping the stars on a Today meal card navigates to meal details and does not open rating sheet',
+      (tester) async {
+        var openedMeal = false;
+        await tester.pumpWidget(
+          _wrap(
+            Scaffold(
+              body: MealCard(
+                meal: _meal(plateScore: _scoreWithWarnings),
+                onTap: () => openedMeal = true,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(PlateScoreChip), findsNothing);
+        expect(find.text('41'), findsNothing);
+
+        await tester.tap(find.byType(ScoreStarRow));
+        await tester.pumpAndSettle();
+
+        expect(openedMeal, isTrue);
+        expect(find.byType(MealRatingSheet), findsNothing);
+      },
+    );
+
+    testWidgets('tapping elsewhere on the card still opens meal details', (
       tester,
     ) async {
+      var openedMeal = false;
       await tester.pumpWidget(
         _wrap(
           Scaffold(
             body: MealCard(
               meal: _meal(plateScore: _scoreWithWarnings),
-              onTap: () {},
+              onTap: () => openedMeal = true,
             ),
           ),
         ),
       );
 
-      expect(find.byType(PlateScoreChip), findsNothing);
-      expect(find.text('41'), findsNothing);
-
-      await tester.tap(find.bySemanticsLabel('This meal: 2 of 5 stars'));
+      await tester.tap(find.text('Masala chips'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(MealRatingSheet), findsOneWidget);
+      expect(openedMeal, isTrue);
+      expect(find.byType(MealRatingSheet), findsNothing);
     });
 
     testWidgets('a meal row with no rating shows neither', (tester) async {

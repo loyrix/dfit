@@ -96,6 +96,25 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
     final primaryText = _reviewPrimaryText(context);
     final secondaryText = _reviewSecondaryText(context);
     final borderColor = _reviewBorder(context);
+    final bool isEmptyTextEntry =
+        widget.onDescribeMeal != null && _entries.isEmpty;
+
+    final addCustomItemButton = GlassWrapper(
+      child: OutlinedButton(
+        onPressed: _openAddCustomItemSheet,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryText,
+          side: BorderSide(color: borderColor),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              LogMyPlateSpacing.elementBorderRadius,
+            ),
+          ),
+        ),
+        child: const Text('Add custom item'),
+      ),
+    );
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -129,97 +148,132 @@ class _ReviewMealScreenState extends State<ReviewMealScreen> {
                     24,
                   ),
                   children: [
-                    _ReviewSummaryCard(
-                      photo: widget.photo,
-                      mealType: _mealType,
-                      totals: totals,
-                      itemCount: _items.length,
-                    ),
-                    // Offered only while the meal is still empty: the
-                    // estimate comes back as its own review, so anything
-                    // already added by hand would be left behind.
-                    if (widget.onDescribeMeal != null && _entries.isEmpty) ...[
-                      const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                      _DescribeMealCard(onSubmit: widget.onDescribeMeal!),
-                    ],
-                    // No rating here on purpose. The Plate Score is no
-                    // longer shown, and the star rating is computed by the
-                    // server, so it first appears once the meal is saved.
-                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                    Text(
-                      'Items to confirm',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: secondaryText,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    LiteGlassCard(
-                      borderRadius: BorderRadius.circular(
-                        LogMyPlateSpacing.heroCardBorderRadius,
-                      ),
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          for (var index = 0; index < _entries.length; index++)
-                            _ReviewItemRow(
-                              rowKey: ValueKey(
-                                '${_entries[index].item.name}-$index',
-                              ),
-                              item: _entries[index].item,
-                              onEdit: () => _openEditItemSheet(index),
-                              onDelete: () {
-                                setState(() => _entries.removeAt(index));
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: LogMyPlateSpacing.sectionSpacing),
-                    GlassWrapper(
-                      child: OutlinedButton(
-                        onPressed: _openAddCustomItemSheet,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: primaryText,
-                          side: BorderSide(color: borderColor),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              LogMyPlateSpacing.elementBorderRadius,
-                            ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      layoutBuilder: (currentChild, previousChildren) {
+                        return Stack(
+                          alignment: Alignment.topCenter,
+                          children: <Widget>[
+                            ...previousChildren,
+                            ?currentChild,
+                          ],
+                        );
+                      },
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SizeTransition(
+                            sizeFactor: animation,
+                            alignment: Alignment.topCenter,
+                            child: child,
                           ),
-                        ),
-                        child: const Text('Add custom item'),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    if (_error != null) ...[
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: _reviewAccentText(context),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    PremiumButton.icon(
-                      onPressed: _items.isEmpty
-                          ? null
-                          : _saving
-                          ? () {}
-                          : () => _confirm(analyzeWithAI: false),
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                        );
+                      },
+                      child: isEmptyTextEntry
+                          ? Column(
+                              key: const ValueKey('review-empty-text-entry'),
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _DescribeMealCard(
+                                  onSubmit: widget.onDescribeMeal!,
+                                ),
+                                const _OrDivider(),
+                                addCustomItemButton,
+                              ],
                             )
-                          : const Icon(Icons.check_rounded, size: 20),
-                      label: const Text(
-                        'Confirm meal',
-                        key: ValueKey('confirm'),
-                      ),
+                          : Column(
+                              key: const ValueKey('review-populated'),
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _ReviewSummaryCard(
+                                  photo: widget.photo,
+                                  mealType: _mealType,
+                                  totals: totals,
+                                  itemCount: _items.length,
+                                ),
+                                const SizedBox(
+                                  height: LogMyPlateSpacing.sectionSpacing,
+                                ),
+                                Text(
+                                  'Items to confirm',
+                                  style: Theme.of(context).textTheme.labelSmall
+                                      ?.copyWith(
+                                        color: secondaryText,
+                                        letterSpacing: 1.2,
+                                      ),
+                                ),
+                                const SizedBox(height: 10),
+                                LiteGlassCard(
+                                  borderRadius: BorderRadius.circular(
+                                    LogMyPlateSpacing.heroCardBorderRadius,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  child: Column(
+                                    children: [
+                                      for (
+                                        var index = 0;
+                                        index < _entries.length;
+                                        index++
+                                      )
+                                        _ReviewItemRow(
+                                          rowKey: ValueKey(
+                                            '${_entries[index].item.name}-$index',
+                                          ),
+                                          item: _entries[index].item,
+                                          onEdit: () =>
+                                              _openEditItemSheet(index),
+                                          onDelete: () {
+                                            setState(
+                                              () => _entries.removeAt(index),
+                                            );
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  height: LogMyPlateSpacing.sectionSpacing,
+                                ),
+                                addCustomItemButton,
+                                const SizedBox(height: 10),
+                                if (_error != null) ...[
+                                  Text(
+                                    _error!,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          color: _reviewAccentText(context),
+                                        ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                ],
+                                PremiumButton.icon(
+                                  onPressed: _items.isEmpty
+                                      ? null
+                                      : _saving
+                                      ? () {}
+                                      : () => _confirm(analyzeWithAI: false),
+                                  icon: _saving
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.check_rounded,
+                                          size: 20,
+                                        ),
+                                  label: const Text(
+                                    'Confirm meal',
+                                    key: ValueKey('confirm'),
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ],
                 ),
@@ -735,6 +789,40 @@ class _UnitChip extends StatelessWidget {
           color: _reviewSecondaryText(context),
           letterSpacing: 0,
         ),
+      ),
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.logmyplate;
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: LogMyPlateSpacing.lgSpacing,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(color: colors.border, thickness: 0.5, height: 1),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              'or',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(color: colors.border, thickness: 0.5, height: 1),
+          ),
+        ],
       ),
     );
   }
