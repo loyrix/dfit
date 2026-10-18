@@ -12,6 +12,7 @@ import '../widgets/logmyplate_fab.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
 import '../widgets/daily_score_card.dart';
+import '../widgets/score_visuals.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_card.dart';
 import '../widgets/meal_delete_controls.dart';
@@ -156,7 +157,7 @@ class TodayScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: LogMyPlateSpacing.itemSpacing),
                       ],
-                      if (dailyRating != null) ...[
+                      if (showStarRatings && dailyRating != null) ...[
                         DailyScoreCard(
                           rating: dailyRating!,
                           mealsLogged: meals.length,

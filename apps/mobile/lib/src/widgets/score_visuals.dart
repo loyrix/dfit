@@ -3,6 +3,18 @@ import 'package:flutter/material.dart';
 import '../theme/logmyplate_colors.dart';
 import '../theme/logmyplate_theme.dart';
 
+/// Star ratings are hidden temporarily. We are refining them and will turn
+/// them back on in the next release.
+///
+/// While this is off, no screen shows meal, daily or weekly stars or opens the
+/// rating sheet, so the AI "worth knowing" and "try this next time" advice
+/// that lives only in that sheet is hidden too. The API still computes and
+/// returns ratings, so nothing needs migrating when this is switched back on.
+/// See docs/star-rating-hidden.md.
+///
+/// Not const only so tests can keep covering the rated layout.
+bool showStarRatings = false;
+
 /// Visual language for the star rating.
 ///
 /// The rating is the most emotionally loaded surface in the app — it is the app

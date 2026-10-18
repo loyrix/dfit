@@ -11,6 +11,7 @@ import '../widgets/glass/glass_cards.dart';
 import '../widgets/energy_hero_card.dart';
 import '../widgets/logmyplate_notice.dart';
 import '../widgets/daily_score_card.dart';
+import '../widgets/score_visuals.dart';
 import '../widgets/macro_bar_group.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/nutritionist_entry_button.dart';
@@ -124,7 +125,7 @@ class _WeeklyJournalScreenState extends State<WeeklyJournalScreen> {
                       ),
                     ],
                     const SizedBox(height: LogMyPlateSpacing.itemSpacing),
-                    if (_range.summary.rating != null) ...[
+                    if (showStarRatings && _range.summary.rating != null) ...[
                       WeeklyScoreCard(
                         rating: _range.summary.rating!,
                         trackedDays: _range.summary.activeDays,
@@ -464,7 +465,7 @@ class _DayMealRow extends StatelessWidget {
                     ),
                     // Stars, not the Plate Score number. The number is still
                     // computed and stored; it is just no longer shown.
-                    if (meal.rating != null)
+                    if (showStarRatings && meal.rating != null)
                       MealStarsButton(rating: meal.rating!),
                   ],
                 ),

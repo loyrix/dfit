@@ -6,8 +6,10 @@ import 'package:logmyplate_mobile/src/models/auth_session.dart';
 import 'package:logmyplate_mobile/src/models/captured_meal_photo.dart';
 import 'package:logmyplate_mobile/src/models/meal.dart';
 import 'package:logmyplate_mobile/src/models/score_rating.dart';
+import 'package:logmyplate_mobile/src/widgets/daily_score_card.dart';
 import 'package:logmyplate_mobile/src/widgets/meal_rating_sheet.dart';
 import 'package:logmyplate_mobile/src/widgets/score_star_row.dart';
+import 'package:logmyplate_mobile/src/widgets/score_visuals.dart';
 import 'package:logmyplate_mobile/src/screens/account_gate_screen.dart';
 import 'package:logmyplate_mobile/src/screens/account_profile_screen.dart';
 import 'package:logmyplate_mobile/src/screens/analyzing_screen.dart';
@@ -902,6 +904,8 @@ void main() {
   testWidgets(
     'today meal card stars are non-interactive and tap opens meal details',
     (tester) async {
+      showStarRatings = true;
+      addTearDown(() => showStarRatings = false);
       MealLog? openedMeal;
       final meal = MealLog(
         id: 'today-stars',
@@ -1220,6 +1224,8 @@ void main() {
   testWidgets(
     'Day Analysis meal cards show macro line and non-interactive stars that open meal details',
     (tester) async {
+      showStarRatings = true;
+      addTearDown(() => showStarRatings = false);
       MealLog? openedMeal;
       final meal = MealLog(
         id: 'day-meal-1',
@@ -1291,6 +1297,125 @@ void main() {
       expect(find.byType(MealRatingSheet), findsNothing);
     },
   );
+
+  testWidgets('star ratings stay hidden on Today, Day Analysis and the week', (
+    tester,
+  ) async {
+    const rating = ScoreRating(
+      stars: 4,
+      message: 'Balanced snack.',
+      level: ScoreLevel.meal,
+      reasons: [],
+    );
+    final meal = MealLog(
+      id: 'hidden-stars',
+      type: MealType.snack,
+      title: 'Chai and biscuit',
+      loggedAt: DateTime(2026, 5, 12, 16),
+      items: const [
+        MealItem(
+          name: 'Chai and biscuit',
+          quantity: 1,
+          unit: 'cup',
+          grams: 180,
+          nutrition: MacroTotals(
+            calories: 120,
+            proteinG: 2,
+            carbsG: 20,
+            fatG: 4,
+          ),
+        ),
+      ],
+      rating: rating,
+    );
+    final day = JournalDayData(
+      date: '2026-05-12',
+      mealCount: 1,
+      totals: meal.totals,
+      meals: [meal],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.light(),
+        home: TodayScreen(
+          meals: [meal],
+          totals: meal.totals,
+          dailyRating: const ScoreRating(
+            stars: 4,
+            message: 'A strong day so far.',
+            level: ScoreLevel.daily,
+            reasons: [],
+          ),
+          onRefresh: () async {},
+          onScan: () {},
+          onAddManually: () {},
+          onOpenSettings: () {},
+          onOpenMeal: (_) {},
+          onDeleteMeal: (_) async {},
+          onOpenWeeklyJournal: () {},
+          onOpenStreak: () {},
+          showScanAction: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chai and biscuit'), findsOneWidget);
+    expect(find.byType(DailyScoreCard), findsNothing);
+    expect(find.byType(ScoreStarRow), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.light(),
+        home: DayJournalDetailScreen(
+          day: day,
+          onOpenMeal: (_) async => false,
+          onDeleteMeal: (_) async {},
+          onMealDeleted: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chai and biscuit'), findsOneWidget);
+    expect(find.byType(ScoreStarRow), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: LogMyPlateTheme.light(),
+        home: WeeklyJournalScreen(
+          range: JournalRangeData(
+            startDate: '2026-05-06',
+            endDate: '2026-05-12',
+            days: [day],
+            summary: JournalRangeSummary(
+              windowDays: 7,
+              activeDays: 1,
+              mealCount: 1,
+              totals: meal.totals,
+              trackedDayAverage: meal.totals,
+              calendarDayAverage: meal.totals,
+              rating: const ScoreRating(
+                stars: 4,
+                message: 'A strong week.',
+                level: ScoreLevel.weekly,
+                reasons: [],
+              ),
+            ),
+          ),
+          onOpenMeal: (_) async => false,
+          onDeleteMeal: (_) async {},
+          onLoadWeek: (_) async => throw UnimplementedError(),
+          onLoadWeeks: () async => const [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(WeeklyScoreCard), findsNothing);
+    expect(find.byType(ScoreStarRow), findsNothing);
+  });
 
   testWidgets('meal detail owns meal-level macro profile', (tester) async {
     final meal = MealLog(

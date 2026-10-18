@@ -20,6 +20,7 @@ import '../widgets/meal_score_row.dart';
 import '../widgets/meal_rating_sheet.dart';
 import '../widgets/meal_delete_controls.dart';
 import '../widgets/primitive_icons.dart';
+import '../widgets/score_visuals.dart';
 import 'package:logmyplate_mobile/src/widgets/glass/glass_wrapper.dart';
 
 class MealDetailScreen extends StatefulWidget {
@@ -245,7 +246,8 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                               height: LogMyPlateSpacing.cardPadding,
                             ),
                             _MealDetailSummaryCard(meal: _draftMeal),
-                            if (_draftMeal.rating != null) ...[
+                            if (showStarRatings &&
+                                _draftMeal.rating != null) ...[
                               const SizedBox(
                                 height: LogMyPlateSpacing.sectionSpacing,
                               ),

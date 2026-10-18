@@ -7,6 +7,7 @@ import '../theme/logmyplate_theme.dart';
 import 'glass/fake_glass_row.dart';
 import 'meal_delete_controls.dart';
 import 'meal_score_row.dart';
+import 'score_visuals.dart';
 
 class MealCard extends StatelessWidget {
   const MealCard({
@@ -106,7 +107,7 @@ class MealCard extends StatelessWidget {
                     ),
                     // Stars, not the Plate Score number. The number is still
                     // computed and stored; it is just no longer shown.
-                    if (meal.rating != null)
+                    if (showStarRatings && meal.rating != null)
                       MealStarsButton(rating: meal.rating!, onTap: onRatingTap),
                   ],
                 ),

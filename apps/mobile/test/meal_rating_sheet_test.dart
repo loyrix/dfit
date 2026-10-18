@@ -9,6 +9,7 @@ import 'package:logmyplate_mobile/src/widgets/meal_card.dart';
 import 'package:logmyplate_mobile/src/widgets/meal_rating_sheet.dart';
 import 'package:logmyplate_mobile/src/widgets/plate_score_chip.dart';
 import 'package:logmyplate_mobile/src/widgets/score_star_row.dart';
+import 'package:logmyplate_mobile/src/widgets/score_visuals.dart';
 
 Widget _wrap(Widget child) =>
     MaterialApp(theme: LogMyPlateTheme.light(), home: child);
@@ -237,6 +238,9 @@ void main() {
   });
 
   group('stars replace the Plate Score', () {
+    setUp(() => showStarRatings = true);
+    tearDown(() => showStarRatings = false);
+
     testWidgets(
       'tapping the stars on a Today meal card navigates to meal details and does not open rating sheet',
       (tester) async {
@@ -313,6 +317,46 @@ void main() {
 
       expect(find.byType(MealRatingSheet), findsOneWidget);
       expect(find.text('WHY THIS RATING'), findsOneWidget);
+    });
+  });
+
+  group('star ratings hidden for this release', () {
+    testWidgets('a meal card shows no stars', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          Scaffold(
+            body: MealCard(meal: _meal(), onTap: () {}),
+          ),
+        ),
+      );
+
+      expect(find.text('Masala chips'), findsOneWidget);
+      expect(find.byType(ScoreStarRow), findsNothing);
+    });
+
+    testWidgets('meal detail has no star row and no way to the AI advice', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          MealDetailScreen(
+            meal: _meal(
+              advice: const MealAdvice(
+                watchOuts: ['The chips are fried and salted.'],
+                swaps: ['Swap the chips for roasted makhana.'],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('meal-score-open')), findsNothing);
+      expect(find.byType(ScoreStarRow), findsNothing);
+      expect(find.byType(MealRatingSheet), findsNothing);
+      expect(find.text('TRY THIS NEXT TIME'), findsNothing);
+      expect(find.text('Swap the chips for roasted makhana.'), findsNothing);
+      expect(find.text('The chips are fried and salted.'), findsNothing);
     });
   });
 }
