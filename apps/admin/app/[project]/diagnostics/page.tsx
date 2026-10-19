@@ -30,6 +30,7 @@ function describe(row: AppLogRow): string {
     "helper.install_requested": "Started installing the helper",
     "helper.registering": "About to register the helper",
     "launch.statement_accepted": "Received a signed entitlement",
+    "launch.language_relaunch": "Reopened itself to switch language",
     "hide.gate_closed": "Hiding refused — entitlement",
     "restore.failed": "Restore failed — should never happen",
     "restore.open_failed": "Could not open a hidden app",
