@@ -49,6 +49,12 @@ function trialEndsOn(row: InstallRow, windows: Map<string, string>): string | nu
   return (row.device_hash ? windows.get(row.device_hash) : null) ?? row.trial_expires_at;
 }
 
+/** "0.1.10" must sort after "0.1.9", which a plain string comparison gets wrong. */
+function versionRank(value: string | null) {
+  if (!value) return null;
+  return value.split(".").reduce((rank, part) => rank * 1000 + (Number.parseInt(part, 10) || 0), 0);
+}
+
 function tally<T>(rows: T[], key: (row: T) => string) {
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -141,6 +147,16 @@ export default async function InstallsPage({
     (trials.ok ? trials.data.rows : []).map((trial) => [trial.device_hash, trial.trial_expires_at]),
   );
   const daysLeft = (row: InstallRow) => trialDaysLeft(row, windows, now);
+  // Copies seen on the same Mac, counted by the server when a new install id
+  // arrives with a device hash it already knows. One is the normal case.
+  const installsOnMac = new Map(
+    (trials.ok ? trials.data.rows : []).map((trial) => [trial.device_hash, trial.install_count]),
+  );
+  const reinstalls = (row: InstallRow) =>
+    row.device_hash ? Math.max((installsOnMac.get(row.device_hash) ?? 1) - 1, 0) : null;
+  const reinstalledMacs = (trials.ok ? trials.data.rows : []).filter(
+    (trial) => trial.install_count > 1,
+  );
   // Opens are only reported from 0.1.8, so an absent count means "too old to
   // say", not "never used" — the table shows those differently for that reason.
   const opensBy = usage.ok ? usage.data : new Map();
@@ -168,6 +184,8 @@ export default async function InstallsPage({
     defaultSort: "trialEnds",
     sorters: {
       checkIns: (row) => row.heartbeat_count ?? 0,
+      version: (row) => versionRank(row.app_version),
+      reinstalls: (row) => reinstalls(row),
       lastSeen: (row) => new Date(row.last_seen),
       // Licensed installs have no clock to run out; an empty value sorts them
       // to the bottom in either direction rather than pretending to be urgent.
@@ -226,6 +244,15 @@ export default async function InstallsPage({
           }
         />
         <Metric
+          label="Reinstalled Macs"
+          value={formatNumber(reinstalledMacs.length)}
+          sub={
+            reinstalledMacs.length
+              ? "Installed more than once — each kept its first trial"
+              : "No Mac has installed twice"
+          }
+        />
+        <Metric
           label="Expiring · 7d"
           value={formatNumber(expiringSoon.length)}
           sub={
@@ -279,7 +306,11 @@ export default async function InstallsPage({
                 <thead>
                   <tr>
                     <th>Install</th>
-                    <th>Version</th>
+                    <th>
+                      <SortableHeader {...sortable} sort="version">
+                        Version
+                      </SortableHeader>
+                    </th>
                     <th>macOS</th>
                     <th>Country</th>
                     <th>First seen</th>
@@ -294,6 +325,11 @@ export default async function InstallsPage({
                       </SortableHeader>
                     </th>
                     <th>Opens · 30d</th>
+                    <th>
+                      <SortableHeader {...sortable} sort="reinstalls">
+                        Reinstalls
+                      </SortableHeader>
+                    </th>
                     <th>
                       <SortableHeader {...sortable} sort="trialEnds">
                         Trial ends
@@ -318,6 +354,9 @@ export default async function InstallsPage({
                         <td>{formatDate(row.last_seen)}</td>
                         <td>{formatNumber(row.heartbeat_count ?? 0)}</td>
                         <td>{reportsOpens(row) ? formatNumber(opens(row)) : "—"}</td>
+                        <td>
+                          {reinstalls(row) === null ? "—" : formatNumber(reinstalls(row) ?? 0)}
+                        </td>
                         <td>{row.license_id ? "—" : ends ? formatDate(ends) : "—"}</td>
                         <td>
                           {row.license_id || left === null
