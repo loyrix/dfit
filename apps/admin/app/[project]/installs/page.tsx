@@ -42,7 +42,10 @@ function macOsRelease(value: string | null) {
 function trialDaysLeft(row: InstallRow, windows: Map<string, string>, now: number): number | null {
   const ends = (row.device_hash ? windows.get(row.device_hash) : null) ?? row.trial_expires_at;
   if (!ends) return null;
-  return Math.ceil((Date.parse(ends) - now) / DAY);
+  // A trial that ended an hour ago is -1 ("1d ago"), not the -0 that Math.ceil
+  // gives on its own, which passes every `< 0` check as still running.
+  const remaining = Date.parse(ends) - now;
+  return remaining > 0 ? Math.ceil(remaining / DAY) : Math.min(Math.ceil(remaining / DAY), -1);
 }
 
 function trialEndsOn(row: InstallRow, windows: Map<string, string>): string | null {
