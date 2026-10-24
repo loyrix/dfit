@@ -329,6 +329,11 @@ export type InstallRow = {
   trial_expires_at: string | null;
   /** A development Mac rather than a customer's. Excluded by default. */
   is_test: boolean | null;
+  /**
+   * What the last heartbeat said, when `app_version` was raised from a newer
+   * version seen in the install's events. Undefined when the two agree.
+   */
+  heartbeat_version?: string | null;
 };
 
 /**
@@ -339,13 +344,60 @@ export type InstallRow = {
  * It is flagged by device hash rather than dropped, so it can still be looked
  * at when checking that reporting works at all.
  */
-export function listInstalls(limit = 500, { includeTest = false } = {}) {
+export async function listInstalls(limit = 500, { includeTest = false } = {}) {
   const columns =
     "select=install_id,first_seen,last_seen,app_version,os_version,country,heartbeat_count,license_id,is_test,device_hash,trial_expires_at";
   const filter = includeTest ? "" : "&is_test=is.false";
-  return select<InstallRow>("loyrix_app_installs", `${columns}${filter}&order=last_seen.desc`, {
-    limit,
+  const [installs, eventVersions] = await Promise.all([
+    select<InstallRow>("loyrix_app_installs", `${columns}${filter}&order=last_seen.desc`, {
+      limit,
+    }),
+    latestEventVersions(),
+  ]);
+
+  // The heartbeat records the version at most once a day, and Sparkle updates
+  // in between, so a Mac that updated an hour after checking in read as the
+  // old version for up to a day. Every event carries the version that sent
+  // it, so the newer of the two is what the Mac is running.
+  const rows = installs.rows.map((row) => {
+    const fromEvents = eventVersions.get(row.install_id);
+    if (!fromEvents || versionRank(fromEvents) <= versionRank(row.app_version)) return row;
+    return { ...row, app_version: fromEvents, heartbeat_version: row.app_version };
   });
+  return { rows, total: installs.total };
+}
+
+/** How far back events are read for versions: well past any heartbeat gap. */
+const EVENT_VERSION_DAYS = 30;
+
+/** The newest app version each install has reported in its events. */
+async function latestEventVersions() {
+  const since = new Date(Date.now() - EVENT_VERSION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { rows } = await select<{ install_id: string; app_version: string | null }>(
+    "loyrix_app_events",
+    // Newest first: Supabase returns at most 1,000 rows however many are asked
+    // for, and the newest events are the ones that carry a new version.
+    `select=install_id,app_version&received_at=gte.${since}&app_version=not.is.null&order=received_at.desc`,
+    { limit: 1000 },
+  );
+  const newest = new Map<string, string>();
+  for (const row of rows) {
+    if (!row.app_version) continue;
+    const current = newest.get(row.install_id);
+    if (!current || versionRank(row.app_version) > versionRank(current)) {
+      newest.set(row.install_id, row.app_version);
+    }
+  }
+  return newest;
+}
+
+/** "1.10.0" above "1.9.2": compared by number, part by part. */
+function versionRank(value: string | null | undefined) {
+  if (!value) return -1;
+  return value
+    .split(".")
+    .slice(0, 3)
+    .reduce((rank, part) => rank * 1000 + (Number.parseInt(part, 10) || 0), 0);
 }
 
 /**

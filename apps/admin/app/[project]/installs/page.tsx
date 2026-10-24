@@ -350,7 +350,18 @@ export default async function InstallsPage({
                     return (
                       <tr key={row.install_id}>
                         <td>{shortId(row.install_id)}</td>
-                        <td>{row.app_version ?? "—"}</td>
+                        <td
+                          title={
+                            row.heartbeat_version !== undefined
+                              ? `Updated since its last check-in, which reported ${row.heartbeat_version ?? "no version"}`
+                              : undefined
+                          }
+                        >
+                          {row.app_version ?? "—"}
+                          {row.heartbeat_version !== undefined ? (
+                            <span className="muted"> ↑</span>
+                          ) : null}
+                        </td>
                         <td>{macOsRelease(row.os_version)}</td>
                         <td>{row.country ?? "—"}</td>
                         <td>{formatDate(row.first_seen)}</td>
