@@ -11,14 +11,30 @@ import 'src/services/app_diagnostics.dart';
 import 'src/services/journal_cache_store.dart';
 import 'src/services/rewarded_ad_service.dart';
 
-Future<void> _printAdvertisingId() async {
-  // The ATT prompt is only shown once the app is active; give the first
-  // frame a moment to land before requesting.
-  await Future<void>.delayed(const Duration(seconds: 1));
-  final status = await AppTrackingTransparency.trackingAuthorizationStatus;
-  if (status == TrackingStatus.notDetermined) {
-    await AppTrackingTransparency.requestTrackingAuthorization();
+/// Asks for App Tracking Transparency consent on iOS. AdMob must not start
+/// until this settles, so no ad data is collected before the user decides.
+Future<void> _requestTrackingAuthorization() async {
+  if (defaultTargetPlatform != TargetPlatform.iOS) return;
+  try {
+    // iOS silently drops the request unless the app is active, so wait for
+    // the first resume and give the first frame a moment to land.
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      final resumed = Completer<void>();
+      final listener = AppLifecycleListener(onResume: resumed.complete);
+      await resumed.future;
+      listener.dispose();
+    }
+    await Future<void>.delayed(const Duration(seconds: 1));
+    final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+    if (status == TrackingStatus.notDetermined) {
+      await AppTrackingTransparency.requestTrackingAuthorization();
+    }
+  } catch (error, stack) {
+    AppDiagnostics.instance.record('att.request', error, stackTrace: stack);
   }
+}
+
+Future<void> _printAdvertisingId() async {
   final adId = await AppTrackingTransparency.getAdvertisingIdentifier();
   debugPrint('==============================================');
   debugPrint('Advertising ID (IDFA/AAID): $adId');
@@ -68,12 +84,14 @@ void main() {
 
       runApp(const LogMyPlateApp());
 
+      final trackingAuthorization = _requestTrackingAuthorization();
       if (kDebugMode) {
-        unawaited(_printAdvertisingId());
+        unawaited(trackingAuthorization.then((_) => _printAdvertisingId()));
       }
 
       unawaited(
         JournalCacheStore().load().then((cachedBootstrap) async {
+          await trackingAuthorization;
           final testDeviceIds =
               cachedBootstrap?.engagementPolicy.admob.testDeviceIds ?? const [];
           await MobileAds.instance.updateRequestConfiguration(
