@@ -208,7 +208,10 @@ function buildAppStoreUrl(placement: string, visit: VisitSource): string {
   // is truncated on Apple's side, which would silently merge distinct campaigns
   // into one bucket. Truncating here keeps what we send and what Apple records
   // identical.
-  const campaign = `${visit.source}_${placement}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+  // SEO content pages name themselves (see DownloadBadges `campaign`), which is
+  // more useful than "logmyplate_com_<placement>" once both are cut to 30 chars.
+  const label = visit.medium === "seo" ? `seo_${visit.campaign}` : `${visit.source}_${placement}`;
+  const campaign = label.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
 
   return `${APP_CONFIG.appStoreCampaignBaseUrl}?pt=${encodeURIComponent(providerToken)}&ct=${encodeURIComponent(campaign)}&mt=8`;
 }

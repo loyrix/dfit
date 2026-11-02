@@ -214,6 +214,29 @@ export function FoodArticle({ slug }: { slug: string }) {
             </p>
           </section>
 
+          {/* Inline app CTA: on phones the sidebar only appears after the whole article. */}
+          <section
+            className="flex flex-col gap-3 rounded-[24px] border p-5 sm:p-6"
+            style={{ borderColor: "var(--border)", background: "var(--app-card)" }}
+          >
+            <h2
+              className="font-display text-xl font-semibold tracking-tight"
+              style={{ color: "var(--text-primary)" }}
+            >
+              Scan your plate instead of weighing it
+            </h2>
+            <p className="text-[14px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+              Take one photo and {APP_CONFIG.brandName} estimates calories, protein, carbs and fat
+              for {food.name.toLowerCase()} and everything else on the plate. Check the estimate,
+              adjust the portion, and it goes into your food diary.
+            </p>
+            <DownloadBadges
+              size="sm"
+              placement="food_page_inline"
+              campaign={`calories-${food.slug}`}
+            />
+          </section>
+
           {/* Portion honesty — the section no competitor has. */}
           <section
             className="flex flex-col gap-4 rounded-[28px] border p-6 sm:p-8"
@@ -445,7 +468,12 @@ export function FoodArticle({ slug }: { slug: string }) {
             <p className="mt-3 text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
               Every food. Actually good at Indian.
             </p>
-            <DownloadBadges size="sm" className="mt-5" placement="food_page_sidebar" />
+            <DownloadBadges
+              size="sm"
+              className="mt-5"
+              placement="food_page_sidebar"
+              campaign={`calories-${food.slug}`}
+            />
           </div>
         </aside>
       </div>
