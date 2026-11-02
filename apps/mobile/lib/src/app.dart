@@ -283,6 +283,7 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
   }
 
   Future<void> _handleIncomingLink(Uri uri) async {
+    unawaited(_attributionReporter.captureLink(uri));
     final link = parseLogMyPlateDeepLink(uri);
     if (link == LogMyPlateDeepLink.deleteAccount) {
       await _openAccountDeletionFromLink();
@@ -775,9 +776,24 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
     );
 
     if (analyzeWithAI) {
+      // No prompt over the chat, but the scan still counts toward the
+      // review-prompt streak.
+      unawaited(_recordConfirmedScanForReviewPrompt());
       _openNutritionistChat(focusMealId: meal.id);
     } else {
       unawaited(_runPostConfirmGrowthPrompts());
+    }
+  }
+
+  Future<void> _recordConfirmedScanForReviewPrompt() async {
+    try {
+      await _reviewPromptStore.recordConfirmedScan();
+    } catch (error, stackTrace) {
+      AppDiagnostics.instance.record(
+        'review_prompt.record_scan',
+        error,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -804,34 +820,43 @@ class _LogMyPlateAppState extends State<LogMyPlateApp> {
         return false;
       }
 
+      // Let the "Scan saved" notice and the meal detail settle first, so the
+      // prompt reads as a reaction to a finished log rather than an interruption.
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return false;
+
+      // The native flow first, on both platforms, with no screen of our own in
+      // front of it: Play's in-app review policy and Apple's guideline 5.6.1
+      // both ask apps not to pre-qualify users before the system prompt. The
+      // OS decides whether it actually appears (Apple: at most 3 times a year),
+      // so the 90-day gap is recorded either way.
+      final reviews = AppReviewService();
+      if (await reviews.isNativeReviewAvailable()) {
+        await _reviewPromptStore.markPromptShown(
+          appVersionKey: appVersionKey,
+          now: now,
+        );
+        return await reviews.tryNativeReview();
+      }
+
+      // No native flow (sideloaded build, no Play Services): fall back to our
+      // own sheet that links to the store's review page.
       final storeUrl = _reviewPromptStoreUrl(policy);
       if (storeUrl == null) return false;
+      final context = _navigatorKey.currentContext;
+      if (context == null || !context.mounted) return false;
 
       await _reviewPromptStore.markPromptShown(
         appVersionKey: appVersionKey,
         now: now,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return false;
-
-      final context = _navigatorKey.currentContext;
-      if (context == null || !context.mounted) return false;
+      if (!context.mounted) return false;
       final accepted = await showModalBottomSheet<bool>(
         context: context,
         backgroundColor: Colors.transparent,
         builder: (_) => _ReviewPromptSheet(policy: policy),
       );
       if (accepted != true || !context.mounted) return true;
-
-      // Android: show the Play in-app star dialog so the user rates without
-      // leaving the app; fall back to the Play listing if unavailable.
-      // iOS: the write-review link opens the App Store review composer
-      // directly instead of the listing page.
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final nativeShown = await AppReviewService().tryNativeReview();
-        if (nativeShown) return true;
-        if (!context.mounted) return true;
-      }
       await openLogMyPlateLink(
         context,
         AppReviewService.writeReviewUrl(storeUrl),

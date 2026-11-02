@@ -47,8 +47,9 @@ void main() {
     },
   );
 
-  test('respects cooldown and once-per-version review prompt gates', () async {
+  test('respects the 90-day floor and once-per-version gates', () async {
     final store = ReviewPromptStore();
+    // A remote cooldown below 90 days is raised to 90 on the device.
     final policy = const EngagementReviewPromptPolicy(
       enabled: true,
       minConfirmedScans: 1,
@@ -78,17 +79,10 @@ void main() {
       afterPrompt.isEligible(
         policy: policy,
         appVersionKey: '1.0.0+1',
-        now: DateTime(2026, 6, 8, 12),
+        now: DateTime(2026, 12, 1, 12),
       ),
       isFalse,
-    );
-    expect(
-      afterPrompt.isEligible(
-        policy: policy,
-        appVersionKey: '1.0.1+2',
-        now: DateTime(2026, 6, 7, 12),
-      ),
-      isFalse,
+      reason: 'already asked on this app version',
     );
     expect(
       afterPrompt.isEligible(
@@ -96,7 +90,103 @@ void main() {
         appVersionKey: '1.0.1+2',
         now: DateTime(2026, 6, 9, 12),
       ),
+      isFalse,
+      reason: 'a 7-day remote cooldown is raised to 90 days',
+    );
+    expect(
+      afterPrompt.isEligible(
+        policy: policy,
+        appVersionKey: '1.0.1+2',
+        now: DateTime(2026, 8, 29, 12),
+      ),
+      isFalse,
+    );
+    expect(
+      afterPrompt.isEligible(
+        policy: policy,
+        appVersionKey: '1.0.1+2',
+        now: DateTime(2026, 8, 31, 12),
+      ),
       isTrue,
+    );
+  });
+
+  test('the first confirmed scan earns the prompt by default', () async {
+    final store = ReviewPromptStore();
+    const policy = EngagementReviewPromptPolicy(enabled: true);
+
+    final stats = await store.recordConfirmedScan(
+      now: DateTime(2026, 6, 1, 12),
+    );
+    expect(
+      stats.triggerAt(policy: policy, now: DateTime(2026, 6, 1, 12)),
+      ReviewPromptTrigger.confirmedScan,
+    );
+    expect(
+      stats.isEligible(
+        policy: policy,
+        appVersionKey: '1.0.0+1',
+        now: DateTime(2026, 6, 1, 12),
+      ),
+      isTrue,
+    );
+  });
+
+  test(
+    'a 3-day streak earns the prompt when scan thresholds are not met',
+    () async {
+      final store = ReviewPromptStore();
+      const policy = EngagementReviewPromptPolicy(
+        enabled: true,
+        minConfirmedScans: 50,
+        streakDays: 3,
+      );
+
+      await store.recordConfirmedScan(now: DateTime(2026, 6, 1, 9));
+      final twoDays = await store.recordConfirmedScan(
+        now: DateTime(2026, 6, 2, 9),
+      );
+      expect(twoDays.streakDaysAt(DateTime(2026, 6, 2, 20)), 2);
+      expect(
+        twoDays.triggerAt(policy: policy, now: DateTime(2026, 6, 2, 20)),
+        isNull,
+      );
+
+      final threeDays = await store.recordConfirmedScan(
+        now: DateTime(2026, 6, 3, 9),
+      );
+      expect(
+        threeDays.triggerAt(policy: policy, now: DateTime(2026, 6, 3, 9)),
+        ReviewPromptTrigger.streak,
+      );
+
+      // A gap resets the streak.
+      final afterGap = await store.recordConfirmedScan(
+        now: DateTime(2026, 6, 5, 9),
+      );
+      expect(afterGap.streakDaysAt(DateTime(2026, 6, 5, 9)), 1);
+      expect(
+        afterGap.triggerAt(policy: policy, now: DateTime(2026, 6, 5, 9)),
+        isNull,
+      );
+    },
+  );
+
+  test('streak path can be switched off remotely', () async {
+    final policy = EngagementReviewPromptPolicy.fromJson({
+      'enabled': true,
+      'minConfirmedScans': 50,
+      'streakDays': 0,
+    });
+    expect(policy.streakDays, 0);
+    final store = ReviewPromptStore();
+    for (var day = 1; day <= 5; day++) {
+      await store.recordConfirmedScan(now: DateTime(2026, 6, day, 9));
+    }
+    final stats = await store.load();
+    expect(
+      stats.triggerAt(policy: policy, now: DateTime(2026, 6, 5, 9)),
+      isNull,
     );
   });
 }

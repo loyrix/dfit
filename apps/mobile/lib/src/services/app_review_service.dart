@@ -13,6 +13,15 @@ class AppReviewService {
 
   final InAppReview _inAppReview;
 
+  /// Whether the platform can show its own review prompt right now.
+  Future<bool> isNativeReviewAvailable() async {
+    try {
+      return await _inAppReview.isAvailable();
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Attempts the native in-app review dialog. Returns false when the
   /// platform reports it unavailable (or errors) so callers can fall back to
   /// the store page.

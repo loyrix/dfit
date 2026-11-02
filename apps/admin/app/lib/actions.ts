@@ -537,6 +537,7 @@ const readReviewPromptPolicy = (formData: FormData): EngagementPolicy["reviewPro
   enabled: booleanValue(formData, "reviewPrompt.enabled"),
   minConfirmedScans: numberValue(formData, "reviewPrompt.minConfirmedScans"),
   minActiveDays: numberValue(formData, "reviewPrompt.minActiveDays"),
+  streakDays: numberValue(formData, "reviewPrompt.streakDays"),
   cooldownDays: numberValue(formData, "reviewPrompt.cooldownDays"),
   oncePerAppVersion: booleanValue(formData, "reviewPrompt.oncePerAppVersion"),
   storeUrls: {

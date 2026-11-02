@@ -1377,8 +1377,9 @@ class EngagementStoreUrls {
 class EngagementReviewPromptPolicy {
   const EngagementReviewPromptPolicy({
     this.enabled = false,
-    this.minConfirmedScans = 3,
-    this.minActiveDays = 2,
+    this.minConfirmedScans = 1,
+    this.minActiveDays = 1,
+    this.streakDays = 3,
     this.cooldownDays = 90,
     this.oncePerAppVersion = true,
     this.storeUrls = const EngagementStoreUrls(),
@@ -1388,6 +1389,10 @@ class EngagementReviewPromptPolicy {
   final bool enabled;
   final int minConfirmedScans;
   final int minActiveDays;
+
+  /// A run of this many consecutive logging days also earns the prompt, even
+  /// when the scan/active-day thresholds are not met. 0 turns the path off.
+  final int streakDays;
   final int cooldownDays;
   final bool oncePerAppVersion;
   final EngagementStoreUrls storeUrls;
@@ -1403,13 +1408,19 @@ class EngagementReviewPromptPolicy {
       enabled: _boolValue(json['enabled']),
       minConfirmedScans: _boundedInt(
         json['minConfirmedScans'],
-        fallback: 3,
+        fallback: 1,
         min: 0,
         max: 1000,
       ),
       minActiveDays: _boundedInt(
         json['minActiveDays'],
-        fallback: 2,
+        fallback: 1,
+        min: 0,
+        max: 365,
+      ),
+      streakDays: _boundedInt(
+        json['streakDays'],
+        fallback: 3,
         min: 0,
         max: 365,
       ),
@@ -1434,6 +1445,7 @@ class EngagementReviewPromptPolicy {
       'enabled': enabled,
       'minConfirmedScans': minConfirmedScans,
       'minActiveDays': minActiveDays,
+      'streakDays': streakDays,
       'cooldownDays': cooldownDays,
       'oncePerAppVersion': oncePerAppVersion,
       'storeUrls': storeUrls.toJson(),

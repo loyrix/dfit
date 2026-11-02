@@ -520,13 +520,22 @@ function ReviewPromptPanel({ policy }: { policy: EngagementPolicy }) {
             max={365}
           />
         </div>
-        <NumberField
-          label="Cooldown days"
-          name="reviewPrompt.cooldownDays"
-          value={policy.reviewPrompt.cooldownDays}
-          min={1}
-          max={365}
-        />
+        <div className="grid two-col">
+          <NumberField
+            label="Or streak days (0 = off)"
+            name="reviewPrompt.streakDays"
+            value={policy.reviewPrompt.streakDays}
+            min={0}
+            max={365}
+          />
+          <NumberField
+            label="Cooldown days (app enforces at least 90)"
+            name="reviewPrompt.cooldownDays"
+            value={policy.reviewPrompt.cooldownDays}
+            min={1}
+            max={365}
+          />
+        </div>
         <TextField
           label="iOS store URL"
           name="reviewPrompt.storeUrls.ios"

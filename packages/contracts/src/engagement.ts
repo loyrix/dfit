@@ -63,8 +63,10 @@ const platformStoreUrlsSchema = z.object({
 
 export const engagementReviewPromptPolicySchema = z.object({
   enabled: z.boolean().default(false),
-  minConfirmedScans: z.coerce.number().int().min(0).max(1000).default(3),
-  minActiveDays: z.coerce.number().int().min(0).max(365).default(2),
+  minConfirmedScans: z.coerce.number().int().min(0).max(1000).default(1),
+  minActiveDays: z.coerce.number().int().min(0).max(365).default(1),
+  /** Consecutive logging days that also earn the prompt; 0 disables that path. */
+  streakDays: z.coerce.number().int().min(0).max(365).default(3),
   cooldownDays: z.coerce.number().int().min(1).max(365).default(90),
   oncePerAppVersion: z.boolean().default(true),
   storeUrls: platformStoreUrlsSchema.default({}),

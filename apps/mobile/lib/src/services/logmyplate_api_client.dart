@@ -61,7 +61,11 @@ class LogMyPlateApiClient {
   /// Reports where this install came from. Best effort by design: the server
   /// treats "nothing to report" as success, and a failure here must never
   /// affect a launch, so callers fire and forget.
-  Future<void> recordInstallAttribution({
+  ///
+  /// Returns whether the server stored it on this install's device row; false
+  /// means the row did not exist yet (or there was nothing to store), so the
+  /// caller should try again later rather than treat the install as reported.
+  Future<bool> recordInstallAttribution({
     String? source,
     String? medium,
     String? campaign,
@@ -80,6 +84,12 @@ class LogMyPlateApiClient {
       }),
     );
     _throwIfBad(response);
+    try {
+      final body = jsonDecode(response.body);
+      return body is Map<String, dynamic> && body['recorded'] == true;
+    } on FormatException {
+      return false;
+    }
   }
 
   Future<void> registerPushToken({

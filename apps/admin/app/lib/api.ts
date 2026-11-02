@@ -510,6 +510,7 @@ export type EngagementPolicy = {
     enabled: boolean;
     minConfirmedScans: number;
     minActiveDays: number;
+    streakDays: number;
     cooldownDays: number;
     oncePerAppVersion: boolean;
     storeUrls: {

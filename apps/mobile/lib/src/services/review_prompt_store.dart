@@ -90,14 +90,54 @@ class ReviewPromptStats {
 
   int get activeDays => activeDates.length;
 
+  /// Never ask for a review more often than this, whatever the remote policy
+  /// says. Apple caps the system prompt at three times a year anyway, and
+  /// asking a returning user every few days burns goodwill for no gain.
+  static const minCooldownDays = 90;
+
+  /// Consecutive days with a confirmed scan, ending on [now]'s local date.
+  int streakDaysAt(DateTime now) {
+    var day = DateTime(
+      now.toLocal().year,
+      now.toLocal().month,
+      now.toLocal().day,
+    );
+    var streak = 0;
+    while (activeDates.contains(ReviewPromptStore._localDateKey(day))) {
+      streak++;
+      day = DateTime(day.year, day.month, day.day - 1);
+    }
+    return streak;
+  }
+
+  /// Which milestone earned the prompt, or null when none has been reached.
+  ///
+  /// Two ways in: the first confirmed scan (the moment the app has just done
+  /// its job), or a streak of logging days for someone who skipped the first
+  /// prompt's window. A remote `minConfirmedScans` of 0 still means "after a
+  /// scan", since this only runs when a scan is confirmed.
+  ReviewPromptTrigger? triggerAt({
+    required EngagementReviewPromptPolicy policy,
+    required DateTime now,
+  }) {
+    final minScans = policy.minConfirmedScans < 1
+        ? 1
+        : policy.minConfirmedScans;
+    if (confirmedScans >= minScans && activeDays >= policy.minActiveDays) {
+      return ReviewPromptTrigger.confirmedScan;
+    }
+    if (policy.streakDays > 0 && streakDaysAt(now) >= policy.streakDays) {
+      return ReviewPromptTrigger.streak;
+    }
+    return null;
+  }
+
   bool isEligible({
     required EngagementReviewPromptPolicy policy,
     required String appVersionKey,
     required DateTime now,
   }) {
     if (!policy.enabled) return false;
-    if (confirmedScans < policy.minConfirmedScans) return false;
-    if (activeDays < policy.minActiveDays) return false;
     if (policy.oncePerAppVersion &&
         appVersionKey.isNotEmpty &&
         lastPromptedAppVersion == appVersionKey) {
@@ -106,10 +146,15 @@ class ReviewPromptStats {
 
     final shownAt = lastShownAt;
     if (shownAt != null) {
-      final nextAllowedAt = shownAt.add(Duration(days: policy.cooldownDays));
+      final cooldownDays = policy.cooldownDays < minCooldownDays
+          ? minCooldownDays
+          : policy.cooldownDays;
+      final nextAllowedAt = shownAt.add(Duration(days: cooldownDays));
       if (now.isBefore(nextAllowedAt)) return false;
     }
 
-    return true;
+    return triggerAt(policy: policy, now: now) != null;
   }
 }
+
+enum ReviewPromptTrigger { confirmedScan, streak }
