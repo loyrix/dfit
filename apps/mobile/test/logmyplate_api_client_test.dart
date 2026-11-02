@@ -716,7 +716,8 @@ void main() {
       expect(bootstrap.engagementPolicy.analytics.enabled, isFalse);
       expect(bootstrap.engagementPolicy.analytics.firebaseEnabled, isFalse);
       expect(bootstrap.engagementPolicy.reviewPrompt.enabled, isFalse);
-      expect(bootstrap.engagementPolicy.reviewPrompt.minConfirmedScans, 3);
+      expect(bootstrap.engagementPolicy.reviewPrompt.minConfirmedScans, 1);
+      expect(bootstrap.engagementPolicy.reviewPrompt.streakDays, 3);
       expect(bootstrap.engagementPolicy.interstitialAds.enabled, isFalse);
       expect(bootstrap.engagementPolicy.interstitialAds.dailyCap, 3);
       expect(bootstrap.engagementPolicy.notifications.enabled, isFalse);
