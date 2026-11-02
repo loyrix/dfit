@@ -70,9 +70,9 @@ export const foods: FoodPage[] = [
     name: "Roti",
     tier: "indian",
     aka: ["chapati", "phulka", "chapathi"],
-    title: "Calories in Roti (Chapati) — Per Roti, Not Per 100g",
+    title: "Roti (Chapati) Calories and Nutrition, Per Roti",
     description:
-      "A medium roti is about 160 calories. Calories, protein and fibre for small, medium and large rotis — in the sizes people actually make them.",
+      "One medium roti or chapati is about 160 calories, with 5.2 g protein and 5.8 g fibre. Nutrition for small, medium and large rotis, plus roti vs rice.",
     intro: [
       "Nobody weighs a roti. That is the whole problem with looking this up.",
       "Most nutrition sites answer “calories in roti” with a per-100-gram figure. A roti is not 100 grams, and the roti made at home is not the roti served at a restaurant. The number you actually want depends on the tawa it came off.",
@@ -213,7 +213,7 @@ export const foods: FoodPage[] = [
           "Enough to matter. A teaspoon of ghee is about 5 g of pure fat, roughly 45 calories, which is nearly a third again on top of a small katori. It is the single biggest variable in home-cooked dal.",
       },
     ],
-    related: ["roti", "rice", "paneer", "idli"],
+    related: ["roti", "rice", "paneer", "chicken-biryani"],
   },
   {
     slug: "rice",
@@ -287,16 +287,16 @@ export const foods: FoodPage[] = [
           "Slightly. In our database cooked basmati sits around 120 calories per 100 g against 140 for plain cooked rice. Real, but small enough that the size of your serving matters considerably more than the variety.",
       },
     ],
-    related: ["roti", "dal", "idli", "paneer"],
+    related: ["roti", "dal", "chicken-biryani", "paneer"],
   },
   {
     slug: "paneer",
     name: "Paneer",
     tier: "indian",
     aka: ["cottage cheese", "indian cheese"],
-    title: "Calories and Protein in Paneer — Per Piece and Per 100g",
+    title: "Paneer Nutrition per 100g: Calories, Protein and Fat",
     description:
-      "100 g of paneer carries 265 calories and 18.3 g of protein. Per-piece figures, and how paneer compares with dal as a protein source.",
+      "Paneer nutrition facts: 100 g has 265 calories, 18.3 g protein and 20.8 g fat. Per-piece figures, and how paneer compares with dal for protein.",
     intro: [
       "Paneer is the food people reach for when they want protein without meat, and it genuinely delivers: 18.3 g per 100 g puts it ahead of most vegetarian options.",
       "It is also calorie-dense, because the protein and the fat arrive together. That is not a warning — it is simply what paneer is, and it explains why 100 g of paneer carries more than twice the calories of 100 g of dal despite both being “the protein”.",
@@ -447,9 +447,9 @@ export const foods: FoodPage[] = [
     // listing them here would be wrong on a public page and would cannibalise
     // /calories/roti. Flagged to the product session.
     aka: ["parantha", "lachha paratha", "aloo paratha", "plain paratha"],
-    title: "Calories in Paratha — Per Paratha, Not Per 100g",
+    title: "Paratha Calories: 1 Paratha, Half, Large and 2 Parathas",
     description:
-      "A plain paratha is about 320 calories, a large one closer to 450. Calories and macros by real paratha sizes, and why one paratha equals two rotis.",
+      "One plain paratha is about 320 calories, a large one about 450 and half a paratha about 160. Calories by real size, and why 1 paratha equals 2 rotis.",
     intro: [
       "A paratha is a roti with fat cooked into it, and that single difference is the whole story: 320 calories per 100 g against roti's 267, and more than four times the fat.",
       "The part that surprises people is not the per-gram figure though. It is the size. Parathas are heavier than rotis, and the ones on your plate probably weigh more than you would guess.",
@@ -510,12 +510,96 @@ export const foods: FoodPage[] = [
           "It is not worse, it is denser. One plain paratha carries about the same calories as two medium rotis, mostly because of the ghee it is cooked in. Same food, different amount of energy for the same volume \u2014 useful to know, not something to avoid.",
       },
       {
+        question: "How many calories in half a paratha?",
+        answer:
+          "About 160 calories for half of a plain 100 g paratha, and about 225 for half of a large 140 g one. Two parathas of the plain size come to about 640.",
+      },
+      {
         question: "Does an aloo paratha have more calories?",
         answer:
           "Yes. These figures are for the paratha itself. A potato, paneer or gobi filling adds its own calories on top, so a stuffed paratha is best logged as its own dish rather than scaled from a plain one.",
       },
     ],
-    related: ["roti", "dal", "rice", "paneer"],
+    related: ["roti", "dal", "rice", "chicken-biryani"],
+  },
+  {
+    slug: "chicken-biryani",
+    name: "Chicken Biryani",
+    // Stored as IN in the foods table. Biryani is eaten the same way across
+    // Pakistan, Bangladesh, the Gulf and the UK, which is where most of this
+    // page's searchers are, so the copy names those styles rather than India alone.
+    tier: "indian",
+    aka: ["biryani", "biriyani", "briyani", "chicken biriyani"],
+    title: "Chicken Biryani Calories: Per Plate, Bowl and 100g",
+    description:
+      "A 350 g bowl of chicken biryani is about 467 calories and 27 g of protein. Calories and macros by real plate sizes, and how biryani compares with plain rice.",
+    intro: [
+      "Biryani is one dish with a dozen regional answers: Hyderabadi, Lucknowi, Karachi-style, Dhaka kacchi, Malabar, and whatever your local takeaway calls its house special. They differ in spice, potato and how much oil goes into the pot, but they share one thing that matters for calories: rice, meat and fat cooked together, served by the plateful.",
+      "That is why per-100-gram figures are so unhelpful here. Nobody eats 100 g of biryani. What you want to know is what one plate carries, and plates vary a lot.",
+    ],
+    per100g: { calories: 133.3, protein: 7.8, carbs: 15.6, fat: 4.4 },
+    portions: [
+      { label: "100 g", grams: 100, note: "the standard reference weight" },
+      { label: "1 lighter serving", grams: 300, note: "the smallest serving we see logged" },
+      { label: "1 bowl", grams: 350, note: "the size we see most often" },
+      { label: "1 large plate", grams: 450, note: "the top of the range for one serving" },
+    ],
+    observedRange:
+      "Across real meals logged in LogMyPlate, a single serving of chicken biryani has ranged from about 300 g to 450 g.",
+    portionHonesty: [
+      "A 300 g serving and a 450 g plate are both honestly \u201cone plate of biryani\u201d, and that is the difference between about 400 and 600 calories. Restaurant and takeaway portions tend to sit at the heavy end; home servings at the lighter end.",
+      "Biryani is calorie-moderate per gram, at about 133 per 100 g. It is the size of the serving, not the dish itself, that makes it a big meal.",
+      "Fibre and sodium are not recorded for chicken biryani in our database, so those columns are blank rather than zero. We would rather leave a gap than publish a guess.",
+    ],
+    whatChangesIt: [
+      {
+        heading: "Oil and ghee in the pot",
+        body: "Biryani is layered and steamed with fat, and how much goes in varies more than anything else. A tablespoon of oil or ghee is roughly 120 calories spread across the pot, and restaurant biryani generally uses more than home cooking.",
+      },
+      {
+        heading: "The ratio of rice to chicken",
+        body: "Rice is where most of the carbohydrate sits; chicken is where the protein sits. A plate heavy on chicken pieces carries more protein and fewer carbs than a plate that is mostly rice, at a similar weight.",
+      },
+      {
+        heading: "What comes on the side",
+        body: "Raita, salan, a boiled egg or fried onions on top are not in these figures. Each adds its own calories, so log them as separate items rather than scaling the biryani up.",
+      },
+    ],
+    macroContext: [
+      "A bowl carries about 27 g of protein, which is more than most rice dishes, because the chicken is cooked into it rather than served beside it.",
+      "Carbohydrate is the bulk of the energy, at about 55 g in a 350 g bowl, with fat contributing a little under a third of the calories.",
+    ],
+    comparison: {
+      heading: "Chicken biryani vs plain rice and dal",
+      intro:
+        "The usual question is whether biryani is \u201cheavier\u201d than a plain rice meal. Here is what each typically carries.",
+      items: [
+        { slug: "chicken-biryani", grams: 350, label: "1 bowl chicken biryani" },
+        { slug: "rice", grams: 180, label: "1 cup cooked rice" },
+        { slug: "rice", grams: 250, label: "1 plate serving of rice" },
+        { slug: "dal", grams: 150, label: "1 katori dal" },
+      ],
+      footnote:
+        "A bowl of biryani carries more calories than a plate of plain rice, but also several times the protein, because the chicken is in it. A cup of rice with a katori of dal lands around 400 calories with about 14 g of protein, so biryani is closer to a complete meal than the comparison with rice alone suggests.",
+    },
+    faqs: [
+      {
+        question: "How many calories are in one plate of chicken biryani?",
+        answer:
+          "About 400 calories for a lighter 300 g serving, around 467 for a typical 350 g bowl, and about 600 for a large 450 g plate. Raita, salan or extra fried onions are on top of that.",
+      },
+      {
+        question: "How much protein is in chicken biryani?",
+        answer:
+          "About 7.8 g per 100 g, so roughly 27 g in a 350 g bowl and 35 g in a 450 g plate. The exact figure depends on how much chicken ends up on your plate.",
+      },
+      {
+        question: "Is chicken biryani good for weight loss?",
+        answer:
+          "It can fit, if you know the portion. At about 133 calories per 100 g it is not unusually dense; the large plate size is what adds up. A smaller serving with raita and salad on the side is a very different meal from a full takeaway portion.",
+      },
+    ],
+    related: ["rice", "dal", "paratha", "roti"],
   },
 ];
 

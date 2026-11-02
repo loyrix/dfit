@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { APP_CONFIG } from "@/config/app";
 import { trackEvent } from "@/lib/analytics";
-import { buildStoreUrl, resolveVisitSource, type StoreTarget } from "@/lib/attribution";
+import {
+  buildStoreUrl,
+  resolveVisitSource,
+  type StoreTarget,
+  type VisitSource,
+} from "@/lib/attribution";
 
 interface DownloadBadgesProps {
   size?: "sm" | "md" | "lg";
@@ -14,12 +19,29 @@ interface DownloadBadgesProps {
    * actually produce installs rather than just which pages get traffic.
    */
   placement?: string;
+  /**
+   * Campaign for a content page (e.g. `calories-paratha`). When set, a visit
+   * that arrived without its own utm campaign is credited to this page as
+   * utm_source=logmyplate.com / utm_medium=seo, so installs from SEO pages can
+   * be told apart page by page.
+   */
+  campaign?: string;
+}
+
+/**
+ * A visit with its own campaign (an Instagram link, an ad) keeps it. Anything
+ * else that reaches a content page carrying `campaign` is credited to that page.
+ */
+function pageVisit(visit: VisitSource, campaign?: string): VisitSource {
+  if (!campaign || visit.campaign !== "(not set)") return visit;
+  return { source: "logmyplate.com", medium: "seo", campaign };
 }
 
 export function DownloadBadges({
   size = "md",
   className = "",
   placement = "page",
+  campaign,
 }: DownloadBadgesProps) {
   const heights: Record<string, string> = {
     sm: "h-10",
@@ -37,12 +59,12 @@ export function DownloadBadges({
   });
 
   useEffect(() => {
-    const visit = resolveVisitSource();
+    const visit = pageVisit(resolveVisitSource(), campaign);
     setHrefs({
       ios: buildStoreUrl("ios", placement, visit),
       android: buildStoreUrl("android", placement, visit),
     });
-  }, [placement]);
+  }, [placement, campaign]);
 
   const handleClick = (store: StoreTarget) => {
     const visit = resolveVisitSource();
@@ -78,7 +100,7 @@ export function DownloadBadges({
           <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.3-155.5-127.4C46.7 790.7 0 663 0 541.8c0-207.5 135.4-317.3 269-317.3 70.1 0 128.4 46.4 172.5 46.4 42.8 0 109.6-49.6 191.5-49.6zM549.5 97c22.1-26.1 37.8-62.2 37.8-98.4 0-5.2-.4-10.4-1.3-14.4-36.1 1.3-79 24.3-105.7 53.5-20.1 22.1-39 58.3-39 94.5 0 5.8 1 11.6 1.3 13.4 2.2.4 5.2.7 8.2.7 32.7 0 72.1-22.1 98.7-49.3z" />
         </svg>
         <div className="flex flex-col items-start leading-none gap-0.5">
-          <span className="text-[10px] opacity-75 font-normal">Download on the</span>
+          <span className="text-[10px] opacity-75 font-normal">Download on the</span>{" "}
           <span className="text-[14px] font-semibold tracking-tight">App Store</span>
         </div>
       </a>
@@ -113,7 +135,7 @@ export function DownloadBadges({
           />
         </svg>
         <div className="flex flex-col items-start leading-none gap-0.5">
-          <span className="text-[10px] opacity-75 font-normal">Get it on</span>
+          <span className="text-[10px] opacity-75 font-normal">Get it on</span>{" "}
           <span className="text-[14px] font-semibold tracking-tight">Google Play</span>
         </div>
       </a>

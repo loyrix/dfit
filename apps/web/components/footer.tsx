@@ -68,13 +68,23 @@ export function Footer() {
               <ul className="flex flex-col gap-2">
                 {links.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-[13px] transition-opacity hover:opacity-100 opacity-70"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {link.label}
-                    </Link>
+                    {link.href.startsWith("mailto:") ? (
+                      <a
+                        href={link.href}
+                        className="text-[13px] transition-opacity hover:opacity-100 opacity-70"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="text-[13px] transition-opacity hover:opacity-100 opacity-70"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        {link.label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
