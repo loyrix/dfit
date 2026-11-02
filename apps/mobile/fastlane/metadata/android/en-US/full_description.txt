@@ -1,0 +1,39 @@
+LogMyPlate is an AI calorie tracker for the food you actually eat. Take a photo of your plate and get calories, protein, carbs and fat in seconds, whether it's a burger and fries, a Caesar salad, a bowl of pasta, a sushi platter or a home-cooked curry. No searching endless food databases, no weighing every ingredient.
+
+THREE WAYS TO LOG
+
+Photo food scanner
+Snap a photo or pick one from your gallery. The AI identifies each item on the plate, including mixed bowls and home-cooked dishes, and estimates calories and macros. Add a short note like "extra cheese" or "half portion" to sharpen the estimate.
+
+Barcode scanner
+Scan a packaged food for its nutrition facts and macros.
+
+Type it in
+No photo? Describe the meal the way you'd say it, like "2 eggs, toast and orange juice", and the AI breaks it down item by item.
+
+FOOD FROM EVERYWHERE
+American diner food, Italian, Mexican, Japanese, Chinese, Thai, Mediterranean, Middle Eastern and Indian. From a breakfast burrito to pad thai to a chicken shawarma wrap, point your camera and log it.
+
+Grew up on dal, roti and biryani? LogMyPlate handles Indian home cooking as well as it handles a cheeseburger, so you can track the food you love wherever you live, not just the food that's easy to log.
+
+MORE TO HELP YOU REACH YOUR GOAL
+
+AI nutritionist chat
+Ask questions like "Is this meal high enough in protein?" or "Suggest a 400-calorie snack" and get answers based on your goals.
+
+Calorie and macro targets
+Set daily calorie and macro targets from your activity level and goal, or choose your own split. Built for weight loss, a calorie deficit, muscle gain, intermittent fasting or maintenance.
+
+You stay in control
+AI estimates are a starting point. Adjust portions, edit items and change values before you save a meal.
+
+Streaks and weekly journal
+See your logging streak, weekly calorie averages and every meal in your journal. Keep your streak going to earn bonus scans.
+
+FREE TO START
+Log meals with free daily AI scans. Upgrade to Premium for more scans, more AI nutritionist chats and no ads.
+
+Disclaimer: calorie and nutrition values and AI chat suggestions are estimates for informational and self-tracking purposes only. Talk to a doctor or registered dietitian before making medical or clinical dietary decisions.
+
+Terms of Use: https://www.logmyplate.com/terms
+Privacy Policy: https://www.logmyplate.com/privacy
