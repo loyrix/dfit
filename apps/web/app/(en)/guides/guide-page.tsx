@@ -47,6 +47,7 @@ export function GuideArticle({
   const isPtBr = locale === "pt-br";
   const isDe = locale === "de";
   const isFr = locale === "fr";
+  const isJa = locale === "ja";
   const canonicalUrl = getAlternateMetadata(`guides/${guide.slug}`, locale).canonical;
   const backLink = getRelativeLocalizedUrl("guidesIndex", locale);
 
@@ -58,6 +59,8 @@ export function GuideArticle({
     ? "Startseite"
     : isFr
     ? "Accueil"
+    : isJa
+    ? "ホーム"
     : "Home";
   const guidesLabel = isEs
     ? "Guías"
@@ -67,6 +70,8 @@ export function GuideArticle({
     ? "Ratgeber"
     : isFr
     ? "Guides"
+    : isJa
+    ? "ガイド"
     : "Guides";
 
   const jsonLd = [
@@ -154,6 +159,8 @@ export function GuideArticle({
                 ? "← Zurück zur Übersicht"
                 : isFr
                 ? "← Retour aux guides"
+                : isJa
+                ? "← ガイド一覧へ戻る"
                 : "← Back to guides"}
             </Link>
             <div className="flex flex-wrap items-center gap-3">
@@ -177,6 +184,8 @@ export function GuideArticle({
                   ? "Aktualisiert am 24. Mai 2026"
                   : isFr
                   ? "Mis à jour le 24 mai 2026"
+                  : isJa
+                  ? "最終更新日: 2026年5月24日"
                   : "Updated May 24, 2026"}
               </span>
             </div>
@@ -226,6 +235,8 @@ export function GuideArticle({
                 ? "Häufig gestellte Fragen (FAQ)"
                 : isFr
                 ? "Foire aux questions (FAQ)"
+                : isJa
+                ? "よくある質問 (FAQ)"
                 : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={{ borderColor: "var(--border)" }}>
@@ -263,6 +274,8 @@ export function GuideArticle({
                 ? "Teste LogMyPlate"
                 : isFr
                 ? "Essayez LogMyPlate"
+                : isJa
+                ? "LogMyPlateを試してみる"
                 : "Try LogMyPlate"}
             </p>
             <h2
@@ -277,6 +290,8 @@ export function GuideArticle({
                 ? "Erfasse Mahlzeiten mit einem Foto."
                 : isFr
                 ? "Suivez un repas à partir d'une photo."
+                : isJa
+                ? "写真1枚で食事を簡単記録。"
                 : "Track a meal from one photo."}
             </h2>
             <p
@@ -291,6 +306,8 @@ export function GuideArticle({
                 ? "Füge eine kurze Notiz hinzu, prüfe die Kalorien- und Makroschätzung und speichere sie in deinem Tagebuch."
                 : isFr
                 ? "Ajoutez une brève note, examinez l'estimation des calories et macros, et enregistrez-la dans votre journal."
+                : isJa
+                ? "簡単なメモを添えて、カロリーとPFCの推計値を確認し、食事日記に保存するだけ。"
                 : "Add a short note, review the calorie and macro estimate, then save it to your journal."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="guide_sidebar" />
@@ -303,6 +320,8 @@ export function GuideArticle({
                 ? "KI-Schätzungen sind Näherungswerte und stellen keine medizinische Beratung dar."
                 : isFr
                 ? "Les estimations par IA sont approximatives et ne constituent pas un avis médical."
+                : isJa
+                ? "AIによる推計値は概算であり、医療上の助言ではありません。"
                 : "AI estimates are approximate and are not medical advice."}
             </p>
           </div>

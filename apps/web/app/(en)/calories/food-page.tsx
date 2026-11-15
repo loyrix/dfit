@@ -52,6 +52,7 @@ export function FoodArticle({
   const isPtBr = locale === "pt-br";
   const isDe = locale === "de";
   const isFr = locale === "fr";
+  const isJa = locale === "ja";
   const canonicalUrl = getAlternateMetadata(`calories/${food.slug}`, locale).canonical;
   const backLink = getRelativeLocalizedUrl("calories", locale);
 
@@ -63,6 +64,8 @@ export function FoodArticle({
     ? "Startseite"
     : isFr
     ? "Accueil"
+    : isJa
+    ? "ホーム"
     : "Home";
   const caloriesLabel = isEs
     ? "Calorías"
@@ -70,6 +73,10 @@ export function FoodArticle({
     ? "Calorias"
     : isDe
     ? "Kalorien"
+    : isFr
+    ? "Calories"
+    : isJa
+    ? "カロリー"
     : "Calories";
 
   const jsonLd = [
@@ -128,6 +135,8 @@ export function FoodArticle({
     ? ["Portion", "Gewicht", "Kalorien", "Protein", "Kohlenhydrate", "Fett", "Ballaststoffe"]
     : isFr
     ? ["Portion", "Poids", "Calories", "Protéines", "Glucides", "Lipides", "Fibres"]
+    : isJa
+    ? ["ポーション", "重量", "カロリー", "タンパク質", "炭水化物", "脂質", "食物繊維"]
     : ["Portion", "Weight", "Calories", "Protein", "Carbs", "Fat", "Fibre"];
 
   const compHeaders = isEs
@@ -138,6 +147,8 @@ export function FoodArticle({
     ? ["", "Kalorien", "Protein", "Ballaststoffe"]
     : isFr
     ? ["", "Calories", "Protéines", "Fibres"]
+    : isJa
+    ? ["", "カロリー", "タンパク質", "食物繊維"]
     : ["", "Calories", "Protein", "Fibre"];
 
   return (
@@ -162,6 +173,8 @@ export function FoodArticle({
                 ? "← Alle Lebensmittel"
                 : isFr
                 ? "← Tous les aliments"
+                : isJa
+                ? "← 全ての食品"
                 : "← All foods"}
             </Link>
             <h1
@@ -176,6 +189,8 @@ export function FoodArticle({
                 ? `Kalorien in: ${food.name}`
                 : isFr
                 ? `Calories dans : ${food.name.toLowerCase()}`
+                : isJa
+                ? `${food.name}のカロリー`
                 : `Calories in ${food.name.toLowerCase()}`}
             </h1>
             {food.aka.length > 0 && (
@@ -188,6 +203,8 @@ export function FoodArticle({
                   ? "Auch bekannt als "
                   : isFr
                   ? "Aussi connu sous le nom de "
+                  : isJa
+                  ? "別名・関連表現: "
                   : "Also known as "}
                 {food.aka.join(", ")}
               </p>
@@ -217,6 +234,8 @@ export function FoodArticle({
                 ? `${food.name}: Kalorien nach Portionen`
                 : isFr
                 ? `${food.name} : calories par portion`
+                : isJa
+                ? `${food.name}：ポーション別カロリー`
                 : `${food.name} calories by portion`}
             </h2>
             <div className="overflow-x-auto rounded-[20px] border" style={cellStyle}>
@@ -304,6 +323,8 @@ export function FoodArticle({
                 ? `Pro 100 g: ${food.per100g.calories} kcal · ${food.per100g.protein} g Protein · ${food.per100g.carbs} g Kohlenhydrate · ${food.per100g.fat} g Fett${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g Ballaststoffe` : ""}`
                 : isFr
                 ? `Pour 100 g : ${food.per100g.calories} cal · ${food.per100g.protein} g protéines · ${food.per100g.carbs} g glucides · ${food.per100g.fat} g lipides${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibres` : ""}`
+                : isJa
+                ? `100gあたり: ${food.per100g.calories} kcal · タンパク質 ${food.per100g.protein} g · 炭水化物 ${food.per100g.carbs} g · 脂質 ${food.per100g.fat} g${food.per100g.fiber !== undefined ? ` · 食物繊維 ${food.per100g.fiber} g` : ""}`
                 : `Per 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g protein · ${food.per100g.carbs} g carbs · ${food.per100g.fat} g fat${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibre` : ""}`}
             </p>
           </section>
@@ -325,6 +346,8 @@ export function FoodArticle({
                 ? "Warum eine einzige Zahl nicht ausreicht"
                 : isFr
                 ? "Pourquoi un chiffre unique ne suffit pas"
+                : isJa
+                ? "なぜ単一の数字だけでは不十分なのか"
                 : "Why one number isn't enough"}
             </h2>
             <p className="text-[15px] font-medium" style={{ color: "var(--app-amber)" }}>
@@ -353,6 +376,8 @@ export function FoodArticle({
                 ? "Was den Wert tatsächlich verändert"
                 : isFr
                 ? "Ce qui modifie réellement le résultat"
+                : isJa
+                ? "数値が変動する主な要因"
                 : "What actually changes the number"}
             </h2>
             <div className="flex flex-col gap-5">
@@ -385,6 +410,8 @@ export function FoodArticle({
                 ? "Nährwerte richtig einordnen"
                 : isFr
                 ? "Comprendre les macronutriments"
+                : isJa
+                ? "マクロ栄養素（PFC）の読み解き方"
                 : "Reading the macros"}
             </h2>
             <div
@@ -490,6 +517,8 @@ export function FoodArticle({
                 ? "Häufige Fragen (FAQ)"
                 : isFr
                 ? "Foire aux questions (FAQ)"
+                : isJa
+                ? "よくある質問 (FAQ)"
                 : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={cellStyle}>
@@ -522,6 +551,8 @@ export function FoodArticle({
                 ? "Ähnliche Lebensmittel"
                 : isFr
                 ? "Aliments associés"
+                : isJa
+                ? "関連する食品"
                 : "Related foods"}
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -547,6 +578,8 @@ export function FoodArticle({
                       ? `Kalorien in: ${related.name}`
                       : isFr
                       ? `Calories dans : ${related.name.toLowerCase()}`
+                      : isJa
+                      ? `${related.name}のカロリー`
                       : `Calories in ${related.name.toLowerCase()}`}
                   </Link>
                 );
@@ -563,6 +596,8 @@ export function FoodArticle({
               ? `Die Nährwerte stammen aus der LogMyPlate Lebensmitteldatenbank und sind Schätzungen für typische Zubereitungen. Keine medizinische Beratung. Stand: ${foodDataUpdated}.`
               : isFr
               ? `Les chiffres proviennent de la base de données alimentaire LogMyPlate et sont des estimations pour des préparations courantes. Ils ne constituent pas un avis médical. Dernière mise à jour : ${foodDataUpdated}.`
+              : isJa
+              ? `本データはLogMyPlateの食品データベースに基づく一般的な調理例の推計値です。医療上の助言ではありません。最終更新日: ${foodDataUpdated}。`
               : `Figures come from the LogMyPlate food database and are estimates for typical preparations. They are not medical advice. Last updated ${foodDataUpdated}.`}
           </p>
         </div>
@@ -584,6 +619,8 @@ export function FoodArticle({
                 ? "Hör auf zu suchen"
                 : isFr
                 ? "Cessez de chercher"
+                : isJa
+                ? "もう探す必要はありません"
                 : "Stop looking this up"}
             </p>
             <h2
@@ -598,6 +635,8 @@ export function FoodArticle({
                 ? "Fotografiere einfach deinen Teller."
                 : isFr
                 ? "Photographiez directement votre assiette."
+                : isJa
+                ? "お皿をそのまま写真で撮影。"
                 : "Photograph the plate instead."}
             </h2>
             <p
@@ -612,6 +651,8 @@ export function FoodArticle({
                 ? `LogMyPlate erkennt ${food.name} — und alles andere auf deinem Teller — mit einem einzigen Foto in den Portionen, die du tatsächlich isst.`
                 : isFr
                 ? `LogMyPlate reconnaît ${food.name.toLowerCase()} — et tout le reste dans votre assiette — à partir d'une seule photo, dans les portions que vous mangez réellement.`
+                : isJa
+                ? `LogMyPlateは、写真1枚から${food.name}をはじめとするお皿の料理をすべて認識し、実際に食べたポーションに合わせて記録します。`
                 : `LogMyPlate reads ${food.name.toLowerCase()} — and everything else on the plate — from one photo, in the portions you actually eat.`}
             </p>
             <p className="mt-3 text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
@@ -623,6 +664,8 @@ export function FoodArticle({
                 ? "Jede Mahlzeit. Erkennt Speisen aus aller Welt."
                 : isFr
                 ? "Chaque repas. Reconnus dans le monde entier."
+                : isJa
+                ? "毎日の食事。世界中の料理に対応。"
                 : "Every food. Actually good at Indian."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="food_page_sidebar" />
