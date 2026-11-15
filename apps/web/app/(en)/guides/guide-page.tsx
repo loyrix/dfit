@@ -46,11 +46,28 @@ export function GuideArticle({
   const isEs = locale === "es";
   const isPtBr = locale === "pt-br";
   const isDe = locale === "de";
+  const isFr = locale === "fr";
   const canonicalUrl = getAlternateMetadata(`guides/${guide.slug}`, locale).canonical;
   const backLink = getRelativeLocalizedUrl("guidesIndex", locale);
 
-  const homeLabel = isEs ? "Inicio" : isPtBr ? "Início" : isDe ? "Startseite" : "Home";
-  const guidesLabel = isEs ? "Guías" : isPtBr ? "Guias" : isDe ? "Ratgeber" : "Guides";
+  const homeLabel = isEs
+    ? "Inicio"
+    : isPtBr
+    ? "Início"
+    : isDe
+    ? "Startseite"
+    : isFr
+    ? "Accueil"
+    : "Home";
+  const guidesLabel = isEs
+    ? "Guías"
+    : isPtBr
+    ? "Guias"
+    : isDe
+    ? "Ratgeber"
+    : isFr
+    ? "Guides"
+    : "Guides";
 
   const jsonLd = [
     {
@@ -135,6 +152,8 @@ export function GuideArticle({
                 ? "← Voltar para guias"
                 : isDe
                 ? "← Zurück zur Übersicht"
+                : isFr
+                ? "← Retour aux guides"
                 : "← Back to guides"}
             </Link>
             <div className="flex flex-wrap items-center gap-3">
@@ -156,6 +175,8 @@ export function GuideArticle({
                   ? "Atualizado em 24 de maio de 2026"
                   : isDe
                   ? "Aktualisiert am 24. Mai 2026"
+                  : isFr
+                  ? "Mis à jour le 24 mai 2026"
                   : "Updated May 24, 2026"}
               </span>
             </div>
@@ -203,6 +224,8 @@ export function GuideArticle({
                 ? "Perguntas frequentes"
                 : isDe
                 ? "Häufig gestellte Fragen (FAQ)"
+                : isFr
+                ? "Foire aux questions (FAQ)"
                 : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={{ borderColor: "var(--border)" }}>
@@ -238,6 +261,8 @@ export function GuideArticle({
                 ? "Experimente o LogMyPlate"
                 : isDe
                 ? "Teste LogMyPlate"
+                : isFr
+                ? "Essayez LogMyPlate"
                 : "Try LogMyPlate"}
             </p>
             <h2
@@ -250,6 +275,8 @@ export function GuideArticle({
                 ? "Registre uma refeição a partir de uma foto."
                 : isDe
                 ? "Erfasse Mahlzeiten mit einem Foto."
+                : isFr
+                ? "Suivez un repas à partir d'une photo."
                 : "Track a meal from one photo."}
             </h2>
             <p
@@ -262,6 +289,8 @@ export function GuideArticle({
                 ? "Adicione uma nota breve, confira a estimativa de calorias e macros, e salve no seu diário."
                 : isDe
                 ? "Füge eine kurze Notiz hinzu, prüfe die Kalorien- und Makroschätzung und speichere sie in deinem Tagebuch."
+                : isFr
+                ? "Ajoutez une brève note, examinez l'estimation des calories et macros, et enregistrez-la dans votre journal."
                 : "Add a short note, review the calorie and macro estimate, then save it to your journal."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="guide_sidebar" />
@@ -272,6 +301,8 @@ export function GuideArticle({
                 ? "As estimativas por IA são aproximações e não constituem orientação médica."
                 : isDe
                 ? "KI-Schätzungen sind Näherungswerte und stellen keine medizinische Beratung dar."
+                : isFr
+                ? "Les estimations par IA sont approximatives et ne constituent pas un avis médical."
                 : "AI estimates are approximate and are not medical advice."}
             </p>
           </div>

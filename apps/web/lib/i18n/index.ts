@@ -4,13 +4,14 @@ import { enDictionary } from "./dictionaries/en";
 import { esDictionary } from "./dictionaries/es";
 import { ptBrDictionary } from "./dictionaries/pt-br";
 import { deDictionary } from "./dictionaries/de";
+import { frDictionary } from "./dictionaries/fr";
 
 const dictionaries: Record<Locale, () => Dictionary | Promise<Dictionary>> = {
   en: () => enDictionary,
   es: () => esDictionary,
   "pt-br": () => ptBrDictionary,
   de: () => deDictionary,
-  fr: () => enDictionary, // Will load fr dictionary in Phase 3
+  fr: () => frDictionary,
   ja: () => enDictionary, // Will load ja dictionary in Phase 3
 };
 

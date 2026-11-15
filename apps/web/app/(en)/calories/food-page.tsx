@@ -51,11 +51,26 @@ export function FoodArticle({
   const isEs = locale === "es";
   const isPtBr = locale === "pt-br";
   const isDe = locale === "de";
+  const isFr = locale === "fr";
   const canonicalUrl = getAlternateMetadata(`calories/${food.slug}`, locale).canonical;
   const backLink = getRelativeLocalizedUrl("calories", locale);
 
-  const homeLabel = isEs ? "Inicio" : isPtBr ? "Início" : isDe ? "Startseite" : "Home";
-  const caloriesLabel = isEs ? "Calorías" : isPtBr ? "Calorias" : isDe ? "Kalorien" : "Calories";
+  const homeLabel = isEs
+    ? "Inicio"
+    : isPtBr
+    ? "Início"
+    : isDe
+    ? "Startseite"
+    : isFr
+    ? "Accueil"
+    : "Home";
+  const caloriesLabel = isEs
+    ? "Calorías"
+    : isPtBr
+    ? "Calorias"
+    : isDe
+    ? "Kalorien"
+    : "Calories";
 
   const jsonLd = [
     {
@@ -111,6 +126,8 @@ export function FoodArticle({
     ? ["Porção", "Peso", "Calorias", "Proteína", "Carboidratos", "Gordura", "Fibra"]
     : isDe
     ? ["Portion", "Gewicht", "Kalorien", "Protein", "Kohlenhydrate", "Fett", "Ballaststoffe"]
+    : isFr
+    ? ["Portion", "Poids", "Calories", "Protéines", "Glucides", "Lipides", "Fibres"]
     : ["Portion", "Weight", "Calories", "Protein", "Carbs", "Fat", "Fibre"];
 
   const compHeaders = isEs
@@ -119,6 +136,8 @@ export function FoodArticle({
     ? ["", "Calorias", "Proteína", "Fibra"]
     : isDe
     ? ["", "Kalorien", "Protein", "Ballaststoffe"]
+    : isFr
+    ? ["", "Calories", "Protéines", "Fibres"]
     : ["", "Calories", "Protein", "Fibre"];
 
   return (
@@ -141,6 +160,8 @@ export function FoodArticle({
                 ? "← Todos os alimentos"
                 : isDe
                 ? "← Alle Lebensmittel"
+                : isFr
+                ? "← Tous les aliments"
                 : "← All foods"}
             </Link>
             <h1
@@ -153,6 +174,8 @@ export function FoodArticle({
                 ? `Calorias em: ${food.name.toLowerCase()}`
                 : isDe
                 ? `Kalorien in: ${food.name}`
+                : isFr
+                ? `Calories dans : ${food.name.toLowerCase()}`
                 : `Calories in ${food.name.toLowerCase()}`}
             </h1>
             {food.aka.length > 0 && (
@@ -163,6 +186,8 @@ export function FoodArticle({
                   ? "Também conhecido como "
                   : isDe
                   ? "Auch bekannt als "
+                  : isFr
+                  ? "Aussi connu sous le nom de "
                   : "Also known as "}
                 {food.aka.join(", ")}
               </p>
@@ -190,6 +215,8 @@ export function FoodArticle({
                 ? `${food.name}: calorias por porção`
                 : isDe
                 ? `${food.name}: Kalorien nach Portionen`
+                : isFr
+                ? `${food.name} : calories par portion`
                 : `${food.name} calories by portion`}
             </h2>
             <div className="overflow-x-auto rounded-[20px] border" style={cellStyle}>
@@ -275,6 +302,8 @@ export function FoodArticle({
                 ? `Por 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g proteína · ${food.per100g.carbs} g carboidratos · ${food.per100g.fat} g gordura${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibra` : ""}`
                 : isDe
                 ? `Pro 100 g: ${food.per100g.calories} kcal · ${food.per100g.protein} g Protein · ${food.per100g.carbs} g Kohlenhydrate · ${food.per100g.fat} g Fett${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g Ballaststoffe` : ""}`
+                : isFr
+                ? `Pour 100 g : ${food.per100g.calories} cal · ${food.per100g.protein} g protéines · ${food.per100g.carbs} g glucides · ${food.per100g.fat} g lipides${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibres` : ""}`
                 : `Per 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g protein · ${food.per100g.carbs} g carbs · ${food.per100g.fat} g fat${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibre` : ""}`}
             </p>
           </section>
@@ -294,6 +323,8 @@ export function FoodArticle({
                 ? "Por que um único valor não é suficiente"
                 : isDe
                 ? "Warum eine einzige Zahl nicht ausreicht"
+                : isFr
+                ? "Pourquoi un chiffre unique ne suffit pas"
                 : "Why one number isn't enough"}
             </h2>
             <p className="text-[15px] font-medium" style={{ color: "var(--app-amber)" }}>
@@ -320,6 +351,8 @@ export function FoodArticle({
                 ? "O que realmente altera o valor"
                 : isDe
                 ? "Was den Wert tatsächlich verändert"
+                : isFr
+                ? "Ce qui modifie réellement le résultat"
                 : "What actually changes the number"}
             </h2>
             <div className="flex flex-col gap-5">
@@ -350,6 +383,8 @@ export function FoodArticle({
                 ? "Como interpretar os macronutrientes"
                 : isDe
                 ? "Nährwerte richtig einordnen"
+                : isFr
+                ? "Comprendre les macronutriments"
                 : "Reading the macros"}
             </h2>
             <div
@@ -447,7 +482,15 @@ export function FoodArticle({
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Preguntas frecuentes" : "FAQs"}
+              {isEs
+                ? "Preguntas frecuentes"
+                : isPtBr
+                ? "Perguntas frequentes"
+                : isDe
+                ? "Häufige Fragen (FAQ)"
+                : isFr
+                ? "Foire aux questions (FAQ)"
+                : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={cellStyle}>
               {food.faqs.map((faq) => (
@@ -477,6 +520,8 @@ export function FoodArticle({
                 ? "Alimentos relacionados"
                 : isDe
                 ? "Ähnliche Lebensmittel"
+                : isFr
+                ? "Aliments associés"
                 : "Related foods"}
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -500,6 +545,8 @@ export function FoodArticle({
                       ? `Calorias em: ${related.name.toLowerCase()}`
                       : isDe
                       ? `Kalorien in: ${related.name}`
+                      : isFr
+                      ? `Calories dans : ${related.name.toLowerCase()}`
                       : `Calories in ${related.name.toLowerCase()}`}
                   </Link>
                 );
@@ -514,6 +561,8 @@ export function FoodArticle({
               ? `Os valores provêm do banco de dados de alimentos do LogMyPlate e são estimativas para preparações típicas. Não constituem orientação médica. Última atualização: ${foodDataUpdated}.`
               : isDe
               ? `Die Nährwerte stammen aus der LogMyPlate Lebensmitteldatenbank und sind Schätzungen für typische Zubereitungen. Keine medizinische Beratung. Stand: ${foodDataUpdated}.`
+              : isFr
+              ? `Les chiffres proviennent de la base de données alimentaire LogMyPlate et sont des estimations pour des préparations courantes. Ils ne constituent pas un avis médical. Dernière mise à jour : ${foodDataUpdated}.`
               : `Figures come from the LogMyPlate food database and are estimates for typical preparations. They are not medical advice. Last updated ${foodDataUpdated}.`}
           </p>
         </div>
@@ -533,6 +582,8 @@ export function FoodArticle({
                 ? "Chega de pesquisar tabelas"
                 : isDe
                 ? "Hör auf zu suchen"
+                : isFr
+                ? "Cessez de chercher"
                 : "Stop looking this up"}
             </p>
             <h2
@@ -545,6 +596,8 @@ export function FoodArticle({
                 ? "Fotografe o prato diretamente."
                 : isDe
                 ? "Fotografiere einfach deinen Teller."
+                : isFr
+                ? "Photographiez directement votre assiette."
                 : "Photograph the plate instead."}
             </h2>
             <p
@@ -557,6 +610,8 @@ export function FoodArticle({
                 ? `O LogMyPlate reconhece ${food.name.toLowerCase()} — e tudo o mais no seu prato — a partir de uma única foto, nas porções reais que você consome.`
                 : isDe
                 ? `LogMyPlate erkennt ${food.name} — und alles andere auf deinem Teller — mit einem einzigen Foto in den Portionen, die du tatsächlich isst.`
+                : isFr
+                ? `LogMyPlate reconnaît ${food.name.toLowerCase()} — et tout le reste dans votre assiette — à partir d'une seule photo, dans les portions que vous mangez réellement.`
                 : `LogMyPlate reads ${food.name.toLowerCase()} — and everything else on the plate — from one photo, in the portions you actually eat.`}
             </p>
             <p className="mt-3 text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
@@ -566,6 +621,8 @@ export function FoodArticle({
                 ? "Qualquer comida. Reconhece pratos do mundo todo."
                 : isDe
                 ? "Jede Mahlzeit. Erkennt Speisen aus aller Welt."
+                : isFr
+                ? "Chaque repas. Reconnus dans le monde entier."
                 : "Every food. Actually good at Indian."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="food_page_sidebar" />
