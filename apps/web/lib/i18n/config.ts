@@ -9,7 +9,7 @@ export const DEFAULT_LOCALE: Locale = "en";
  * List of locales currently published and built into static routes.
  * English is always active at the root.
  */
-export const PUBLISHED_LOCALES: Locale[] = ["en", "es", "pt-br"];
+export const PUBLISHED_LOCALES: Locale[] = ["en", "es", "pt-br", "de"];
 
 export interface LocaleInfo {
   code: Locale;
