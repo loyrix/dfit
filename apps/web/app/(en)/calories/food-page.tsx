@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DownloadBadges } from "@/components/download-badges";
 import { APP_CONFIG } from "@/config/app";
+import { getAlternateMetadata } from "@/lib/i18n/config";
 import { type FoodPage, foodDataUpdated, getFood, scale } from "./food-data";
 
 export const foodMetadata = (food: FoodPage): Metadata => ({
+  metadataBase: new URL(APP_CONFIG.websiteUrl),
   title: food.title,
   description: food.description,
   keywords: [
@@ -14,7 +16,7 @@ export const foodMetadata = (food: FoodPage): Metadata => ({
     `${food.name.toLowerCase()} nutrition`,
     ...food.aka.map((alias) => `calories in ${alias}`),
   ],
-  alternates: { canonical: `/calories/${food.slug}` },
+  alternates: getAlternateMetadata(`calories/${food.slug}`, "en"),
   openGraph: {
     type: "article",
     url: `/calories/${food.slug}`,

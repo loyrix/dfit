@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DownloadBadges } from "@/components/download-badges";
 import { APP_CONFIG } from "@/config/app";
+import { getAlternateMetadata } from "@/lib/i18n/config";
 import { type Guide, getGuide, guideLastUpdated } from "./content";
 
 export const guideMetadata = (guide: Guide): Metadata => ({
+  metadataBase: new URL(APP_CONFIG.websiteUrl),
   title: guide.title,
   description: guide.description,
   keywords: guide.keywords,
-  alternates: { canonical: `/guides/${guide.slug}` },
+  alternates: getAlternateMetadata(`guides/${guide.slug}`, "en"),
   openGraph: {
     type: "article",
     url: `/guides/${guide.slug}`,

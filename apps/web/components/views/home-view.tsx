@@ -1,71 +1,15 @@
-import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { DownloadBadges } from "@/components/download-badges";
 import { APP_CONFIG } from "@/config/app";
+import type { Locale } from "@/lib/i18n/config";
+import { getLocalizedUrl, LOCALE_MAP } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/types";
 
-export const metadata: Metadata = {
-  title: `${APP_CONFIG.appName} — Track Meals from a Photo`,
-  description:
-    "Snap a photo of your meal. LogMyPlate: AI Calorie Tracker identifies food items, estimates calories and macros, and saves everything to your journal — no barcodes needed.",
-  alternates: { canonical: "/" },
-};
-
-const heroScreens = [
-  {
-    src: "/screenshots/appstore/meal-result-light.webp",
-    alt: "LogMyPlate meal detail screen showing French toast calories and macros",
-    className: "z-30 w-[220px] sm:w-[248px] lg:w-[276px]",
-  },
-  {
-    src: "/screenshots/appstore/review-estimate-dark.webp",
-    alt: "LogMyPlate review estimate screen showing an Indian thali with calories and macros",
-    className:
-      "z-20 hidden sm:block w-[190px] lg:w-[224px] -ml-16 translate-y-14 rotate-[5deg] opacity-90",
-  },
-  {
-    src: "/screenshots/appstore/today-dashboard-light.webp",
-    alt: "LogMyPlate light theme dashboard with macro mix and weekly rhythm",
-    className: "z-10 hidden lg:block w-[196px] -ml-20 -translate-y-10 rotate-[-7deg] opacity-90",
-  },
-];
-
-const flow = [
-  {
-    eyebrow: "Photo",
-    title: "Photo plus food note",
-    body: "Start with one clear plate image. Add a short note like 'French toast, maple syrup, berries' when it helps the AI.",
-    image: "/screenshots/appstore/scan-ready-light.webp",
-    alt: "LogMyPlate light theme scan screen with a French toast photo ready to analyze",
-  },
-  {
-    eyebrow: "Analyze",
-    title: "AI reads the plate",
-    body: "The app calculates calories and macro nutrients while keeping the photo flow simple.",
-    image: "/screenshots/appstore/analyzing-light.webp",
-    alt: "LogMyPlate analyzing screen reading a meal photo",
-  },
-  {
-    eyebrow: "Review",
-    title: "Confirm the estimate",
-    body: "Review every item, portion, and macro before the meal is saved to your journal.",
-    image: "/screenshots/appstore/review-estimate-light.webp",
-    alt: "LogMyPlate review estimate screen with food items to confirm",
-  },
-  {
-    eyebrow: "Journal",
-    title: "Build your rhythm",
-    body: "See daily energy, macro mix, weekly rhythm, and meal details in one calm journal.",
-    image: "/screenshots/appstore/today-dashboard-light.webp",
-    alt: "LogMyPlate dashboard showing daily energy and weekly rhythm",
-  },
-];
-
-const macroItems = [
-  { label: "Protein", value: "25g", color: "var(--app-teal)" },
-  { label: "Carbs", value: "113g", color: "var(--app-amber)" },
-  { label: "Fat", value: "21g", color: "var(--app-coral)" },
-];
+interface HomeViewProps {
+  locale: Locale;
+  dict: Dictionary;
+}
 
 function PhoneShot({
   src,
@@ -100,7 +44,13 @@ function PhoneShot({
   );
 }
 
-export default function HomePage() {
+export function HomeView({ locale, dict }: HomeViewProps) {
+  const t = dict.home;
+  const isEn = locale === "en";
+  const canonicalUrl = isEn
+    ? APP_CONFIG.websiteUrl
+    : `${APP_CONFIG.websiteUrl}/${locale}`;
+
   const homeJsonLd = [
     {
       "@context": "https://schema.org",
@@ -120,9 +70,9 @@ export default function HomePage() {
       name: APP_CONFIG.appName,
       applicationCategory: "HealthApplication",
       operatingSystem: "iOS, Android",
-      description: APP_CONFIG.description,
+      description: t.metaDescription,
       image: `${APP_CONFIG.websiteUrl}/icon.png`,
-      url: APP_CONFIG.websiteUrl,
+      url: canonicalUrl,
       downloadUrl: [APP_CONFIG.appStoreUrl, APP_CONFIG.playStoreUrl],
       offers: {
         "@type": "Offer",
@@ -134,8 +84,58 @@ export default function HomePage() {
       "@context": "https://schema.org",
       "@type": "WebSite",
       name: APP_CONFIG.appName,
-      url: APP_CONFIG.websiteUrl,
-      inLanguage: "en",
+      url: canonicalUrl,
+      inLanguage: LOCALE_MAP[locale].htmlLang,
+    },
+  ];
+
+  const heroScreens = [
+    {
+      src: "/screenshots/appstore/meal-result-light.webp",
+      alt: t.hero.altFrenchToast,
+      className: "z-30 w-[220px] sm:w-[248px] lg:w-[276px]",
+    },
+    {
+      src: "/screenshots/appstore/review-estimate-dark.webp",
+      alt: t.hero.altThaliReview,
+      className:
+        "z-20 hidden sm:block w-[190px] lg:w-[224px] -ml-16 translate-y-14 rotate-[5deg] opacity-90",
+    },
+    {
+      src: "/screenshots/appstore/today-dashboard-light.webp",
+      alt: t.hero.altDashboard,
+      className: "z-10 hidden lg:block w-[196px] -ml-20 -translate-y-10 rotate-[-7deg] opacity-90",
+    },
+  ];
+
+  const flowScreens = [
+    "/screenshots/appstore/scan-ready-light.webp",
+    "/screenshots/appstore/analyzing-light.webp",
+    "/screenshots/appstore/review-estimate-light.webp",
+    "/screenshots/appstore/today-dashboard-light.webp",
+  ];
+
+  const macroItems = [
+    { label: dict.common.macros.protein, value: "25g", color: "var(--app-teal)" },
+    { label: dict.common.macros.carbs, value: "113g", color: "var(--app-amber)" },
+    { label: dict.common.macros.fat, value: "21g", color: "var(--app-coral)" },
+  ];
+
+  const themeShots = [
+    {
+      src: "/screenshots/appstore/scan-ready-dark.webp",
+      alt: t.themes.cards[0]?.alt ?? "Dark theme scan screen",
+      label: t.themes.cards[0]?.label ?? "Dark theme",
+    },
+    {
+      src: "/screenshots/appstore/today-dashboard-light.webp",
+      alt: t.themes.cards[1]?.alt ?? "Light theme dashboard",
+      label: t.themes.cards[1]?.label ?? "Light dashboard",
+    },
+    {
+      src: "/screenshots/appstore/edit-item-light.webp",
+      alt: t.themes.cards[2]?.alt ?? "Edit item sheet",
+      label: t.themes.cards[2]?.label ?? "Edit any item",
     },
   ];
 
@@ -147,7 +147,7 @@ export default function HomePage() {
       />
       <section
         className="relative min-h-screen overflow-hidden px-5 pb-16 pt-24 sm:px-6 lg:pt-28"
-        aria-label="LogMyPlate hero"
+        aria-label={`${APP_CONFIG.appName} hero`}
       >
         <div className="absolute inset-x-0 top-0 h-px bg-[var(--border)]" aria-hidden="true" />
         <div
@@ -165,7 +165,7 @@ export default function HomePage() {
                 color: "var(--app-amber)",
               }}
             >
-              PHOTO · REVIEW · JOURNAL
+              {t.hero.badge}
             </div>
 
             <div className="flex flex-col gap-5">
@@ -173,20 +173,26 @@ export default function HomePage() {
                 className="font-display text-5xl font-bold leading-[1.02] tracking-tight sm:text-6xl lg:text-[72px]"
                 style={{ color: "var(--text-primary)" }}
               >
-                Track meals
+                {t.hero.headline}
                 <br />
-                from a photo.
+                {t.hero.headlineBreak}
               </h1>
               <p
                 className="max-w-[520px] text-[18px] leading-relaxed sm:text-[20px]"
                 style={{ color: "var(--text-secondary)" }}
               >
-                {APP_CONFIG.appName} turns a plate photo and short note into an editable calorie,
-                macro, and journal entry.
+                {t.hero.subheadline}
               </p>
             </div>
 
-            <DownloadBadges size="lg" placement="home_hero" />
+            <DownloadBadges
+              size="lg"
+              placement="home_hero"
+              ariaLabels={{
+                appStore: dict.downloadBadges.appStoreAria,
+                googlePlay: dict.downloadBadges.playStoreAria,
+              }}
+            />
 
             <div
               className="flex flex-wrap gap-3 text-[13px]"
@@ -196,19 +202,19 @@ export default function HomePage() {
                 className="rounded-full border px-4 py-2"
                 style={{ borderColor: "var(--border)" }}
               >
-                No barcode required
+                {t.hero.pillNoBarcode}
               </span>
               <span
                 className="rounded-full border px-4 py-2"
                 style={{ borderColor: "var(--border)" }}
               >
-                Indian and global meals
+                {t.hero.pillCuisines}
               </span>
               <span
                 className="rounded-full border px-4 py-2"
                 style={{ borderColor: "var(--border)" }}
               >
-                Light and dark app themes
+                {t.hero.pillThemes}
               </span>
             </div>
           </div>
@@ -234,32 +240,36 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="how-it-works" className="px-5 py-24 sm:px-6" aria-label="How LogMyPlate works">
+      <section
+        id="how-it-works"
+        className="px-5 py-24 sm:px-6"
+        aria-label={t.howItWorks.title}
+      >
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 max-w-2xl">
             <p
               className="mb-3 text-[12px] font-semibold uppercase tracking-[0.32em]"
               style={{ color: "var(--app-amber)" }}
             >
-              How it works
+              {t.howItWorks.badge}
             </p>
             <h2
               className="font-display text-4xl font-bold tracking-tight sm:text-5xl"
               style={{ color: "var(--text-primary)" }}
             >
-              The same flow users see in the app.
+              {t.howItWorks.title}
             </h2>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {flow.map((item) => (
+            {t.howItWorks.flow.map((item, index) => (
               <article
                 key={item.title}
                 className="group flex flex-col gap-5 rounded-[34px] border p-4"
                 style={{ borderColor: "var(--border)", background: "var(--app-card)" }}
               >
                 <PhoneShot
-                  src={item.image}
+                  src={flowScreens[index] ?? "/screenshots/appstore/scan-ready-light.webp"}
                   alt={item.alt}
                   className="mx-auto w-[170px] shadow-xl"
                 />
@@ -291,14 +301,14 @@ export default function HomePage() {
 
       <section
         className="px-5 py-24 sm:px-6"
-        aria-label="Macro review and meal details"
+        aria-label={t.reviewEstimate.title}
         style={{ background: "var(--surface-50)" }}
       >
         <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
           <div className="relative flex justify-center">
             <PhoneShot
               src="/screenshots/appstore/meal-result-dark.webp"
-              alt="LogMyPlate meal detail screen showing macro profile and item contribution"
+              alt={t.reviewEstimate.altMealDetail}
               className="w-[240px] sm:w-[286px]"
             />
             <div
@@ -306,7 +316,7 @@ export default function HomePage() {
               style={{ borderColor: "var(--border)", background: "var(--app-card-strong)" }}
             >
               <p className="text-[12px] tracking-[0.28em]" style={{ color: "var(--text-muted)" }}>
-                MACRO MIX
+                {t.reviewEstimate.macroMixBadge}
               </p>
               <div className="mt-4 flex gap-3">
                 {macroItems.map((item) => (
@@ -336,26 +346,20 @@ export default function HomePage() {
               className="mb-3 text-[12px] font-semibold uppercase tracking-[0.32em]"
               style={{ color: "var(--app-teal)" }}
             >
-              Review estimate
+              {t.reviewEstimate.badge}
             </p>
             <h2
               className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl"
               style={{ color: "var(--text-primary)" }}
             >
-              Calories are useful only when you can edit them.
+              {t.reviewEstimate.title}
             </h2>
             <div
               className="mt-6 flex max-w-xl flex-col gap-5 text-[16px] leading-relaxed"
               style={{ color: "var(--text-secondary)" }}
             >
-              <p>
-                The app shows the estimate before saving: total energy, macro split, item list,
-                grams, portions, and each item&apos;s calorie contribution.
-              </p>
-              <p>
-                You stay in control of the final log. Scan, review, correct what needs correcting,
-                then save the meal when it looks right.
-              </p>
+              <p>{t.reviewEstimate.paragraph1}</p>
+              <p>{t.reviewEstimate.paragraph2}</p>
             </div>
           </div>
         </div>
@@ -364,7 +368,7 @@ export default function HomePage() {
       <section
         id="ai-nutritionist"
         className="px-5 py-24 sm:px-6"
-        aria-label="AI nutritionist chat"
+        aria-label={t.aiNutritionist.title}
       >
         <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
@@ -376,29 +380,25 @@ export default function HomePage() {
                 color: "var(--app-teal)",
               }}
             >
-              ✦ Premium
+              {t.aiNutritionist.badge}
             </span>
             <h2
               className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl"
               style={{ color: "var(--text-primary)" }}
             >
-              An AI nutritionist that has read your last 7 days.
+              {t.aiNutritionist.title}
             </h2>
             <div
               className="mt-6 flex max-w-xl flex-col gap-5 text-[16px] leading-relaxed"
               style={{ color: "var(--text-secondary)" }}
             >
-              <p>
-                Ask what to eat for dinner or how your week is balancing. The AI Nutritionist
-                answers from your own journal — calorie target, remaining energy, macros, and the
-                meals you actually logged.
-              </p>
+              <p>{t.aiNutritionist.paragraph1}</p>
             </div>
             <ul className="mt-7 flex flex-col gap-3.5">
               {[
-                "Dinner ideas built around your remaining calories",
-                "Weekly balance and macro check-ins on demand",
-                "Grounded in your real logs, not generic advice",
+                t.aiNutritionist.bullet1,
+                t.aiNutritionist.bullet2,
+                t.aiNutritionist.bullet3,
               ].map((point) => (
                 <li
                   key={point}
@@ -425,12 +425,12 @@ export default function HomePage() {
             <div className="relative flex items-center justify-center">
               <PhoneShot
                 src="/screenshots/appstore/ai-chat-light.webp"
-                alt="LogMyPlate AI Nutritionist chat answering what to eat for dinner"
+                alt={t.aiNutritionist.altChat}
                 className="z-20 w-[230px] sm:w-[260px]"
               />
               <PhoneShot
                 src="/screenshots/appstore/weekly-summary-dark.webp"
-                alt="LogMyPlate weekly summary with macro mix and Ask AI Nutritionist"
+                alt={t.aiNutritionist.altWeeklySummary}
                 className="z-10 hidden sm:block w-[180px] lg:w-[200px] -ml-14 translate-y-12 rotate-[6deg] opacity-95"
               />
             </div>
@@ -438,7 +438,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="px-5 py-24 sm:px-6" aria-label="Light and dark app themes">
+      <section className="px-5 py-24 sm:px-6" aria-label={t.themes.title}>
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 grid gap-8 lg:grid-cols-[0.85fr_1fr] lg:items-end">
             <div>
@@ -446,39 +446,22 @@ export default function HomePage() {
                 className="mb-3 text-[12px] font-semibold uppercase tracking-[0.32em]"
                 style={{ color: "var(--app-coral)" }}
               >
-                App theme
+                {t.themes.badge}
               </p>
               <h2
                 className="font-display text-4xl font-bold tracking-tight sm:text-5xl"
                 style={{ color: "var(--text-primary)" }}
               >
-                Light or dark, your journal stays calm.
+                {t.themes.title}
               </h2>
             </div>
             <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              LogMyPlate follows your preferred theme while keeping the same meal scan, target, and
-              journal flow easy to read.
+              {t.themes.subtitle}
             </p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                src: "/screenshots/appstore/scan-ready-dark.webp",
-                alt: "LogMyPlate dark theme scan screen with an Indian thali ready to analyze",
-                label: "Dark theme",
-              },
-              {
-                src: "/screenshots/appstore/today-dashboard-light.webp",
-                alt: "LogMyPlate light theme today dashboard",
-                label: "Light dashboard",
-              },
-              {
-                src: "/screenshots/appstore/edit-item-light.webp",
-                alt: "LogMyPlate edit item sheet in light theme",
-                label: "Edit any item",
-              },
-            ].map((shot) => (
+            {themeShots.map((shot) => (
               <div key={shot.src} className="flex flex-col items-center gap-4">
                 <PhoneShot src={shot.src} alt={shot.alt} className="w-[210px] sm:w-[232px]" />
                 <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
@@ -490,7 +473,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="premium" className="px-5 py-24 sm:px-6" aria-label="Premium and launch offer">
+      <section id="premium" className="px-5 py-24 sm:px-6" aria-label={t.premium.srTitle}>
         <div
           className="mx-auto max-w-6xl overflow-hidden rounded-[40px] border p-8 sm:p-12"
           style={{
@@ -499,14 +482,12 @@ export default function HomePage() {
               "linear-gradient(140deg, rgba(239, 189, 68, 0.16) 0%, rgba(245, 166, 35, 0.08) 45%, var(--app-card) 100%)",
           }}
         >
-          <h2 className="sr-only">
-            30 days of Premium free at launch — premium AI nutrition tracking access
-          </h2>
+          <h2 className="sr-only">{t.premium.srTitle}</h2>
 
           <div className="overflow-hidden rounded-[28px] shadow-xl">
             <Image
               src="/promo/launch-offer-landscape.webp"
-              alt="LogMyPlate 30 days free launch offer: 5 AI meal scans a day, extra scans via ads, and premium features"
+              alt={t.premium.bannerAltLandscape}
               width={1920}
               height={1072}
               priority={false}
@@ -515,7 +496,7 @@ export default function HomePage() {
             />
             <Image
               src="/promo/launch-offer-portrait.webp"
-              alt="LogMyPlate 30 days free launch offer: 5 AI meal scans a day, extra scans via ads, and premium features"
+              alt={t.premium.bannerAltPortrait}
               width={1080}
               height={1935}
               priority={false}
@@ -528,32 +509,11 @@ export default function HomePage() {
             className="mt-8 max-w-2xl text-[17px] leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
-            For the first 30 days from launch, every new account gets daily AI meal scans and an AI
-            Nutritionist chat — free, no card needed. When the offer ends, keep scanning by watching
-            a quick ad, or unlock Premium.
+            {t.premium.intro}
           </p>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2">
-            {[
-              {
-                label: "Free at launch · 30 days",
-                accent: "var(--app-teal)",
-                perks: [
-                  "5 AI meal scans every day",
-                  "1 AI Nutritionist chat every day",
-                  "Full photo, review, and journal flow",
-                ],
-              },
-              {
-                label: "Premium",
-                accent: "var(--app-amber)",
-                perks: [
-                  "300 AI meal scans / month (up to 10 a day)",
-                  "5 AI Nutritionist chats every day",
-                  "After launch: earn extra scans by watching ads",
-                ],
-              },
-            ].map((tier) => (
+            {t.premium.tiers.map((tier) => (
               <div
                 key={tier.label}
                 className="rounded-[28px] border p-6"
@@ -586,10 +546,16 @@ export default function HomePage() {
           </div>
 
           <div className="mt-10 flex flex-col items-start gap-4">
-            <DownloadBadges size="lg" placement="home_pricing" />
+            <DownloadBadges
+              size="lg"
+              placement="home_pricing"
+              ariaLabels={{
+                appStore: dict.downloadBadges.appStoreAria,
+                googlePlay: dict.downloadBadges.playStoreAria,
+              }}
+            />
             <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-              No card needed to start. Subscription prices and renewal terms are shown at store
-              checkout.
+              {t.premium.note}
             </p>
           </div>
         </div>
@@ -597,7 +563,7 @@ export default function HomePage() {
 
       <section
         className="px-5 py-24 sm:px-6"
-        aria-label={`Download ${APP_CONFIG.appName}`}
+        aria-label={`${APP_CONFIG.appName} download call to action`}
         style={{ background: "var(--surface-50)" }}
       >
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-8 text-center">
@@ -612,22 +578,28 @@ export default function HomePage() {
             className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl"
             style={{ color: "var(--text-primary)" }}
           >
-            Start with one clear meal photo.
+            {t.ctaSection.title}
           </h2>
           <p
             className="max-w-xl text-[17px] leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
-            Add a note, review the estimate, and keep your journal moving with a calorie tracker
-            designed around real meals.
+            {t.ctaSection.subtitle}
           </p>
-          <DownloadBadges size="lg" placement="home_footer_cta" />
+          <DownloadBadges
+            size="lg"
+            placement="home_footer_cta"
+            ariaLabels={{
+              appStore: dict.downloadBadges.appStoreAria,
+              googlePlay: dict.downloadBadges.playStoreAria,
+            }}
+          />
           <Link
-            href="/privacy"
+            href={getLocalizedUrl("privacy", locale)}
             className="text-[12px] underline underline-offset-4 opacity-60 transition-opacity hover:opacity-100"
             style={{ color: "var(--text-muted)" }}
           >
-            Privacy Policy
+            {t.ctaSection.privacyLink}
           </Link>
         </div>
       </section>

@@ -1,20 +1,25 @@
-import type { Metadata } from "next";
 import { APP_CONFIG } from "@/config/app";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/types";
 
-export const metadata: Metadata = {
-  title: "Data Deletion",
-  description:
-    "How to permanently delete your LogMyPlate account, meal journal, health targets, stored meal photos, and app data.",
-  alternates: { canonical: "/data-deletion" },
-};
+interface DataDeletionViewProps {
+  locale: Locale;
+  dict: Dictionary;
+}
 
-export default function DataDeletionPage() {
+export function DataDeletionView({ locale, dict }: DataDeletionViewProps) {
+  const t = dict.dataDeletion;
+  const isEn = locale === "en";
+  const canonicalUrl = isEn
+    ? `${APP_CONFIG.websiteUrl}/data-deletion`
+    : `${APP_CONFIG.websiteUrl}/${locale}/eliminacion-de-datos`;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "LogMyPlate Data Deletion",
-    description: metadata.description,
-    url: `${APP_CONFIG.websiteUrl}/data-deletion`,
+    name: `${APP_CONFIG.appName} Data Deletion`,
+    description: t.metaDescription,
+    url: canonicalUrl,
   };
 
   return (
@@ -29,18 +34,16 @@ export default function DataDeletionPage() {
             className="text-[12px] font-semibold uppercase tracking-[0.32em]"
             style={{ color: "var(--app-amber)" }}
           >
-            Account controls
+            {t.badge}
           </p>
           <h1
             className="font-display text-4xl font-bold tracking-tight sm:text-5xl"
             style={{ color: "var(--text-primary)" }}
           >
-            Data Deletion
+            {t.headline}
           </h1>
           <p className="text-[16px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            You can permanently delete your LogMyPlate account and associated app data directly
-            inside the app. No separate web account, phone call, or support-only process is required
-            when you can access the app.
+            {t.intro}
           </p>
         </header>
 
@@ -49,17 +52,15 @@ export default function DataDeletionPage() {
             className="font-display text-xl font-semibold"
             style={{ color: "var(--text-primary)" }}
           >
-            What deletion removes
+            {t.inAppHeading}
           </h2>
           <ul
             className="ml-5 flex list-disc flex-col gap-2 text-[15px] leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
-            <li>Account profile and email login data, where an account exists</li>
-            <li>Meal journal entries, food items, calorie estimates, macros, and timestamps</li>
-            <li>Health targets, BMI estimate inputs, activity level, and goal settings</li>
-            <li>Active sign-in records associated with your account</li>
-            <li>Stored meal photos attached to saved meal logs</li>
+            {t.inAppSteps.map((step, idx) => (
+              <li key={idx}>{step}</li>
+            ))}
           </ul>
         </section>
 
@@ -68,7 +69,7 @@ export default function DataDeletionPage() {
             className="font-display text-xl font-semibold"
             style={{ color: "var(--text-primary)" }}
           >
-            How to delete your data
+            {t.webHeading}
           </h2>
           <div
             className="rounded-[24px] border p-5"
@@ -87,8 +88,7 @@ export default function DataDeletionPage() {
               className="mt-3 text-[15px] leading-relaxed"
               style={{ color: "var(--text-secondary)" }}
             >
-              Open the deletion confirmation directly in LogMyPlate. If the app does not open, use
-              the manual steps below.
+              {t.inAppNote}
             </p>
             <a
               href={APP_CONFIG.deleteAccountDeepLink}
@@ -99,33 +99,22 @@ export default function DataDeletionPage() {
                 boxShadow: "0 18px 34px rgba(239, 189, 68, 0.22)",
               }}
             >
-              Open delete account in app
+              {t.openAppButton}
             </a>
           </div>
           <div
             className="flex flex-col gap-3 text-[15px] leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
+            <p>{t.webText}</p>
             <p>
-              Open LogMyPlate and go to{" "}
-              <strong style={{ color: "var(--text-primary)" }}>
-                Profile &gt; Privacy &amp; legal &gt; Delete account and data
-              </strong>
-              . Confirm the deletion sheet to permanently delete the account data listed above from
-              active app systems.
-            </p>
-            <p>
-              If you cannot access the app, email{" "}
               <a
-                href={`mailto:${APP_CONFIG.supportEmail}?subject=LogMyPlate%20data%20deletion%20request`}
-                className="underline underline-offset-4"
+                href={`mailto:${APP_CONFIG.supportEmail}?subject=${encodeURIComponent(t.webEmailSubject)}`}
+                className="underline underline-offset-4 font-medium"
                 style={{ color: "var(--app-amber)" }}
               >
-                {APP_CONFIG.supportEmail}
-              </a>{" "}
-              with the email address used for your LogMyPlate account and include “Account deletion”
-              in the subject. We may ask for enough information to verify ownership before deleting
-              account data.
+                {t.webEmailButton}
+              </a>
             </p>
           </div>
         </section>
@@ -135,13 +124,10 @@ export default function DataDeletionPage() {
             className="font-display text-xl font-semibold"
             style={{ color: "var(--text-primary)" }}
           >
-            What may be retained
+            {t.retentionHeading}
           </h2>
           <p className="text-[15px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            LogMyPlate may retain limited technical logs, security records, fraud-prevention
-            records, legal compliance records, and de-identified operational analytics for a limited
-            period where required or permitted by law. These retained records are not used to
-            restore your account or rebuild your meal journal.
+            {t.retentionText}
           </p>
         </section>
       </div>

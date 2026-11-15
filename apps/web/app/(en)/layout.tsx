@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
-import "./globals.css";
+import "../globals.css";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { OfferRibbon } from "@/components/offer-ribbon";
