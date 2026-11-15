@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DownloadBadges } from "@/components/download-badges";
 import { APP_CONFIG } from "@/config/app";
-import { getAlternateMetadata } from "@/lib/i18n/config";
+import { type Locale, getAlternateMetadata, getRelativeLocalizedUrl } from "@/lib/i18n/config";
+import { getLocalizedFood } from "@/lib/i18n/data";
 import { type FoodPage, foodDataUpdated, getFood, scale } from "./food-data";
 
 export const foodMetadata = (food: FoodPage): Metadata => ({
@@ -37,11 +38,20 @@ export const foodMetadata = (food: FoodPage): Metadata => ({
 const num = (value: number | undefined, unit = "g") =>
   value === undefined ? "—" : `${value}${unit}`;
 
-export function FoodArticle({ slug }: { slug: string }) {
-  const food = getFood(slug);
+export function FoodArticle({
+  slug,
+  locale = "en",
+}: {
+  slug: string;
+  locale?: Locale;
+}) {
+  const food = getLocalizedFood(slug, locale) ?? getFood(slug);
   if (!food) return null;
 
-  const url = `${APP_CONFIG.websiteUrl}/calories/${food.slug}`;
+  const isEs = locale === "es";
+  const canonicalUrl = getAlternateMetadata(`calories/${food.slug}`, locale).canonical;
+  const backLink = getRelativeLocalizedUrl("calories", locale);
+
   const jsonLd = [
     {
       "@context": "https://schema.org",
@@ -56,20 +66,25 @@ export function FoodArticle({ slug }: { slug: string }) {
         name: APP_CONFIG.brandName,
         logo: { "@type": "ImageObject", url: `${APP_CONFIG.websiteUrl}/icon.png` },
       },
-      mainEntityOfPage: url,
+      mainEntityOfPage: canonicalUrl,
     },
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Home", item: APP_CONFIG.websiteUrl },
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: isEs ? "Inicio" : "Home",
+          item: APP_CONFIG.websiteUrl,
+        },
         {
           "@type": "ListItem",
           position: 2,
-          name: "Calories",
-          item: `${APP_CONFIG.websiteUrl}/calories`,
+          name: isEs ? "Calorías" : "Calories",
+          item: `${APP_CONFIG.websiteUrl}${backLink}`,
         },
-        { "@type": "ListItem", position: 3, name: food.name, item: url },
+        { "@type": "ListItem", position: 3, name: food.name, item: canonicalUrl },
       ],
     },
     {
@@ -85,6 +100,14 @@ export function FoodArticle({ slug }: { slug: string }) {
 
   const cellStyle = { borderColor: "var(--border)" };
 
+  const tableHeaders = isEs
+    ? ["Porción", "Peso", "Calorías", "Proteína", "Carbohidratos", "Grasa", "Fibra"]
+    : ["Portion", "Weight", "Calories", "Protein", "Carbs", "Fat", "Fibre"];
+
+  const compHeaders = isEs
+    ? ["", "Calorías", "Proteína", "Fibra"]
+    : ["", "Calories", "Protein", "Fibre"];
+
   return (
     <article className="min-h-screen px-5 pb-24 pt-28 sm:px-6">
       <script
@@ -95,21 +118,22 @@ export function FoodArticle({ slug }: { slug: string }) {
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-10">
           <header className="flex flex-col gap-5">
             <Link
-              href="/calories"
+              href={backLink}
               className="w-fit text-[12px] font-medium opacity-60 transition-opacity hover:opacity-100"
               style={{ color: "var(--text-secondary)" }}
             >
-              All foods
+              {isEs ? "← Todos los alimentos" : "← All foods"}
             </Link>
             <h1
               className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl"
               style={{ color: "var(--text-primary)" }}
             >
-              Calories in {food.name.toLowerCase()}
+              {isEs ? `Calorías en: ${food.name.toLowerCase()}` : `Calories in ${food.name.toLowerCase()}`}
             </h1>
             {food.aka.length > 0 && (
               <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-                Also known as {food.aka.join(", ")}
+                {isEs ? "También conocido como " : "Also known as "}
+                {food.aka.join(", ")}
               </p>
             )}
           </header>
@@ -129,23 +153,21 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {food.name} calories by portion
+              {isEs ? `${food.name}: calorías por porción` : `${food.name} calories by portion`}
             </h2>
             <div className="overflow-x-auto rounded-[20px] border" style={cellStyle}>
               <table className="w-full min-w-[520px] border-collapse text-[14px]">
                 <thead>
                   <tr style={{ background: "var(--app-card)" }}>
-                    {["Portion", "Weight", "Calories", "Protein", "Carbs", "Fat", "Fibre"].map(
-                      (head) => (
-                        <th
-                          key={head}
-                          className="border-b px-4 py-3 text-left font-semibold"
-                          style={{ ...cellStyle, color: "var(--text-primary)" }}
-                        >
-                          {head}
-                        </th>
-                      ),
-                    )}
+                    {tableHeaders.map((head) => (
+                      <th
+                        key={head}
+                        className="border-b px-4 py-3 text-left font-semibold"
+                        style={{ ...cellStyle, color: "var(--text-primary)" }}
+                      >
+                        {head}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -210,9 +232,9 @@ export function FoodArticle({ slug }: { slug: string }) {
               </table>
             </div>
             <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-              Per 100 g: {food.per100g.calories} cal · {food.per100g.protein} g protein ·{" "}
-              {food.per100g.carbs} g carbs · {food.per100g.fat} g fat
-              {food.per100g.fiber !== undefined && ` · ${food.per100g.fiber} g fibre`}
+              {isEs
+                ? `Por 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g proteína · ${food.per100g.carbs} g carbohidratos · ${food.per100g.fat} g grasa${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibra` : ""}`
+                : `Per 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g protein · ${food.per100g.carbs} g carbs · ${food.per100g.fat} g fat${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibre` : ""}`}
             </p>
           </section>
 
@@ -225,7 +247,7 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              Why one number isn&apos;t enough
+              {isEs ? "Por qué una sola cifra no es suficiente" : "Why one number isn't enough"}
             </h2>
             <p className="text-[15px] font-medium" style={{ color: "var(--app-amber)" }}>
               {food.observedRange}
@@ -245,7 +267,7 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              What actually changes the number
+              {isEs ? "Qué modifica realmente la cifra" : "What actually changes the number"}
             </h2>
             <div className="flex flex-col gap-5">
               {food.whatChangesIt.map((item) => (
@@ -269,7 +291,7 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              Reading the macros
+              {isEs ? "Cómo leer los macronutrientes" : "Reading the macros"}
             </h2>
             <div
               className="flex flex-col gap-3 text-[15px] leading-[1.8]"
@@ -296,7 +318,7 @@ export function FoodArticle({ slug }: { slug: string }) {
               <table className="w-full min-w-[420px] border-collapse text-[14px]">
                 <thead>
                   <tr style={{ background: "var(--app-card)" }}>
-                    {["", "Calories", "Protein", "Fibre"].map((head) => (
+                    {compHeaders.map((head) => (
                       <th
                         key={head}
                         className="border-b px-4 py-3 text-left font-semibold"
@@ -309,7 +331,7 @@ export function FoodArticle({ slug }: { slug: string }) {
                 </thead>
                 <tbody>
                   {food.comparison.items.map((item) => {
-                    const other = getFood(item.slug);
+                    const other = getLocalizedFood(item.slug, locale) ?? getFood(item.slug);
                     if (!other) return null;
                     const macros = scale(other.per100g, item.grams);
                     return (
@@ -322,7 +344,7 @@ export function FoodArticle({ slug }: { slug: string }) {
                             item.label
                           ) : (
                             <Link
-                              href={`/calories/${item.slug}`}
+                              href={getRelativeLocalizedUrl(`calories/${item.slug}`, locale)}
                               className="underline underline-offset-4"
                             >
                               {item.label}
@@ -366,7 +388,7 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              FAQs
+              {isEs ? "Preguntas frecuentes" : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={cellStyle}>
               {food.faqs.map((faq) => (
@@ -390,16 +412,16 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="font-display text-xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              Related foods
+              {isEs ? "Alimentos relacionados" : "Related foods"}
             </h2>
             <div className="flex flex-wrap gap-2">
               {food.related.map((relatedSlug) => {
-                const related = getFood(relatedSlug);
+                const related = getLocalizedFood(relatedSlug, locale) ?? getFood(relatedSlug);
                 if (!related) return null;
                 return (
                   <Link
                     key={relatedSlug}
-                    href={`/calories/${relatedSlug}`}
+                    href={getRelativeLocalizedUrl(`calories/${relatedSlug}`, locale)}
                     className="rounded-full border px-4 py-2 text-[13px] font-medium transition-opacity hover:opacity-70"
                     style={{
                       borderColor: "var(--border)",
@@ -407,7 +429,9 @@ export function FoodArticle({ slug }: { slug: string }) {
                       background: "var(--app-card)",
                     }}
                   >
-                    Calories in {related.name.toLowerCase()}
+                    {isEs
+                      ? `Calorías en: ${related.name.toLowerCase()}`
+                      : `Calories in ${related.name.toLowerCase()}`}
                   </Link>
                 );
               })}
@@ -415,8 +439,9 @@ export function FoodArticle({ slug }: { slug: string }) {
           </section>
 
           <p className="text-[12px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            Figures come from the LogMyPlate food database and are estimates for typical
-            preparations. They are not medical advice. Last updated {foodDataUpdated}.
+            {isEs
+              ? `Las cifras provienen de la base de datos de alimentos de LogMyPlate y son estimaciones para preparaciones típicas. No constituyen asesoramiento médico. Última actualización: ${foodDataUpdated}.`
+              : `Figures come from the LogMyPlate food database and are estimates for typical preparations. They are not medical advice. Last updated ${foodDataUpdated}.`}
           </p>
         </div>
 
@@ -429,23 +454,26 @@ export function FoodArticle({ slug }: { slug: string }) {
               className="text-[11px] font-semibold uppercase tracking-[0.28em]"
               style={{ color: "var(--app-amber)" }}
             >
-              Stop looking this up
+              {isEs ? "Deja de buscarlo" : "Stop looking this up"}
             </p>
             <h2
               className="mt-3 font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              Photograph the plate instead.
+              {isEs ? "Fotografía el plato directamente." : "Photograph the plate instead."}
             </h2>
             <p
               className="mt-3 text-[14px] leading-relaxed"
               style={{ color: "var(--text-secondary)" }}
             >
-              LogMyPlate reads {food.name.toLowerCase()} — and everything else on the plate — from
-              one photo, in the portions you actually eat.
+              {isEs
+                ? `LogMyPlate reconoce ${food.name.toLowerCase()} — y todo lo demás en tu plato — a partir de una sola foto, en las porciones que realmente comes.`
+                : `LogMyPlate reads ${food.name.toLowerCase()} — and everything else on the plate — from one photo, in the portions you actually eat.`}
             </p>
             <p className="mt-3 text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
-              Every food. Actually good at Indian.
+              {isEs
+                ? "Cualquier comida. Con soporte para platos de todo el mundo."
+                : "Every food. Actually good at Indian."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="food_page_sidebar" />
           </div>

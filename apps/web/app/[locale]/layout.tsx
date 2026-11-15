@@ -1,7 +1,6 @@
-import type { Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { ThemeProvider } from "next-themes";
-import { Noto_Sans_JP } from "next/font/google";
 import "../globals.css";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
@@ -17,12 +16,9 @@ import {
 } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n";
 
-const notoSansJP = Noto_Sans_JP({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-noto-sans-jp",
-  display: "swap",
-});
+export const metadata: Metadata = {
+  metadataBase: new URL(APP_CONFIG.websiteUrl),
+};
 
 export const viewport: Viewport = {
   themeColor: [
@@ -58,7 +54,6 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       lang={htmlLang}
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={isJa ? notoSansJP.variable : undefined}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -67,10 +62,16 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        {isJa && (
+          <link
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+          />
+        )}
       </head>
       <body
         className={`min-h-screen flex flex-col ${
-          isJa ? "font-sans [word-break:auto-phrase] [overflow-wrap:break-word]" : ""
+          isJa ? "font-['Noto_Sans_JP',sans-serif] [word-break:auto-phrase] [overflow-wrap:break-word]" : ""
         }`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

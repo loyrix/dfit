@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DownloadBadges } from "@/components/download-badges";
 import { APP_CONFIG } from "@/config/app";
-import { getAlternateMetadata } from "@/lib/i18n/config";
+import { type Locale, getAlternateMetadata, getRelativeLocalizedUrl } from "@/lib/i18n/config";
+import { getLocalizedGuide } from "@/lib/i18n/data";
 import { type Guide, getGuide, guideLastUpdated } from "./content";
 
 export const guideMetadata = (guide: Guide): Metadata => ({
@@ -29,14 +30,23 @@ export const guideMetadata = (guide: Guide): Metadata => ({
   },
 });
 
-export function GuideArticle({ slug }: { slug: string }) {
-  const guide = getGuide(slug);
+export function GuideArticle({
+  slug,
+  locale = "en",
+}: {
+  slug: string;
+  locale?: Locale;
+}) {
+  const guide = getLocalizedGuide(slug, locale) ?? getGuide(slug);
 
   if (!guide) {
     return null;
   }
 
-  const url = `${APP_CONFIG.websiteUrl}/guides/${guide.slug}`;
+  const isEs = locale === "es";
+  const canonicalUrl = getAlternateMetadata(`guides/${guide.slug}`, locale).canonical;
+  const backLink = getRelativeLocalizedUrl("guidesIndex", locale);
+
   const jsonLd = [
     {
       "@context": "https://schema.org",
@@ -58,7 +68,7 @@ export function GuideArticle({ slug }: { slug: string }) {
           url: `${APP_CONFIG.websiteUrl}/icon.png`,
         },
       },
-      mainEntityOfPage: url,
+      mainEntityOfPage: canonicalUrl,
       image: `${APP_CONFIG.websiteUrl}/screenshots/appstore/today-dashboard-light.webp`,
       keywords: guide.keywords.join(", "),
     },
@@ -69,20 +79,20 @@ export function GuideArticle({ slug }: { slug: string }) {
         {
           "@type": "ListItem",
           position: 1,
-          name: "Home",
+          name: isEs ? "Inicio" : "Home",
           item: APP_CONFIG.websiteUrl,
         },
         {
           "@type": "ListItem",
           position: 2,
-          name: "Guides",
-          item: `${APP_CONFIG.websiteUrl}/guides`,
+          name: isEs ? "Guías" : "Guides",
+          item: `${APP_CONFIG.websiteUrl}${backLink}`,
         },
         {
           "@type": "ListItem",
           position: 3,
           name: guide.title,
-          item: url,
+          item: canonicalUrl,
         },
       ],
     },
@@ -110,11 +120,11 @@ export function GuideArticle({ slug }: { slug: string }) {
         <div className="mx-auto flex max-w-3xl flex-col gap-10">
           <header className="flex flex-col gap-5">
             <Link
-              href="/guides"
+              href={backLink}
               className="w-fit text-[12px] font-medium opacity-60 transition-opacity hover:opacity-100"
               style={{ color: "var(--text-secondary)" }}
             >
-              Back to guides
+              {isEs ? "← Volver a guías" : "← Back to guides"}
             </Link>
             <div className="flex flex-wrap items-center gap-3">
               <span
@@ -128,7 +138,7 @@ export function GuideArticle({ slug }: { slug: string }) {
                 {guide.category}
               </span>
               <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-                {guide.readTime} · Updated May 24, 2026
+                {guide.readTime} · {isEs ? "Actualizado el 24 de mayo de 2026" : "Updated May 24, 2026"}
               </span>
             </div>
             <h1
@@ -169,7 +179,7 @@ export function GuideArticle({ slug }: { slug: string }) {
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              FAQs
+              {isEs ? "Preguntas frecuentes" : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={{ borderColor: "var(--border)" }}>
               {guide.faqs.map((faq) => (
@@ -198,23 +208,27 @@ export function GuideArticle({ slug }: { slug: string }) {
               className="text-[11px] font-semibold uppercase tracking-[0.28em]"
               style={{ color: "var(--app-amber)" }}
             >
-              Try LogMyPlate
+              {isEs ? "Prueba LogMyPlate" : "Try LogMyPlate"}
             </p>
             <h2
               className="mt-3 font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              Track a meal from one photo.
+              {isEs ? "Registra una comida a partir de una foto." : "Track a meal from one photo."}
             </h2>
             <p
               className="mt-3 text-[14px] leading-relaxed"
               style={{ color: "var(--text-secondary)" }}
             >
-              Add a short note, review the calorie and macro estimate, then save it to your journal.
+              {isEs
+                ? "Agrega una nota breve, revisa la estimación de calorías y macros, y guárdala en tu diario."
+                : "Add a short note, review the calorie and macro estimate, then save it to your journal."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="guide_sidebar" />
             <p className="mt-4 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              AI estimates are approximate and are not medical advice.
+              {isEs
+                ? "Las estimaciones de IA son aproximadas y no constituyen asesoramiento médico."
+                : "AI estimates are approximate and are not medical advice."}
             </p>
           </div>
         </aside>

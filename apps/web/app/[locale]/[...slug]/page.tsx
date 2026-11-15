@@ -23,6 +23,12 @@ import { FoodArticle, foodMetadata } from "@/app/(en)/calories/food-page";
 import { getFood, foodSlugs } from "@/app/(en)/calories/food-data";
 import { GuideArticle, guideMetadata } from "@/app/(en)/guides/guide-page";
 import { getGuide, guides } from "@/app/(en)/guides/content";
+import {
+  getLocalizedFood,
+  getLocalizedFoods,
+  getLocalizedGuide,
+  getLocalizedGuides,
+} from "@/lib/i18n/data";
 
 interface CatchAllProps {
   params: Promise<{
@@ -146,7 +152,7 @@ export async function generateMetadata({ params }: CatchAllProps): Promise<Metad
     if (p0 === calPrefix) {
       const canonicalFood =
         Object.keys(FOOD_SLUGS).find((k) => FOOD_SLUGS[k][locale] === p1) ?? p1;
-      const food = getFood(canonicalFood);
+      const food = getLocalizedFood(canonicalFood, locale) ?? getFood(canonicalFood);
       if (food) {
         const baseMeta = foodMetadata(food);
         return {
@@ -161,7 +167,7 @@ export async function generateMetadata({ params }: CatchAllProps): Promise<Metad
     if (p0 === guidePrefix) {
       const canonicalGuide =
         Object.keys(GUIDE_SLUGS).find((k) => GUIDE_SLUGS[k][locale] === p1) ?? p1;
-      const guide = getGuide(canonicalGuide);
+      const guide = getLocalizedGuide(canonicalGuide, locale) ?? getGuide(canonicalGuide);
       if (guide) {
         const baseMeta = guideMetadata(guide);
         return {
@@ -207,10 +213,22 @@ export default async function LocalizedCatchAllPage({ params }: CatchAllProps) {
       return <DataDeletionView locale={locale} dict={dict} />;
     }
     if (s === calPrefix) {
-      return <CaloriesIndexView locale={locale} dict={dict} />;
+      return (
+        <CaloriesIndexView
+          locale={locale}
+          dict={dict}
+          foodsList={getLocalizedFoods(locale)}
+        />
+      );
     }
     if (s === guidePrefix) {
-      return <GuidesIndexView locale={locale} dict={dict} />;
+      return (
+        <GuidesIndexView
+          locale={locale}
+          dict={dict}
+          guidesList={getLocalizedGuides(locale)}
+        />
+      );
     }
   }
 
@@ -222,18 +240,18 @@ export default async function LocalizedCatchAllPage({ params }: CatchAllProps) {
     if (p0 === calPrefix) {
       const canonicalFood =
         Object.keys(FOOD_SLUGS).find((k) => FOOD_SLUGS[k][locale] === p1) ?? p1;
-      const food = getFood(canonicalFood);
+      const food = getLocalizedFood(canonicalFood, locale) ?? getFood(canonicalFood);
       if (!food) notFound();
-      return <FoodArticle slug={canonicalFood} />;
+      return <FoodArticle slug={canonicalFood} locale={locale} />;
     }
 
     // Guides detail page
     if (p0 === guidePrefix) {
       const canonicalGuide =
         Object.keys(GUIDE_SLUGS).find((k) => GUIDE_SLUGS[k][locale] === p1) ?? p1;
-      const guide = getGuide(canonicalGuide);
+      const guide = getLocalizedGuide(canonicalGuide, locale) ?? getGuide(canonicalGuide);
       if (!guide) notFound();
-      return <GuideArticle slug={canonicalGuide} />;
+      return <GuideArticle slug={canonicalGuide} locale={locale} />;
     }
   }
 

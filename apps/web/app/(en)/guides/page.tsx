@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { APP_CONFIG } from "@/config/app";
 import { getDictionary } from "@/lib/i18n";
 import { getAlternateMetadata } from "@/lib/i18n/config";
 import { GuidesIndexView } from "@/components/views/guides-index-view";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_CONFIG.websiteUrl),
   title: "Guides and Blog",
   description:
     "Practical LogMyPlate guides for AI calorie tracking, Indian food calories, photo food journals, macro tracking, privacy, and daily calorie targets.",

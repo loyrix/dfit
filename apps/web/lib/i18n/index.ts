@@ -1,10 +1,11 @@
 import type { Locale } from "./config";
 import type { Dictionary } from "./types";
 import { enDictionary } from "./dictionaries/en";
+import { esDictionary } from "./dictionaries/es";
 
 const dictionaries: Record<Locale, () => Dictionary | Promise<Dictionary>> = {
   en: () => enDictionary,
-  es: () => enDictionary, // Will load es dictionary once implemented in Phase 3
+  es: () => esDictionary,
   "pt-br": () => enDictionary, // Will load pt-br dictionary in Phase 3
   de: () => enDictionary, // Will load de dictionary in Phase 3
   fr: () => enDictionary, // Will load fr dictionary in Phase 3
