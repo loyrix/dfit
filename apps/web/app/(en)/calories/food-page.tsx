@@ -49,8 +49,12 @@ export function FoodArticle({
   if (!food) return null;
 
   const isEs = locale === "es";
+  const isPtBr = locale === "pt-br";
   const canonicalUrl = getAlternateMetadata(`calories/${food.slug}`, locale).canonical;
   const backLink = getRelativeLocalizedUrl("calories", locale);
+
+  const homeLabel = isEs ? "Inicio" : isPtBr ? "Início" : "Home";
+  const caloriesLabel = isEs ? "Calorías" : isPtBr ? "Calorias" : "Calories";
 
   const jsonLd = [
     {
@@ -75,13 +79,13 @@ export function FoodArticle({
         {
           "@type": "ListItem",
           position: 1,
-          name: isEs ? "Inicio" : "Home",
+          name: homeLabel,
           item: APP_CONFIG.websiteUrl,
         },
         {
           "@type": "ListItem",
           position: 2,
-          name: isEs ? "Calorías" : "Calories",
+          name: caloriesLabel,
           item: `${APP_CONFIG.websiteUrl}${backLink}`,
         },
         { "@type": "ListItem", position: 3, name: food.name, item: canonicalUrl },
@@ -102,10 +106,14 @@ export function FoodArticle({
 
   const tableHeaders = isEs
     ? ["Porción", "Peso", "Calorías", "Proteína", "Carbohidratos", "Grasa", "Fibra"]
+    : isPtBr
+    ? ["Porção", "Peso", "Calorias", "Proteína", "Carboidratos", "Gordura", "Fibra"]
     : ["Portion", "Weight", "Calories", "Protein", "Carbs", "Fat", "Fibre"];
 
   const compHeaders = isEs
     ? ["", "Calorías", "Proteína", "Fibra"]
+    : isPtBr
+    ? ["", "Calorias", "Proteína", "Fibra"]
     : ["", "Calories", "Protein", "Fibre"];
 
   return (
@@ -122,17 +130,21 @@ export function FoodArticle({
               className="w-fit text-[12px] font-medium opacity-60 transition-opacity hover:opacity-100"
               style={{ color: "var(--text-secondary)" }}
             >
-              {isEs ? "← Todos los alimentos" : "← All foods"}
+              {isEs ? "← Todos los alimentos" : isPtBr ? "← Todos os alimentos" : "← All foods"}
             </Link>
             <h1
               className="font-display text-4xl font-bold leading-tight tracking-tight sm:text-5xl"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? `Calorías en: ${food.name.toLowerCase()}` : `Calories in ${food.name.toLowerCase()}`}
+              {isEs
+                ? `Calorías en: ${food.name.toLowerCase()}`
+                : isPtBr
+                ? `Calorias em: ${food.name.toLowerCase()}`
+                : `Calories in ${food.name.toLowerCase()}`}
             </h1>
             {food.aka.length > 0 && (
               <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-                {isEs ? "También conocido como " : "Also known as "}
+                {isEs ? "También conocido como " : isPtBr ? "Também conhecido como " : "Also known as "}
                 {food.aka.join(", ")}
               </p>
             )}
@@ -153,7 +165,11 @@ export function FoodArticle({
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? `${food.name}: calorías por porción` : `${food.name} calories by portion`}
+              {isEs
+                ? `${food.name}: calorías por porción`
+                : isPtBr
+                ? `${food.name}: calorias por porção`
+                : `${food.name} calories by portion`}
             </h2>
             <div className="overflow-x-auto rounded-[20px] border" style={cellStyle}>
               <table className="w-full min-w-[520px] border-collapse text-[14px]">
@@ -234,6 +250,8 @@ export function FoodArticle({
             <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
               {isEs
                 ? `Por 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g proteína · ${food.per100g.carbs} g carbohidratos · ${food.per100g.fat} g grasa${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibra` : ""}`
+                : isPtBr
+                ? `Por 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g proteína · ${food.per100g.carbs} g carboidratos · ${food.per100g.fat} g gordura${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibra` : ""}`
                 : `Per 100 g: ${food.per100g.calories} cal · ${food.per100g.protein} g protein · ${food.per100g.carbs} g carbs · ${food.per100g.fat} g fat${food.per100g.fiber !== undefined ? ` · ${food.per100g.fiber} g fibre` : ""}`}
             </p>
           </section>
@@ -247,7 +265,11 @@ export function FoodArticle({
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Por qué una sola cifra no es suficiente" : "Why one number isn't enough"}
+              {isEs
+                ? "Por qué una sola cifra no es suficiente"
+                : isPtBr
+                ? "Por que um único valor não é suficiente"
+                : "Why one number isn't enough"}
             </h2>
             <p className="text-[15px] font-medium" style={{ color: "var(--app-amber)" }}>
               {food.observedRange}
@@ -267,7 +289,11 @@ export function FoodArticle({
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Qué modifica realmente la cifra" : "What actually changes the number"}
+              {isEs
+                ? "Qué modifica realmente la cifra"
+                : isPtBr
+                ? "O que realmente altera o valor"
+                : "What actually changes the number"}
             </h2>
             <div className="flex flex-col gap-5">
               {food.whatChangesIt.map((item) => (
@@ -291,7 +317,11 @@ export function FoodArticle({
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Cómo leer los macronutrientes" : "Reading the macros"}
+              {isEs
+                ? "Cómo leer los macronutrientes"
+                : isPtBr
+                ? "Como interpretar os macronutrientes"
+                : "Reading the macros"}
             </h2>
             <div
               className="flex flex-col gap-3 text-[15px] leading-[1.8]"
@@ -412,7 +442,7 @@ export function FoodArticle({
               className="font-display text-xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Alimentos relacionados" : "Related foods"}
+              {isEs ? "Alimentos relacionados" : isPtBr ? "Alimentos relacionados" : "Related foods"}
             </h2>
             <div className="flex flex-wrap gap-2">
               {food.related.map((relatedSlug) => {
@@ -431,6 +461,8 @@ export function FoodArticle({
                   >
                     {isEs
                       ? `Calorías en: ${related.name.toLowerCase()}`
+                      : isPtBr
+                      ? `Calorias em: ${related.name.toLowerCase()}`
                       : `Calories in ${related.name.toLowerCase()}`}
                   </Link>
                 );
@@ -441,6 +473,8 @@ export function FoodArticle({
           <p className="text-[12px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
             {isEs
               ? `Las cifras provienen de la base de datos de alimentos de LogMyPlate y son estimaciones para preparaciones típicas. No constituyen asesoramiento médico. Última actualización: ${foodDataUpdated}.`
+              : isPtBr
+              ? `Os valores provêm do banco de dados de alimentos do LogMyPlate e são estimativas para preparações típicas. Não constituem orientação médica. Última atualização: ${foodDataUpdated}.`
               : `Figures come from the LogMyPlate food database and are estimates for typical preparations. They are not medical advice. Last updated ${foodDataUpdated}.`}
           </p>
         </div>
@@ -454,13 +488,17 @@ export function FoodArticle({
               className="text-[11px] font-semibold uppercase tracking-[0.28em]"
               style={{ color: "var(--app-amber)" }}
             >
-              {isEs ? "Deja de buscarlo" : "Stop looking this up"}
+              {isEs ? "Deja de buscarlo" : isPtBr ? "Chega de pesquisar tabelas" : "Stop looking this up"}
             </p>
             <h2
               className="mt-3 font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Fotografía el plato directamente." : "Photograph the plate instead."}
+              {isEs
+                ? "Fotografía el plato directamente."
+                : isPtBr
+                ? "Fotografe o prato diretamente."
+                : "Photograph the plate instead."}
             </h2>
             <p
               className="mt-3 text-[14px] leading-relaxed"
@@ -468,11 +506,15 @@ export function FoodArticle({
             >
               {isEs
                 ? `LogMyPlate reconoce ${food.name.toLowerCase()} — y todo lo demás en tu plato — a partir de una sola foto, en las porciones que realmente comes.`
+                : isPtBr
+                ? `O LogMyPlate reconhece ${food.name.toLowerCase()} — e tudo o mais no seu prato — a partir de uma única foto, nas porções reais que você consome.`
                 : `LogMyPlate reads ${food.name.toLowerCase()} — and everything else on the plate — from one photo, in the portions you actually eat.`}
             </p>
             <p className="mt-3 text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
               {isEs
                 ? "Cualquier comida. Con soporte para platos de todo el mundo."
+                : isPtBr
+                ? "Qualquer comida. Reconhece pratos do mundo todo."
                 : "Every food. Actually good at Indian."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="food_page_sidebar" />

@@ -44,8 +44,12 @@ export function GuideArticle({
   }
 
   const isEs = locale === "es";
+  const isPtBr = locale === "pt-br";
   const canonicalUrl = getAlternateMetadata(`guides/${guide.slug}`, locale).canonical;
   const backLink = getRelativeLocalizedUrl("guidesIndex", locale);
+
+  const homeLabel = isEs ? "Inicio" : isPtBr ? "Início" : "Home";
+  const guidesLabel = isEs ? "Guías" : isPtBr ? "Guias" : "Guides";
 
   const jsonLd = [
     {
@@ -79,13 +83,13 @@ export function GuideArticle({
         {
           "@type": "ListItem",
           position: 1,
-          name: isEs ? "Inicio" : "Home",
+          name: homeLabel,
           item: APP_CONFIG.websiteUrl,
         },
         {
           "@type": "ListItem",
           position: 2,
-          name: isEs ? "Guías" : "Guides",
+          name: guidesLabel,
           item: `${APP_CONFIG.websiteUrl}${backLink}`,
         },
         {
@@ -124,7 +128,7 @@ export function GuideArticle({
               className="w-fit text-[12px] font-medium opacity-60 transition-opacity hover:opacity-100"
               style={{ color: "var(--text-secondary)" }}
             >
-              {isEs ? "← Volver a guías" : "← Back to guides"}
+              {isEs ? "← Volver a guías" : isPtBr ? "← Voltar para guias" : "← Back to guides"}
             </Link>
             <div className="flex flex-wrap items-center gap-3">
               <span
@@ -138,7 +142,12 @@ export function GuideArticle({
                 {guide.category}
               </span>
               <span className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-                {guide.readTime} · {isEs ? "Actualizado el 24 de mayo de 2026" : "Updated May 24, 2026"}
+                {guide.readTime} ·{" "}
+                {isEs
+                  ? "Actualizado el 24 de mayo de 2026"
+                  : isPtBr
+                  ? "Atualizado em 24 de maio de 2026"
+                  : "Updated May 24, 2026"}
               </span>
             </div>
             <h1
@@ -179,7 +188,7 @@ export function GuideArticle({
               className="font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Preguntas frecuentes" : "FAQs"}
+              {isEs ? "Preguntas frecuentes" : isPtBr ? "Perguntas frequentes" : "FAQs"}
             </h2>
             <div className="mt-5 flex flex-col divide-y" style={{ borderColor: "var(--border)" }}>
               {guide.faqs.map((faq) => (
@@ -208,13 +217,17 @@ export function GuideArticle({
               className="text-[11px] font-semibold uppercase tracking-[0.28em]"
               style={{ color: "var(--app-amber)" }}
             >
-              {isEs ? "Prueba LogMyPlate" : "Try LogMyPlate"}
+              {isEs ? "Prueba LogMyPlate" : isPtBr ? "Experimente o LogMyPlate" : "Try LogMyPlate"}
             </p>
             <h2
               className="mt-3 font-display text-2xl font-semibold tracking-tight"
               style={{ color: "var(--text-primary)" }}
             >
-              {isEs ? "Registra una comida a partir de una foto." : "Track a meal from one photo."}
+              {isEs
+                ? "Registra una comida a partir de una foto."
+                : isPtBr
+                ? "Registre uma refeição a partir de uma foto."
+                : "Track a meal from one photo."}
             </h2>
             <p
               className="mt-3 text-[14px] leading-relaxed"
@@ -222,12 +235,16 @@ export function GuideArticle({
             >
               {isEs
                 ? "Agrega una nota breve, revisa la estimación de calorías y macros, y guárdala en tu diario."
+                : isPtBr
+                ? "Adicione uma nota breve, confira a estimativa de calorias e macros, e salve no seu diário."
                 : "Add a short note, review the calorie and macro estimate, then save it to your journal."}
             </p>
             <DownloadBadges size="sm" className="mt-5" placement="guide_sidebar" />
             <p className="mt-4 text-[11px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
               {isEs
                 ? "Las estimaciones de IA son aproximadas y no constituyen asesoramiento médico."
+                : isPtBr
+                ? "As estimativas por IA são aproximações e não constituem orientação médica."
                 : "AI estimates are approximate and are not medical advice."}
             </p>
           </div>
