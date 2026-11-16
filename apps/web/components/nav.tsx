@@ -4,18 +4,32 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Menu, X } from "lucide-react";
+import { type Locale, CORE_ROUTES } from "@/lib/i18n";
+import type { NavDict } from "@/lib/i18n/types";
 
-const navLinks = [
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "AI Coach", href: "/#ai-nutritionist" },
-  { label: "Guides", href: "/guides" },
-  { label: "Support", href: "/support" },
-];
+interface NavProps {
+  offsetForOffer?: boolean;
+  locale?: Locale;
+  dict?: NavDict;
+}
 
-export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
+export function Nav({ offsetForOffer = false, locale = "en", dict }: NavProps) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const homeHref = locale === "en" ? "/" : `/${locale}`;
+  const guidesHref = locale === "en" ? "/guides" : `/${locale}/${CORE_ROUTES.guidesIndex[locale]}`;
+  const supportHref = locale === "en" ? "/support" : `/${locale}/${CORE_ROUTES.support[locale]}`;
+  const downloadHref = locale === "en" ? "/download" : `/${locale}/${CORE_ROUTES.download[locale]}`;
+
+  const navLinks = [
+    { label: dict?.howItWorks ?? "How it works", href: `${homeHref}#how-it-works` },
+    { label: dict?.aiCoach ?? "AI Coach", href: `${homeHref}#ai-nutritionist` },
+    { label: dict?.guides ?? "Guides", href: guidesHref },
+    { label: dict?.support ?? "Support", href: supportHref },
+  ];
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 24);
@@ -36,7 +50,7 @@ export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
     >
       <div className="max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group" aria-label="LogMyPlate home">
+        <Link href={homeHref} className="flex items-center gap-2.5 group" aria-label={dict?.homeAria ?? "LogMyPlate home"}>
           <Image
             src="/icon.png"
             alt="LogMyPlate icon"
@@ -53,7 +67,7 @@ export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-7" aria-label="Main navigation">
+        <nav className="hidden md:flex items-center gap-7" aria-label={dict?.mainNavAria ?? "Main navigation"}>
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -68,9 +82,10 @@ export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
+          <LanguageSwitcher currentLocale={locale} variant="header" />
           <ThemeToggle />
           <Link
-            href="/download"
+            href={downloadHref}
             id="nav-download-cta"
             className="text-[13px] font-semibold px-4 py-2 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
             style={{
@@ -78,16 +93,17 @@ export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
               color: "#111",
             }}
           >
-            Download
+            {dict?.downloadCta ?? "Download"}
           </Link>
         </div>
 
         {/* Mobile */}
-        <div className="flex md:hidden items-center gap-3">
+        <div className="flex md:hidden items-center gap-2.5">
+          <LanguageSwitcher currentLocale={locale} variant="header" />
           <ThemeToggle />
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-label={menuOpen ? (dict?.closeMenuAria ?? "Close menu") : (dict?.openMenuAria ?? "Open menu")}
             className="w-9 h-9 flex items-center justify-center rounded-full transition-all"
             style={{
               background: "var(--surface-200)",
@@ -121,12 +137,12 @@ export function Nav({ offsetForOffer = false }: { offsetForOffer?: boolean }) {
             </Link>
           ))}
           <Link
-            href="/download"
+            href={downloadHref}
             onClick={() => setMenuOpen(false)}
             className="mt-1 text-[14px] font-semibold text-center px-4 py-2.5 rounded-full"
             style={{ background: "#f5a623", color: "#111" }}
           >
-            Download
+            {dict?.downloadCta ?? "Download"}
           </Link>
         </div>
       )}

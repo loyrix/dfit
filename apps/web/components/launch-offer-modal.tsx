@@ -5,6 +5,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { DownloadBadges } from "@/components/download-badges";
 import { isLaunchOfferActive } from "@/config/app";
+import type { LaunchOfferModalDict } from "@/lib/i18n/types";
 
 // Bump the version suffix to re-show the popup to returning visitors.
 const SEEN_KEY = "lmp_launch_offer_seen_v1";
@@ -14,7 +15,7 @@ const SEEN_KEY = "lmp_launch_offer_seen_v1";
  * the offer is active; auto-disabled after `offerEndDate`. Dismissible via the
  * close button, backdrop click, or Escape.
  */
-export function LaunchOfferModal() {
+export function LaunchOfferModal({ dict }: { dict?: LaunchOfferModalDict }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

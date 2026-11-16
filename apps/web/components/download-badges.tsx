@@ -14,12 +14,17 @@ interface DownloadBadgesProps {
    * actually produce installs rather than just which pages get traffic.
    */
   placement?: string;
+  ariaLabels?: {
+    appStore?: string;
+    googlePlay?: string;
+  };
 }
 
 export function DownloadBadges({
   size = "md",
   className = "",
   placement = "page",
+  ariaLabels,
 }: DownloadBadgesProps) {
   const heights: Record<string, string> = {
     sm: "h-10",
@@ -64,7 +69,7 @@ export function DownloadBadges({
         rel="noopener noreferrer"
         id="badge-app-store"
         onClick={() => handleClick("ios")}
-        aria-label={`Download ${APP_CONFIG.appName} on the App Store`}
+        aria-label={ariaLabels?.appStore ?? `Download ${APP_CONFIG.appName} on the App Store`}
         className={`inline-flex items-center ${h} px-4 rounded-xl font-semibold text-[13px] transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 gap-2.5 select-none`}
         style={{
           background: "#111",
@@ -90,7 +95,7 @@ export function DownloadBadges({
         rel="noopener noreferrer"
         id="badge-google-play"
         onClick={() => handleClick("android")}
-        aria-label={`Get ${APP_CONFIG.appName} on Google Play`}
+        aria-label={ariaLabels?.googlePlay ?? `Get ${APP_CONFIG.appName} on Google Play`}
         className={`inline-flex items-center ${h} px-4 rounded-xl font-semibold text-[13px] transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 gap-2.5 select-none`}
         style={{
           background: "#111",
