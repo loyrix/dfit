@@ -329,16 +329,19 @@ export function getLocalizedUrl(path: string, locale: Locale): string {
   const base = APP_CONFIG.websiteUrl;
   const cleanPath = path.startsWith("/") ? path.slice(1) : path;
 
-  if (locale === "en") {
-    return cleanPath ? `${base}/${cleanPath}` : base;
-  }
-
-  // Handle core routes
+  // Handle core routes (match either route.id or route.en)
   for (const route of Object.values(CORE_ROUTES)) {
-    if (route.en === cleanPath) {
+    if (route.id === cleanPath || route.en === cleanPath) {
+      if (locale === "en") {
+        return route.en ? `${base}/${route.en}` : base;
+      }
       const localizedSegment = route[locale];
       return localizedSegment ? `${base}/${locale}/${localizedSegment}` : `${base}/${locale}`;
     }
+  }
+
+  if (locale === "en") {
+    return cleanPath ? `${base}/${cleanPath}` : base;
   }
 
   // Handle calories/[foodSlug]
@@ -402,7 +405,7 @@ export function resolveMatchingPath(currentPath: string, targetLocale: Locale): 
     // Check core routes
     let matchedCore = false;
     for (const route of Object.values(CORE_ROUTES)) {
-      if (route[currentLocale] === restPath) {
+      if (route[currentLocale] === restPath || (currentLocale === "en" && route.id === restPath)) {
         canonicalPath = route.en;
         matchedCore = true;
         break;
@@ -453,7 +456,7 @@ export function resolveMatchingPath(currentPath: string, targetLocale: Locale): 
   }
 
   for (const route of Object.values(CORE_ROUTES)) {
-    if (route.en === canonicalPath) {
+    if (route.id === canonicalPath || route.en === canonicalPath) {
       const seg = route[targetLocale];
       return seg ? `/${targetLocale}/${seg}` : `/${targetLocale}`;
     }

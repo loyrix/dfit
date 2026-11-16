@@ -105,7 +105,7 @@ export function SupportView({ locale, dict }: SupportViewProps) {
           >
             <p>More resources:</p>
             <Link
-              href={getLocalizedUrl("guidesIndex", locale)}
+              href={getLocalizedUrl("guides", locale)}
               className="underline underline-offset-4 hover:opacity-100 opacity-70"
             >
               Browse meal tracking guides →

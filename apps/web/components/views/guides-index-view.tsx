@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { APP_CONFIG } from "@/config/app";
 import type { Locale } from "@/lib/i18n/config";
-import { getRelativeLocalizedUrl } from "@/lib/i18n/config";
+import { getLocalizedUrl, getRelativeLocalizedUrl } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/types";
 import { type Guide, guides as defaultGuides, guideLastUpdated } from "@/app/(en)/guides/content";
 
@@ -14,10 +14,7 @@ interface GuidesIndexViewProps {
 export function GuidesIndexView({ locale, dict, guidesList }: GuidesIndexViewProps) {
   const t = dict.guidesIndex;
   const allGuides: Guide[] = guidesList ?? defaultGuides;
-  const isEn = locale === "en";
-  const canonicalUrl = isEn
-    ? `${APP_CONFIG.websiteUrl}/guides`
-    : `${APP_CONFIG.websiteUrl}/${locale}/guias`;
+  const canonicalUrl = getLocalizedUrl("guides", locale);
 
   const collectionJsonLd = {
     "@context": "https://schema.org",

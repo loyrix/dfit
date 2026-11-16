@@ -49,7 +49,7 @@ export function GuideArticle({
   const isFr = locale === "fr";
   const isJa = locale === "ja";
   const canonicalUrl = getAlternateMetadata(`guides/${guide.slug}`, locale).canonical;
-  const backLink = getRelativeLocalizedUrl("guidesIndex", locale);
+  const backLink = getRelativeLocalizedUrl("guides", locale);
 
   const homeLabel = isEs
     ? "Inicio"
